@@ -892,7 +892,11 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 				return makeNilErrFull(ctx, "inverse_name", f, nil, "inverse", nil)
 			}
 		}
-		out := newGraphAtom(f.name, invname, nil)
+		d := &declRecord{acyclic: "acyclic" == f.name}
+		if "" != invname {
+			d.inverses = []string{invname}
+		}
+		out := newGraphAtom(d)
 		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out

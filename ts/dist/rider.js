@@ -2,6 +2,8 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bare = bare;
+exports.graphAtomsText = graphAtomsText;
+exports.unionDecls = unionDecls;
 exports.unionRecords = unionRecords;
 exports.unionVia = unionVia;
 exports.recordLayers = recordLayers;
@@ -35,6 +37,16 @@ function unionRecords(records, key) {
 function unionVia(...lists) {
     return [...new Set(lists.flatMap((l) => l ?? []))].sort(keyorder_1.cmpCodePoint);
 }
+function unionDecls(records) {
+    return {
+        acyclic: records.some((d) => true === d?.acyclic),
+        inverses: unionVia(...records.map((d) => d?.inverses)),
+    };
+}
+function graphAtomsText(d) {
+    return [...(d.acyclic ? ['acyclic()'] : []),
+        ...d.inverses.map((k) => 'inverse(' + JSON.stringify(k) + ')')].join('&');
+}
 function rides(v) {
     return null != v?.deprecation || null != v?.meta || null != v?.genrec;
 }
@@ -64,9 +76,14 @@ function sameRec(a, b) {
     return a.genrec === b.genrec ||
         (null != a.genrec && null != b.genrec && a.genrec.canon === b.genrec.canon);
 }
-// A value's riders around its rendering: its output record after it, then
-// the deprecation and annotation records, each as the call that carries it.
+// A value's riders around its rendering: its graph atoms and output record
+// after it, then the deprecation and annotation records, each as the call
+// that carries it. An atom met with nothing is its graph atoms already.
 function riderText(s, v) {
+    if (null != v.reldecl && true !== v.isGraphAtom) {
+        s = (true === v.isDisjunct && 1 < v.peg.length ? '(' + s + ')' : s) +
+            '&' + graphAtomsText(v.reldecl);
+    }
     if (null != v.genrec) {
         const call = 'gen(' + v.genrec.canon + ')';
         s = true === v.isTop ? call : s + '&' + call;
@@ -81,5 +98,5 @@ function riderText(s, v) {
         s = 'meta(' + [s, ...recordLayers(m).map((l) => layerText(l, (x) => x.canon))].join(',') + ')';
     }
     return s;
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 13 */
 //# sourceMappingURL=rider.js.map

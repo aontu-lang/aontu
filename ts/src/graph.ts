@@ -20,6 +20,12 @@ export type Graph = {
   disjunct?: string[]
 }
 
+// What the graph atoms met at one key name declare of its relation.
+export type RelDecl = {
+  acyclic?: boolean
+  inverses: Set<string>
+}
+
 
 const formatPath = (path: string[]): string =>
   0 === path.length ? '$' : '$.' + path.join('.')
@@ -42,9 +48,10 @@ const cut = (at: string[]): { from: string, key: string } => {
 }
 
 
-export function graphOf(root: Val): Graph {
+function walk(root: Val) {
   const edges: Edge[] = []
   const disjunct: string[] = []
+  const decls = new Map<string, RelDecl>()
 
   // ONE WALK, with `undecided` saying which side of ADR-007 it is on:
   // below an unresolved disjunction every link is a position the
@@ -58,6 +65,16 @@ export function graphOf(root: Val): Graph {
     }
 
     hidden = hidden || true === node.mark?.hide
+
+    // A graph atom declares where it is met, as a link is an edge: never
+    // below an unresolved disjunction.
+    const name = path[path.length - 1] ?? ''
+    if (null != node.reldecl && !undecided && PREDICATE_NAME.test(name)) {
+      const d = decls.get(name) ?? { inverses: new Set<string>() }
+      d.acyclic = d.acyclic || node.reldecl.acyclic
+      node.reldecl.inverses.forEach((k: string) => d.inverses.add(k))
+      decls.set(name, d)
+    }
 
     const link = node.link
     if (null != link) {
@@ -74,13 +91,6 @@ export function graphOf(root: Val): Graph {
         }
         edges.push(edge)
       }
-    }
-
-    // A graph atom is TRANSPARENT here (RELATIONS P2): it carries the
-    // field's value at the field's own position, and the graph is about
-    // the value.
-    if (true === node.isGraphAtom && undefined !== node.held) {
-      visit(node.held, path, ancestors, hidden, undecided, under)
     }
 
     if (true === node.isConjunct && Array.isArray(node.peg)) {
@@ -114,11 +124,23 @@ export function graphOf(root: Val): Graph {
   }
 
   visit(root, [], new Set(), false, false, undefined)
+  return { edges, disjunct, decls }
+}
 
+
+export function graphOf(root: Val): Graph {
+  const { edges, disjunct } = walk(root)
   edges.sort((a, b) => cmpCodePoint(a.at, b.at))
 
   if (0 < disjunct.length) {
     return { edges, disjunct: [...new Set(disjunct)].sort(cmpCodePoint) }
   }
   return { edges }
+}
+
+
+// The relation declarations: every graph atom the finished value holds,
+// read by the key it is met at, hidden or not.
+export function declsOf(root: Val): Map<string, RelDecl> {
+  return walk(root).decls
 }

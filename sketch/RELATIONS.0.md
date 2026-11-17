@@ -438,6 +438,18 @@ neighbours).
   (`re("^svc_")` met the whole list and refused it), and a constraint
   meeting a rel or an atom hands the drive over, so `rel(t) & re(x)`
   reads the same in either order.
+
+**2026-11-17: the atoms ride the value** (#816, #750). The first two
+boundaries above are superseded. The held value hid its container's
+members from a path and its address from `+`, so a met atom now hands
+its peer back as it is, and the declaration travels as a rider record
+on the value, unioned by every meet as `meta()` is; neither a held
+value nor a conjunct member is left in the fold. A bare atom stays a
+value of its own, silent at generation. The declarations are read from
+the finished value by the graph walk, keyed by the field each atom is
+met at, in place of the registry the old `unify` filled, so a lone
+atom always declares and one in a refused or undecided alternative
+never does. Canon writes the atoms after the value, `acyclic()` first.
 - **The edge predicate is a D-1 name** in both ports (`fieldkey` and
   `register`): a list index or an out-of-grammar key declares nothing
   and stamps nothing, and the graph falls back to inference — also the

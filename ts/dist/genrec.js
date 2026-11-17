@@ -87,9 +87,9 @@ function genOn(ctx, out, a, b) {
     return genLand(ctx, out, rec);
 }
 // What a value stands for where it holds another: a preference its
-// preferred value, a graph atom the value it rides beside.
+// preferred value.
 function under(v) {
-    return true === v.isPref ? v.peg : true === v.isGraphAtom ? v.held : undefined;
+    return true === v.isPref ? v.peg : undefined;
 }
 // A disjunction holds no record of its own, and a holder is held to its
 // record by the value it holds, whose own record it meets.
@@ -167,8 +167,7 @@ function genCustom(ctx, v, custom, given) {
 }
 genwrite_1.genHooks.custom = genCustom;
 // The record lands on the held value only where it is generated: an
-// override takes it from a preference, and a graph atom shares what it
-// holds with its copies.
+// override takes it from a preference.
 function genHeld(ctx, holder) {
     const lctx = ctx ?? new ctx_1.AontuContext({});
     return genOn(lctx, under(holder).clone(lctx), holder, undefined).gen(ctx);

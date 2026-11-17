@@ -910,9 +910,9 @@ $ echo $?
 
 - Relations are declared **at the field**, by
   [`relate(t)` and the graph atoms](reference-language.md#declared-relations):
-  `acyclic()` and `inverse(name)` register the declaration during
-  unification, and the verb reports the verdict over the finished
-  model's edge set. There is no reserved `relations:` key: a document
+  `acyclic()` and `inverse(name)` ride the value they meet as a
+  declaration, and the verb reads the declarations and the edge set
+  from the finished model. There is no reserved `relations:` key: a document
   that writes one has written ordinary data.
 - **These are not lattice constraints, deliberately.** Both properties
   are global and non-monotone (one more edge makes an acyclic graph

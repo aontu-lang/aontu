@@ -422,14 +422,11 @@ func literalNilMeets(n *NilVal, v Val) bool {
 func genable(v Val) bool {
 	switch v.(type) {
 	case *ScalarVal, *MapVal, *ListVal, *PrefVal, *RefVal,
-		*DisjunctVal, *NilVal, *AbsentVal:
+		*DisjunctVal, *NilVal, *AbsentVal, *GraphAtomVal:
 		return true
 	}
 	if _, _, ok := sizingResidue(v); ok {
 		return true
-	}
-	if ga, ok := v.(*GraphAtomVal); ok {
-		return nil == ga.held || genable(ga.held)
 	}
 	// The recursive residual carries its own generation refusal
 	// (recursion_unexpanded), which names the schema and the site --

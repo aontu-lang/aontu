@@ -77,7 +77,7 @@ func (k *ListKindVal) Unify(peer Val, ctx *Ctx) Val {
 // become one's domain (`integer` in `constraint & integer & min(0)`).
 func constrains(v Val) bool {
 	switch v.(type) {
-	case *ConstraintVal, *PendingLinkVal, *RelateVal, *ScalarKindVal, *EmptyVal, *GraphAtomVal:
+	case *ConstraintVal, *PendingLinkVal, *RelateVal, *ScalarKindVal, *EmptyVal:
 		return true
 	}
 	return false

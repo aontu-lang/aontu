@@ -109,6 +109,18 @@ hcanon-relate-copied-link	hcanon	z: {u: relate() & path($.z)}  s: $.z.u	{"s":rel
 hcanon-relate-copied-member	hcanon	a: {}  b: uses: relate() & {primary: path($.a)}  one: $.b.uses.primary	{"a":{},"b":{"uses":relate()&{"primary":path($.a)}},"one":relate()&path($.a)}
 hcanon-relate-copied-member-anywhere	hcanon	a: {}  b: uses: relate() & {primary: path($.a)}  one: [$.b.uses.primary]  two: $.b.uses.primary | 1  three: *$.b.uses.primary | path  four: acyclic() & $.b.uses.primary	{"a":{},"b":{"uses":relate()&{"primary":path($.a)}},"four":relate()&path($.a)&acyclic(),"one":[relate()&path($.a)],"three":*relate()&path($.a)|path,"two":relate()&path($.a)|1}
 hcanon-relate-closed-list	hcanon	a: next: relate() & close([path($.b)])  b: {}	{"a":{"next":relate()&close([path($.b)])},"b":{}}
+# The graph atoms ride the value they meet and are written after it in
+# one order, so the order they were written in reaches neither the hash
+# form nor the hash; a hide() mark on an atom met with nothing still does.
+hcanon-graph-atoms-one-order	hcanon	a: {}  r: relate() & inverse(back) & acyclic() & [path($.a)]	{"a":{},"r":relate()&[path($.a)]&acyclic()&inverse("back")}
+hash-graph-atoms-acyclic-first	hash	a: {}  r: relate() & acyclic() & inverse(back) & [path($.a)]	aon1-B85MSkxrDAyoxSf2mJR_3i8lXf-4J7_6q6_EGsFSAkk
+hash-graph-atoms-inverse-first	hash	a: {}  r: relate() & inverse(back) & acyclic() & [path($.a)]	aon1-B85MSkxrDAyoxSf2mJR_3i8lXf-4J7_6q6_EGsFSAkk
+hcanon-graph-atom-hidden	hcanon	x: hide(acyclic())	{"x":hide(acyclic())}
+hash-graph-atom-hidden	hash	x: hide(acyclic())	aon1-DYrDo6F6B2y4ViO7n30BHjM2vYyQ53A2EXBvVH8CdXU
+hash-graph-atom-shown	hash	x: acyclic()	aon1-FfoY9BV8UjyqoVPKPW7jmlsHpWG1Kl_RS02HW3zQSUI
+hcanon-graph-atom-on-a-hidden-container	hcanon	x: hide({a: 1} & acyclic())	{"x":hide({"a":1})&acyclic()}
+hash-graph-atom-on-a-hidden-container	hash	x: hide({a: 1} & acyclic())	aon1-CdlDFSkanQP_nwahl6x5GWBwLl72T0vbmTxDHtuDzfE
+hcanon-graph-atom-beside-a-disjunction	hcanon	x: (1 | 2) & acyclic()	{"x":(1|2)&acyclic()}
 #
 # G12 phase 8: meta() records render outermost, after type() and
 # deprecate(), at the root, on disjunction members and in trial

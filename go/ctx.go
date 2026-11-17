@@ -19,7 +19,6 @@ type Ctx struct {
 	cc    int // current fixpoint pass (for late-resolving funcs)
 	trial bool
 	matchRead bool
-	reldecls map[string]*relDecl
 	fixroot Val
 	settle bool
 	vars   map[string]Val // user-provided variables, resolved by $name

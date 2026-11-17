@@ -811,8 +811,7 @@ class ConstraintVal extends FeatureVal {
     // residual is stable and the ladder is total.
     let out: Val
 
-    if (true === (peer as any)?.isRelate
-      || true === (peer as any)?.isGraphAtom) {
+    if (true === (peer as any)?.isRelate) {
       out = (peer as any).unify(this, ctx)
     }
     else if (null != this.pending) {

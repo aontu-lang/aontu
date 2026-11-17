@@ -742,6 +742,14 @@ is FIXED per regime). `jsonschema` `$defs`/`$ref` export remains (the
 rest of P2, now owned by G12 phase 4), and P3,
 subsumption through expansion, landed on 2026-10-10 (above).
 
+**THE GRAPH ATOMS RIDE THE VALUE 2026-11-17** (sketch/RELATIONS.0.md),
+in both ports, fixing #816 and #750: `acyclic()` and `inverse(k)` met
+with a value hand it back, the declaration riding it as a record that
+every meet unions, and the relation checks read the declarations from
+the finished value by the key each atom is met at. The held value, its
+self-drive and the context registry are gone. Pinned by sixteen rows
+in `test/spec/relation.tsv` and nine in `test/spec/hcanon.tsv`.
+
 **RELATIONS P2 LANDED 2026-08-29** (sketch/RELATIONS.0.md), in
 both ports: the graph atoms — `acyclic()` and `inverse(name)`,
 conjoined at the field whose key is the predicate — REGISTER during

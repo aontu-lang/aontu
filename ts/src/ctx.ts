@@ -92,8 +92,6 @@ class AontuContext {
 
   _depth: { n: number }
 
-  _reldecls: Map<string, { acyclic?: boolean, inverses: Set<string> }>
-
   _fixroot: any
 
   budget: {
@@ -151,7 +149,6 @@ class AontuContext {
     this._pathTrie = new Map()
     this._pathidxNext = { n: 1 }  // 0 reserved for the root path
     this._depth = { n: 0 }
-    this._reldecls = new Map()
     this._pathidx = 0
 
     this.manifest = []

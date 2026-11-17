@@ -325,10 +325,11 @@ an acyclic graph cyclic. The lattice guarantee is that more information
 never falsifies what has been observed, so a constraint that could
 answer true and then false is one unification may not hold, and the
 engine must not refuse early. The atoms are therefore **lattice-inert**
-declarations: during unification they only register the predicate and
-ride the field through meets, and the verdict lands at **generation**,
-where the edge set is complete: the same settle point the sizing atoms
-use:
+declarations: during unification they only ride the field's value
+through meets, as `meta()` does, and leave the value unchanged. The
+verdict lands at **generation**, which reads the declarations from the
+finished value, where the edge set is complete: the same settle point
+the sizing atoms use:
 
 ```
 a: { feeds: relate() & acyclic() & [path($.b)] }

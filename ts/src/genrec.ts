@@ -118,9 +118,9 @@ function genOn(ctx: AontuContext, out: any, a: any, b: any): Val {
 
 
 // What a value stands for where it holds another: a preference its
-// preferred value, a graph atom the value it rides beside.
+// preferred value.
 function under(v: any): any {
-  return true === v.isPref ? v.peg : true === v.isGraphAtom ? v.held : undefined
+  return true === v.isPref ? v.peg : undefined
 }
 
 
@@ -218,8 +218,7 @@ genHooks.custom = genCustom
 
 
 // The record lands on the held value only where it is generated: an
-// override takes it from a preference, and a graph atom shares what it
-// holds with its copies.
+// override takes it from a preference.
 function genHeld(ctx: AontuContext | undefined, holder: any): any {
   const lctx = ctx ?? new AontuContext({})
   return genOn(lctx, under(holder).clone(lctx), holder, undefined).gen(ctx as AontuContext)

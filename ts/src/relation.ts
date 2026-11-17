@@ -6,11 +6,10 @@ import { Aontu } from './aontu'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
-import { graphOf } from './graph'
-import type { Edge, Graph } from './graph'
+import { declsOf, graphOf } from './graph'
+import type { Edge, Graph, RelDecl } from './graph'
 import { cmpCodePoint } from './keyorder'
 import { makeNilErr } from './err'
-import type { RelDecl } from './val/GraphAtomVal'
 import { genPlain } from './val/genwrite'
 
 
@@ -170,7 +169,7 @@ export function relationFindings(
 
 
 export function relationErrors(ctx: any, root: any): void {
-  const decls: Map<string, RelDecl> = ctx._reldecls
+  const decls = declsOf(root)
   if (0 === decls.size) {
     return
   }
@@ -179,12 +178,6 @@ export function relationErrors(ctx: any, root: any): void {
     let node: any = root
     const at = f.at.slice(2).split('.')
     for (const seg of at) {
-      // Graph atoms hold the field's value -- possibly nested, one
-      // atom carrying another -- and the path steps through them
-      // exactly as the graph walk does.
-      while (true === node?.isGraphAtom) {
-        node = node.held
-      }
       node = node?.peg?.[seg]
     }
     const nil = makeNilErr(ctx, f.code, node, undefined, 'relate', {
@@ -218,7 +211,7 @@ export function relationCheck(
     }
   }
 
-  const decls: Map<string, RelDecl> = (ctx as any)._reldecls
+  const decls = declsOf(root)
   const counted = true === options.count ? { declared: decls.size } : {}
   if (0 === decls.size) {
     return { verdict: 'pass', findings: [], ...counted }

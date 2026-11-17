@@ -165,13 +165,10 @@ func genOn(ctx *Ctx, out, a, b Val) Val {
 }
 
 // What a value stands for where it holds another: a preference its
-// preferred value, a graph atom the value it rides beside.
+// preferred value.
 func genUnder(v Val) Val {
-	switch h := v.(type) {
-	case *PrefVal:
-		return h.peg
-	case *GraphAtomVal:
-		return h.held
+	if p, ok := v.(*PrefVal); ok {
+		return p.peg
 	}
 	return nil
 }
@@ -305,8 +302,7 @@ func genArms(ctx *Ctx, out *DisjunctVal, rec Val) Val {
 }
 
 // The record lands on the held value only where it is generated: an
-// override takes it from a preference, and a graph atom shares what it
-// holds with its copies.
+// override takes it from a preference.
 func genHeld(ctx *Ctx, holder Val) (any, error) {
 	return heldVal(ctx, holder).Gen(ctx)
 }

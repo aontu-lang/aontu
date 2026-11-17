@@ -600,8 +600,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // Every branch of the ladder assigns, so no initialiser: a
         // residual is stable and the ladder is total.
         let out;
-        if (true === peer?.isRelate
-            || true === peer?.isGraphAtom) {
+        if (true === peer?.isRelate) {
             out = peer.unify(this, ctx);
         }
         else if (null != this.pending) {

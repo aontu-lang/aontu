@@ -9,7 +9,7 @@ $
     ├── Job
     │   ├── cmd string
     │   ├── fedBy relate({"kind":"job"})
-    │   ├── feeds relate({"kind":"job"})&acycli...
+    │   ├── feeds relate({"kind":"job"})
     │   └── kind "job"
     └── JobShape
         └── kind "job"

@@ -164,10 +164,11 @@ func relationFindings(decls map[string]*relDecl, graph Graph) []RelationFinding 
 }
 
 func relationErrors(ctx *Ctx, root Val) error {
-	if nil == ctx || 0 == len(ctx.reldecls) {
+	decls := declsOf(root)
+	if nil == ctx || 0 == len(decls) {
 		return nil
 	}
-	findings := relationFindings(ctx.reldecls, GraphOf(root))
+	findings := relationFindings(decls, GraphOf(root))
 	if 0 == len(findings) {
 		return nil
 	}
@@ -177,16 +178,6 @@ func relationErrors(ctx *Ctx, root Val) error {
 		if 2 < len(f.At) {
 			at = strings.Split(f.At[2:], ".")
 			for _, seg := range at {
-				// Graph atoms hold the field's value -- possibly nested,
-				// one atom carrying another -- and the path steps through
-				// them exactly as the graph walk does.
-				for {
-					ga, ok := node.(*GraphAtomVal)
-					if !ok {
-						break
-					}
-					node = ga.held
-				}
 				switch n := node.(type) {
 				case *MapVal:
 					node = n.peg[seg]
@@ -234,12 +225,13 @@ func (a *Aontu) RelationCheckOpts(
 			Errors: []VetFinding{failureFinding(ctx, a.File, src, root)}}
 	}
 
+	decls := declsOf(root)
 	var declared *int
 	if options.Count {
-		n := len(ctx.reldecls)
+		n := len(decls)
 		declared = &n
 	}
-	if 0 == len(ctx.reldecls) {
+	if 0 == len(decls) {
 		return RelationReport{Verdict: "pass", Declared: declared,
 			Findings: []RelationFinding{}}
 	}
@@ -256,7 +248,7 @@ func (a *Aontu) RelationCheckOpts(
 			Errors: []VetFinding{failureFinding(gctx, a.File, src, root)}}
 	}
 
-	findings := relationFindings(ctx.reldecls, GraphOf(root))
+	findings := relationFindings(decls, GraphOf(root))
 	verdict := "pass"
 	if 0 < len(findings) {
 		verdict = "fail"

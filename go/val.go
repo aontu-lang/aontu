@@ -93,6 +93,8 @@ type Val interface {
 	setViaRec(via []string)
 	identRec() map[string][]Val
 	setIdentRec(rec map[string][]Val)
+	declRec() *declRecord
+	setDeclRec(d *declRecord)
 	readAddr() string
 	setReadAddr(addr string)
 	emitOrig() *emitOrigin
@@ -145,6 +147,8 @@ type base struct {
 	vias []string
 	// ident: a declaration's record (ADR-056, ADR-073), which no copy carries.
 	ident map[string][]Val
+	// decl: the graph atoms met here, which the relation checks read by key name.
+	decl    *declRecord
 	origin  string
 	emitted *emitOrigin
 	link    string
@@ -238,6 +242,8 @@ func (b *base) viaRec() []string                     { return b.vias }
 func (b *base) setViaRec(via []string)               { b.vias = via }
 func (b *base) identRec() map[string][]Val           { return b.ident }
 func (b *base) setIdentRec(rec map[string][]Val)     { b.ident = rec }
+func (b *base) declRec() *declRecord                 { return b.decl }
+func (b *base) setDeclRec(d *declRecord)             { b.decl = d }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }

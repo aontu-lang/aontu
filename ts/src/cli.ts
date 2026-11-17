@@ -2971,9 +2971,9 @@ function runRelations(argv: string[]): number {
     : renderRelationsText(report)
   process.stdout.write(text + '\n')
   // `pass` over NO declarations is the vacuous case, and the engine
-  // knows it exactly: `_reldecls` is empty. The count is asked for
-  // here rather than derived, so the answer costs no second
-  // evaluation.
+  // knows it exactly: the finished value holds no graph atom. The count
+  // is asked for here rather than derived, so the answer costs no
+  // second evaluation.
   if (0 === report.declared) {
     vacuous('this document declares no relations',
       '`pass` means nothing was checked, not that the graph is sound')

@@ -23,6 +23,12 @@ type Graph struct {
 	Disjunct []string `json:"disjunct,omitempty"`
 }
 
+// relDecl is what the graph atoms met at one key name declare (RelDecl in ts/src/graph.ts).
+type relDecl struct {
+	acyclic  bool
+	inverses map[string]bool
+}
+
 func graphPath(path []string) string {
 	if 0 == len(path) {
 		return "$"
@@ -40,9 +46,10 @@ func cutEdge(at []string) (string, string) {
 	return graphPath(at[:i]), at[i]
 }
 
-func GraphOf(root Val) Graph {
+func graphWalk(root Val) ([]Edge, []string, map[string]*relDecl) {
 	edges := []Edge{}
 	disjunct := []string{}
+	decls := map[string]*relDecl{}
 	ancestors := map[Val]bool{}
 
 	// ONE WALK, with `undecided` saying which side of ADR-007 it is on:
@@ -55,6 +62,22 @@ func GraphOf(root Val) Graph {
 		}
 
 		hidden = hidden || node.markedHide()
+
+		// A graph atom declares where it is met, as a link is an edge:
+		// never below an unresolved disjunction.
+		if d := node.declRec(); nil != d && !undecided &&
+			0 < len(path) && predicateNameOK(path[len(path)-1]) {
+			name := path[len(path)-1]
+			rd := decls[name]
+			if nil == rd {
+				rd = &relDecl{inverses: map[string]bool{}}
+				decls[name] = rd
+			}
+			rd.acyclic = rd.acyclic || d.acyclic
+			for _, k := range d.inverses {
+				rd.inverses[k] = true
+			}
+		}
 
 		if link := node.linkAddr(); "" != link && undecided {
 			disjunct = append(disjunct, graphPath(path))
@@ -70,13 +93,6 @@ func GraphOf(root Val) Graph {
 				At:     graphPath(path),
 				Hidden: hidden,
 			})
-		}
-
-		// A graph atom is TRANSPARENT here (RELATIONS P2): it carries
-		// the field's value at the field's own position, and the graph
-		// is about the value.
-		if ga, ok := node.(*GraphAtomVal); ok && nil != ga.held {
-			visit(ga.held, path, hidden, undecided, under)
 		}
 
 		// The field a `relate()` was written at names the relation of the
@@ -123,7 +139,11 @@ func GraphOf(root Val) Graph {
 	}
 
 	visit(root, nil, false, false, nil)
+	return edges, disjunct, decls
+}
 
+func GraphOf(root Val) Graph {
+	edges, disjunct, _ := graphWalk(root)
 	sort.Slice(edges, func(i, j int) bool { return edges[i].At < edges[j].At })
 
 	if 0 < len(disjunct) {
@@ -137,4 +157,10 @@ func GraphOf(root Val) Graph {
 		return Graph{Edges: edges, Disjunct: unique}
 	}
 	return Graph{Edges: edges}
+}
+
+// declsOf reads every graph atom the finished value holds, by the key it is met at.
+func declsOf(root Val) map[string]*relDecl {
+	_, _, decls := graphWalk(root)
+	return decls
 }

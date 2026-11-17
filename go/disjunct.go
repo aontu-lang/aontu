@@ -66,12 +66,14 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	// The peer's annotations ride the result once, not each member, so a
 	// disjunction met with itself is itself.
 	member := peer
-	annotated := nil != peer.metaRec() || nil != peer.deprecRec() || nil != peer.viaRec()
+	annotated := nil != peer.metaRec() || nil != peer.deprecRec() || nil != peer.viaRec() ||
+		nil != peer.declRec()
 	if annotated {
 		if c := clonePath(peer, peer.vpath()); c != peer {
 			c.setMetaRec(nil)
 			c.setDeprecRec(nil)
 			c.setViaRec(nil)
+			c.setDeclRec(nil)
 			member = c
 		}
 	}
@@ -426,7 +428,7 @@ func keepRiders(keep, drop Val, sends bool) Val {
 }
 
 func ridden(v Val) bool {
-	if nil != v.deprecRec() || nil != v.metaRec() || 0 < len(v.linkInfo().flows) {
+	if nil != v.deprecRec() || nil != v.metaRec() || 0 < len(v.linkInfo().flows) || nil != v.declRec() {
 		return true
 	}
 	switch n := v.(type) {

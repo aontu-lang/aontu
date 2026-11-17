@@ -2,6 +2,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.graphOf = graphOf;
+exports.declsOf = declsOf;
 const keyorder_1 = require("./keyorder");
 const formatPath = (path) => 0 === path.length ? '$' : '$.' + path.join('.');
 // Digits-only segments are list indices, which is exactly how the rest
@@ -15,9 +16,10 @@ const cut = (at) => {
         ? { from: formatPath([]), key: '' }
         : { from: formatPath(at.slice(0, i)), key: at[i] };
 };
-function graphOf(root) {
+function walk(root) {
     const edges = [];
     const disjunct = [];
+    const decls = new Map();
     // ONE WALK, with `undecided` saying which side of ADR-007 it is on:
     // below an unresolved disjunction every link is a position the
     // document has not decided, and nothing there is an edge.
@@ -26,6 +28,15 @@ function graphOf(root) {
             return;
         }
         hidden = hidden || true === node.mark?.hide;
+        // A graph atom declares where it is met, as a link is an edge: never
+        // below an unresolved disjunction.
+        const name = path[path.length - 1] ?? '';
+        if (null != node.reldecl && !undecided && PREDICATE_NAME.test(name)) {
+            const d = decls.get(name) ?? { inverses: new Set() };
+            d.acyclic = d.acyclic || node.reldecl.acyclic;
+            node.reldecl.inverses.forEach((k) => d.inverses.add(k));
+            decls.set(name, d);
+        }
         const link = node.link;
         if (null != link) {
             if (undecided) {
@@ -41,12 +52,6 @@ function graphOf(root) {
                 }
                 edges.push(edge);
             }
-        }
-        // A graph atom is TRANSPARENT here (RELATIONS P2): it carries the
-        // field's value at the field's own position, and the graph is about
-        // the value.
-        if (true === node.isGraphAtom && undefined !== node.held) {
-            visit(node.held, path, ancestors, hidden, undecided, under);
         }
         if (true === node.isConjunct && Array.isArray(node.peg)) {
             ancestors.add(node);
@@ -76,10 +81,19 @@ function graphOf(root) {
         }
     };
     visit(root, [], new Set(), false, false, undefined);
+    return { edges, disjunct, decls };
+}
+function graphOf(root) {
+    const { edges, disjunct } = walk(root);
     edges.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.at, b.at));
     if (0 < disjunct.length) {
         return { edges, disjunct: [...new Set(disjunct)].sort(keyorder_1.cmpCodePoint) };
     }
     return { edges };
+}
+// The relation declarations: every graph atom the finished value holds,
+// read by the key it is met at, hidden or not.
+function declsOf(root) {
+    return walk(root).decls;
 }
 //# sourceMappingURL=graph.js.map

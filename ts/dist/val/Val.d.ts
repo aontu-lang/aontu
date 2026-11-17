@@ -1,6 +1,7 @@
 import { inspect } from 'node:util';
 import type { AontuContext } from '../ctx';
 import { Site } from '../site';
+import type { DeclRecord } from '../rider';
 type EmitOrigin = {
     node: string;
     rule: string;
@@ -82,6 +83,7 @@ declare abstract class Val {
     genopts?: Record<string, any>;
     via?: string[];
     identity?: Record<string, any[]>;
+    reldecl?: DeclRecord;
     link?: string;
     linkto?: string[];
     flows?: [string, Val][];

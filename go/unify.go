@@ -105,7 +105,8 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 	if isConjunct(a) || isExpect(a) {
 		return drive(a, b)
 	}
-	if drives(b) {
+	// A graph atom answers from either side, even beside a driver.
+	if drives(b) && !isGraphAtom(a) {
 		return drive(b, a)
 	}
 	// These answer from either side, but a hole in a match matches nothing.
@@ -195,10 +196,6 @@ func linksOf(root Val) []linkSite {
 			}
 		case *PrefVal:
 			visit(v.peg, func(x Val) { v.peg = x }, at, under)
-		case *GraphAtomVal:
-			if nil != v.held {
-				visit(v.held, func(x Val) { v.held = x }, at, under)
-			}
 		}
 	}
 	visit(root, func(Val) {}, nil, nil)
@@ -280,10 +277,6 @@ func rootLinks(root Val) {
 			}
 		case *PrefVal:
 			visit(v.peg, func(x Val) { v.peg = x }, under)
-		case *GraphAtomVal:
-			if nil != v.held {
-				visit(v.held, func(x Val) { v.held = x }, under)
-			}
 		}
 	}
 	visit(root, func(Val) {}, false)

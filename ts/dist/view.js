@@ -3403,7 +3403,7 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
         return splitting
             ? drawTreemapParts(root, o, max, loss) : drawTreemap(root, o, max, loss);
     }
-    const decls = ctx._reldecls;
+    const decls = (0, graph_1.declsOf)(root);
     // An empty relation name is no relation, so both ports read it as
     // "every relation" rather than one that names nothing.
     const relation = options.relation || undefined;

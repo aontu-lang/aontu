@@ -1493,16 +1493,11 @@ describe('coverage3-residual-shapes', () => {
   })
 
 
-  test('constraint-hands-drive-to-relate-and-atom', () => {
+  test('constraint-hands-drive-to-relate', () => {
     const ctx: any = new Aontu().ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
     const con: any = (new Aontu().unify('c: re("^j")') as any).peg.c
     Assert.strictEqual(con.isConstraint, true)
-
-    const atom: any = new GraphAtomVal({ akind: 'acyclic' } as any, ctx)
-    const viaAtom: any = con.unify(atom, ctx)
-    Assert.strictEqual(viaAtom.isGraphAtom, true)
-    Assert.strictEqual(viaAtom.held.isConstraint, true)
 
     const rel: any = (new Aontu().unify('r: relate()') as any).peg.r
     Assert.strictEqual(rel.isRelate, true)
@@ -1514,47 +1509,32 @@ describe('coverage3-residual-shapes', () => {
   test('graph-atom-shape', () => {
     const ctx: any = new Aontu().ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
+    const decl = (acyclic: boolean, inverses: string[]): any =>
+      new GraphAtomVal({ reldecl: { acyclic, inverses } } as any, ctx)
 
-    // Bare atom: DONE at birth, self-drive answers itself.
-    const bare: any = new GraphAtomVal({ akind: 'acyclic' } as any, ctx)
+    // The declaration alone: DONE at birth, silent, and its canon the call.
+    const bare: any = decl(true, [])
     Assert.strictEqual(bare.done, true)
-    Assert.strictEqual(bare.unify(null as any, ctx), bare)
+    Assert.strictEqual(bare.gen(ctx), undefined)
+    Assert.strictEqual(bare.canon, 'acyclic()')
+    Assert.strictEqual(bare.unify(top(), ctx), bare)
 
-    // A held that is already done: the self-drive records DONE in
-    // place and answers the atom.
-    const held: any = new GraphAtomVal({
-      akind: 'inverse', invname: 'q', held: new IntegerVal({ peg: 1 }, ctx),
-    } as any, ctx)
-    held.dc = 0
-    Assert.strictEqual(held.unify(null as any, ctx), held)
-    Assert.strictEqual(held.done, true)
+    // Atoms meet on a fresh value, which the meet's riders fill.
+    const inv: any = decl(false, ['q'])
+    const met: any = bare.unify(inv, ctx)
+    Assert.strictEqual(met.isGraphAtom, true)
+    Assert.notStrictEqual(met, bare)
+    Assert.notStrictEqual(met, inv)
 
-    const broken: any = new GraphAtomVal({
-      akind: 'acyclic', held: new ConjunctVal({
-        peg: [new IntegerVal({ peg: 1 }, ctx), new IntegerVal({ peg: 2 }, ctx)],
-      }, ctx),
-    } as any, ctx)
-    Assert.strictEqual(broken.done, false)
-    Assert.strictEqual(broken.unify(null as any, ctx).isNil, true)
+    // A value is handed back as it is: the atom holds nothing.
+    const seven = new IntegerVal({ peg: 7 }, ctx)
+    Assert.strictEqual(bare.unify(seven, ctx), seven)
 
-    // The clone hook carries the declaration and the held.
-    const c: any = held.clone(ctx)
-    Assert.strictEqual(c.akind, 'inverse')
-    Assert.strictEqual(c.invname, 'q')
-    Assert.strictEqual(c.held, held.held)
+    // The clone carries the declaration.
+    const c: any = inv.clone(ctx)
+    Assert.deepStrictEqual(c.reldecl, { acyclic: false, inverses: ['q'] })
     Assert.strictEqual(c.done, true)
-
-    // Dedup with one side unheld: the held side's value survives.
-    const dup: any = new GraphAtomVal(
-      { akind: 'inverse', invname: 'q' } as any, ctx)
-    const merged: any = held.unify(dup, ctx)
-    Assert.strictEqual(merged.isGraphAtom, true)
-    Assert.strictEqual(merged.held.peg, 1)
-
-    // Absorbing a first value: the atom carries it.
-    const carry: any = bare.unify(new IntegerVal({ peg: 7 }, ctx), ctx)
-    Assert.strictEqual(carry.isGraphAtom, true)
-    Assert.strictEqual(carry.held.peg, 7)
+    Assert.strictEqual(c.canon, 'inverse("q")')
 
     // The funcval make/name hooks, as relate-func-shape pins relate's.
     const afn: any = new AcyclicFuncVal({ peg: [] }, ctx)
@@ -1599,7 +1579,8 @@ describe('coverage3-residual-shapes', () => {
 
     // Anything else -- here a graph atom -- waits beside the
     // residual the same way.
-    const atom: any = new GraphAtomVal({ akind: 'acyclic' } as any, ctx)
+    const atom: any = new GraphAtomVal(
+      { reldecl: { acyclic: true, inverses: [] } } as any, ctx)
     Assert.strictEqual(r.unify(atom, ctx).isConjunct, true)
 
     // bumpRecurse: the guard arms (nothing, a non-val), the conjunct
@@ -1725,23 +1706,16 @@ describe('coverage3-link', () => {
     Assert.strictEqual(holdsLink(new MapVal({ peg: { b: new PathVal({ peg: '$.a' }, ctx) } }, ctx)), false)
   })
 
-  test('links-are-put-back-through-a-meet-and-a-graph-atom', () => {
-    // A link a meet or a graph atom holds as itself is put back there.
+  test('links-are-put-back-through-a-meet', () => {
+    // A link a meet holds as itself is put back there.
     const ctx: any = new Aontu().ctx({ collect: true })
-    const link = (): any => {
-      const l: any = new PathVal({ peg: '$.gone' }, ctx)
-      l.linkto = ['gone']
-      return l
-    }
-    const cj: any = new ConjunctVal({ peg: [link(), new ScalarKindVal({ peg: String }, ctx)] }, ctx)
-    const ga: any = new GraphAtomVal({ akind: 'acyclic', held: link() } as any, ctx)
-    for (const root of [cj, ga]) {
-      const sites = linksOf(root)
-      Assert.strictEqual(sites.length, 1)
-      sites[0].put(new NilVal({ why: 'gone' }, ctx))
-    }
+    const link: any = new PathVal({ peg: '$.gone' }, ctx)
+    link.linkto = ['gone']
+    const cj: any = new ConjunctVal({ peg: [link, new ScalarKindVal({ peg: String }, ctx)] }, ctx)
+    const sites = linksOf(cj)
+    Assert.strictEqual(sites.length, 1)
+    sites[0].put(new NilVal({ why: 'gone' }, ctx))
     Assert.strictEqual(cj.peg[0].isNil, true)
-    Assert.strictEqual(ga.held.isNil, true)
   })
 
   test('a-link-under-no-relate-is-rooted-where-it-stands', () => {
@@ -1752,12 +1726,10 @@ describe('coverage3-link', () => {
       return l
     }
     const cj: any = new ConjunctVal({ peg: [link(), new ScalarKindVal({ peg: String }, ctx)] }, ctx)
-    const ga: any = new GraphAtomVal({ akind: 'acyclic', held: link() } as any, ctx)
     const below: any = new MapVal({ peg: { k: link() } }, ctx)
     below.relroot = true
-    rootLinks(new MapVal({ peg: { cj, ga, below } }, ctx))
+    rootLinks(new MapVal({ peg: { cj, below } }, ctx))
     Assert.strictEqual(cj.peg[0].relroot, true)
-    Assert.strictEqual(ga.held.relroot, true)
     Assert.strictEqual(below.peg.k.relroot, undefined)
     // The document itself is held by nothing, so nothing is put.
     rootLinks(link())

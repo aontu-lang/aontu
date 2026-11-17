@@ -261,24 +261,18 @@ func TestHoldsLinkAlreadySettled(t *testing.T) {
 	}
 }
 
-func TestLinksOfPutsThroughAMeetAndAGraphAtom(t *testing.T) {
-	// A link a meet or a graph atom holds as itself is put back there.
-	link := func() *ScalarVal {
-		l := newPath("$.gone")
-		l.lk.to = []string{"gone"}
-		return l
+func TestLinksOfPutsThroughAMeet(t *testing.T) {
+	// A link a meet holds as itself is put back there.
+	link := newPath("$.gone")
+	link.lk.to = []string{"gone"}
+	cj := newConjunct([]Val{link, newScalarKind(KindString)})
+	sites := linksOf(cj)
+	if 1 != len(sites) {
+		t.Fatalf("expected one link in %s, got %d", cj.Canon(), len(sites))
 	}
-	cj := newConjunct([]Val{link(), newScalarKind(KindString)})
-	ga := newGraphAtom("acyclic", "", link())
-	for _, root := range []Val{cj, ga} {
-		sites := linksOf(root)
-		if 1 != len(sites) {
-			t.Fatalf("expected one link in %s, got %d", root.Canon(), len(sites))
-		}
-		sites[0].put(newNil("gone"))
-	}
-	if !cj.peg[0].Nil() || !ga.held.Nil() {
-		t.Fatal("each link's place should hold what was put there")
+	sites[0].put(newNil("gone"))
+	if !cj.peg[0].Nil() {
+		t.Fatal("the link's place should hold what was put there")
 	}
 }
 
@@ -289,16 +283,14 @@ func TestRootLinksMarksALinkUnderNoRelate(t *testing.T) {
 		return l
 	}
 	cj := newConjunct([]Val{link(), newScalarKind(KindString)})
-	ga := newGraphAtom("acyclic", "", link())
 	below := newMap()
 	below.set("k", link())
 	below.lk.root = true
 	root := newMap()
 	root.set("cj", cj)
-	root.set("ga", ga)
 	root.set("below", below)
 	rootLinks(root)
-	if !cj.peg[0].linkInfo().root || !ga.held.linkInfo().root {
+	if !cj.peg[0].linkInfo().root {
 		t.Fatal("a link under no relate() should be rooted where it stands")
 	}
 	if below.peg["k"].linkInfo().root {
@@ -337,73 +329,50 @@ func TestRecurseGenArms(t *testing.T) {
 
 func TestGraphAtomShape(t *testing.T) {
 	ctx := &Ctx{root: newMap(), collect: true}
+	decl := func(acyclic bool, inverses ...string) *GraphAtomVal {
+		return newGraphAtom(&declRecord{acyclic: acyclic, inverses: inverses})
+	}
 
-	// Bare atom: DONE at birth, self-drive answers itself.
-	bare := newGraphAtom("acyclic", "", nil)
+	// The declaration alone: DONE at birth, silent, and its canon the call.
+	bare := decl(true)
 	if DONE != bare.Dc() {
 		t.Fatalf("bare dc = %d", bare.Dc())
 	}
-	if bare != bare.Unify(nil, ctx) {
-		t.Fatal("bare self-drive must answer itself")
+	if out, err := bare.Gen(ctx); nil != out || nil != err {
+		t.Fatalf("bare gen = %v %v", out, err)
+	}
+	if "acyclic()" != bare.Canon() {
+		t.Fatalf("bare canon = %q", bare.Canon())
+	}
+	if bare != bare.Unify(top(), ctx) {
+		t.Fatal("met with top, the atom is itself")
 	}
 
-	// A held that is already done: the self-drive records DONE in
-	// place and answers the atom.
-	heldAtom := newGraphAtom("inverse", "q", newInteger(1))
-	heldAtom.dc = 0
-	if heldAtom != heldAtom.Unify(nil, ctx) || DONE != heldAtom.dc {
-		t.Fatalf("held-done self-drive: dc = %d", heldAtom.dc)
+	// Atoms meet on a fresh value, which the meet's riders fill.
+	inv := decl(false, "q")
+	met, ok := bare.Unify(inv, ctx).(*GraphAtomVal)
+	if !ok || met == bare || met == inv {
+		t.Fatal("two atoms must meet on a value of their own")
 	}
 
-	broken := newGraphAtom("acyclic", "",
-		newConjunct([]Val{newInteger(1), newInteger(2)}))
-	if out := broken.Unify(nil, ctx); !out.Nil() {
-		t.Fatalf("broken self-drive = %s", out.Canon())
+	// A value is handed back as it is: the atom holds nothing.
+	seven := newInteger(7)
+	if Val(seven) != bare.Unify(seven, ctx) {
+		t.Fatal("a value must be handed back as it is")
 	}
 
-	// The clone arm carries the declaration and the held.
-	c, ok := clonePath(heldAtom, []string{"p"}).(*GraphAtomVal)
-	if !ok || "inverse" != c.akind || "q" != c.invname ||
-		heldAtom.held != c.held || DONE != c.dc {
+	// The clone carries the declaration.
+	c, ok := clonePath(inv, []string{"p"}).(*GraphAtomVal)
+	if !ok || DONE != c.dc || `inverse("q")` != c.Canon() {
 		t.Fatalf("clone = %+v", c)
 	}
 
-	// Dedup with one side unheld: the held side's value survives.
-	dup := newGraphAtom("inverse", "q", nil)
-	merged, ok := heldAtom.Unify(dup, ctx).(*GraphAtomVal)
-	if !ok || nil == merged.held {
-		t.Fatal("dedup dropped the held")
-	}
-
-	// Absorbing a first value: the atom carries it.
-	carry, ok := bare.Unify(newInteger(7), ctx).(*GraphAtomVal)
-	if !ok || nil == carry.held {
-		t.Fatal("absorb did not carry")
-	}
-
-	// Dedup with BOTH sides held: the helds meet; agreeing values
-	// merge, contradicting ones answer the nil.
-	both, ok := carry.Unify(newGraphAtom("acyclic", "", newInteger(7)), ctx).(*GraphAtomVal)
-	if !ok || nil == both.held {
-		t.Fatal("held-held dedup dropped the value")
-	}
-	if out := both.Unify(newGraphAtom("acyclic", "", newInteger(8)), ctx); !out.Nil() {
-		t.Fatalf("contradicting helds must refuse, got %s", out.Canon())
-	}
-
-	// The fold-order slot and superior, as TestRelValShape pins
-	// rel's; canon with and without a held.
+	// The fold-order slot and superior, as TestRelValShape pins rel's.
 	if 46000 != bare.cjo() {
 		t.Fatalf("cjo = %d", bare.cjo())
 	}
 	if !isTop(bare.superior()) {
 		t.Fatal("an atom has no meaningful superior")
-	}
-	if "acyclic()" != bare.Canon() {
-		t.Fatalf("bare canon = %q", bare.Canon())
-	}
-	if c := newGraphAtom("inverse", "q", nil).Canon(); `inverse("q")` != c {
-		t.Fatalf("inverse canon = %q", c)
 	}
 }
 
@@ -434,7 +403,7 @@ func TestRecurseResidualShape(t *testing.T) {
 
 	// Anything else -- here a graph atom -- waits beside the residual
 	// the same way.
-	atom := newGraphAtom("acyclic", "", nil)
+	atom := newGraphAtom(&declRecord{acyclic: true})
 	if _, ok := r.Unify(atom, ctx).(*ConjunctVal); !ok {
 		t.Fatal("a non-structural peer must hold in a conjunct")
 	}

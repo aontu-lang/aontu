@@ -2246,7 +2246,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 			sel.members, sel.selected, as, style, max, loss)
 	}
 
-	decls := ctx.reldecls
+	decls := declsOf(root)
 	// The relation a matrix or a layer figure is drawn over, as the whole
 	// figure picks it; a part is drawn over the same one.
 	picked, _ := viewPickRelation(options.Relation, viewKeys(sel.triples))

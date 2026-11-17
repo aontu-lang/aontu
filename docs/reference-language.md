@@ -4558,8 +4558,16 @@ edge unifies in, and an inverse that is present becomes absent when the
 far side is narrowed. The lattice guarantee is that more information
 never falsifies what has already been observed, so a constraint that
 could be true and then false is not one the lattice may hold. During
-unification the atoms only REGISTER the declaration (the predicate is
-the key they sit on) and ride the field's value; the verdict lands at
+unification the atoms only ride the field's value, as `meta()` does,
+and leave it unchanged: a path into the value, or a `+` over an
+address, reads what it would read without them. Canon writes them
+after the value, `acyclic()` first and then each `inverse()` in name
+order, and writes an atom given twice once. The relation checks read
+the declarations from the finished value, taking the predicate from
+the key where each atom meets the value, so an atom met with nothing
+declares as one met with a relation does, and one in an alternative
+the document refused, or below an unresolved disjunction, declares
+nothing. The verdict lands at
 GENERATION (where no more information can arrive) as a located
 `relation_cycle` or `relation_inverse_missing` at the offending edge,
 exactly as an unmet sizing atom refuses. `aontu relations <file>`

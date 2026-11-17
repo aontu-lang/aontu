@@ -26,7 +26,7 @@ import { FeatureVal } from './FeatureVal'
 function constrains(v: any): boolean {
   return true === v?.isConstraint || true === v?.isPendingLink
     || true === v?.isRelate || true === v?.isScalarKind
-    || true === v?.isEmptyConstraint || true === v?.isGraphAtom
+    || true === v?.isEmptyConstraint
 }
 
 

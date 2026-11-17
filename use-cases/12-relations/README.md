@@ -58,7 +58,6 @@ address lists.
 
 ```
 $
-├── %JobEdge relate({"kind":"job"})
 ├── pipeline
 │   └── jobs
 │       ├── audit (4)
@@ -69,7 +68,7 @@ $
     ├── Job
     │   ├── cmd string
     │   ├── fedBy relate({"kind":"job"})
-    │   ├── feeds relate({"kind":"job"})&acyclic()...
+    │   ├── feeds relate({"kind":"job"})
     │   └── kind "job"
     └── JobShape
         └── kind "job"

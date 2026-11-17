@@ -130,6 +130,9 @@ class Val {
         if (null != this.identity) {
             out.identity = this.identity;
         }
+        if (null != this.reldecl) {
+            out.reldecl = this.reldecl;
+        }
         if (null != this.origin) {
             out.origin = this.origin;
         }

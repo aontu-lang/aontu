@@ -306,9 +306,6 @@ export function sizingResidue(v: any): { con: any, bag: any } | undefined {
 }
 
 export function bagGenable(child: any): boolean {
-  if (true === child.isGraphAtom) {
-    return undefined === child.held || bagGenable(child.held)
-  }
   // The recursive residual carries its own generation refusal
   // (recursion_unexpanded), which names the schema and the site --
   // the bag's generic residue error would bury both.
@@ -323,6 +320,7 @@ export function bagGenable(child: any): boolean {
     || true === child.isRef
     || true === child.isDisjunct
     || true === child.isNil
+    || true === child.isGraphAtom
     || undefined !== sizingResidue(child)
 }
 

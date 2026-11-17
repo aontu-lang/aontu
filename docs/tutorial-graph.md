@@ -232,8 +232,8 @@ spec: hide({
 
 The `feeds?:` line is now the entire relation: checked addresses,
 endpoint type, naming rule, acyclicity, inverse. During unification
-the atoms only *register* the declaration: one more edge can flip
-either property, so the verdict waits for generation, where every
+the atoms only *ride* the value as a declaration: one more edge can
+flip either property, so the verdict waits for generation, where every
 edge is known ([the rule](reference-language.md#declared-relations)).
 And `inverse(fedBy)` checks the mirror rather than writing it for
 you, so the data states both directions, in `pipeline.aontu`:

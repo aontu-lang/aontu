@@ -52,6 +52,9 @@ function ride(out, a, b) {
     if (null != out.identity || null != a?.identity || null != b?.identity) {
         out.identity = (0, rider_1.unionRecords)([out.identity, a?.identity, b?.identity], (v) => v.canon);
     }
+    if (null != out.reldecl || null != a?.reldecl || null != b?.reldecl) {
+        out.reldecl = (0, rider_1.unionDecls)([out.reldecl, a?.reldecl, b?.reldecl]);
+    }
 }
 // The meet's riders go to its result, a top's on a fresh top where they
 // add to its own, since an operand top may be a value written elsewhere.
@@ -95,9 +98,7 @@ function drives(v) {
         || v.isPendingLink
         // An op DRIVES while an operand has not decided (ADR-037).
         || (v.isOp && ((0, PlaceVal_1.waitsOnHole)(v) || v.holdsStaged))
-        // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
-        // beside -- a container, a relate, a scalar -- and none of them know
-        // the atom; the atom knows to residuate.
+        // A graph atom DRIVES: no peer knows it, and it hands each back.
         || v.isGraphAtom
         // The recursive residual DRIVES for the same reason: its peer is the
         // concrete structure it expands against.
@@ -195,7 +196,8 @@ const unite = (ctx, a, b, whence) => {
                 unified = true;
                 why = 'a*';
             }
-            else if (drives(b)) {
+            // A graph atom answers from either side, even beside a driver.
+            else if (drives(b) && true !== a.isGraphAtom) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BW') }) : ctx);
                 unified = true;
                 why = 'bv';
@@ -339,9 +341,6 @@ function linksOf(root) {
         else if (true === node.isPref) {
             visit(node.peg, (v) => { node.peg = v; }, at, under);
         }
-        else if (true === node.isGraphAtom && undefined !== node.held) {
-            visit(node.held, (v) => { node.held = v; }, at, under);
-        }
     };
     visit(root, () => undefined, [], undefined);
     return out;
@@ -399,9 +398,6 @@ function rootLinks(root) {
         }
         else if (true === node.isPref) {
             visit(node.peg, (v) => { node.peg = v; }, under);
-        }
-        else if (true === node.isGraphAtom && undefined !== node.held) {
-            visit(node.held, (v) => { node.held = v; }, under);
         }
     };
     visit(root, () => undefined, false);

@@ -235,9 +235,6 @@ function sizingResidue(v) {
         { con, bag } : undefined;
 }
 function bagGenable(child) {
-    if (true === child.isGraphAtom) {
-        return undefined === child.held || bagGenable(child.held);
-    }
     // The recursive residual carries its own generation refusal
     // (recursion_unexpanded), which names the schema and the site --
     // the bag's generic residue error would bury both.
@@ -252,6 +249,7 @@ function bagGenable(child) {
         || true === child.isRef
         || true === child.isDisjunct
         || true === child.isNil
+        || true === child.isGraphAtom
         || undefined !== sizingResidue(child);
 }
 // A container template waits for a member that has not decided (ADR-043).

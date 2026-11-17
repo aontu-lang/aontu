@@ -11,7 +11,7 @@ const FeatureVal_1 = require("./FeatureVal");
 function constrains(v) {
     return true === v?.isConstraint || true === v?.isPendingLink
         || true === v?.isRelate || true === v?.isScalarKind
-        || true === v?.isEmptyConstraint || true === v?.isGraphAtom;
+        || true === v?.isEmptyConstraint;
 }
 // The type of constraints. It HOLDS the meet of the constraints it has
 // met rather than answering with them, so a concrete value is refused

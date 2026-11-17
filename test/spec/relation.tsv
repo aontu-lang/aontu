@@ -10,7 +10,8 @@
 # The lattice guarantee is that more information never falsifies what
 # has been observed, so a constraint that could be true and then false
 # is not a constraint the lattice may hold. The atoms therefore only
-# REGISTER during unification, and the verdict lands where no more
+# DECLARE: each rides the value it meets, the declarations are read
+# from the finished value, and the verdict lands where no more
 # information can arrive: generation refuses with a located
 # relation_cycle / relation_inverse_missing, and the `relations` verb
 # reports the same findings from the same declarations.
@@ -107,10 +108,43 @@ generation-passes-a-held-declaration	gens	a: {dependsOn: relate() & acyclic() & 
 atoms-are-transparent-at-generation	gens	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {}	{"a":{"dependsOn":["$.b"]},"b":{}}
 bare-atom-is-silent	gens	s: {d?: acyclic()}	{"s":{}}
 # The declarations survive canon and reach the hash: reparsing a canon
-# re-registers what the document declared.
+# declares again what the document declared.
 atom-canon	canon	a: {dependsOn: relate() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & [path($.a)]}	{"a":{"dependsOn":relate()&[path($.b)]&acyclic()&inverse("usedBy")},"b":{"usedBy":relate()&[path($.a)]}}
 inverse-name-refused	errc	d: relate() & inverse(1)	inverse_name
 inverse-name-not-a-name	errc	d: relate() & inverse("a b")	inverse_name
+
+# --- An atom leaves the value as it is --------------------------------
+#
+# A graph atom met with a value hands the value back, the declaration
+# riding it as meta() and deprecate() ride theirs. So a path into a
+# relation the atoms govern names what it names without them (#816),
+# `+` reads an address an atom governs (#750), the atoms are written
+# after the value in one order whatever order they were written in, and
+# an atom written twice is one.
+atom-relation-member-is-a-link-target	gens	p: {}\nr: relate() & acyclic() & {a: path($.p)}\nq: relate() & path($.r.a)	{"p":{},"q":"$.r.a","r":{"a":"$.p"}}
+atom-relation-member-under-inverse	canon	p: {}\nr: relate() & inverse(s) & {a: path($.p)}\nq: relate() & path($.r.a)	{"p":{},"q":relate()&path($.r.a),"r":relate()&{"a":path($.p)}&inverse("s")}
+atom-relation-element-is-a-path-target	gens	p: {}\nr: relate() & acyclic() & [path($.p)]\nq: $.r.0	{"p":{},"q":"$.p","r":["$.p"]}
+atom-map-member-is-a-path-target	gens	r: acyclic() & {a: 1}\nq: $.r.a	{"q":1,"r":{"a":1}}
+atom-address-is-a-plus-operand	gens	a: {}\np: relate() & acyclic() & path($.a)\nx: .p + "/n"	{"a":{},"p":"$.a","x":"$.a/n"}
+atom-address-under-inverse-is-a-plus-operand	canon	a: {}\np: relate() & inverse(q) & path($.a)\nx: .p + "/n"	{"a":{},"p":relate()&path($.a)&inverse("q"),"x":"$.a/n"}
+atom-order-is-not-written-order	canon	a: {}\nr: relate() & inverse(back) & acyclic() & [path($.a)]	{"a":{},"r":relate()&[path($.a)]&acyclic()&inverse("back")}
+atom-twice-is-once	canon	y: inverse(a) & inverse(b) & inverse(a)	{"y":inverse("a")&inverse("b")}
+atom-beside-a-disjunction	canon	x: (1 | 2) & acyclic()\ny: (1 | 2) & acyclic()\ny: 1	{"x":(1|2)&acyclic(),"y":1&acyclic()}
+atom-on-a-hidden-container	canon	x: hide({a: 1} & acyclic())\ny: type([1] & inverse(k))	{"x":{"a":1}&acyclic(),"y":[1]&inverse("k")}
+
+# --- Where a declaration is read --------------------------------------
+#
+# The declarations are read from the finished value, by the key each
+# atom is met at. An atom met with nothing declares as one met with a
+# relation does, hidden or not, however often it is written. One in an
+# alternative the document refused declares nothing, and so does one
+# below an unresolved disjunction, as a link there is no edge.
+lone-atom-declares	relation	rules: {next: acyclic()}\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"next","at":"$.a.next.0","detail":["$.a","$.b","$.a"]}]}
+hidden-relation-declares	relation	rules: hide({next: relate() & acyclic() & []})\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"next","at":"$.a.next.0","detail":["$.a","$.b","$.a"]}]}
+hidden-lone-atom-declares	relation	rules: hide({next: acyclic()})\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"next","at":"$.a.next.0","detail":["$.a","$.b","$.a"]}]}
+lone-atom-refuses-generation	errc	rules: {next: acyclic()}\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	relation_cycle
+refused-alternative-declares-nothing	relation	e: {n: (acyclic() & 1) | "a"}\ne: {n: "a"}\na: {n: relate() & [path($.b)]}\nb: {n: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
+undecided-alternative-declares-nothing	relation	x: {n: acyclic()} | 1\na: {n: relate() & [path($.b)]}\nb: {n: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
 
 # --- relate(t): the target half of the old declaration -------------------
 #
@@ -130,34 +164,32 @@ target-refuses-the-node-the-link-arrives-at	errc	a: {dependsOn: relate({n: 1}) &
 target-that-is-a-scalar-refuses-a-record	errc	a: {dependsOn: relate("x") & [path($.b)]}\nb: {k: 1}	map
 target-reaches-into-a-list-element	gens	a: {dependsOn: relate({n: 1}) & [path($.b.items.0)]}\nb: {items: [{n: 1}]}	{"a":{"dependsOn":["$.b.items.0"]},"b":{"items":[{"n":1}]}}
 target-refuses-a-list-element	errc	a: {dependsOn: relate({n: 1}) & [path($.b.items.0)]}\nb: {items: [{n: 2}]}	scalar_value
-# The atom does not HIDE the value it carries from the bag's
+# The atom does not HIDE the value it rides from the bag's
 # generability rules: an unmet required relate() refuses generation with
 # or without the atom on it.
 atom-does-not-hide-an-unmet-rel	errc	d: relate({kind: q}) & acyclic()	mapval_no_gen
-# The located error steps through NESTED atoms (one carrying another)
-# on its way to the offending edge.
+# The located error reaches the offending edge where several atoms ride
+# one relation.
 generation-locates-through-nested-atoms	errc	a: {dependsOn: relate() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & inverse(usedBy) & [path($.a)]}\na: {dependsOn: relate()}\nb: {usedBy: relate() & [path($.a)]}\na: {usedBy: relate() & [path($.b)]}	relation_cycle
 
 # The SAME declaration twice is one declaration -- restating an atom
-# (a shared schema fragment meeting a local one) merges helds and
-# renders once in canon; a reparse re-registers exactly one.
+# (a shared schema fragment meeting a local one) renders once in canon,
+# and a reparse declares exactly one.
 atom-dedup-acyclic	canon	p: acyclic() & acyclic() & ["x"]	{"p":["x"]&acyclic()}
 atom-dedup-inverse	canon	p: inverse(q) & inverse(q) & ["x"]	{"p":["x"]&inverse("q")}
 
-# A held constraint WITHOUT relate() applies to the value the atom rides
-# on -- the container itself. Only relate()'s rewrite gives a constraint
+# A constraint WITHOUT relate() applies to the value the atom rides on
+# -- the container itself. Only relate()'s rewrite gives a constraint
 # per-leaf address flow; a bare re() meeting a list is an ordinary
-# refusal, in either fold order (the constraint hands the drive to the
-# atom exactly as it hands it to a relate).
+# refusal, in either fold order.
 atom-held-constraint-without-rel	errc	p: re("^j") & acyclic() & ["job_a"]	constraint
 
 # An atom at a LIST position: the last path segment is an index, not a
-# D-1 name, so the atom declares nothing (register's name filter --
-# the parity guard, an index being a number in TS and a string in Go)
-# and simply rides its value.
+# D-1 name, so the atom declares nothing (the walk's name filter) and
+# simply rides its value.
 atom-in-list-position	canon	x: [acyclic() & ["a"]]	{"x":[["a"]&acyclic()]}
 
-# TWO inverse declarations on one predicate: both are registered, both
+# TWO inverse declarations on one predicate: both are declared, both
 # are checked, and one unmirrored edge is flagged once per name --
 # sorted by detail, the report's third tie-breaker.
 two-inverses-one-predicate	relation	ent_a: {links: [path($.ent_b)] & relate() & inverse(back) & inverse(also), back: [], also: []}\nent_b: {back: [], also: []}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","also"]},{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","back"]}]}
@@ -173,11 +205,8 @@ inverse-name-hyphen-lead	errc	d: relate() & inverse("-x")	inverse_name
 inverse-name-upper	errc	d: relate() & inverse(Abc)	mapval_no_gen
 inverse-name-digits-and-hyphen-inside	errc	d: relate() & inverse("a_b-c1")	mapval_no_gen
 
-# A GRAPH ATOM REFINES ITS HELD VALUE IN PLACE across passes. A chain
-# of references takes several passes to settle, so the atom self-drives
-# with a held value that is not done yet -- and it must refine the same
-# object rather than mint a fresh atom per pass, or the enclosing bags
-# re-open every pass and the model never converges.
+# A GRAPH ATOM MET WITH A CHAIN OF REFERENCES. The chain takes several
+# passes to settle, and the declaration rides the value it settles to.
 atom-holds-a-chained-reference	canon	d: acyclic() & $.a\na: $.b\nb: $.c\nc: ["$.q"]\nq: {}	{"a":["$.q"],"b":["$.q"],"c":["$.q"],"d":["$.q"]&acyclic(),"q":{}}
 
 # A constraint on each address goes in the relation's spread (ruling 25),

@@ -425,13 +425,12 @@ Each phase lands in both ports with its rows, codes, coverage and
 documentation, and its row in the progress register if Q9 opens this
 as a gap document.
 
-0. **Blockers.** Close #816 (a graph atom hides its container's
-   members) and #817 (a check under `hide()` never runs), since the
-   checks above are often written hidden; #815 (a cycle's reported
+0. **Blockers.** Close #817 (a check under `hide()` never runs), since
+   the checks above are often written hidden; #815 (a cycle's reported
    edge); #491 (`vet` and relation verdicts); #748 (a trial hides its
-   container's members). On #791, before it merges: a pending link's
-   `canon` is `''`, so a report that prints a relation's member template
-   alone prints nothing.
+   container's members). #816 (a graph atom hid its container's
+   members) is fixed on #791, where the atoms ride the value, as is a
+   report that printed a relation's member template as nothing.
 1. **Rule S** (D-1, D-13). The stages in the definition, with
    `stage_cycle`; the ports' existing staged reads moved onto it;
    #818's documents refused as the definition refuses them.
@@ -500,7 +499,7 @@ ruling followed the recommendation.
 
 | Issue | What it blocks |
 |---|---|
-| #816 | reads through a relation that carries `acyclic()` or `inverse()` |
+| #816 | fixed on #791: reads through a relation that carries `acyclic()` or `inverse()` |
 | #817 | any check written under `hide()` |
 | #818 | the ruling rule S gives |
 | #819 | `implies` over relations, and backward `breaking` over a machine |
@@ -509,6 +508,6 @@ ruling followed the recommendation.
 | #748 | sizes and trials beside a container's members |
 | #661, #754 | relative paths in a template, which the model's checks use |
 | #691 | a spread that reads what it supplies |
-| #750 | `+` over an address a graph atom governs |
+| #750 | fixed on #791: `+` over an address a graph atom governs |
 | #777 | ruled 2026-11-17: a relation's range checks its target, judged once the target has settled, and writes nothing into it |
 | #457, #327 | the text and site of a refusal inside a call, which every check reports through |

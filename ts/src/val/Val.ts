@@ -9,6 +9,7 @@ import {
 } from '../site'
 
 import { FROM_SPREAD, INNER_OF, WRITTEN } from '../provenance'
+import type { DeclRecord } from '../rider'
 
 
 // THE DISPATCH RECORD (RENDER.0.md D11, P7): the address of the node
@@ -155,6 +156,9 @@ abstract class Val {
   // A declaration's record (ADR-056, ADR-073), which no copy carries.
   identity?: Record<string, any[]>
 
+  // The graph atoms met here, which the relation checks read by key name.
+  reldecl?: DeclRecord
+
   link?: string
   // A link's target path, and each template with the target it meets.
   linkto?: string[]
@@ -300,6 +304,9 @@ abstract class Val {
     }
     if (null != this.identity) {
       out.identity = this.identity
+    }
+    if (null != this.reldecl) {
+      out.reldecl = this.reldecl
     }
 
     if (null != this.origin) {

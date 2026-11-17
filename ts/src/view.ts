@@ -7,8 +7,8 @@ import { Aontu } from './aontu'
 import { failureFinding, engineFinding, anchorAt, throughResidue } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
-import { graphOf } from './graph'
-import type { Graph } from './graph'
+import { declsOf, graphOf } from './graph'
+import type { Graph, RelDecl } from './graph'
 import { cmpCodePoint } from './keyorder'
 import { genPlain } from './val/genwrite'
 import { Provenance } from './provenance'
@@ -344,7 +344,7 @@ function lineBreakFinding(path: string): VetFinding {
 // many positions wrote it.
 type Triple = { from: string, key: string, to: string }
 
-type RelDecls = Map<string, { acyclic?: boolean, inverses: Set<string> }>
+type RelDecls = Map<string, RelDecl>
 
 
 // A prefix test on PATHS, not strings: `$.a` covers `$.a.b` and `$.a`
@@ -4445,7 +4445,7 @@ function drawLoaded(
       ? drawTreemapParts(root, o, max, loss) : drawTreemap(root, o, max, loss)
   }
 
-  const decls: RelDecls = ctx._reldecls
+  const decls = declsOf(root)
   // An empty relation name is no relation, so both ports read it as
   // "every relation" rather than one that names nothing.
   const relation = options.relation || undefined

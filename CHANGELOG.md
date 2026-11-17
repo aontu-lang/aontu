@@ -153,6 +153,40 @@ The definition, shared rows and the register. No engine changes.
   definition reads alike. Both ports answer three ways (#778), so
   fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 408.
 
+### A graph atom leaves the value as it is (#816, #750)
+
+Both engines and shared rows. A fix, with changes a document can see in
+its canon, its hash and its relation verdicts.
+
+- **`acyclic()` and `inverse(k)` ride the value they meet**, as
+  `meta()` and `deprecate()` do, where before they held it. A path into
+  a relation an atom governs names what it names without the atom
+  (#816): beside `r: relate() & acyclic() & {a: path($.p)}`,
+  `relate() & path($.r.a)` is a link to `$.r.a`, where it was
+  `rel_unresolved`, and `$.r.a` reads `path($.p)`, where it was
+  `no_path`. `+` reads an address an atom governs (#750): beside
+  `p: relate() & acyclic() & path($.a)`, `.p + "/n"` is `"$.a/n"`, where
+  it generated nothing. JSON Schema export writes such a relation as
+  the list or map it is, where it admitted anything.
+- **Canon writes the atoms after the value in one order**: `acyclic()`
+  first, then each `inverse()` in name order, and an atom written twice
+  once. A document that wrote `inverse()` before `acyclic()` has a new
+  canon and hash, the ones the other order has (ADR-081). A disjunction
+  an atom rides is written in parentheses, `(1|2)&acyclic()`.
+- **The declarations are read from the finished value**, by the key
+  each atom is met at. An atom met with nothing, as in
+  `rules: {next: acyclic()}`, declares as one met with a relation does;
+  before, it declared only once something met it, so writing it twice
+  declared and writing it once did not. One in an alternative the
+  document refused declares nothing, where before it declared, and one
+  below an unresolved disjunction declares nothing, as a link there is
+  no edge.
+- Pinned by sixteen rows from `atom-relation-member-is-a-link-target`
+  to `undecided-alternative-declares-nothing` in
+  `test/spec/relation.tsv`, and nine from
+  `hcanon-graph-atoms-one-order` to
+  `hcanon-graph-atom-beside-a-disjunction` in `test/spec/hcanon.tsv`.
+
 ### `relate` is the one link function: `refer` is removed and `rel` renamed
 
 Both engines, the definition, and shared rows. A breaking change to the
