@@ -3185,6 +3185,24 @@ nl182	verdict	"v": min(*(nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"partia
 nl183	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error"}
 nl184	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
 nl185	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl186	verdict	"v"?: max(nil)	{}	{"verdict":"valid"}
+nl187	verdict	"v"?: max(nil)	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl188	verdict	"v"?: max(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl189	verdict	"v"?: len(nil)	{}	{"verdict":"valid"}
+nl190	verdict	"v"?: len(nil)	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl191	verdict	"v"?: len(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl192	verdict	"v"?: must(nil, "m")	{}	{"verdict":"valid"}
+nl193	verdict	"v"?: must(nil, "m")	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl194	verdict	"v"?: must(nil, "m")	{}	{"verdict":"valid","opts":{"partial":true}}
+nl195	verdict	"v": len(nil)	{}	{"verdict":"incomplete"}
+nl196	verdict	"v": len(nil)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl197	verdict	"v": len(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl198	verdict	"v"?: neq([nil, 2])	{}	{"verdict":"valid"}
+nl199	verdict	"v"?: neq([nil, 2])	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl200	verdict	"v"?: neq([nil, 2])	{}	{"verdict":"valid","opts":{"partial":true}}
+nl201	verdict	"v"?: must(min(nil), "m")	{}	{"verdict":"valid"}
+nl202	verdict	"v"?: must(min(nil), "m")	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl203	verdict	"v"?: must(min(nil), "m")	{}	{"verdict":"valid","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}

@@ -3872,7 +3872,9 @@ where the meet is dead; and a bound over a conflict, still an error. A
 disjunction a written `nil` leaves with one arm is that arm under a
 bound, as a size reads it (ruling 55): either way round, met with a
 value, in `neq` and in its list, through a path, at an optional key and
-preferred; and `nil | nil`, which leaves none, is still an error. -/
+preferred; and `nil | nil`, which leaves none, is still an error.
+Last, a bound, a size or a trial over it that no data meets: absent at
+an optional key, and waiting at a required one. -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
@@ -3943,7 +3945,13 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], m [("a", .or [(0, nl), (0, int 1)]), ("v", bnd .min [.path [.key "a"]])], dm [("v", j 1)]),
     ([], mo [("v", true, bnd .min [.or [(0, nl), (0, int 1)]])], dm []),
     ([], m [("v", bnd .min [.or [(1, nl), (0, int 1)]])], dm [("v", j 1)]),
-    ([], m [("v", bnd .min [.or [(0, nl), (0, nl)]])], dm [("v", j 1)])]
+    ([], m [("v", bnd .min [.or [(0, nl), (0, nl)]])], dm [("v", j 1)]),
+    ([], mo [("v", true, bnd .max [nl])], dm []),
+    ([], mo [("v", true, .len nl)], dm []),
+    ([], mo [("v", true, .must nl "m")], dm []),
+    ([], m [("v", .len nl)], dm []),
+    ([], mo [("v", true, bnd .neq [.list [nl, int 2] none false])], dm []),
+    ([], mo [("v", true, .must (bnd .min [nl]) "m")], dm [])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

@@ -88,6 +88,11 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     for (const c of trialSchemas(v)) {
       walked.add(c)
     }
+    // A built constraint reads its own arguments: walk what its musts check, as Go does.
+    if (true === v.isConstraint && null == v.pending && Array.isArray(v.peg)) {
+      const checked = new Set((v.musts ?? []).map((m: any) => m.v))
+      v.peg.filter((a: any) => !checked.has(a)).forEach((a: any) => walked.add(a))
+    }
     // A standing preference's override space only says what may still
     // replace it, so an empty one is no finding.
     if (true === v.isPref && null != v.superpeg) {
