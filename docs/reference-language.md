@@ -5818,8 +5818,10 @@ These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Su
   template's or any value, so the walk compares the general key
   against that: `{x?: integer}` subsumes `{&: integer}` and
   `close({})`, but not an open `{}` or `{y: 1}`, which admit
-  `{x: "a"}`. The specific side making a general optional key required
-  merely narrows, which is compatible.
+  `{x: "a"}`. So close a map that may gain optional keys later:
+  `breaking` and the publish gate read an optional key added to an
+  open map as breaking. The specific side making a
+  general optional key required merely narrows, which is compatible.
 - A **closed** general bag (`close(…)`) requires the specific side to
   be closed and inside its declared key set; an open specific side, or
   a surplus key, is `compat_narrowed`.

@@ -16,9 +16,13 @@ Both engines and shared rows.
   side doesn't, an open specific side admits a value there, its spread
   template's or any value, and the general key must admit it.
   `a: {x?: integer}` no longer subsumes `a: {}` or `a: {y: 1}`, which
-  admit `{"x": "a"}`, so `breaking` reports an optional key added to
-  an open map as breaking. A closed specific side, and a spread the
-  key admits, as in `a: {&: integer}`, still subsume.
+  admit `{"x": "a"}`, so `breaking` and the publish gate report an
+  optional key added to an open map as breaking. A closed specific
+  side, and a spread the key admits, as in `a: {&: integer}`, still
+  subsume: to add an optional key compatibly, close the map it lands
+  in.
+- The package tutorial and the publish how-to close their schemas, so
+  each next version they publish adds its optional key compatibly.
 - The `gen` profile's message for marks that differ reads
   `{"type":false,"hide":false}` for a side with no marks in
   TypeScript, as in Go, where it read `undefined`.

@@ -232,8 +232,9 @@ func TestPackageVerbsRoundTrip(t *testing.T) {
 
 func TestPackageVerbsRenderEveryLine(t *testing.T) {
 	c := newNetCLI(t)
-	c.publish(c.publisher("common", "1.0.0", "x: 1\n", ""))
-	c.publish(c.publisher("common", "1.1.0", "x: 1\ny?: integer\n", ""))
+	common := "x: 1\nlimits: close({y?: integer})\n"
+	c.publish(c.publisher("common", "1.0.0", "x: 1\nlimits: close({})\n", ""))
+	c.publish(c.publisher("common", "1.1.0", common, ""))
 	dep := c.publisher("service", "1.0.0", "@\"corp.example/common\"\nname: string\n",
 		"dep: {\"corp.example/common\": {v: \"1.0.0\"}}\nrepo: {base: [\"http://127.0.0.1\"], trust: {\"corp.example/*\": {signer: \""+c.keyID+"\", inclusion: none}}}\n")
 	if _, errw, code := c.run("sync", dep); 0 != code {
@@ -288,19 +289,19 @@ func TestPackageVerbsRenderEveryLine(t *testing.T) {
 		t.Fatal(out)
 	}
 	wantMatch(t, out, `refused: version_exists: corp.example/common 1.1.0 was published before`)
-	out, _, code = c.publish(c.publisher("common", "1.2.0", "x: 1\nz: string\n", ""))
+	out, _, code = c.publish(c.publisher("common", "1.2.0", common+"z: string\n", ""))
 	if 1 != code {
 		t.Fatal(out)
 	}
 	wantMatch(t, out, `^verdict: breaking\n`)
 	wantMatch(t, out, `\$.z: the general value requires this key`)
-	out, _, code = c.run("publish", "--yes", "--key", c.key, c.publisher("common", "1.2.0", "x: 1\n", ""))
+	out, _, code = c.run("publish", "--yes", "--key", c.key, c.publisher("common", "1.2.0", common, ""))
 	if 1 != code {
 		t.Fatal(out)
 	}
 	wantMatch(t, out, `\nwrite: https://publish.aontu.dev/v1/publish\nrefused: not_public: `)
 	out, _, code = c.run("publish", "--yes", "--key", c.key, "--write", "http://127.0.0.1:1",
-		c.publisher("common", "1.3.0", "x: 1\n", ""))
+		c.publisher("common", "1.3.0", common, ""))
 	if 1 != code {
 		t.Fatal(out)
 	}

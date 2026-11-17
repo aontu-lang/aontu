@@ -3991,9 +3991,9 @@ theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val
 
 Its rows found a false negative in both engines: `{&: integer}` is
 above `close({"x": integer})`, whose only instances are maps holding
-one integer under `x`, and both engines answer `does_not_subsume`,
-comparing the sealed side's missing spread as `any`. Those rows sit in
-the ledger with the engines as the side that moves.
+one integer under `x`, and both engines answered `does_not_subsume`,
+comparing the sealed side's missing spread as `any`, until #384 moved
+them.
 
 The constraints have a table of their own in the reference, and its
 rows are theorems too: an interval is below another that contains it,
@@ -6715,11 +6715,13 @@ refutes a pair with one instance. The tenth fragment,
 `test/spec/def-subsume-docs.tsv`, compares twenty documents pairwise,
 a recursive list of nodes, its unrolling, the plain nodes and two names
 recursive through each other among them, and both engines answer as the
-contract allows but for nine rows: a recursive general side with an
-optional key against an open specific side, where both answer
-`subsumes` and `{"n": 1, "next": 5}`, or `{"b": 5}` for the mutual
-recursion, is an instance of the specific side alone, the same cause as
-the false positive above.
+contract allows. Nine rows held them apart until 2026-11-17: a
+recursive general side with an optional key against an open specific
+side, where both answered `subsumes`, though `{"n": 1, "next": 5}`, or
+`{"b": 5}` for the mutual recursion, is an instance of the specific
+side alone. An open side admits any value at a key it doesn't declare,
+so since #377 both engines hold the general key to the open side's
+spread template, or to `any` where it has none.
 
 ## 19. The forms the importer writes
 
