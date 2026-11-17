@@ -1410,3 +1410,9 @@ make the recommended implementation chanbge
 ```text
 is the pr ready to merge?
 ```
+
+## 2026-11-17 19:44:19 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+file the form rename as an issue; resolve the conflicts and review items
+```
