@@ -203,6 +203,11 @@ class PendingLinkVal extends FeatureVal {
   get canon() {
     return null == this.held ? '' : this.held.canon
   }
+
+  get call(): string {
+    return 'relate(' + (true === this.tval.isTop ? '' : this.tval.canon) + ')' +
+      (null == this.held ? '' : '&' + this.held.canon)
+  }
 }
 
 

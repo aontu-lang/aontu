@@ -190,6 +190,20 @@ func (r *PendingLinkVal) Canon() string {
 	return r.held.Canon()
 }
 
+// call is the link read on its own, apart from the container that writes
+// its call.
+func (r *PendingLinkVal) call() string {
+	t := ""
+	if nil != r.tval && !isTop(r.tval) {
+		t = r.tval.Canon()
+	}
+	out := "relate(" + t + ")"
+	if nil != r.held {
+		out += "&" + r.held.Canon()
+	}
+	return out
+}
+
 func (r *PendingLinkVal) Gen(ctx *Ctx) (any, error) {
 	return nil, nil
 }
@@ -254,7 +268,7 @@ func (r *PendingLinkVal) Unify(peer Val, ctx *Ctx) Val {
 		addr, _ := parseAddress(str)
 		out := r.reshape()
 		out.addr, out.addrsrc = &addr, str
-		out.site.sp, out.site.spu, out.site.url = sv.site.sp, sv.site.spu, sv.site.url
+		out.site = sv.site
 		return out.settle(ctx, peer)
 	}
 
@@ -414,6 +428,8 @@ func (r *PendingLinkVal) settle(ctx *Ctx, site Val) Val {
 	out.setLinkAddr(link)
 	out.lk = li
 	out.site.sp, out.site.spu, out.site.url = site.pos(), site.posu(), site.srcurl()
+	out.setSrctext(site.srctext())
+	out.setVia(site.via())
 	if nil == r.held {
 		return out
 	}
@@ -459,7 +475,7 @@ func (r *RelateVal) leafLink(at []string, root bool) *PendingLinkVal {
 	lv := newPendingLink(r.tval)
 	lv.root = root
 	lv.from = r
-	lv.site.sp, lv.site.spu, lv.site.url = r.site.sp, r.site.spu, r.site.url
+	lv.site = r.site
 	lv.path = cp(at)
 	return lv
 }
@@ -604,7 +620,7 @@ func (r *RelateVal) Unify(peer Val, ctx *Ctx) Val {
 			out.held = unite(ctx, r.held, pr.held)
 		}
 		copyMarks(out, r)
-		out.site.sp, out.site.spu, out.site.url = r.site.sp, r.site.spu, r.site.url
+		out.site = r.site
 		out.path = cp(r.path)
 		return out
 	}
@@ -646,7 +662,7 @@ func (r *RelateVal) Unify(peer Val, ctx *Ctx) Val {
 		out.held = unite(ctx, r.held, peer)
 	}
 	copyMarks(out, r)
-	out.site.sp, out.site.spu, out.site.url = r.site.sp, r.site.spu, r.site.url
+	out.site = r.site
 	out.path = cp(r.path)
 	return out
 }

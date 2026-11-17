@@ -11,8 +11,9 @@ import (
 )
 
 type hcanonMarks struct {
-	mtype bool
-	mhide bool
+	mtype    bool
+	mhide    bool
+	identity bool
 }
 
 func hcanonRender(v Val, inh hcanonMarks) string {
@@ -23,8 +24,9 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 	mtype := v.markedType()
 	mhide := v.markedHide()
 	inner := hcanonMarks{
-		mtype: inh.mtype || mtype,
-		mhide: inh.mhide || mhide,
+		mtype:    inh.mtype || mtype,
+		mhide:    inh.mhide || mhide,
+		identity: inh.identity,
 	}
 
 	var s string
@@ -89,6 +91,14 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 		} else {
 			s = v.Canon()
 		}
+	// A relation's template has no text of its own, its container writing
+	// the `relate()`; identity reads it apart from the container, as its call.
+	case *PendingLinkVal:
+		if inh.identity {
+			s = b.call()
+		} else {
+			s = v.Canon()
+		}
 	default:
 		s = v.Canon()
 	}
@@ -136,6 +146,11 @@ func hcanonJunction(members []Val, sym string, inner hcanonMarks) string {
 // ts/src/hcanon.ts.
 func Hcanon(v Val) string {
 	return hcanonRender(v, hcanonMarks{})
+}
+
+// hcanonIdentity mirrors hcanon(v, true) in ts/src/hcanon.ts.
+func hcanonIdentity(v Val) string {
+	return hcanonRender(v, hcanonMarks{identity: true})
 }
 
 func CanonHash(v Val) string {

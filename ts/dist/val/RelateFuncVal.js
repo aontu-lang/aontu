@@ -152,6 +152,10 @@ class PendingLinkVal extends FeatureVal_1.FeatureVal {
     get canon() {
         return null == this.held ? '' : this.held.canon;
     }
+    get call() {
+        return 'relate(' + (true === this.tval.isTop ? '' : this.tval.canon) + ')' +
+            (null == this.held ? '' : '&' + this.held.canon);
+    }
 }
 exports.PendingLinkVal = PendingLinkVal;
 // A spread that holds addresses alone, which a leaf's link can join, an

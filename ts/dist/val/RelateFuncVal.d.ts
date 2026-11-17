@@ -24,6 +24,7 @@ declare class PendingLinkVal extends FeatureVal {
     with(ctx: AontuContext, spec: any, site: Val): Val;
     settle(ctx: AontuContext, site: Val): Val;
     get canon(): string;
+    get call(): string;
 }
 declare class RelateVal extends FeatureVal {
     isRelate: boolean;

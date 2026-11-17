@@ -175,6 +175,15 @@ language.
   is `aontu --canon` at the root again, and its types view gives a
   relation's shape, `[path]`, where it had printed `[&:refer(),path]`.
   Six rows from `query-relation-canon` on in `test/spec/query.tsv`.
+- **`subsume` and `breaking` name a relation's template by its call.** A
+  finding at a member that a relation's template governs writes the
+  template as `relate()`, or `relate(t)`, with whatever the template
+  holds beside it, in its expected value and at its general site. Two
+  relations whose templates differ are never read as one value. Go's
+  site for a link or a relation's template gives its source text and
+  length, as TypeScript's does, where Go had given an empty text and
+  `-1`. Six rows from `relation-member-template-writes-its-call` on in
+  `test/spec/subsume.tsv`.
 - **An edge's relation is the key of the field `relate()` is written
   on**, read from the marks canon writes. A link a reference copies to
   another field is a link there, named by that field's key. The engines

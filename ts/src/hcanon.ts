@@ -13,6 +13,7 @@ import { relateText } from './val/PathVal'
 type HMarks = {
   type: boolean
   hide: boolean
+  identity: boolean
 }
 
 
@@ -26,6 +27,7 @@ function render(v: any, inh: HMarks): string {
   const inner: HMarks = {
     type: inh.type || mtype,
     hide: inh.hide || mhide,
+    identity: inh.identity,
   }
 
   let s: string
@@ -63,6 +65,12 @@ function render(v: any, inh: HMarks): string {
   }
   else if (true === v.isRef && undefined !== v.expansion) {
     s = render(v.expansion, inner)
+  }
+  // A relation's member template has no text of its own, since its
+  // container writes the `relate()`. Identity compares values apart from
+  // their containers, so there the template is its call.
+  else if (true === v.isPendingLink && inh.identity) {
+    s = v.call
   }
   else {
     s = v.canon
@@ -104,8 +112,8 @@ function junctionText(v: any, sym: string, inner: HMarks): string {
 // The hash form of an EVALUATED Val (unify first; parse-level canon
 // parenthesisation differs between the ports and is excluded by
 // construction — AGENTS.md).
-export function hcanon(v: Val): string {
-  return render(v, { type: false, hide: false })
+export function hcanon(v: Val, identity = false): string {
+  return render(v, { type: false, hide: false, identity })
 }
 
 

@@ -16,6 +16,7 @@ function render(v, inh) {
     const inner = {
         type: inh.type || mtype,
         hide: inh.hide || mhide,
+        identity: inh.identity,
     };
     let s;
     if (true === v.isMap) {
@@ -52,6 +53,12 @@ function render(v, inh) {
     else if (true === v.isRef && undefined !== v.expansion) {
         s = render(v.expansion, inner);
     }
+    // A relation's member template has no text of its own, since its
+    // container writes the `relate()`. Identity compares values apart from
+    // their containers, so there the template is its call.
+    else if (true === v.isPendingLink && inh.identity) {
+        s = v.call;
+    }
     else {
         s = v.canon;
     }
@@ -84,8 +91,8 @@ function junctionText(v, sym, inner) {
 // The hash form of an EVALUATED Val (unify first; parse-level canon
 // parenthesisation differs between the ports and is excluded by
 // construction — AGENTS.md).
-function hcanon(v) {
-    return render(v, { type: false, hide: false });
+function hcanon(v, identity = false) {
+    return render(v, { type: false, hide: false, identity });
 }
 function canonHash(v) {
     return 'aon1-' +
