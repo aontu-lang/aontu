@@ -3991,9 +3991,9 @@ theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val
 
 Its rows found a false negative in both engines: `{&: integer}` is
 above `close({"x": integer})`, whose only instances are maps holding
-one integer under `x`, and both engines answer `does_not_subsume`,
-comparing the sealed side's missing spread as `any`. Those rows sit in
-the ledger with the engines as the side that moves.
+one integer under `x`, and both engines answered `does_not_subsume`,
+comparing the sealed side's missing spread as `any`, until #384 moved
+them.
 
 The constraints have a table of their own in the reference, and its
 rows are theorems too: an interval is below another that contains it,
@@ -6715,11 +6715,13 @@ refutes a pair with one instance. The tenth fragment,
 `test/spec/def-subsume-docs.tsv`, compares twenty documents pairwise,
 a recursive list of nodes, its unrolling, the plain nodes and two names
 recursive through each other among them, and both engines answer as the
-contract allows but for nine rows: a recursive general side with an
-optional key against an open specific side, where both answer
-`subsumes` and `{"n": 1, "next": 5}`, or `{"b": 5}` for the mutual
-recursion, is an instance of the specific side alone, the same cause as
-the false positive above.
+contract allows. Nine rows held them apart until 2026-11-17: a
+recursive general side with an optional key against an open specific
+side, where both answered `subsumes`, though `{"n": 1, "next": 5}`, or
+`{"b": 5}` for the mutual recursion, is an instance of the specific
+side alone. An open side admits any value at a key it doesn't declare,
+so since #377 both engines hold the general key to the open side's
+spread template, or to `any` where it has none.
 
 ## 19. The forms the importer writes
 
@@ -7032,11 +7034,12 @@ there is `min(2)`:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
-  let ns := match b, args.map fun a => (normaliseD ds a).unride with
-    | .neq, [.list (x :: xs) _ _] => (x :: xs).map fun e => (normaliseD ds e).unride
-    | _, ns => ns
-  if ns.any Val.isChoice then .refused else
-  if ns.any Val.noEnd then .made .nothing else
+  let ws := match b, args.map fun a => (normaliseD ds a).unride with
+    | .neq, [.list (x :: xs) _ _] => (x :: xs).map (normaliseD ds)
+    | _, _ => args.map (normaliseD ds)
+  let ns := ws.map fun w => w.unride.soleArm
+  if ws.any Val.choiceLeft then .refused else
+  if ws.any Val.isVoid || ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
 ```
@@ -7051,11 +7054,20 @@ among them, and an empty list, name no end.
 A boolean, `null`, a container, a kind, a bound, a pattern or a meet
 names no end, and neither do a number and a string together under
 `neq`, so a bound over one is outside its domain and admits nothing,
-however its argument is written, as both engines answer. A choice
+however its argument is written, as both engines answer. Nor does a
+written `nil`, so `min(nil)` and `neq(nil, 2)` refuse `1`, as
+`len(nil)` does (rows `nl132` on of `test/spec/def-path.tsv`). `bndOf`
+reads that before the riders come off, since without its rider a
+written `nil` is the `nil` a conflict makes, which names nothing yet:
+a bound over `1 & 2` waits, and is an error. A choice
 still to make, a disjunction or a
 preference, is no argument at all: the bound is refused, and the
 document is an error whatever the bound meets, as a size that holds
-one is. The atom that admits nothing is `Val.nothing`. It
+one is. `bndOf` asks `Val.choiceLeft`, as a size does, so a choice the
+meet or a dead arm settles to one arm is that arm (`Val.soleArm`):
+`min(1 | (1 & 2))` is `min(1)`, and so is `min(nil | 1)`, since a
+written `nil` holds no value, as ruling 55 reads it. Rows `nl159` and
+`bd174` on hold both. The atom that admits nothing is `Val.nothing`. It
 stands, so a schema that holds one is no error, but it refuses every
 value and generates nothing, and the meet makes it `nil` against
 anything but `any` and a `nil` the document writes, which takes it in
@@ -9894,17 +9906,16 @@ load as a term, under `@` and the source's name, which no document can
 write, since a name a document writes begins with a letter. A load
 names its source from the source it's written in: read from that
 source's directory, each `.` dropped and each `..` taking back a step,
-and `.aontu` supplied where the name has no extension. A bare name whose
-first step holds a dot names a module, which the definition doesn't
-read yet, so it names no source. Both engines refuse one whose last
-step names an extension, as a file written without `./`:
+and `.aontu` supplied where the name has no extension. A module names
+the source the calling program supplies for it, as
+[Modules](#modules) reads it:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def loadPath (src p : String) : Option String :=
+  if moduleRef p then some (p ++ "/") else
   let q := "/".intercalate
     (normSteps [] ((if p.startsWith "/" then [] else (src.splitOn "/").dropLast) ++ p.splitOn "/"))
-  if moduleRef p then none else
   match ((q.splitOn "/").getLast?.getD "").splitOn "." with
   | [_] => some (q ++ ".aontu")
   | parts => if parts.getLast?.getD "" ∈ loadExts then some q else none
@@ -10040,10 +10051,88 @@ publish as an `error`, as they class a call the schema can't build,
 and the rows take such a name only at the top.
 
 No row yet holds a source that writes a destructure, since Go fails to
-include one, which #804 tracks. The definition doesn't yet read a module, or an
+include one, which #804 tracks. The definition doesn't yet read an
 extension the calling program adds to those read as text, as
 `--text-ext` does, and no term of the definition spells a destructure
 over a term that isn't a load, which both engines refuse.
+
+### Modules
+
+A load whose name is bare, with no `./`, `../` or `/` before it, and
+whose first step holds a dot, a domain, imports a module, and so does
+`alias:` and a name, an alias the project declares:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def moduleRef (p : String) : Bool :=
+  p.startsWith "alias:" ||
+    (!(p.startsWith "./" || p.startsWith "../" || p.startsWith "/") && ((p.splitOn "/").headD "").contains '.')
+```
+
+Which source a module is, whether a pin written after `#` or the
+project's lock agrees with what that source means, and what an alias
+stands for, the tools decide: the definition reads an import as the
+source the calling program supplies for the import as written, as the
+program supplies a variable's value, which ruling 47 settled.
+`loadPath` names that source by the import, a pin with it, and a `/`,
+the directory the module stands for, so that the module's own loads
+read from there, as a file's read from the file's directory.
+
+A project vendors its modules beside its own package file. Write one,
+`pkg.aontu`, that depends on a module:
+
+<!-- test: scenario module -->
+<!-- test: file pkg.aontu -->
+```aontu
+pkg: { path:"corp.example/app" main:"main.aontu" }
+dep: "corp.example/rates": v: "1.0.0"
+```
+
+the module's own package file,
+`aontu_meta/vendor/corp.example/rates/pkg.aontu`:
+
+<!-- test: file aontu_meta/vendor/corp.example/rates/pkg.aontu -->
+```aontu
+pkg: path: "corp.example/rates"
+```
+
+its entry, `aontu_meta/vendor/corp.example/rates/main.aontu`:
+
+<!-- test: file aontu_meta/vendor/corp.example/rates/main.aontu -->
+```aontu
+currency: string & re("^[A-Z]{3}$")
+```
+
+and `main.aontu`, which imports it:
+
+<!-- test: file main.aontu -->
+```aontu
+price: @"corp.example/rates"
+price: currency: "EUR"
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aontu
+{
+  "price": {
+    "currency": "EUR"
+  }
+}
+```
+
+The tools found the module in the vendored copy, and the rest is a
+load. A module the tools can't resolve is one the program supplies no
+source for: one never fetched, one whose package moved, and one whose
+pin disagrees with what its source means, as a lock can. Each leaves
+the load unmade, so the document is an `error`, and so is one whose
+module imports itself. Rows from lm0 on of `test/spec/def-path.tsv` load the
+projects of `test/spec/files` whose `main.aontu` imports a module, each
+case supplying the source the tools resolve for it. A module's own
+names are its own, as any source's are, so a project that imports one
+reads none of them. Both engines refuse a module that declares names
+when a project loads it under a key, as they refuse such a source, and
+the rows load one only at the root.
 
 ## 40. Rules over nodes
 

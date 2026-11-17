@@ -54,11 +54,10 @@ function siteOf(v, role, url) {
         len: v.site.len,
         role: role,
         src: v.site.src,
-        value: shown(v),
+        value: shownText(v),
     };
 }
-// A relation's template has no canon of its own; a report writes its call.
-function shown(v) {
+function shownText(v) {
     return true === v.isPendingLink ||
         (true === v.isConjunct && v.peg.some((t) => true === t.isPendingLink))
         ? (0, hcanon_1.hcanon)(v, true) : v.canon;
@@ -76,8 +75,8 @@ function record(state, code, path, g, s, message) {
             siteOf(g, 'general', state.generalUrl),
             siteOf(s, 'specific', state.specificUrl),
         ],
-        expected: shown(g),
-        actual: shown(s),
+        expected: shownText(g),
+        actual: shownText(s),
     });
 }
 function admission(v) {
@@ -251,8 +250,8 @@ function subsumeNode(state, path, g0, s0) {
     const sMark = (state.sRec ?? s)?.mark;
     if ('gen' === state.profile && true !== state.distributing &&
         (!!gMark?.type !== !!sMark?.type || !!gMark?.hide !== !!sMark?.hide)) {
-        record(state, 'compat_marks_changed', path, g, s, 'marks differ: general ' + JSON.stringify(gMark) +
-            ', specific ' + JSON.stringify(sMark));
+        const shown = (m) => `{"type":${!!m?.type},"hide":${!!m?.hide}}`;
+        record(state, 'compat_marks_changed', path, g, s, 'marks differ: general ' + shown(gMark) + ', specific ' + shown(sMark));
         return 'no';
     }
     if (true === g?.isTop) {
@@ -587,6 +586,13 @@ function subsumeBag(state, path, g, s, gKeys, sKeys, child) {
         const has = sKeys.includes(k);
         const optional = gOptional.includes(k);
         if (!has) {
+            // An open specific side admits a value at the key, its template's
+            // or any, which the general side's optional key must admit.
+            if (optional && true !== s.closed) {
+                worse(true === s.spread?.cj?.isPathDependent ?
+                    unsettledSpread(state, [...path, k], gChild, s.spread.cj) :
+                    subsumeNode(state, [...path, k], gChild, s.spread?.cj ?? topLike()));
+            }
             if (optional) {
                 continue;
             }
@@ -647,6 +653,10 @@ function subsumeBag(state, path, g, s, gKeys, sKeys, child) {
         // the (unconstrained) general side to refuse.
     }
     return out;
+}
+function unsettledSpread(state, path, g, scj) {
+    record(state, 'sub_path_dependent_spread', path, g, scj, 'a path-dependent spread template cannot be compared structurally');
+    return 'undecided';
 }
 // A stand-in TOP for "the specific side leaves this unconstrained".
 let topVal;

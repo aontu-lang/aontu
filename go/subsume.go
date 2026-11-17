@@ -1005,6 +1005,21 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 		optional := contains(g.optional, k)
 		kp := append(append([]string{}, path...), k)
 		if !has {
+			// An open specific side admits a value at the key, its template's
+			// or any, which the general side's optional key must admit.
+			if optional && !s.closed {
+				if nil != s.spread && hasPathFunc(s.spread) {
+					st.record("sub_path_dependent_spread", kp, gChild, s.spread,
+						"a path-dependent spread template cannot be compared structurally")
+					out = subWorse(out, subUndecided)
+				} else {
+					sSpread := s.spread
+					if nil == sSpread {
+						sSpread = top()
+					}
+					out = subWorse(out, subsumeNode(st, kp, gChild, sSpread))
+				}
+			}
 			if optional {
 				continue
 			}

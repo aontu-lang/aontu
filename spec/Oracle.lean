@@ -3918,6 +3918,79 @@ theorem body_take_verdict_exact : ∀ c ∈ bodyTakeCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (bodyTakeCases_checkable c hc).1 (bodyTakeCases_checkable c hc).2 v
 
+/-- Module imports, each the source the calling program supplies for
+the import as written (ruling 47), over the projects of
+`test/spec/files` whose `main.aontu` imports one: a package path, its
+lock and its default entry among them, beside data that agrees and data
+that doesn't; a pinned import; two versions of one package, the second
+under an alias; a path with an uppercase step; and a module that
+declares names of its own, publishes one, and loads a file from its own
+directory, whose names the project can't read. Where the tools resolve
+nothing, a module never fetched, a pin or a lock that disagrees, a
+package that moved, the program supplies no source, so the document is
+an error, as it is for a module that imports itself. -/
+def moduleCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let ld (s : String) : Val := .call .load [.lit (.str s)]
+  let fx (s : String) : String := "__FIXTURES__/" ++ s
+  let pref (v : Val) : Val := .or [(1, v), (0, .integer)]
+  let svc (port : Val) : Val := m [("name", .string), ("port", pref port)]
+  let sv := "corp.example/schemas/service"
+  let pin := sv ++ "#aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E"
+  let named (imp : String) : Val := .meet (ld imp) (m [("name", str "auth")])
+  let file (f : String) (t : Val) : Decls := [("@" ++ fx f, t)]
+  let mdl (q : String) (t : Val) : Decls := [("@" ++ q ++ "/", t)]
+  let proj (d : String) : Decls := file (d ++ "/main.aontu") (m [("svc", named sv)]) ++ mdl sv (svc (int 8080))
+  let alias : Decls :=
+    file "modalias/main.aontu" (m [("svc", named sv), ("legacy", named "alias:legacy")]) ++
+      mdl sv (svc (int 9090)) ++ mdl "alias:legacy" (svc (int 8080))
+  let wide : Decls :=
+    file "modcase/main.aontu" (m [("w", .meet (ld "corp.example/Widgets") (m [("count", int 3)]))]) ++
+      mdl "corp.example/Widgets" (m [("kind", str "widget"), ("count", pref (int 1))])
+  let defs : Decls :=
+    Decls.ofSource "corp.example/defs/"
+      [("port", .meet .integer (.min (.num (.integer ⟨1, by decide⟩)))), ("hidden", int 7)]
+      (m [("listen", .alias "port"), ("part", ld "./part.aontu")]) ["port"] ++
+    [("@corp.example/defs/part.aontu", m [("retries", pref (int 3))])] ++
+    file "moddefs/main.aontu" (.meet (ld "corp.example/defs") (m [("listen", int 8080)])) ++
+    Decls.ofSource (fx "moddefs/scope.aontu") [] (.meet (ld "corp.example/defs") (m [("z", .alias "hidden")]))
+  [(proj "modproj", ld (fx "modproj/main.aontu"), dm []),
+    (proj "modproj", ld (fx "modproj/main.aontu"), dm [("svc", dm [("port", j 9090)])]),
+    (proj "modproj", ld (fx "modproj/main.aontu"), dm [("svc", dm [("port", .str "x")])]),
+    (proj "modproj", ld (fx "modproj/main.aontu"), dm [("svc", dm [("name", .str "other")])]),
+    (proj "modlock", ld (fx "modlock/main.aontu"), dm []),
+    (proj "modnomain", ld (fx "modnomain/main.aontu"), dm [("svc", dm [("port", j 1)])]),
+    (file "modfree/main.aontu" (m [("svc", named pin)]) ++ mdl pin (svc (int 8080)),
+      ld (fx "modfree/main.aontu"), dm [("svc", dm [("port", j 1)])]),
+    (alias, ld (fx "modalias/main.aontu"), dm []),
+    (alias, ld (fx "modalias/main.aontu"), dm [("legacy", dm [("port", j 9090)])]),
+    (alias, ld (fx "modalias/main.aontu"), dm [("legacy", dm [("port", .str "x")])]),
+    (wide, ld (fx "modcase/main.aontu"), dm [("w", dm [("count", j 3)])]),
+    (wide, ld (fx "modcase/main.aontu"), dm [("w", dm [("count", j 4)])]),
+    (defs, ld (fx "moddefs/main.aontu"), dm []),
+    (defs, ld (fx "moddefs/main.aontu"), dm [("listen", j 0)]),
+    (defs, ld (fx "moddefs/main.aontu"), dm [("part", dm [("retries", j 5)])]),
+    (defs, ld (fx "moddefs/main.aontu"), dm [("part", dm [("retries", .str "x")])]),
+    (defs, ld (fx "moddefs/scope.aontu"), dm []),
+    (file "modmiss/main.aontu" (m [("svc", ld "corp.example/schemas/absent")]), ld (fx "modmiss/main.aontu"), dm []),
+    (file "modpin/main.aontu" (m [("svc", ld (sv ++ "#aon1-wrongwrongwrongwrongwrongwrongwrongwrong"))]),
+      ld (fx "modpin/main.aontu"), dm []),
+    (file "modbad/main.aontu" (m [("svc", named sv)]), ld (fx "modbad/main.aontu"), dm []),
+    (file "modmoved/main.aontu" (m [("svc", ld sv)]), ld (fx "modmoved/main.aontu"), dm []),
+    (file "modself/main.aontu" (m [("svc", ld "corp.example/loop/self")]) ++
+      mdl "corp.example/loop/self" (m [("x", ld "corp.example/loop/self")]), ld (fx "modself/main.aontu"), dm [])]
+
+theorem moduleCases_checkable : ∀ c ∈ moduleCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem module_verdict_exact : ∀ c ∈ moduleCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (moduleCases_checkable c hc).1 (moduleCases_checkable c hc).2 v
+
 /-- The transformer `emit` in a document with paths: a selection a path
 names, and a body that reads the node and the root, beside data that
 agrees and data that refuses. -/
@@ -4082,7 +4155,16 @@ required and optional, met with a value, and the preferred arm of a
 disjunction, which drops. A bound over it beside a choice is still an
 error, as a choice is no bound's argument, written alone or in a list;
 a trial over it refuses what it meets, beside a choice, and under a
-bound or a size in its argument. -/
+bound or a size in its argument. A bound over it alone admits nothing,
+as one over an argument outside its domain does: each bound, `neq`
+beside a number and over a list, met with a value, and met with a kind,
+where the meet is dead; and a bound over a conflict, still an error. A
+disjunction a written `nil` leaves with one arm is that arm under a
+bound, as a size reads it (ruling 55): either way round, met with a
+value, in `neq` and in its list, through a path, at an optional key and
+preferred; and `nil | nil`, which leaves none, is still an error.
+Last, a bound, a size or a trial over it that no data meets: absent at
+an optional key, and waiting at a required one. -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
@@ -4135,7 +4217,31 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], m [("v", .contains .any (bnd .min [.meet nl (int 1)]))], dm [("v", .list [j 1])]),
     ([], m [("v", .contains .any (.len (.meet nl (int 1))))], dm [("v", .list [j 1])]),
     ([], m [("v", .must (bnd .min [.meet nl (int 1)]) "m")], dm [("v", j 1)]),
-    ([], m [("v", .must (.len (.meet nl (int 1))) "m")], dm [("v", j 1)])]
+    ([], m [("v", .must (.len (.meet nl (int 1))) "m")], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [nl])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [nl])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [nl, int 2])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [.list [nl, int 2] none false])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.meet nl (int 1)])], dm [("v", j 1)]),
+    ([], m [("v", bnd .above [nl])], dm [("v", j 1)]),
+    ([], m [("v", bnd .mulof [nl])], dm [("v", j 1)]),
+    ([], m [("v", .meet .integer (bnd .below [nl]))], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.meet (int 1) (int 2)])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, nl), (0, int 1)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, int 1), (0, nl)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, .meet nl (int 1)), (0, int 1)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [.or [(0, nl), (0, int 1)]])], dm [("v", j 2)]),
+    ([], m [("v", bnd .neq [.list [.or [(0, nl), (0, int 1)], int 2] none false])], dm [("v", j 3)]),
+    ([], m [("a", .or [(0, nl), (0, int 1)]), ("v", bnd .min [.path [.key "a"]])], dm [("v", j 1)]),
+    ([], mo [("v", true, bnd .min [.or [(0, nl), (0, int 1)]])], dm []),
+    ([], m [("v", bnd .min [.or [(1, nl), (0, int 1)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, nl), (0, nl)]])], dm [("v", j 1)]),
+    ([], mo [("v", true, bnd .max [nl])], dm []),
+    ([], mo [("v", true, .len nl)], dm []),
+    ([], mo [("v", true, .must nl "m")], dm []),
+    ([], m [("v", .len nl)], dm []),
+    ([], mo [("v", true, bnd .neq [.list [nl, int 2] none false])], dm []),
+    ([], mo [("v", true, .must (bnd .min [nl]) "m")], dm [])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -4625,7 +4731,9 @@ as the literal is; `neq` over a sole list, written and through a path,
 which reads its elements, so that a choice among them is an error, a
 list among them admits nothing and so does an empty list; and `len`
 over `any`, written and through a path, and over a trial, which admit
-no size, a rider and a meet with `any` read through. -/
+no size, a rider and a meet with `any` read through. Last, a choice a
+dead arm settles to one arm, which is that arm, as a size's is (ruling
+55): either way round, through a path, and in `neq`'s list. -/
 def boundArgCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -4695,7 +4803,11 @@ def boundArgCases : List (Decls × Val × Data) :=
     ([], m [("n", .any), ("t", .len (p ["n"]))], t (.list [j 1])),
     ([], m [("t", .len (.must .integer "m"))], t (.list [j 1])),
     ([], m [("t", .len (.ride .metadata (int 1) []))], t (.list [j 1])),
-    ([], m [("t", .len (.meet .any (int 1)))], t (.list [j 1]))]
+    ([], m [("t", .len (.meet .any (int 1)))], t (.list [j 1])),
+    ([], m [("t", bnd .min [.or [(0, .meet (int 1) (int 2)), (0, int 1)]])], t (j 1)),
+    ([], m [("t", bnd .min [.or [(0, int 2), (0, .meet (int 1) (int 2))]])], t (j 1)),
+    ([], lo (.or [(0, .meet (int 1) (int 2)), (0, int 2)]), dm [("lo", j 2), ("t", j 3)]),
+    ([], m [("t", bnd .neq [l [.or [(0, int 1), (0, .meet (int 1) (int 2))]]])], t (j 1))]
 
 theorem boundArgCases_checkable : ∀ c ∈ boundArgCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -8750,7 +8862,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# condition, each read where its instance lands, in rows bg0 on. Sources that"
     IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on,"
     IO.println "# and the names a source publishes, with the destructures that take them, in"
-    IO.println "# rows lx0 on, and in a declaration's body in rows lb0 on. The transformer emit"
+    IO.println "# rows lx0 on, and in a declaration's body in rows lb0 on. Module imports, each"
+    IO.println "# the source the calling program supplies for the import as written, follow in"
+    IO.println "# rows lm0 on, over the projects of test/spec/files. The transformer emit"
     IO.println "# over a selection a path names follows in"
     IO.println "# rows em0 on, and copy, its argument with the marks and the seal cleared at"
     IO.println "# every depth, in rows cp0 on. Links whose templates read the member or the"
@@ -8826,6 +8940,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "ls" scopeCases
     pathRows "lx" takeCases
     pathRows "lb" bodyTakeCases
+    pathRows "lm" moduleCases
     pathRows "em" (emitPathCases ++ emitFilterCases)
     pathRows "cp" copyCases
     pathRows "lt" linkTemplateCases

@@ -44,7 +44,9 @@ $ aontu breaking --against profile-v1.aontu profile-v2.aontu
 verdict: compatible
 ```
 
-Additive and optional, so every v1-valid document is still admitted.
+Additive and optional, into a map v1 closed, so every v1-valid
+document is still admitted. Had v1 left the map open, it would admit a
+`locale` of any kind, and the same addition would be breaking.
 A proposal that *requires* a new key is a different story: write it
 as `require-owner.aontu`:
 

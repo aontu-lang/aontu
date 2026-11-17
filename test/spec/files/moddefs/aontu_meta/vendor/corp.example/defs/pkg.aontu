@@ -1,0 +1,1 @@
+pkg: { path: "corp.example/defs" version: "1.0.0" main: "defs.aontu" }

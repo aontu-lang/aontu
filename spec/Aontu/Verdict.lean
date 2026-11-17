@@ -832,31 +832,61 @@ def Val.noEnd : Val → Bool
   | .re _ | .format _ | .grammar _ | .meet _ _ | .nothing => true
   | _ => false
 
-/-- Whether a term in normal form is a choice still to make: a
-disjunction or a preference. -/
-def Val.isChoice : Val → Bool
-  | .or _ | .pref _ _ => true
+/-- Whether two arms are written alike: the same literal, the same
+numeric kind or the same bound, which both ports read as one arm, so
+that `1 | 1` and `min(1) | min(1)` are each one size. -/
+def Val.sameArm : Val → Val → Bool
+  | .lit a, .lit b => decide (a = b)
+  | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
+  | .number, .number => true
+  | .min a, .min b | .max a, .max b | .above a, .above b | .beneath a, .beneath b => decide (a = b)
+  | .neq a, .neq b => decide (a = b)
+  | .mulof a, .mulof b => decide (a = b)
+  | _, _ => false
+
+/-- Whether a term in normal form still holds a choice: a disjunction
+whose arms aren't one arm of rank `0` written alike, or a preference,
+through `&` and the riders. -/
+def Val.choiceLeft : Val → Bool
+  | .or ((0, a) :: arms) => arms.any fun p => p.1 != 0 || !a.sameArm p.2
+  | .or _ => true
+  | .pref _ _ => true
+  | .meet a b => a.choiceLeft || b.choiceLeft
+  | .ride _ v _ => v.choiceLeft
+  | .link v _ => v.choiceLeft
   | _ => false
+
+/-- A disjunction in normal form whose arms are one arm of rank `0`
+written alike, as the meet or a dead arm leaves it, read as that arm,
+its riders read through; any other term as it is. -/
+def Val.soleArm : Val → Val
+  | .or ((0, a) :: _) => a.unride
+  | v => v
 
 /-- What a bound written over terms makes of them: the bound itself,
 `min($.lo)` being `min(2)` where `lo` is `2`, once each argument's normal
 form, its riders read through, is a number or a string, as both ports
 settle such a bound; the atom that admits nothing where an argument is
-outside the bound's domain, a boolean, `null`, a container, a kind, a
-bound, a pattern or a meet, where `neq` takes both numbers and strings
-and where `mulof` takes a string, however the argument is written
-(decision 28 of the design note's §7); refused where an argument is a
+outside the bound's domain, a written `nil`, read before its rider comes
+off, a boolean, `null`, a container, a kind, a bound, a pattern or a
+meet, where `neq` takes both numbers and strings and where `mulof`
+takes a string, however the argument is written (decision 28 of the
+design note's §7, and ruling 54); refused where an argument is a
 choice still to make, which both ports refuse as an argument whatever
 the bound meets (#413), and where a bound takes another count of
-arguments than its own; waiting for anything else. A `neq` over a sole
-list that isn't empty reads its elements as its arguments, as both
-ports read `neq([1, 3])` as `neq(1, 3)`, a choice among them refused. -/
+arguments than its own; waiting for anything else, a conflict among
+them. A choice the meet or a dead arm settles to one arm is that arm,
+as a size's is (decision 16 and ruling 55), so `min(1 | (1 & 2))` and
+`min(nil | 1)` are `min(1)`. A `neq` over a sole list that isn't empty
+reads its elements as its arguments, as both ports read `neq([1, 3])`
+as `neq(1, 3)`, a choice among them refused. -/
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
-  let ns := match b, args.map fun a => (normaliseD ds a).unride with
-    | .neq, [.list (x :: xs) _ _] => (x :: xs).map fun e => (normaliseD ds e).unride
-    | _, ns => ns
-  if ns.any Val.isChoice then .refused else
-  if ns.any Val.noEnd then .made .nothing else
+  let ws := match b, args.map fun a => (normaliseD ds a).unride with
+    | .neq, [.list (x :: xs) _ _] => (x :: xs).map (normaliseD ds)
+    | _, _ => args.map (normaliseD ds)
+  let ns := ws.map fun w => w.unride.soleArm
+  if ws.any Val.choiceLeft then .refused else
+  if ws.any Val.isVoid || ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
   | some [e], .min => .made (.min e)
@@ -4243,30 +4273,6 @@ def meetClash (ds : Decls) (cs : List Val) : Bool :=
   match ((cs.filter fun v => v.genCount.isSome).foldl meet .any).meetMembers ds with
   | none => false
   | some ms => cs.any (·.refusesAtMeet ds ms)
-
-/-- Whether two arms are written alike: the same literal, the same
-numeric kind or the same bound, which both ports read as one arm, so
-that `1 | 1` and `min(1) | min(1)` are each one size. -/
-def Val.sameArm : Val → Val → Bool
-  | .lit a, .lit b => decide (a = b)
-  | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
-  | .number, .number => true
-  | .min a, .min b | .max a, .max b | .above a, .above b | .beneath a, .beneath b => decide (a = b)
-  | .neq a, .neq b => decide (a = b)
-  | .mulof a, .mulof b => decide (a = b)
-  | _, _ => false
-
-/-- Whether a term in normal form still holds a choice: a disjunction
-whose arms aren't one arm of rank `0` written alike, or a preference,
-through `&` and the riders. -/
-def Val.choiceLeft : Val → Bool
-  | .or ((0, a) :: arms) => arms.any fun p => p.1 != 0 || !a.sameArm p.2
-  | .or _ => true
-  | .pref _ _ => true
-  | .meet a b => a.choiceLeft || b.choiceLeft
-  | .ride _ v _ => v.choiceLeft
-  | .link v _ => v.choiceLeft
-  | _ => false
 
 /-- Whether a size, the argument of `len`, holds a choice once in normal
 form: `len` takes a conjunction of integers, bounds, exclusions and

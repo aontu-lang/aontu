@@ -130,13 +130,12 @@ export function siteOf(v: any, role: string, url: string): VetSite {
     len: v.site.len,
     role: role as any,
     src: v.site.src,
-    value: shown(v),
+    value: shownText(v),
   }
 }
 
 
-// A relation's template has no canon of its own; a report writes its call.
-function shown(v: any): string {
+function shownText(v: any): string {
   return true === v.isPendingLink ||
     (true === v.isConjunct && v.peg.some((t: any) => true === t.isPendingLink))
     ? hcanon(v, true) : v.canon
@@ -159,8 +158,8 @@ function record(
       siteOf(g, 'general', state.generalUrl),
       siteOf(s, 'specific', state.specificUrl),
     ],
-    expected: shown(g),
-    actual: shown(s),
+    expected: shownText(g),
+    actual: shownText(s),
   })
 }
 
@@ -375,9 +374,9 @@ export function subsumeNode(
   const sMark = (state.sRec ?? s)?.mark
   if ('gen' === state.profile && true !== state.distributing &&
     (!!gMark?.type !== !!sMark?.type || !!gMark?.hide !== !!sMark?.hide)) {
+    const shown = (m: any) => `{"type":${!!m?.type},"hide":${!!m?.hide}}`
     record(state, 'compat_marks_changed', path, g, s,
-      'marks differ: general ' + JSON.stringify(gMark) +
-      ', specific ' + JSON.stringify(sMark))
+      'marks differ: general ' + shown(gMark) + ', specific ' + shown(sMark))
     return 'no'
   }
 
@@ -774,6 +773,13 @@ function subsumeBag(
     const has = sKeys.includes(k)
     const optional = gOptional.includes(k)
     if (!has) {
+      // An open specific side admits a value at the key, its template's
+      // or any, which the general side's optional key must admit.
+      if (optional && true !== s.closed) {
+        worse(true === s.spread?.cj?.isPathDependent ?
+          unsettledSpread(state, [...path, k], gChild, s.spread.cj) :
+          subsumeNode(state, [...path, k], gChild, s.spread?.cj ?? topLike()))
+      }
       if (optional) {
         continue
       }
@@ -843,6 +849,13 @@ function subsumeBag(
   }
 
   return out
+}
+
+
+function unsettledSpread(state: SubState, path: string[], g: any, scj: any): Tri {
+  record(state, 'sub_path_dependent_spread', path, g, scj,
+    'a path-dependent spread template cannot be compared structurally')
+  return 'undecided'
 }
 
 

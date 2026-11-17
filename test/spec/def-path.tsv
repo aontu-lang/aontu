@@ -48,7 +48,9 @@
 # condition, each read where its instance lands, in rows bg0 on. Sources that
 # declare names of their own, each read in its own scope, follow in rows ls0 on,
 # and the names a source publishes, with the destructures that take them, in
-# rows lx0 on, and in a declaration's body in rows lb0 on. The transformer emit
+# rows lx0 on, and in a declaration's body in rows lb0 on. Module imports, each
+# the source the calling program supplies for the import as written, follow in
+# rows lm0 on, over the projects of test/spec/files. The transformer emit
 # over a selection a path names follows in
 # rows em0 on, and copy, its argument with the marks and the seal cleared at
 # every depth, in rows cp0 on. Links whose templates read the member or the
@@ -3156,6 +3158,78 @@ nl128	verdict	"v": must(min((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","op
 nl129	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid"}
 nl130	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 nl131	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl132	verdict	"v": min(nil)	{"v": 1}	{"verdict":"invalid"}
+nl133	verdict	"v": min(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl134	verdict	"v": min(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl135	verdict	"v": neq(nil)	{"v": 1}	{"verdict":"invalid"}
+nl136	verdict	"v": neq(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl137	verdict	"v": neq(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl138	verdict	"v": neq(nil, 2)	{"v": 1}	{"verdict":"invalid"}
+nl139	verdict	"v": neq(nil, 2)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl140	verdict	"v": neq(nil, 2)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl141	verdict	"v": neq([nil, 2])	{"v": 1}	{"verdict":"invalid"}
+nl142	verdict	"v": neq([nil, 2])	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl143	verdict	"v": neq([nil, 2])	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl144	verdict	"v": min((nil) & (1))	{"v": 1}	{"verdict":"invalid"}
+nl145	verdict	"v": min((nil) & (1))	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl146	verdict	"v": min((nil) & (1))	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl147	verdict	"v": above(nil)	{"v": 1}	{"verdict":"invalid"}
+nl148	verdict	"v": above(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl149	verdict	"v": above(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl150	verdict	"v": mulof(nil)	{"v": 1}	{"verdict":"invalid"}
+nl151	verdict	"v": mulof(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl152	verdict	"v": mulof(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl153	verdict	"v": (integer) & (below(nil))	{"v": 1}	{"verdict":"error"}
+nl154	verdict	"v": (integer) & (below(nil))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl155	verdict	"v": (integer) & (below(nil))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl156	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error"}
+nl157	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl158	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl159	verdict	"v": min((nil) | (1))	{"v": 1}	{"verdict":"valid"}
+nl160	verdict	"v": min((nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl161	verdict	"v": min((nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl162	verdict	"v": min((1) | (nil))	{"v": 1}	{"verdict":"valid"}
+nl163	verdict	"v": min((1) | (nil))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl164	verdict	"v": min((1) | (nil))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl165	verdict	"v": min(((nil) & (1)) | (1))	{"v": 1}	{"verdict":"valid"}
+nl166	verdict	"v": min(((nil) & (1)) | (1))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl167	verdict	"v": min(((nil) & (1)) | (1))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl168	verdict	"v": neq((nil) | (1))	{"v": 2}	{"verdict":"valid"}
+nl169	verdict	"v": neq((nil) | (1))	{"v": 2}	{"verdict":"valid","opts":{"noFill":true}}
+nl170	verdict	"v": neq((nil) | (1))	{"v": 2}	{"verdict":"valid","opts":{"partial":true}}
+nl171	verdict	"v": neq([(nil) | (1), 2])	{"v": 3}	{"verdict":"valid"}
+nl172	verdict	"v": neq([(nil) | (1), 2])	{"v": 3}	{"verdict":"valid","opts":{"noFill":true}}
+nl173	verdict	"v": neq([(nil) | (1), 2])	{"v": 3}	{"verdict":"valid","opts":{"partial":true}}
+nl174	verdict	"a": (nil) | (1), "v": min($.a)	{"v": 1}	{"verdict":"valid"}
+nl175	verdict	"a": (nil) | (1), "v": min($.a)	{"v": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl176	verdict	"a": (nil) | (1), "v": min($.a)	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl177	verdict	"v"?: min((nil) | (1))	{}	{"verdict":"valid"}
+nl178	verdict	"v"?: min((nil) | (1))	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl179	verdict	"v"?: min((nil) | (1))	{}	{"verdict":"valid","opts":{"partial":true}}
+nl180	verdict	"v": min(*(nil) | (1))	{"v": 1}	{"verdict":"valid"}
+nl181	verdict	"v": min(*(nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl182	verdict	"v": min(*(nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl183	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error"}
+nl184	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl185	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl186	verdict	"v"?: max(nil)	{}	{"verdict":"valid"}
+nl187	verdict	"v"?: max(nil)	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl188	verdict	"v"?: max(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl189	verdict	"v"?: len(nil)	{}	{"verdict":"valid"}
+nl190	verdict	"v"?: len(nil)	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl191	verdict	"v"?: len(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl192	verdict	"v"?: must(nil, "m")	{}	{"verdict":"valid"}
+nl193	verdict	"v"?: must(nil, "m")	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl194	verdict	"v"?: must(nil, "m")	{}	{"verdict":"valid","opts":{"partial":true}}
+nl195	verdict	"v": len(nil)	{}	{"verdict":"incomplete"}
+nl196	verdict	"v": len(nil)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl197	verdict	"v": len(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl198	verdict	"v"?: neq([nil, 2])	{}	{"verdict":"valid"}
+nl199	verdict	"v"?: neq([nil, 2])	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl200	verdict	"v"?: neq([nil, 2])	{}	{"verdict":"valid","opts":{"partial":true}}
+nl201	verdict	"v"?: must(min(nil), "m")	{}	{"verdict":"valid"}
+nl202	verdict	"v"?: must(min(nil), "m")	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl203	verdict	"v"?: must(min(nil), "m")	{}	{"verdict":"valid","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}
@@ -3804,6 +3878,18 @@ bd170	verdict	"t": len(meta(1, {}))	{"t": [1]}	{"verdict":"valid","opts":{"parti
 bd171	verdict	"t": len((any) & (1))	{"t": [1]}	{"verdict":"valid"}
 bd172	verdict	"t": len((any) & (1))	{"t": [1]}	{"verdict":"valid","opts":{"noFill":true}}
 bd173	verdict	"t": len((any) & (1))	{"t": [1]}	{"verdict":"valid","opts":{"partial":true}}
+bd174	verdict	"t": min(((1) & (2)) | (1))	{"t": 1}	{"verdict":"valid"}
+bd175	verdict	"t": min(((1) & (2)) | (1))	{"t": 1}	{"verdict":"valid","opts":{"noFill":true}}
+bd176	verdict	"t": min(((1) & (2)) | (1))	{"t": 1}	{"verdict":"valid","opts":{"partial":true}}
+bd177	verdict	"t": min((2) | ((1) & (2)))	{"t": 1}	{"verdict":"invalid"}
+bd178	verdict	"t": min((2) | ((1) & (2)))	{"t": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+bd179	verdict	"t": min((2) | ((1) & (2)))	{"t": 1}	{"verdict":"invalid","opts":{"partial":true}}
+bd180	verdict	"lo": ((1) & (2)) | (2), "t": min($.lo)	{"lo": 2, "t": 3}	{"verdict":"valid"}
+bd181	verdict	"lo": ((1) & (2)) | (2), "t": min($.lo)	{"lo": 2, "t": 3}	{"verdict":"valid","opts":{"noFill":true}}
+bd182	verdict	"lo": ((1) & (2)) | (2), "t": min($.lo)	{"lo": 2, "t": 3}	{"verdict":"valid","opts":{"partial":true}}
+bd183	verdict	"t": neq([(1) | ((1) & (2))])	{"t": 1}	{"verdict":"invalid"}
+bd184	verdict	"t": neq([(1) | ((1) & (2))])	{"t": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+bd185	verdict	"t": neq([(1) | ((1) & (2))])	{"t": 1}	{"verdict":"invalid","opts":{"partial":true}}
 bg0	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, min(..lim))}	{"a": {"f": [2, 3]}}	{"verdict":"valid"}
 bg1	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, min(..lim))}	{"a": {"f": [2, 3]}}	{"verdict":"incomplete","opts":{"noFill":true}}
 bg2	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, min(..lim))}	{"a": {"f": [2, 3]}}	{"verdict":"valid","opts":{"partial":true}}
@@ -3951,6 +4037,72 @@ lb20	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n
 lb21	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error"}
 lb22	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"noFill":true}}
 lb23	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"partial":true}}
+lm0	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"valid"}
+lm1	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm2	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm3	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": 9090}}	{"verdict":"valid"}
+lm4	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": 9090}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm5	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": 9090}}	{"verdict":"valid","opts":{"partial":true}}
+lm6	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": "x"}}	{"verdict":"invalid"}
+lm7	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm8	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm9	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"name": "other"}}	{"verdict":"invalid"}
+lm10	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"name": "other"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm11	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"name": "other"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm12	verdict	@"__FIXTURES__/modlock/main.aontu"	{}	{"verdict":"valid"}
+lm13	verdict	@"__FIXTURES__/modlock/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm14	verdict	@"__FIXTURES__/modlock/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm15	verdict	@"__FIXTURES__/modnomain/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid"}
+lm16	verdict	@"__FIXTURES__/modnomain/main.aontu"	{"svc": {"port": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm17	verdict	@"__FIXTURES__/modnomain/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid","opts":{"partial":true}}
+lm18	verdict	@"__FIXTURES__/modfree/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid"}
+lm19	verdict	@"__FIXTURES__/modfree/main.aontu"	{"svc": {"port": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm20	verdict	@"__FIXTURES__/modfree/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid","opts":{"partial":true}}
+lm21	verdict	@"__FIXTURES__/modalias/main.aontu"	{}	{"verdict":"valid"}
+lm22	verdict	@"__FIXTURES__/modalias/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm23	verdict	@"__FIXTURES__/modalias/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm24	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": 9090}}	{"verdict":"valid"}
+lm25	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": 9090}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm26	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": 9090}}	{"verdict":"valid","opts":{"partial":true}}
+lm27	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": "x"}}	{"verdict":"invalid"}
+lm28	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm29	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm30	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 3}}	{"verdict":"valid"}
+lm31	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 3}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm32	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 3}}	{"verdict":"valid","opts":{"partial":true}}
+lm33	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 4}}	{"verdict":"invalid"}
+lm34	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 4}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm35	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 4}}	{"verdict":"invalid","opts":{"partial":true}}
+lm36	verdict	@"__FIXTURES__/moddefs/main.aontu"	{}	{"verdict":"valid"}
+lm37	verdict	@"__FIXTURES__/moddefs/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm38	verdict	@"__FIXTURES__/moddefs/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm39	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"listen": 0}	{"verdict":"invalid"}
+lm40	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"listen": 0}	{"verdict":"invalid","opts":{"noFill":true}}
+lm41	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"listen": 0}	{"verdict":"invalid","opts":{"partial":true}}
+lm42	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": 5}}	{"verdict":"valid"}
+lm43	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": 5}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm44	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": 5}}	{"verdict":"valid","opts":{"partial":true}}
+lm45	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": "x"}}	{"verdict":"invalid"}
+lm46	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm47	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm48	verdict	@"__FIXTURES__/moddefs/scope.aontu"	{}	{"verdict":"error"}
+lm49	verdict	@"__FIXTURES__/moddefs/scope.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm50	verdict	@"__FIXTURES__/moddefs/scope.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm51	verdict	@"__FIXTURES__/modmiss/main.aontu"	{}	{"verdict":"error"}
+lm52	verdict	@"__FIXTURES__/modmiss/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm53	verdict	@"__FIXTURES__/modmiss/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm54	verdict	@"__FIXTURES__/modpin/main.aontu"	{}	{"verdict":"error"}
+lm55	verdict	@"__FIXTURES__/modpin/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm56	verdict	@"__FIXTURES__/modpin/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm57	verdict	@"__FIXTURES__/modbad/main.aontu"	{}	{"verdict":"error"}
+lm58	verdict	@"__FIXTURES__/modbad/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm59	verdict	@"__FIXTURES__/modbad/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm60	verdict	@"__FIXTURES__/modmoved/main.aontu"	{}	{"verdict":"error"}
+lm61	verdict	@"__FIXTURES__/modmoved/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm62	verdict	@"__FIXTURES__/modmoved/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm63	verdict	@"__FIXTURES__/modself/main.aontu"	{}	{"verdict":"error"}
+lm64	verdict	@"__FIXTURES__/modself/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm65	verdict	@"__FIXTURES__/modself/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
 em0	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid"}
 em1	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 em2	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid","opts":{"partial":true}}

@@ -641,8 +641,14 @@ func TestPkgManifestGateRefusesABreakingVersion(t *testing.T) {
 		t.Fatalf("finding path %q", r.Findings[0].Path)
 	}
 
-	// And a compatible change passes the same gate.
-	ok := PkgManifestOf(pkgPublishable(t, "1.2.0", modSource+"owner?: string\n"), prior, nil)
+	// An optional key is breaking on an open map, which admitted any
+	// value under it, and compatible on a closed one.
+	open := PkgManifestOf(pkgPublishable(t, "1.2.0", modSource+"owner?: string\n"), prior, nil)
+	if "breaking" != open.Verdict || 1 != len(open.Findings) || "$.owner" != open.Findings[0].Path {
+		t.Fatalf("verdict %q findings %v", open.Verdict, open.Findings)
+	}
+	closed := pkgPublishable(t, "1.0.0", "close({\n"+modSource+"})\n")
+	ok := PkgManifestOf(pkgPublishable(t, "1.2.0", "close({\n"+modSource+"owner?: string\n})\n"), closed, nil)
 	if "ok" != ok.Verdict || 0 != len(ok.Findings) {
 		t.Fatalf("verdict %q findings %v", ok.Verdict, ok.Findings)
 	}
@@ -694,8 +700,8 @@ func TestPkgManifestGateChecksOutcomeAsWellAsAcceptance(t *testing.T) {
 		t.Fatalf("findings %+v", element.Findings)
 	}
 	dropped := PkgManifestOf(
-		pkgPublishable(t, "1.1.0", "svc: { port: 8080, tags: [\"a\", \"b\"], extra?: 1 }\nsecret: hide(1)\nother?: 2\n"),
-		pkgPublishable(t, "1.0.0", "svc: { port: 8080, tags: [\"a\", \"b\"] }\nsecret: hide(1)\nother?: 2\n"), nil)
+		pkgPublishable(t, "1.1.0", "svc: close({ port: 8080, tags: [\"a\", \"b\"], extra?: 1 })\nsecret: hide(1)\nother?: 2\n"),
+		pkgPublishable(t, "1.0.0", "svc: close({ port: 8080, tags: [\"a\", \"b\"] })\nsecret: hide(1)\nother?: 2\n"), nil)
 	if "ok" != dropped.Verdict {
 		t.Fatalf("verdict %q findings %+v", dropped.Verdict, dropped.Findings)
 	}

@@ -47,6 +47,7 @@ const pkg_zip_1 = require("../dist/pkg-zip");
 const pkg_1 = require("../dist/pkg");
 const mod_1 = require("../dist/mod");
 const SERVICE = 'name: string\nport: *8080 | integer\n';
+const closedOf = (src) => 'close({\n' + src + '})\n';
 const KEY_PEM = (0, node_crypto_1.generateKeyPairSync)('ed25519').privateKey
     .export({ format: 'pem', type: 'pkcs8' });
 const OTHER_PEM = (0, node_crypto_1.generateKeyPairSync)('ed25519').privateKey
@@ -266,8 +267,8 @@ function lockOf(app) {
     (0, node_test_1.test)('get-raises-add-refuses-remove-drops', async () => {
         const w = world();
         const http = (0, pkg_net_1.dirHttp)(w.repo);
-        await publish(w, publisher(w, 'service', '1.4.2', SERVICE));
-        await publish(w, publisher(w, 'service', '1.4.3', SERVICE + 'tier?: string\n'));
+        await publish(w, publisher(w, 'service', '1.4.2', closedOf(SERVICE)));
+        await publish(w, publisher(w, 'service', '1.4.3', closedOf(SERVICE + 'tier?: string\n')));
         const app = consumer(w, '"corp.example/service": {v: "1.4.2"}');
         Assert.equal((await run(w, http, 'sync', [app])).code, 0);
         const raised = await run(w, http, 'get', ['corp.example/service@1.4.3', app]);
@@ -342,11 +343,11 @@ function lockOf(app) {
     (0, node_test_1.test)('outdated-lists-what-moves-and-what-was-retracted', async () => {
         const w = world();
         const http = (0, pkg_net_1.dirHttp)(w.repo);
-        Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'))).code, 0);
-        Assert.equal((await publish(w, publisher(w, 'common', '1.1.0', 'x: 1\ny?: integer\n'))).code, 0);
-        const one = await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.0.0"}'));
+        Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\nlimits: close({})\n'))).code, 0);
+        Assert.equal((await publish(w, publisher(w, 'common', '1.1.0', 'x: 1\nlimits: close({y?: integer})\n'))).code, 0);
+        const one = await publish(w, await publisherWith(w, 'service', '1.0.0', closedOf('@"corp.example/common"\nname: string\n'), '"corp.example/common": {v: "1.0.0"}'));
         Assert.equal(one.code, 0, one.out);
-        const two = await publish(w, await publisherWith(w, 'service', '1.1.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.1.0"}', 'retract: ["1.0.0"]\n'));
+        const two = await publish(w, await publisherWith(w, 'service', '1.1.0', closedOf('@"corp.example/common"\nname: string\n'), '"corp.example/common": {v: "1.1.0"}', 'retract: ["1.0.0"]\n'));
         Assert.equal(two.code, 0, two.out);
         const app = consumer(w, '"corp.example/service": {v: "1.0.0"}');
         const sync = await run(w, http, 'sync', [app]);
@@ -360,7 +361,7 @@ function lockOf(app) {
         Fs.rmSync(Path.join(w.repo, 'advisory', 'corp.example', 'common.aontu'));
         const noAdvisory = await run(w, http, 'pkg', ['outdated', app]);
         Assert.equal(noAdvisory.code, 1, noAdvisory.out);
-        await publish(w, publisher(w, 'common', '1.2.0', 'x: 1\ny?: integer\n'));
+        await publish(w, publisher(w, 'common', '1.2.0', 'x: 1\nlimits: close({y?: integer})\n'));
         const heldGet = await run(w, http, 'get', ['corp.example/service', consumer(w, '')]);
         Assert.match(heldGet.out, /refused: cooldown_pending: corp.example\/service 1.1.0 is inside the cooldown/);
         // A later, lower bid for a package already selected changes nothing.
@@ -385,7 +386,7 @@ function lockOf(app) {
         // the consumer never locked. The advisory gathers what every
         // manifest retracts, in version order rather than manifest order.
         await publish(w, publisher(w, 'extra', '1.0.0', 'e?: integer\n'));
-        const three = await publish(w, await publisherWith(w, 'service', '1.2.0', '@"corp.example/common"\n@"corp.example/extra"\nname: string\n', '"corp.example/common": {v: "1.1.0"}, "corp.example/extra": {v: "1.0.0"}', 'retract: ["1.0.0", "1.1.0"]\n'));
+        const three = await publish(w, await publisherWith(w, 'service', '1.2.0', closedOf('@"corp.example/common"\n@"corp.example/extra"\nname: string\n'), '"corp.example/common": {v: "1.1.0"}, "corp.example/extra": {v: "1.0.0"}', 'retract: ["1.0.0", "1.1.0"]\n'));
         Assert.equal(three.code, 0, three.out);
         backdate(w, 'service');
         const again = await run(w, http, 'pkg', ['outdated', app]);
@@ -399,8 +400,8 @@ function lockOf(app) {
         const w = world();
         const http = (0, pkg_net_1.dirHttp)(w.repo);
         await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'));
-        await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.0.0"}'));
-        const two = await publish(w, await publisherWith(w, 'service', '2.0.0', '@"corp.example/common"\nname: string\nport?: integer\n', '"corp.example/common": {v: "1.0.0"}'));
+        await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\nopts: close({})\n', '"corp.example/common": {v: "1.0.0"}'));
+        const two = await publish(w, await publisherWith(w, 'service', '2.0.0', '@"corp.example/common"\nname: string\nopts: close({port?: integer})\n', '"corp.example/common": {v: "1.0.0"}'));
         Assert.equal(two.code, 0, two.out);
         const app = consumer(w, '"corp.example/service": {v: "2.0.0"}, "alias:legacy": {pkg: "corp.example/service", v: "1.0.0"}');
         Fs.writeFileSync(Path.join(app, 'main.aontu'), 'a: @"corp.example/service"\nb: @"alias:legacy"\na: name: "x"\nb: name: "y"\n');
@@ -740,7 +741,7 @@ function lockOf(app) {
             const r = await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'));
             Assert.equal(r.code, 0, r.out + r.err);
         }
-        const svc = await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.0.0"}');
+        const svc = await publisherWith(w, 'service', '1.0.0', closedOf('@"corp.example/common"\nname: string\n'), '"corp.example/common": {v: "1.0.0"}');
         {
             const r = await publish(w, svc);
             Assert.equal(r.code, 0, r.out + r.err);
@@ -825,7 +826,7 @@ function lockOf(app) {
             const r = await run(w, http, 'sync', [app]);
             Assert.equal(r.code, 0, r.out + r.err);
         }
-        const svc2 = await publisherWith(w, 'service', '1.1.0', '@"corp.example/common"\n@"corp.example/extra"\nname: string\n', '"corp.example/common": {v: "1.0.0"}, "corp.example/extra": {v: "1.0.0"}');
+        const svc2 = await publisherWith(w, 'service', '1.1.0', closedOf('@"corp.example/common"\n@"corp.example/extra"\nname: string\n'), '"corp.example/common": {v: "1.0.0"}, "corp.example/extra": {v: "1.0.0"}');
         {
             const r = await publish(w, svc2);
             Assert.equal(r.code, 0, r.out + r.err);
@@ -947,14 +948,14 @@ function lockOf(app) {
     (0, node_test_1.test)('publish-gates-and-refusals', async () => {
         const w = world();
         const http = (0, pkg_net_1.dirHttp)(w.repo);
-        Assert.equal((await publish(w, publisher(w, 'service', '1.4.2', SERVICE))).code, 0);
-        const breaking = await publish(w, publisher(w, 'service', '1.5.0', SERVICE + 'owner: string\n'));
+        Assert.equal((await publish(w, publisher(w, 'service', '1.4.2', closedOf(SERVICE)))).code, 0);
+        const breaking = await publish(w, publisher(w, 'service', '1.5.0', closedOf(SERVICE + 'owner: string\n')));
         Assert.equal(breaking.code, 1);
         Assert.match(breaking.out, /^verdict: breaking\n/);
         Assert.match(breaking.out, /against: corp.example\/service 1.4.2/);
         Assert.match(breaking.out, /\$.owner: the general value requires this key/);
         Assert.ok(!Fs.existsSync(Path.join(at(w, 'service'), '1.5.0.manifest')));
-        const compat = await publish(w, publisher(w, 'service', '1.5.0', SERVICE + 'owner?: string\n'));
+        const compat = await publish(w, publisher(w, 'service', '1.5.0', closedOf(SERVICE + 'owner?: string\n')));
         Assert.equal(compat.code, 0, compat.out);
         const again = await publish(w, publisher(w, 'service', '1.5.0', SERVICE));
         Assert.match(again.out, /refused: version_exists: corp.example\/service 1.5.0 was published before/);
@@ -1385,9 +1386,9 @@ function lockOf(app) {
     (0, node_test_1.test)('outdated-walks-the-whole-closure-that-moves', async () => {
         const w = world();
         const http = (0, pkg_net_1.dirHttp)(w.repo);
-        Assert.equal((await publish(w, publisher(w, 'base', '1.0.0', 'x: 1\n'))).code, 0);
-        Assert.equal((await publish(w, publisher(w, 'base', '1.1.0', 'x: 1\ny?: integer\n'))).code, 0);
-        Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'))).code, 0);
+        Assert.equal((await publish(w, publisher(w, 'base', '1.0.0', 'x: 1\nlimits: close({})\n'))).code, 0);
+        Assert.equal((await publish(w, publisher(w, 'base', '1.1.0', 'x: 1\nlimits: close({y?: integer})\n'))).code, 0);
+        Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\nlimits: close({})\n'))).code, 0);
         const c2 = await publish(w, await publisherWith(w, 'common', '1.2.0', '@"corp.example/base"\nx: 1\n', '"corp.example/base": {v: "1.1.0"}'));
         Assert.equal(c2.code, 0, c2.out);
         const s1 = await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.0.0"}'));

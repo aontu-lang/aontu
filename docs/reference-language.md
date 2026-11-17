@@ -5855,14 +5855,18 @@ file.
 reads each load in place before anything else reads the document. It
 reads the name with `loadPath`, from the directory of the source that
 writes the load, and reads the source's own loads in from there. A
-source the document declares no term for, an extension the table
-refuses, a module, and a source the chain of loads already holds, a
-cycle, each leave the load unmade, which makes the document an `error` wherever
-the load stands, even in an arm a selection leaves out. Rows from lf0
-on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
-engines to it. The definition doesn't yet read a source's own
-declarations, the destructure `{ %a } = @"…"`, a module, or an
-extension `--text-ext` adds to those read as text.
+module import names the source the calling program supplies for the
+import as written, a pin with it, and a `/`, so that the module's own
+loads read from the module's path; which source the import names, and
+whether a pin or a lock agrees with it, the tools decide, as the next
+section describes. A source the document declares no term for, a module the
+tools can't resolve among them, an extension the table refuses, and a
+source the chain of loads already holds, a cycle, each leave the load
+unmade, which makes the document an `error` wherever the load stands,
+even in an arm a selection leaves out. Rows from lf0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it, and rows from lm0 on to module imports. The definition doesn't
+yet read an extension `--text-ext` adds to those read as text.
 
 ### Modules
 
@@ -6464,9 +6468,17 @@ These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Su
   required in the specific side, and subsume; a missing or
   optional-ised key is `compat_required_added` (instances without it
   are admitted by the specific side but refused by the general).
-- An **optional** key (`k?:`) of the general side compares only when
-  the specific side has it; the specific side making a general
-  optional key required merely narrows, which is compatible.
+- An **optional** key (`k?:`) of the general side compares with the
+  specific side's key where the specific side declares it. Where it
+  doesn't, a closed specific side admits no such key and nothing is
+  compared, but an open one admits a value there, its spread
+  template's or any value, so the walk compares the general key
+  against that: `{x?: integer}` subsumes `{&: integer}` and
+  `close({})`, but not an open `{}` or `{y: 1}`, which admit
+  `{x: "a"}`. So close a map that may gain optional keys later:
+  `breaking` and the publish gate read an optional key added to an
+  open map as breaking. The specific side making a
+  general optional key required merely narrows, which is compatible.
 - A **closed** general bag (`close(…)`) requires the specific side to
   be closed and inside its declared key set; an open specific side, or
   a surplus key, is `compat_narrowed`.
@@ -7509,16 +7521,18 @@ contract](trust.md), clause 2).
 The definition reads a bound over a term as the bound itself once each
 argument reads as a number or a string, by `bndOf` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). An argument
-outside the bound's domain, a boolean, `null`, a container, a kind, a
-bound, a pattern or a meet, or a number and a string together under
-`neq`, makes a bound that admits nothing, however the argument is
-written, so data that meets it is `invalid`, and in a `filter`'s
+outside the bound's domain, a written `nil`, a boolean, `null`, a
+container, a kind, a bound, a pattern or a meet, or a number and a
+string together under `neq`, makes a bound that admits nothing, whatever
+form the argument takes, so data that meets it is `invalid`, and in a `filter`'s
 condition it refuses each member the condition tries. A kind the data
 fills reads as the value the data gives it, so
 `lo: number, t: min($.lo)` admits `{"lo": 2, "t": 3}`. A choice still
 to make, a disjunction or a preference, is no argument at all, an
 error whatever the bound meets, as a size that holds one is, and so
-is an argument that never settles. A `neq` over a sole list that isn't
+is an argument that never settles. A choice the meet or a dead arm
+settles to one arm is that arm, as in a size, so `min(1 | (1 & 2))` is
+`min(1)`, and so is `min(nil | 1)`, whose written `nil` holds no value. A `neq` over a sole list that isn't
 empty reads its elements as its arguments, `neq([1, 3])` as
 `neq(1, 3)`, so a choice among them is an error too. The atom that
 admits nothing meets `any` as itself and anything else as a

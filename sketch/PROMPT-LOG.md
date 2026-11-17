@@ -1415,4 +1415,29 @@ is the pr ready to merge?
 
 ```text
 file the form rename as an issue; resolve the conflicts and review items
+## 2026-11-17 02:02:47 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#807, second half: what is a bound over a disjunction with a written-nil arm, such as `min(nil | 1)`? The definition keeps `nil | 1` as a choice (at a key it means "absent or 1"), and a choice is no bound's argument, so it's an error. Both engines drop the arm that holds no value and read `min(1)`, so `{"v": 1}` is valid. A bound's argument has no key to leave out, and `x: nil | 1` with no data already fills `1`.
+→ It stays a choice
+```
+
+## 2026-11-17 08:33:12 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Correction to ruling 55 (#807): I described the definition wrongly. It does NOT keep `nil | 1` as a choice: its normal form drops the written-nil arm, as it drops a dead arm, leaving a one-arm disjunction `(1)`. `bndOf` then refuses any disjunction, even that one-arm leftover, so `min(nil | 1)` is an error, and so is `min(1 | (1 & 2))`, which holds no nil at all. A size reads the leftover as its arm (decision 16: `len(1 | (1 & 2))` is `len(1)`), so `len(nil | 1)` is valid. Both engines read the leftover as its arm for bounds and sizes alike (`min(nil | 1)` is `min(1)`, valid against 1). Which should hold?
+→ Leftover arm is the argument (Recommended)
+```
+
+## 2026-11-17 12:01:37 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#377: fixing `subsume` so it follows the definition (`map_le`) means an optional key added to an OPEN map is breaking: a package's next minor that adds `owner?: string` at its open top level would be refused by `breaking` and the publish gate, because a document with `owner: 5` was valid before and isn't after. It retires 14 ledger rows, but 8 package tests in each engine assert that such an addition is a compatible minor release. Which should hold?
+→ Sound everywhere (Recommended)
 ```

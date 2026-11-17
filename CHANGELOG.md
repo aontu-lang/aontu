@@ -151,7 +151,8 @@ The definition, shared rows and the register. No engine changes.
 - **Twenty-seven rows hold the ports to it**, `od0` to `od26` of
   `test/spec/def-path.tsv`: one document in three orders, which the
   definition reads alike. Both ports answer three ways (#778), so
-  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 408.
+  fifteen of the rows are in `spec/ledger.tsv`, its bound raised by
+  fifteen.
 
 ### A graph atom leaves the value as it is (#816, #750)
 
@@ -271,6 +272,59 @@ language.
 - `canon-calls-are-declared-builtins` in `ts/test/sig.test.ts`, and its
   Go twin, hold every call the shared rows' canon writes to
   `test/spec/signature.tsv`.
+
+### The definition reads module imports
+
+The definition only; neither engine changes.
+
+- A load whose name is bare and whose first step holds a dot, or
+  `alias:` and a name, imports a module, which the definition reads as
+  the source the calling program supplies for the import as written, a
+  pin with it. That source is named by the import and a `/`, so the
+  module's own loads read from the module's path. Which source it is,
+  and whether a pin or a lock agrees with it, the tools decide; a
+  module they can't resolve is one the program supplies no source for,
+  an error.
+- Rows lm0 on of `test/spec/def-path.tsv` load the projects of
+  `test/spec/files` that import a module, `moddefs` new among them, a
+  module that declares names, publishes one and loads a file of its
+  own; both engines answer every row as the definition does.
+
+### `subsume` reads an open map's missing key against an optional key (#377)
+
+Both engines and shared rows.
+
+- Where the general side declares an optional key and the specific
+  side doesn't, an open specific side admits a value there, its spread
+  template's or any value, and the general key must admit it.
+  `a: {x?: integer}` no longer subsumes `a: {}` or `a: {y: 1}`, which
+  admit `{"x": "a"}`, so `breaking` and the publish gate report an
+  optional key added to an open map as breaking. A closed specific
+  side, and a spread the key admits, as in `a: {&: integer}`, still
+  subsume: to add an optional key compatibly, close the map it lands
+  in.
+- The package tutorial and the publish how-to close their schemas, so
+  each next version they publish adds its optional key compatibly.
+- The `gen` profile's message for marks that differ reads
+  `{"type":false,"hide":false}` for a side with no marks in
+  TypeScript, as in Go, where it read `undefined`.
+- Four shared rows move to `does_not_subsume`: `optional-added` in
+  `test/spec/subsume.tsv` and three in `test/spec/recursion.tsv`.
+  Fourteen rows leave the definition's ledger, and its bound is 385.
+
+### A written `nil` among a constraint's arguments is no finding (#809)
+
+TypeScript only, and shared rows.
+
+- A constraint over a written `nil` that no data meets reads as Go and
+  the definition read it: `v?: max(nil)` against `{}` is `valid`, an
+  optional key left absent, and `v: len(nil)` is `incomplete`.
+  TypeScript's walk for findings went into a built constraint's
+  arguments and reported the written `nil` there as `literal_nil`, so
+  `vet` read each as `invalid`. It now walks only what the constraint's
+  `must` checks, as Go's does.
+- Eighteen rows join the written-nil cases in
+  `test/spec/def-path.tsv`, from `nl186` on.
 
 ### A bound over a choice stays an error beside a written `nil` (#798)
 
