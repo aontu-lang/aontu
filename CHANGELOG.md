@@ -170,9 +170,16 @@ its canon, its hash and its relation verdicts.
   the list or map it is, where it admitted anything.
 - **Canon writes the atoms after the value in one order**: `acyclic()`
   first, then each `inverse()` in name order, and an atom written twice
-  once. A document that wrote `inverse()` before `acyclic()` has a new
-  canon and hash, the ones the other order has (ADR-081). A disjunction
-  an atom rides is written in parentheses, `(1|2)&acyclic()`.
+  once. Canon had written them in the order they were met, so one
+  relation could have several canons and hashes: `inverse(b) &
+  inverse(a)` had one, `inverse(a) & inverse(b)` another, and
+  `inverse(a) & inverse(b) & inverse(a)` a third, an order dependence
+  ADR-081 rules out. Each relation now has one. A document written in
+  that order keeps its canon and hash; one written in another order, or
+  with an atom repeated, takes them, so a pin taken from it moves. A
+  disjunction an atom rides is written in parentheses,
+  `(1|2)&acyclic()`, where canon had written `1|2&acyclic()`, which
+  reads back as an atom on one arm.
 - **The declarations are read from the finished value**, by the key
   each atom is met at. An atom met with nothing, as in
   `rules: {next: acyclic()}`, declares as one met with a relation does;
@@ -181,7 +188,7 @@ its canon, its hash and its relation verdicts.
   document refused declares nothing, where before it declared, and one
   below an unresolved disjunction declares nothing, as a link there is
   no edge.
-- Pinned by sixteen rows from `atom-relation-member-is-a-link-target`
+- Pinned by seventeen rows from `atom-relation-member-is-a-link-target`
   to `undecided-alternative-declares-nothing` in
   `test/spec/relation.tsv`, and nine from
   `hcanon-graph-atoms-one-order` to

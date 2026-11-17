@@ -747,7 +747,7 @@ in both ports, fixing #816 and #750: `acyclic()` and `inverse(k)` met
 with a value hand it back, the declaration riding it as a record that
 every meet unions, and the relation checks read the declarations from
 the finished value by the key each atom is met at. The held value, its
-self-drive and the context registry are gone. Pinned by sixteen rows
+self-drive and the context registry are gone. Pinned by seventeen rows
 in `test/spec/relation.tsv` and nine in `test/spec/hcanon.tsv`.
 
 **RELATIONS P2 LANDED 2026-08-29** (sketch/RELATIONS.0.md), in

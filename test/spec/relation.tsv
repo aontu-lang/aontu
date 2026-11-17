@@ -129,6 +129,7 @@ atom-address-is-a-plus-operand	gens	a: {}\np: relate() & acyclic() & path($.a)\n
 atom-address-under-inverse-is-a-plus-operand	canon	a: {}\np: relate() & inverse(q) & path($.a)\nx: .p + "/n"	{"a":{},"p":relate()&path($.a)&inverse("q"),"x":"$.a/n"}
 atom-order-is-not-written-order	canon	a: {}\nr: relate() & inverse(back) & acyclic() & [path($.a)]	{"a":{},"r":relate()&[path($.a)]&acyclic()&inverse("back")}
 atom-twice-is-once	canon	y: inverse(a) & inverse(b) & inverse(a)	{"y":inverse("a")&inverse("b")}
+atom-inverses-in-name-order	canon	r: relate() & inverse(b) & inverse(a) & inverse(b) & []	{"r":relate()&[]&inverse("a")&inverse("b")}
 atom-beside-a-disjunction	canon	x: (1 | 2) & acyclic()\ny: (1 | 2) & acyclic()\ny: 1	{"x":(1|2)&acyclic(),"y":1&acyclic()}
 atom-on-a-hidden-container	canon	x: hide({a: 1} & acyclic())\ny: type([1] & inverse(k))	{"x":{"a":1}&acyclic(),"y":[1]&inverse("k")}
 
