@@ -6865,7 +6865,9 @@ fills reads as the value the data gives it, so
 `lo: number, t: min($.lo)` admits `{"lo": 2, "t": 3}`. A choice still
 to make, a disjunction or a preference, is no argument at all, an
 error whatever the bound meets, as a size that holds one is, and so
-is an argument that never settles. A `neq` over a sole list that isn't
+is an argument that never settles. A choice the meet or a dead arm
+settles to one arm is that arm, as in a size, so `min(1 | (1 & 2))` is
+`min(1)`, and so is `min(nil | 1)`, whose written `nil` holds no value. A `neq` over a sole list that isn't
 empty reads its elements as its arguments, `neq([1, 3])` as
 `neq(1, 3)`, so a choice among them is an error too. The atom that
 admits nothing meets `any` as itself and anything else as a
