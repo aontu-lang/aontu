@@ -1398,3 +1398,9 @@ in the context of the state machine design, and with respect to the current real
 ```text
 make the recommended implementation chanbge
 ```
+
+## 2026-11-17 17:59:57 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+""" A document that wrote inverse() before acyclic() gets a new canon and hash """ - why - doesn't this break order independence?
+```
