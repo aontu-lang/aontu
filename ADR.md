@@ -7083,8 +7083,10 @@ rendering follows from here on.
 - An audit of the builtins the same day found the link functions the
   only ones written under another name. It also found `len(2)` written
   `len(integer&min(2)&max(2))`: the name is `len`'s own, and the
-  argument is the range the call reads it as, which this entry does not
-  rule on.
+  argument is the range the call reads it as. The owner ruled on
+  2026-11-17 that it stays so: canon writes an argument in its normal
+  form, so two equal constraints written differently have one canon and
+  one hash.
 - Pinned by the `canon`, `hcanon` and `hash` rows of
   `test/spec/hcanon.tsv` from `hcanon-relate-one-path` on, by
   `canon-resolved` and `hcanon-link-writes-its-call` of

@@ -1,6 +1,7 @@
 # State machines from general primitives: design note
 
-Status: PROPOSED, second draft (2026-11-17). Nothing here is built. The
+Status: PROPOSED, second draft (2026-11-17), its ten questions ruled
+the same day as §10 records. Nothing here is built. The
 first draft of the same day proposed a `machine(spec)` declaration with
 its own vocabulary of initial and final states, patterns and
 obligations; the owner found it too specific. This draft proposes
@@ -457,32 +458,43 @@ D-12's template where a team needs those.
 
 ## 10. Decisions for the owner
 
-Each with a recommendation.
+Each with a recommendation, and the owner's ruling of 2026-11-17. Every
+ruling followed the recommendation.
 
 - **Q1.** Do the graph reads, judged after unification, fall inside
   G4's option E and outside its non-goal on temporal properties?
   Recommended: yes, and G4's boundary text says so.
+  **Ruled: yes.** G4's boundary text is to say so.
 - **Q2.** Rule S at the grain of a value, or of a field? Recommended:
   a value first, as the definition refuses #818 today; a field where a
   model shows the need.
+  **Ruled: a value first.**
 - **Q3.** Does `reach` include its start? Recommended: yes, unlike the
   verb, so that "every state is reachable" includes the initial one.
+  **Ruled: yes.**
 - **Q4.** Where does an undecided `implies` land: `incomplete`, a class
   of its own, or refused? Recommended: `incomplete`, with its `sub_*`
   reason, so a gate fails on it and `--partial` doesn't.
+  **Ruled: `incomplete`, with its `sub_*` reason.**
 - **Q5.** Which field of a record member is the link: named in the call,
   or a convention? Recommended: named in the call.
+  **Ruled: named in the call.**
 - **Q6.** The names: `reach`, `step`, `route`, `edges`, `oneof`, `get`,
   `implies`, `here`, `pairs`, `keys`.
+  **Ruled: as proposed**, each checked against the builtins as its phase lands.
 - **Q7.** Does the state figure label by event by default?
   Recommended: yes; the goldens move once.
+  **Ruled: yes.**
 - **Q8.** Is `aontu:machine` bundled, with its SCXML template, or only
   a how-to guide? Recommended: bundled, as `aontu:gen` is.
+  **Ruled: bundled, with its SCXML template.**
 - **Q9.** A design note, or gap document G13 with register rows?
   Recommended: G13 once Q1 and Q2 are ruled.
+  **Ruled: G13**, not yet opened.
 - **Q10.** Rule S and the graph reads in the definition? Recommended:
   rule S yes, since it decides what is refused; the graph reads once
   phase 2 has rows.
+  **Ruled: rule S now, the graph reads once their rows exist.**
 
 ## 11. Issues this note depends on
 
@@ -498,5 +510,5 @@ Each with a recommendation.
 | #661, #754 | relative paths in a template, which the model's checks use |
 | #691 | a spread that reads what it supplies |
 | #750 | `+` over an address a graph atom governs |
-| #777 | whether a relation's range checks or writes its target |
+| #777 | ruled 2026-11-17: a relation's range checks its target, judged once the target has settled, and writes nothing into it |
 | #457, #327 | the text and site of a refusal inside a call, which every check reports through |

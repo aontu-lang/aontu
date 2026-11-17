@@ -1115,49 +1115,32 @@ One was settled by the request itself:
    request's "must also unify with the standard set" rules out
    ignoring an option the type does not have.
 
+The owner ruled the rest on 2026-11-17, each with a recommendation
+put to them, and one against it:
+
+6. **A container's record does not reach its members** (D-11). A
+   member needs its own record; there is no `deep` option.
+7. **One option set for the numeric kinds**, `Number` (D-12).
+8. **Exact places cross JSON as a string only** (D-14). There is no raw
+   number form of `24.00`.
+9. **An omitted root generates nothing**, as a hidden root does (D-16).
+10. **The keys take all nine styles of `nom`** (D-18).
+11. **A key with no word is written as it is** (D-18).
+12. **The case option means what `upper()` and `lower()` mean.** If
+    those move to a mapping aontu defines under ADR-003, it follows
+    them, and the three move together.
+13. **Every type's notation option is named `form`**, against the
+    recommendation: `case`, `keys` and `as` are renamed, so the string
+    shorthand reaches every type, `"ada" & gen("upper")` and
+    `7 & gen("string")`. **Not yet built**: the model `aontu:gen`, both
+    ports, the rows and the reference move together, as one change.
+14. **`custom` is given what the value writes without it**, read as
+    data (D-20).
+15. **`custom` stands alone**: it reads nothing else in the document
+    (D-20).
+16. **`vet` reads the value** and does not report what only writing
+    refuses (the Delta under D-6).
+
 ### Open
 
-Each has a recommendation, and the second cut follows it. None is
-expensive to change before a release.
-
-6. **Does a container's record reach its members?** Recommended: no
-   (D-11). `keys` is where it costs: a document that wants every map
-   in `snake` has to annotate every map. The alternative is a `deep`
-   option on `Map` and `List` that hands the record down.
-7. **The set for the numeric kinds.** Recommended: one, `Number`
-   (D-12). The alternative is a set for each leaf, which lets an
-   option belong to `integer` alone and refuses it on a field typed
-   `number`.
-8. **Exact places as a number.** Recommended: only the string form
-   keeps trailing zeros (D-14). The alternative is a raw number in
-   what `generate()` hands out, so that `24.00` can be a JSON number.
-9. **An omitted root.** Recommended: it generates nothing, as a
-   hidden root does (D-16). The alternative is that the option has no
-   effect at the root.
-10. **Which styles `keys` takes.** Recommended: all nine of `nom`
-    (D-18). The alternative is the five that are common in JSON:
-    `camel`, `kebab`, `pascal`, `snake`, `upper`.
-11. **A key with no word.** Recommended: written as it is (D-18). The
-    alternative is to refuse it, as `nom` refuses the name.
-12. **`case` and the host.** `upper()` and `lower()` ask the host for
-    the conversion, and `case` inherits that (D-15). It is the one
-    option that does.
-13. **Which types have a `form`.** Built: `path` alone, so `gen("x")`
-    is a path's shorthand. Each other type has one option that chooses
-    a notation: `case` for a string, `keys` for a map, `as` for a
-    number and a boolean. Naming those `form` would let the shorthand
-    reach every type, `"ada" & gen("upper")` and `7 & gen("string")`,
-    and would give one name four meanings.
-14. **What `custom` is given.** Built: what the value writes without
-    it, read as data (D-20). The alternative is the value itself, with
-    its leaf and its members' records, which makes the other options
-    of the record idle beside `custom`.
-15. **Whether `custom` may read the document.** Built: no, it stands
-    alone (D-20). The alternative resolves its references where the
-    annotation is written, so `custom: $.prefix + _` works, and has to
-    say what a reference that settles late does.
-16. **`vet` and a refusal of writing.** Built: `vet` reads the value
-    and does not report a key clash, an address with no absolute form,
-    or a rounding that overflows (the Delta under D-6). The alternative
-    is that `vet` also runs the generation that writes, and reports
-    what it refuses as findings.
+None.
