@@ -69,7 +69,7 @@ than its value.
 - `domain.aontu`: record types (`close()`d maps, optional keys `?`,
   `re()` for ISO codes, `neq()` to ban XXX/XTS, `len()` on names,
   `min`/`max` cents bounds), plus the record bags whose `&:` spreads
-  apply the types, force `id == key` via `key()`, and attach `refer()`
+  apply the types, force `id == key` via `key()`, and attach `relate()`
   links (`order.customerId`, `invoice.orderId`).
 - `seed.aontu`: includes the domain; an exact price book in `0d`
   bigdecimals with **pinned sums** (`(0d0.1 + 0d0.2) & 0d0.3` is a
@@ -155,12 +155,12 @@ subsumption.
 
 A link is a tree path (`customerId: path("$.customers.cust-1001")`),
 so `domain.aontu` pins the address shape in the type
-(`re("^\\$\\.customers\\.cust-")`) and attaches `refer()` at the bag
+(`re("^\\$\\.customers\\.cust-")`) and attaches `relate()` at the bag
 spread, where the type is applied to each record
-(`&: $.schema.Order & { id: key(), customerId: refer() }`): the
+(`&: $.schema.Order & { id: key(), customerId: relate() }`): the
 pattern catches a link into the wrong bag, the resolution catches a
 link to nothing. `pack()` derives the receivables bag from the
-customer bag with `accountFor: refer() & path("$.customers." + key())`,
+customer bag with `accountFor: relate() & path("$.customers." + key())`,
 so accounts cannot drift from customers and each link is checked
 rather than carried as a loose string.
 
@@ -226,7 +226,7 @@ rounds them, and `--canon` keeps the `0d` prefix and the exact value.
    it; the finding is an advisory lint (severity `warning`) and the
    verdict stays `valid`.
 5. `bad/order-dangling.aontu`, an order whose `customerId` names
-   `$.customers.cust-9999`, is refused with `[aontu/refer_unresolved]`,
+   `$.customers.cust-9999`, is refused with `[aontu/rel_unresolved]`,
    exit 1, naming the missing customer and the data file, line and
    column.
 6. `bad/customer-extra-key.json`, a customer with an undeclared

@@ -8,9 +8,11 @@ declare const unite: (ctx: AontuContext, a: any, b: any, whence: string) => any;
 type LinkSite = {
     link: any;
     at: string[];
+    from: string[];
     put: (v: Val) => void;
 };
 declare function linksOf(root: Val): LinkSite[];
+declare function rootLinks(root: Val): void;
 declare function holdsLink(v: any, seen?: Set<any>): boolean;
 declare class Unify {
     root: Val;
@@ -22,4 +24,4 @@ declare class Unify {
     constructor(root: Val | string, lang?: Lang, ctx?: AontuContext | any, src?: any);
 }
 declare const meetTemplate: (ctx: AontuContext, member: Val, tmpl: Val, whence: string) => Val;
-export { Unify, holdsLink, linksOf, unite, meetTemplate, withDepth, ride, rideOn, };
+export { Unify, holdsLink, linksOf, rootLinks, unite, meetTemplate, withDepth, ride, rideOn, };

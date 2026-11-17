@@ -93,14 +93,6 @@ func (m *MapVal) superior() Val { return top() } //coverage:ignore no caller: su
 
 func (m *MapVal) Canon() string {
 	var b strings.Builder
-	b.WriteByte('{')
-	if m.spread != nil {
-		b.WriteString("&:")
-		b.WriteString(CanonRiders(m.spread))
-		if len(m.keys) > 0 {
-			b.WriteByte(',')
-		}
-	}
 	keys := make([]string, 0, len(m.keys))
 	for _, k := range m.keys {
 		if !m.isAliasKey(k) {
@@ -108,6 +100,9 @@ func (m *MapVal) Canon() string {
 		}
 	}
 	sort.Strings(keys)
+	b.WriteString(relateText(m))
+	b.WriteByte('{')
+	b.WriteString(spreadText(m.spread, 0 < len(keys), CanonRiders))
 	first := true
 	for _, k := range keys {
 		if !first {
@@ -302,8 +297,10 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 	out := map[string]any{}
 	keys := append([]string(nil), m.keys...)
 	sort.Strings(keys)
+	outer := genPlace(ctx)
 	for _, k := range keys {
-		child := placeShared(m.peg[k], append(cp(m.path), k))
+		at := append(cp(m.path), k)
+		child := placeShared(m.peg[k], at)
 		// Type and hidden values are excluded from generation (a key
 		// whose source was moved away carries the hide mark set by
 		// RefVal.find's hide-found handling).
@@ -355,7 +352,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			gctx = &c2
 		}
 
-		cv, err := genAt(child, gctx, k)
+		cv, err := genAt(child, gctx, k, at)
 		// An optional key drops what does not resolve, never a refusal
 		// the parser made: the one vet reports there is raised instead.
 		if gctx != ctx && (nil != err || 0 < len(gctx.err) || gctx.dropped) {
@@ -381,7 +378,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		}
 		// A JSON null child survives even when optional (`b?:null` keeps
 		// b: null); other nils and optional empties contribute nothing.
-		if cv == nil && gensNullAt(ctx, child, k) {
+		if cv == nil && (wroteNull(gctx) || gensNullAt(ctx, child, k)) {
 			out[k] = nil
 			continue
 		}
@@ -394,6 +391,12 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			continue
 		}
 		out[k] = cv
+	}
+	if nil != ctx {
+		ctx.at = outer
+	}
+	if genWrites(ctx, m.genopts) {
+		return genWriteMap(ctx, m, out)
 	}
 	return out, nil
 }
@@ -419,14 +422,11 @@ func literalNilMeets(n *NilVal, v Val) bool {
 func genable(v Val) bool {
 	switch v.(type) {
 	case *ScalarVal, *MapVal, *ListVal, *PrefVal, *RefVal,
-		*DisjunctVal, *NilVal, *AbsentVal:
+		*DisjunctVal, *NilVal, *AbsentVal, *GraphAtomVal:
 		return true
 	}
 	if _, _, ok := sizingResidue(v); ok {
 		return true
-	}
-	if ga, ok := v.(*GraphAtomVal); ok {
-		return nil == ga.held || genable(ga.held)
 	}
 	// The recursive residual carries its own generation refusal
 	// (recursion_unexpanded), which names the schema and the site --
@@ -463,8 +463,12 @@ func sizingResidue(v Val) (*ConstraintVal, Val, bool) {
 func gensNull(ctx *Ctx, v Val) bool {
 	switch n := v.(type) {
 	case *ScalarVal:
-		return n.kind == KindNull
+		return n.kind == KindNull && !(genWrites(ctx, n.genopts) &&
+			("omit" == n.genopts["empty"] || nil != n.genopts["custom"]))
 	case *PrefVal:
+		if nil != n.genrec {
+			return gensNull(ctx, heldVal(ctx, n))
+		}
 		return gensNull(ctx, n.peg)
 	case *DisjunctVal:
 		member, unresolved := n.forGen(ctx)
@@ -497,9 +501,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(m, ctx)
 	}
-	// A rel() peer drives for the same reason: the relation constraint
+	// A relate() peer drives for the same reason: the relation constraint
 	// rewrites this container leaf by leaf (RELATIONS.0.md §3.2).
-	if pr, ok := peer.(*RelVal); ok {
+	if pr, ok := peer.(*RelateVal); ok {
 		return pr.Unify(m, ctx)
 	}
 	// Let the closed side drive, so its key restriction is enforced
@@ -546,15 +550,18 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out.spread = m.spread
 		out.optional = append([]string{}, m.optional...)
 		out.aliasKeys = append([]string{}, m.aliasKeys...)
+		out.lk.relates, out.lk.root = m.lk.relates, m.lk.root
 	}
 	done := true
 
 	// Combine spreads. REQUIRED WINS (ADR-045): a key is optional only
 	// where every side that declares it says so.
 	if pm, ok := peer.(*MapVal); ok {
+		out.lk.relates = joinRelates(out.lk.relates, pm.lk.relates)
+		out.lk.root = out.lk.root || pm.lk.root
 		if out.spread == nil {
 			out.spread = pm.spread
-		} else if pm.spread != nil && out.spread.Canon() != pm.spread.Canon() {
+		} else if pm.spread != nil && templateKey(out.spread) != templateKey(pm.spread) {
 			out.spread = unite(ctx, unmarkedTemplate(out.spread), unmarkedTemplate(pm.spread))
 		}
 		for _, ak := range pm.aliasKeys {

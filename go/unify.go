@@ -28,7 +28,7 @@ func unite(ctx *Ctx, a, b Val) Val {
 		ctx.prov.record(provPath, a, b, out)
 	}
 	if nil != out && !out.Nil() {
-		out = rideOn(markOn(out, a, b), a, b)
+		out = rideOn(ctx, markOn(out, a, b), a, b)
 	}
 	if nil != ctx.reads && nil != out && !isTop(out) && !out.Nil() {
 		if "" == out.readAddr() {
@@ -105,7 +105,8 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 	if isConjunct(a) || isExpect(a) {
 		return drive(a, b)
 	}
-	if drives(b) {
+	// A graph atom answers from either side, even beside a driver.
+	if drives(b) && !isGraphAtom(a) {
 		return drive(b, a)
 	}
 	// These answer from either side, but a hole in a match matches nothing.
@@ -124,16 +125,17 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 
 func drives(v Val) bool {
 	return isConjunct(v) || isDisjunct(v) || isPref(v) || isRef(v) || isVar(v) || isFunc(v) ||
-		isExpect(v) || isRefer(v) || isGraphAtom(v) || isRecurse(v) || isDrivingOp(v)
+		isExpect(v) || isPendingLink(v) || isGraphAtom(v) || isRecurse(v) || isDrivingOp(v)
 }
 
 const maxUniteDepth = 1000
 
-// linkSite is a link the output takes, where it stands, and how to put a
-// value in its place.
+// linkSite is a link the output takes, where it stands, where its address
+// is read from, a relation's for its leaf, and how to put a value there.
 type linkSite struct {
 	link *ScalarVal
 	at   []string
+	from []string
 	put  func(Val)
 }
 
@@ -144,27 +146,39 @@ type linkSite struct {
 // spread's template holds no position, so its links are its members'.
 func linksOf(root Val) []linkSite {
 	var out []linkSite
-	var visit func(n Val, put func(Val), at []string)
-	visit = func(n Val, put func(Val), at []string) {
+	var visit func(n Val, put func(Val), at, under []string)
+	visit = func(n Val, put func(Val), at, under []string) {
 		switch v := n.(type) {
 		case *ScalarVal:
 			if nil != v.lk.to {
-				out = append(out, linkSite{v, at, put})
+				from := under
+				if v.lk.root || nil == under {
+					from = at
+				}
+				out = append(out, linkSite{v, at, from, put})
 			}
 		case *MapVal:
+			below := under
+			if v.lk.root {
+				below = append([]string{}, at...)
+			}
 			for _, k := range v.keys {
 				k := k
-				visit(v.peg[k], func(x Val) { v.peg[k] = x }, append(cp(at), k))
+				visit(v.peg[k], func(x Val) { v.peg[k] = x }, append(cp(at), k), below)
 			}
 		case *ListVal:
+			below := under
+			if v.lk.root {
+				below = append([]string{}, at...)
+			}
 			for i := range v.peg {
 				i := i
-				visit(v.peg[i], func(x Val) { v.peg[i] = x }, append(cp(at), itoa(i)))
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, append(cp(at), itoa(i)), below)
 			}
 		case *ConjunctVal:
 			for i := range v.peg {
 				i := i
-				visit(v.peg[i], func(x Val) { v.peg[i] = x }, at)
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, at, under)
 			}
 		case *DisjunctVal:
 			rank := -1
@@ -177,19 +191,95 @@ func linksOf(root Val) []linkSite {
 				p, ok := a.(*PrefVal)
 				if 0 > rank || (ok && rank == p.rank) {
 					i := i
-					visit(a, func(x Val) { v.peg[i] = x }, at)
+					visit(a, func(x Val) { v.peg[i] = x }, at, under)
 				}
 			}
 		case *PrefVal:
-			visit(v.peg, func(x Val) { v.peg = x }, at)
-		case *GraphAtomVal:
-			if nil != v.held {
-				visit(v.held, func(x Val) { v.held = x }, at)
-			}
+			visit(v.peg, func(x Val) { v.peg = x }, at, under)
 		}
 	}
-	visit(root, func(Val) {}, nil)
+	visit(root, func(Val) {}, nil, nil)
 	return out
+}
+
+// seatLinks: a link reads its address where it stands, so one a path
+// reference copied is made again from its own place, and names nothing
+// where its address climbs past the root. A template that is the
+// recursive name the link stands in waits for data, and is not sent on
+// from the copy.
+func seatLinks(ctx *Ctx, links []linkSite) []linkSite {
+	out := links[:0]
+	for _, l := range links {
+		text := l.link.peg.(string)
+		addr, _ := parseAddress(text)
+		if to, ok := addressPath(addr, l.from); ok && slices.Equal(to, l.link.lk.to) {
+			out = append(out, l)
+			continue
+		}
+		var sent []Val
+		for _, t := range l.link.lk.relates {
+			if !isRecurse(t) {
+				sent = append(sent, t)
+			}
+		}
+		made, ok := linkAt(text, l.from, nil, sent, l.link.lk.root)
+		if !ok {
+			n := makeNilErrFull(ctx, "rel_unresolved", l.link, nil, "relate",
+				map[string]string{"addr": text})
+			n.path = l.at
+			l.put(n)
+			continue
+		}
+		seated := *l.link
+		seated.link = made.link
+		seated.lk = made.lk
+		seated.lk.relates = l.link.lk.relates
+		seated.path = cp(l.from)
+		l.put(&seated)
+		l.link = &seated
+		out = append(out, l)
+	}
+	return out
+}
+
+// rootLinks: a link with no `relate()` at or above it has one where it
+// stands, as a copy of one link out of a bag of them does, so canon
+// writes the call.
+func rootLinks(root Val) {
+	var visit func(n Val, put func(Val), under bool)
+	visit = func(n Val, put func(Val), under bool) {
+		switch v := n.(type) {
+		case *ScalarVal:
+			if nil != v.lk.to && !under && !v.lk.root {
+				c := *v
+				c.lk.root = true
+				put(&c)
+			}
+		case *MapVal:
+			for _, k := range v.keys {
+				k := k
+				visit(v.peg[k], func(x Val) { v.peg[k] = x }, under || v.lk.root)
+			}
+		case *ListVal:
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, under || v.lk.root)
+			}
+		case *ConjunctVal:
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, under)
+			}
+		case *DisjunctVal:
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, under)
+			}
+		case *PrefVal:
+			visit(v.peg, func(x Val) { v.peg = x }, under)
+		}
+	}
+	visit(root, func(Val) {}, false)
 }
 
 // flowID: a template is the same as another only with the same
@@ -321,12 +411,12 @@ func holdsLink(v Val, seen map[Val]bool) bool {
 	seen[v] = true
 	var kids []Val
 	switch n := v.(type) {
-	case *ReferVal, *RelVal:
+	case *PendingLinkVal, *RelateVal:
 		return true
 	case *ScalarVal:
 		return nil != n.lk.to
 	case *FuncVal:
-		if "refer" == n.name || "rel" == n.name {
+		if "relate" == n.name {
 			return true
 		}
 		kids = n.peg
@@ -429,7 +519,7 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 				map[string]string{"limit": strconv.Itoa(maxcc), "paths": joined})
 		}
 
-		links = linksOf(res)
+		links = seatLinks(ctx, linksOf(res))
 		var flows []flowAt
 		if nil != pristine {
 			flows = flowsOf(res, links)
@@ -466,16 +556,14 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	// A link the output takes names something the document holds.
 	for _, l := range links {
 		if _, ok := findAt(res, l.link.lk.to); !ok {
-			code := l.link.lk.code
-			if "" == code {
-				code = "refer_unresolved"
-			}
-			n := makeNilErrFull(ctx, code, l.link, nil, "refer",
+			n := makeNilErrFull(ctx, "rel_unresolved", l.link, nil, "relate",
 				map[string]string{"addr": l.link.peg.(string)})
 			n.path = l.at
 			l.put(n)
 		}
 	}
+
+	rootLinks(res)
 
 	// The settled tree's alias references canon as the values they name
 	// (go/alias.go): attached once, after the last pass, from the

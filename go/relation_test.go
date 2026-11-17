@@ -11,7 +11,7 @@ import "testing"
 
 func TestRelationCheckCountsDeclarations(t *testing.T) {
 	none := "a: { b: 1 }\n"
-	graph := "a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {}\n"
+	graph := "a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {}\n"
 
 	if r := New().RelationCheck(none); nil != r.Declared {
 		t.Errorf("unasked: %d", *r.Declared)

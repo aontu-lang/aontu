@@ -14,6 +14,7 @@ const aontu_1 = require("./aontu");
 const exactjson_1 = require("./exactjson");
 const vet_1 = require("./vet");
 const keyorder_1 = require("./keyorder");
+const PathVal_1 = require("./val/PathVal");
 const provenance_1 = require("./provenance");
 const TOP = 'any';
 function nearestKey(want, have) {
@@ -66,12 +67,17 @@ function project(v, view, depth) {
     const s = projectNode(v, view, depth);
     return 'canon' === view ? (0, rider_1.riderText)(s, v) : s;
 }
+// A bag's opening: the relation's call, which the canon view writes as
+// canon does, the bracket, and the template where it has a text.
+function bagOpen(v, view, depth, bracket, members) {
+    const s = v.spread.cj ? project(v.spread.cj, view, depth - 1) : '';
+    return ('canon' === view ? (0, PathVal_1.relateText)(v) : '') + bracket +
+        ('' === s ? '' : '&:' + s + (members ? ',' : ''));
+}
 function projectNode(v, view, depth) {
     if (true === v?.isMap) {
         const keys = Object.keys(v.peg).sort(keyorder_1.cmpCodePoint);
-        return '{' +
-            (v.spread.cj ? '&:' + project(v.spread.cj, view, depth - 1) +
-                (0 < keys.length ? ',' : '') : '') +
+        return bagOpen(v, view, depth, '{', 0 < keys.length) +
             keys.map((k) => JSON.stringify(k) +
                 (v.optionalKeys.includes(k) ? '?' : '') +
                 ':' +
@@ -80,9 +86,7 @@ function projectNode(v, view, depth) {
     }
     if (true === v?.isList) {
         const keys = Object.keys(v.peg);
-        return '[' +
-            (v.spread.cj ? '&:' + project(v.spread.cj, view, depth - 1) +
-                (0 < keys.length ? ',' : '') : '') +
+        return bagOpen(v, view, depth, '[', 0 < keys.length) +
             keys.map((k) => project(v.peg[k], view, depth - 1)).join(',') +
             ']';
     }
@@ -93,6 +97,7 @@ function projectNode(v, view, depth) {
         return v.peg.map((m) => true === m?.isJunction && 1 < m.peg.length
             ? '(' + project(m, view, depth) + ')'
             : project(m, view, depth))
+            .filter((s) => '' !== s)
             .join(true === v.isConjunct ? '&' : '|');
     }
     return 'types' === view && true === v?.isScalar ? v.superior().canon : v.canon;

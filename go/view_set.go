@@ -315,7 +315,7 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 	// values generates what it reads.
 	var declared any
 	if node := anchorAt(root, options.Views); nil != node {
-		value, gerr := genCollect(ctx, node)
+		value, gerr := genCollectPlain(ctx, node)
 		if nil != gerr {
 			return ViewSetReport{Verdict: "error", Views: none,
 				Errors: queryFailed(gerr, options.Views).Findings}

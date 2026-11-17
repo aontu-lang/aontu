@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BagVal = void 0;
+exports.templateKey = templateKey;
 exports.keyTable = keyTable;
 exports.putKey = putKey;
 exports.sizingResidue = sizingResidue;
@@ -16,6 +17,7 @@ const NilVal_1 = require("./NilVal");
 const FeatureVal_1 = require("./FeatureVal");
 const ExpectVal_1 = require("./ExpectVal");
 const keyorder_1 = require("../keyorder");
+const genwrite_1 = require("./genwrite");
 class BagVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -63,7 +65,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
         const scj = this.spread?.cj;
         const pcj = peer.spread?.cj;
         if ((null == scj) !== (null == pcj) ||
-            (null != scj && null != pcj && scj.canon !== pcj.canon)) {
+            (null != scj && null != pcj && templateKey(scj) !== templateKey(pcj))) {
             return false;
         }
         const keys = Object.keys(this.peg);
@@ -88,6 +90,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
         if ((this.mark.type || this.mark.hide) && true !== ctx?.probe) {
             return undefined;
         }
+        const outer = ctx?.genat;
         let entries = (0, utility_1.items)(this.peg);
         if (this.isMap) {
             entries = entries
@@ -126,7 +129,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             // An optional disjunct is dropped unresolved or empty, as any optional is.
             if (child.isDisjunct && optional) {
                 const dctx = ctx.clone({ err: [], collect: true });
-                let cval = child.gen(towardAt(this, dctx, p, out));
+                let cval = child.gen(towardAt(this, dctx, p, out, at));
                 if (raiseParse(dctx, child, ctx) || undefined === cval || (0, Val_1.empty)(cval)) {
                     continue;
                 }
@@ -134,7 +137,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             }
             else if (bagGenable(child)) {
                 const cctx = optional ? ctx.clone({ err: [], collect: true }) : ctx;
-                let cval = child.gen(towardAt(this, cctx, p, out));
+                let cval = child.gen(towardAt(this, cctx, p, out, at));
                 if (optional &&
                     (raiseParse(cctx, child, ctx) || undefined === cval || (0, Val_1.empty)(cval))) {
                     continue;
@@ -170,13 +173,20 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 break;
             }
         }
-        return out;
+        if (null != ctx) {
+            ctx.genat = outer;
+        }
+        return (0, genwrite_1.genWrites)(ctx, this) ? (0, genwrite_1.genWriteBag)(ctx, this, out) : out;
     }
 } /* node:coverage ignore next 6 */
 exports.BagVal = BagVal;
-function towardAt(bag, ctx, p, out) {
-    return undefined === ctx?._toward ? ctx :
+function towardAt(bag, ctx, p, out, at) {
+    const tctx = undefined === ctx?._toward ? ctx :
         (0, admission_1.towardMember)(ctx, bag.isMap ? String(p) : out.length);
+    if (null != tctx) {
+        tctx.genat = at;
+    }
+    return tctx;
 }
 // An optional key drops what does not resolve, never a parse refusal.
 function raiseParse(gctx, child, ctx) {
@@ -188,6 +198,12 @@ function raiseParse(gctx, child, ctx) {
     return true;
 }
 // A key is data, never a property lookup: a key table has no prototype.
+// A template's identity: its canon, and the pending links canon leaves out.
+function templateKey(cj) {
+    const links = true === cj.isPendingLink ? [cj]
+        : true === cj.isConjunct ? cj.peg.filter((t) => true === t.isPendingLink) : [];
+    return cj.canon + links.map((l) => '\x00' + l.tval.canon).join('');
+}
 function keyTable() {
     return Object.create(null);
 }
@@ -219,9 +235,6 @@ function sizingResidue(v) {
         { con, bag } : undefined;
 }
 function bagGenable(child) {
-    if (true === child.isGraphAtom) {
-        return undefined === child.held || bagGenable(child.held);
-    }
     // The recursive residual carries its own generation refusal
     // (recursion_unexpanded), which names the schema and the site --
     // the bag's generic residue error would bury both.
@@ -236,6 +249,7 @@ function bagGenable(child) {
         || true === child.isRef
         || true === child.isDisjunct
         || true === child.isNil
+        || true === child.isGraphAtom
         || undefined !== sizingResidue(child);
 }
 // A container template waits for a member that has not decided (ADR-043).

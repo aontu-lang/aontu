@@ -28,12 +28,12 @@ func relationsFile(t *testing.T, src string) string {
 	return file
 }
 
-const relCyclic = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}
-b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}
+const relCyclic = `a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}
+b: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.a)]}
 `
 
-const relClean = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}
-b: {usedBy: rel() & [path($.a)]}
+const relClean = `a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}
+b: {usedBy: relate() & [path($.a)]}
 `
 
 

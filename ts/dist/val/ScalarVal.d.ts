@@ -12,7 +12,7 @@ declare class ScalarVal extends Val {
     get canon(): any;
     same(peer: any): boolean;
     samePeg(peg: any): boolean;
-    gen(_ctx?: AontuContext): any;
+    gen(ctx?: AontuContext): any;
     superior(): Val;
 }
 export { ScalarVal, };

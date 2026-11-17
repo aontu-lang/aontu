@@ -11,8 +11,9 @@ import (
 )
 
 type hcanonMarks struct {
-	mtype bool
-	mhide bool
+	mtype    bool
+	mhide    bool
+	identity bool
 }
 
 func hcanonRender(v Val, inh hcanonMarks) string {
@@ -23,22 +24,15 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 	mtype := v.markedType()
 	mhide := v.markedHide()
 	inner := hcanonMarks{
-		mtype: inh.mtype || mtype,
-		mhide: inh.mhide || mhide,
+		mtype:    inh.mtype || mtype,
+		mhide:    inh.mhide || mhide,
+		identity: inh.identity,
 	}
 
 	var s string
 	switch b := v.(type) {
 	case *MapVal:
 		var out strings.Builder
-		out.WriteByte('{')
-		if b.spread != nil {
-			out.WriteString("&:")
-			out.WriteString(hcanonRender(b.spread, inner))
-			if len(b.keys) > 0 {
-				out.WriteByte(',')
-			}
-		}
 		keys := make([]string, 0, len(b.keys))
 		for _, k := range b.keys {
 			if !b.isAliasKey(k) {
@@ -46,6 +40,9 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 			}
 		}
 		sort.Strings(keys)
+		text := func(t Val) string { return hcanonRender(t, inner) }
+		out.WriteByte('{')
+		out.WriteString(spreadText(b.spread, 0 < len(keys), text))
 		first := true
 		for _, k := range keys {
 			if !first {
@@ -64,16 +61,12 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 		if b.closed {
 			s = "close(" + s + ")"
 		}
+		s = relateText(b) + s
 	case *ListVal:
 		var out strings.Builder
+		text := func(t Val) string { return hcanonRender(t, inner) }
 		out.WriteByte('[')
-		if b.spread != nil {
-			out.WriteString("&:")
-			out.WriteString(hcanonRender(b.spread, inner))
-			if len(b.peg) > 0 {
-				out.WriteByte(',')
-			}
-		}
+		out.WriteString(spreadText(b.spread, 0 < len(b.peg), text))
 		for i, e := range b.peg {
 			if i > 0 {
 				out.WriteByte(',')
@@ -85,6 +78,7 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 		if b.closed {
 			s = "close(" + s + ")"
 		}
+		s = relateText(b) + s
 	case *PrefVal:
 		s = "*" + hcanonRender(b.peg, inner)
 	case *ConjunctVal:
@@ -94,6 +88,14 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 	case *RefVal:
 		if nil != b.expansion {
 			s = hcanonRender(b.expansion, inner)
+		} else {
+			s = v.Canon()
+		}
+	// A relation's template has no text of its own, its container writing
+	// the `relate()`; identity reads it apart from the container, as its call.
+	case *PendingLinkVal:
+		if inh.identity {
+			s = b.call()
 		} else {
 			s = v.Canon()
 		}
@@ -118,8 +120,7 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 // with more than one term keeps its parens so the text reparses with
 // the same structure.
 func hcanonJunction(members []Val, sym string, inner hcanonMarks) string {
-	parts := make([]string, len(members))
-	for i, m := range members {
+	terms, parts := spelled(members, func(m Val) string {
 		wrap := false
 		switch t := m.(type) {
 		case *ConjunctVal:
@@ -128,14 +129,13 @@ func hcanonJunction(members []Val, sym string, inner hcanonMarks) string {
 			wrap = len(t.peg) > 1
 		}
 		if wrap {
-			parts[i] = "(" + hcanonRender(m, inner) + ")"
-		} else {
-			parts[i] = hcanonRender(m, inner)
+			return "(" + hcanonRender(m, inner) + ")"
 		}
-	}
+		return hcanonRender(m, inner)
+	})
 	// As canon writes a meet: terms of one rank in code-point order.
 	if "&" == sym {
-		parts = meetOrder(members, parts)
+		parts = meetOrder(terms, parts)
 	}
 	return strings.Join(parts, sym)
 }
@@ -146,6 +146,11 @@ func hcanonJunction(members []Val, sym string, inner hcanonMarks) string {
 // ts/src/hcanon.ts.
 func Hcanon(v Val) string {
 	return hcanonRender(v, hcanonMarks{})
+}
+
+// hcanonIdentity mirrors hcanon(v, true) in ts/src/hcanon.ts.
+func hcanonIdentity(v Val) string {
+	return hcanonRender(v, hcanonMarks{identity: true})
 }
 
 func CanonHash(v Val) string {

@@ -23,7 +23,7 @@ logical thing, and any drift between them should be an *error*, not a
 silent fork. It is also the ground-truth-ontology problem for AI
 agents: an agent must be able to pull one service's complete truth
 into context (`aontu model get`), ask where a fact came from (`aontu model why`),
-and have its own emitted candidates checked (`aontu vet`, `rel()`).
+and have its own emitted candidates checked (`aontu vet`, `relate()`).
 
 ## The model tree
 
@@ -65,20 +65,20 @@ than its value.
 | File | Role | Features exercised |
 |---|---|---|
 | `system.aontu` | root: one evaluation joining the vocabulary and both views | `@"aontu:system"`, `@"./..."` includes, `hide()` |
-| `spec.aontu` | Acme vocabulary over the bundled one | `$.aontu.System.Service`, `$.aontu.System.Port`, conjunction-as-subclassing, `re`/`min`/`max`/`length` atoms, `*` defaults, optional `?` keys, `rel(t)` with `re()` address constraints, `acyclic()`, `inverse()` |
+| `spec.aontu` | Acme vocabulary over the bundled one | `$.aontu.System.Service`, `$.aontu.System.Port`, conjunction-as-subclassing, `re`/`min`/`max`/`length` atoms, `*` defaults, optional `?` keys, `relate(t)` with `re()` address constraints, `acyclic()`, `inverse()` |
 | `catalog.aontu` | catalog view | per-domain `&:` spreads stamping owner + schema, `path` address lists |
 | `deploy.aontu` | deployment view | references into the catalog view, defaults (`replicas: *2`) |
 | `queries/queries.aontu` | instance-of queries | `filter`, map union as index |
-| `bad/*.aontu` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, wrong-kind `rel()` target |
-| `proposals/*.aontu` + `data/*` | agent-emitted candidates | JSON-as-aontu, `vet --at --closed`, `rel()` existence checks |
+| `bad/*.aontu` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, wrong-kind `relate()` target |
+| `proposals/*.aontu` + `data/*` | agent-emitted candidates | JSON-as-aontu, `vet --at --closed`, `relate()` existence checks |
 
 Relations are declared on the field that holds them. In `spec.aontu`:
 
 ```aontu
 %CatalogAddr = re("^\\$[.]catalog[.]")
 
-dependsOn?: rel($.aontu.System.Service) & [&: %CatalogAddr] & acyclic() & inverse(dependedOnBy)
-dependedOnBy?: rel($.aontu.System.Service) & [&: %CatalogAddr]
+dependsOn?: relate($.aontu.System.Service) & [&: %CatalogAddr] & acyclic() & inverse(dependedOnBy)
+dependedOnBy?: relate($.aontu.System.Service) & [&: %CatalogAddr]
 ```
 
 `%CatalogAddr` is an **alias**: `%name = value` at the top level of the
@@ -95,11 +95,11 @@ deliberately written out self-contained (gap 2), and an alias is *not* a
 path (`$.%Owner` is refused at any depth), so naming them does not
 reintroduce the reference that gap is about.
 
-The key is the predicate. `rel($.aontu.System.Service)` types every far end,
+The key is the predicate. `relate($.aontu.System.Service)` types every far end,
 and the type flows into each target instead of being repeated at every
 link site; the `re()` in the value's spread constrains every address,
 so a service may depend on a catalog entry and never on a workload. (A
-constraint met with `rel()` itself meets the whole list, so the spread is
+constraint met with `relate()` itself meets the whole list, so the spread is
 where a constraint on each address goes.) `acyclic()` and
 `inverse(dependedOnBy)` declare the graph properties the engine
 checks. Data documents stay plain lists of `path(...)` values. The
@@ -133,7 +133,7 @@ used twice unmodified: vetted against `$.spec.CandidateShape`, the
 candidate's shape written out self-contained, and loaded at a hidden
 key in `proposals/onboard-webhooks.aontu` and pulled into the catalog by
 reference (`$.spec.CatalogEntry & $.candidate`), where the full
-`CatalogEntry` schema and the `rel()` checks apply.
+`CatalogEntry` schema and the `relate()` checks apply.
 
 Instance-of queries run over a flat index. `queries/queries.aontu`
 unifies `filter(services, {})` for each domain: an empty condition
@@ -264,7 +264,7 @@ merged model, `get` slices and query results; grep-by-error-code
    answers `verdict: fail` naming the loop:
    `cycle $.catalog.domains.payments.services.ledger -> $.catalog.domains.payments.services.payments -> $.catalog.domains.payments.services.ledger`.
 10. `bad/wrong-target.aontu` writes a `hostedOn` edge typed
-    `rel($.aontu.System.Service)` that lands on a `kind: host` entity. The type
+    `relate($.aontu.System.Service)` that lands on a `kind: host` entity. The type
     flows into the target, so evaluation refuses with
     `[aontu/scalar_value]` and `aontu relations` answers
     `verdict: error` (exit 4) for a document that does not stand.
@@ -292,7 +292,7 @@ merged model, `get` slices and query results; grep-by-error-code
     `[aontu/scalar_value]` at the deploy position, which is what the
     deployment view's reference is for.
 16. `bad/wrong-kind.aontu`, a self-contained model with a
-    `refer($.aontu.System.Service)` endpoint, refuses a `kind: database` target
+    `relate($.aontu.System.Service)` endpoint, refuses a `kind: database` target
     with `[aontu/scalar_value]` naming `"database"`.
 17. `vet --at '$.spec.CandidateShape'` accepts the well-formed
     candidate: `verdict: valid`, exit 0.

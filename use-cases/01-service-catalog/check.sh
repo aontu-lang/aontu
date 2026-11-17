@@ -110,7 +110,7 @@ has cycle out 'verdict: fail'
 has cycle out 'cycle $.catalog.domains.payments.services.ledger -> $.catalog.domains.payments.services.payments -> $.catalog.domains.payments.services.ledger'
 ok "relations: cycle payments->ledger->payments refused and reported"
 
-# 7b. THE DECLARED ENDPOINT TYPE is rel(t)'s flow now: declared once
+# 7b. THE DECLARED ENDPOINT TYPE is relate(t)'s flow now: declared once
 # on the field (bad/wrong-target.aontu spells its own), it flows into
 # each target, so the wrong kind is an ordinary located evaluation
 # error and the verb answers error for a document that does not stand.
@@ -118,7 +118,7 @@ run wtgteval 1 -- "$DIR/bad/wrong-target.aontu"
 has wtgteval err '[aontu/scalar_value]'
 run wtgt 4 -- relations "$DIR/bad/wrong-target.aontu"
 has wtgt out 'verdict: error'
-ok "relations: rel(t) flow enforces the endpoint type at evaluation"
+ok "relations: relate(t) flow enforces the endpoint type at evaluation"
 
 # 7c. REACHABILITY, the closure question relations cannot ask one edge
 # at a time: the gateway reaches the ledger through payments, and the
@@ -161,12 +161,12 @@ run conflict 1 -- "$DIR/bad/tier-conflict.aontu"
 has conflict err '[aontu/scalar_value]'
 ok "two views: tier 1 vs tier 2 on payments refuses to evaluate"
 
-# 10. A typed endpoint (refer($.aontu.System.Service)) refuses a database
+# 10. A typed endpoint (relate($.aontu.System.Service)) refuses a database
 # target -- in the miniature model where typed refer works (gap 8).
 run kind 1 -- "$DIR/bad/wrong-kind.aontu"
 has kind err '[aontu/scalar_value]'
 has kind err '"database"'
-ok "refer($.aontu.System.Service): non-service endpoint refused"
+ok "relate($.aontu.System.Service): non-service endpoint refused"
 
 # 11. An agent-emitted candidate is vetted against the (reference-free,
 # see gap 2) CandidateShape anchor.
@@ -182,7 +182,7 @@ has vetbad out '[aontu/constraint]'
 has vetbad out '[aontu/closed]'
 ok "vet --closed: bad owner, short description, misspelled key all caught"
 
-# 12. The accepted candidate merges into the live model; refer() and
+# 12. The accepted candidate merges into the live model; relate() and
 # the relation checks then hold over catalog + proposal together.
 run onboard 0 -- "$DIR/proposals/onboard-webhooks.aontu"
 run onbrel 0 -- relations "$DIR/proposals/onboard-webhooks.aontu"
@@ -193,10 +193,10 @@ diff -u "$DIR/expected/webhooks-proposal.json" "$WORK/onbget.out" \
 ok "proposal: candidate JSON joins the model and relations still pass"
 
 # 13. A candidate depending on an entity nobody declared cannot even
-# evaluate: rel() decides existence inside one evaluation.
+# evaluate: relate() decides existence inside one evaluation.
 run badref 1 -- "$DIR/proposals/onboard-badref.aontu"
 has badref err '[aontu/rel_unresolved]'
-ok "proposal: a dangling dependsOn address refused by rel()"
+ok "proposal: a dangling dependsOn address refused by relate()"
 
 # 10. THE CATALOG, DRAWN. The same entity graph the checks above assert
 # over, rendered two ways from `graphOf` alone -- node-link for the

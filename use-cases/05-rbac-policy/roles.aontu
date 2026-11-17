@@ -13,7 +13,7 @@ Role: type(
     rank: integer & min(0) & max(100)
     tenantOwner: boolean
     privileged: true
-    grants: unique() & [&: refer() & path]
+    grants: unique() & [&: relate() & path]
   })
   | close({
     desc: string
@@ -21,7 +21,7 @@ Role: type(
     tenantOwner: false
     privileged: false
     grants: unique() & [
-      &: refer() & path & neq(path($.permissions.admin_all))
+      &: relate() & path & neq(path($.permissions.admin_all))
     ]
   })
 )

@@ -61,30 +61,30 @@ func TestAddressPathResolution(t *testing.T) {
 	}
 }
 
-func TestRelValShape(t *testing.T) {
-	r := newRel(nil)
+func TestRelateValShape(t *testing.T) {
+	r := newRelate(nil)
 	if 45000 != r.cjo() {
 		t.Errorf("cjo = %d", r.cjo())
 	}
 	if !isTop(r.superior()) {
-		t.Error("a rel has no meaningful superior")
+		t.Error("a relate has no meaningful superior")
 	}
 	v, err := r.Gen(&Ctx{})
 	if nil != v || nil != err {
 		t.Errorf("Gen = %v,%v; want nil,nil", v, err)
 	}
-	if "rel()" != r.Canon() {
+	if "relate()" != r.Canon() {
 		t.Errorf("Canon = %q", r.Canon())
 	}
 }
 
-func TestReferValShape(t *testing.T) {
-	r := newRefer(nil)
+func TestPendingLinkValShape(t *testing.T) {
+	r := newPendingLink(nil)
 	if 120000 != r.cjo() {
 		t.Errorf("cjo = %d", r.cjo())
 	}
 	if !isTop(r.superior()) {
-		t.Error("a refer has no meaningful superior")
+		t.Error("a pending link has no meaningful superior")
 	}
 	// Silent generation: the enclosing bag reports a value that never
 	// became concrete, exactly as it does for a bare constraint.
@@ -92,7 +92,7 @@ func TestReferValShape(t *testing.T) {
 	if nil != v || nil != err {
 		t.Errorf("Gen = %v,%v; want nil,nil", v, err)
 	}
-	if "refer()" != r.Canon() {
+	if "" != r.Canon() {
 		t.Errorf("Canon = %q", r.Canon())
 	}
 	// A NIL peer is the self-drive the dispatcher never makes (it
@@ -102,9 +102,9 @@ func TestReferValShape(t *testing.T) {
 	}
 }
 
-func TestReferValLateDeliveryArms(t *testing.T) {
+func TestPendingLinkValLateDeliveryArms(t *testing.T) {
 	ctx := &Ctx{root: newMap(), collect: true}
-	r := newRefer(nil)
+	r := newPendingLink(nil)
 	addr, _ := parseAddress("$.q")
 	r.addr, r.addrsrc = &addr, "$.q"
 	refined, ok := r.Unify(newPath("$.q.r"), ctx).(*ScalarVal)
@@ -120,12 +120,12 @@ func TestReferValLateDeliveryArms(t *testing.T) {
 		t.Fatalf("incomparable = %s", out.Canon())
 	}
 	// held meets a second late constraint rather than replacing it.
-	h := newRefer(nil)
-	h1, ok := h.Unify(newScalarKind(KindString), ctx).(*ReferVal)
+	h := newPendingLink(nil)
+	h1, ok := h.Unify(newScalarKind(KindString), ctx).(*PendingLinkVal)
 	if !ok || nil == h1.held {
 		t.Fatalf("first held = %v", h1)
 	}
-	h2, ok := h1.Unify(newScalarKind(KindString), ctx).(*ReferVal)
+	h2, ok := h1.Unify(newScalarKind(KindString), ctx).(*PendingLinkVal)
 	if !ok || nil == h2.held || h2.held.Nil() {
 		t.Fatalf("second held = %v", h2)
 	}
@@ -137,37 +137,37 @@ func TestReferMergeNilCombinations(t *testing.T) {
 	typed := newMap()
 	typed.set("k", newInteger(1))
 
-	bare := newRefer(nil)
-	withT := newRefer(typed)
-	if out := bare.Unify(withT, ctx).(*ReferVal); Val(typed) != out.tval {
+	bare := newPendingLink(nil)
+	withT := newPendingLink(typed)
+	if out := bare.Unify(withT, ctx).(*PendingLinkVal); Val(typed) != out.tval {
 		t.Error("an untyped refer should take the peer's type")
 	}
-	if out := withT.Unify(newRefer(nil), ctx).(*ReferVal); Val(typed) != out.tval {
+	if out := withT.Unify(newPendingLink(nil), ctx).(*PendingLinkVal); Val(typed) != out.tval {
 		t.Error("a typed refer should keep its type against an untyped peer")
 	}
 	typed2 := newMap()
 	typed2.set("k2", newInteger(2))
-	if out := withT.Unify(newRefer(typed2), ctx).(*ReferVal); nil == out.tval || out.tval.Nil() {
+	if out := withT.Unify(newPendingLink(typed2), ctx).(*PendingLinkVal); nil == out.tval || out.tval.Nil() {
 		t.Error("two typed refers should meet their types")
 	}
 
-	withH := newRefer(nil)
+	withH := newPendingLink(nil)
 	withH.held = held
-	if out := bare.Unify(withH, ctx).(*ReferVal); Val(held) != out.held {
+	if out := bare.Unify(withH, ctx).(*PendingLinkVal); Val(held) != out.held {
 		t.Error("an unheld refer should take the peer's held constraint")
 	}
-	if out := withH.Unify(newRefer(nil), ctx).(*ReferVal); Val(held) != out.held {
+	if out := withH.Unify(newPendingLink(nil), ctx).(*PendingLinkVal); Val(held) != out.held {
 		t.Error("a held refer should keep it against an unheld peer")
 	}
-	withH2 := newRefer(nil)
+	withH2 := newPendingLink(nil)
 	withH2.held = newScalarKind(KindString)
-	if out := withH.Unify(withH2, ctx).(*ReferVal); nil == out.held || out.held.Nil() {
+	if out := withH.Unify(withH2, ctx).(*PendingLinkVal); nil == out.held || out.held.Nil() {
 		t.Error("two held refers should meet their held constraints")
 	}
 
 	// And a peer that already has the address, when this one does not.
 	addr, _ := parseAddress("$.svc_x")
-	sited := newRefer(nil)
+	sited := newPendingLink(nil)
 	sited.addr, sited.addrsrc = &addr, "$.svc_x"
 	if out := bare.Unify(sited, ctx).(*ScalarVal); "$.svc_x" != out.peg {
 		t.Errorf("the address should carry across the merge, got %v", out.peg)
@@ -178,7 +178,7 @@ func TestReferNilPeerIsTheNil(t *testing.T) {
 	// A nil peer is absorbing, as everywhere else: the refer answers the
 	// existing failure rather than minting a second one.
 	n := newNil("test-nil")
-	if out := newRefer(nil).Unify(n, &Ctx{}); Val(n) != out {
+	if out := newPendingLink(nil).Unify(n, &Ctx{}); Val(n) != out {
 		t.Error("a nil peer should be returned unchanged")
 	}
 }
@@ -220,7 +220,7 @@ func TestAddressPathClimbsOffTheTop(t *testing.T) {
 
 	ctx := &Ctx{}
 	ctx.root = newMap()
-	r := newRefer(nil)
+	r := newPendingLink(nil)
 	r.addr, r.addrsrc = &addr, "...z"
 	r.path = []string{"a", "dep"}
 	if out := r.settle(ctx, r); !out.Nil() {
@@ -234,7 +234,7 @@ func TestReferSettlesToALinkCarryingItsTemplate(t *testing.T) {
 	// holds it yet.
 	ctx := &Ctx{root: newMap()}
 	addr, _ := parseAddress("$.x")
-	r := newRefer(newInteger(1))
+	r := newPendingLink(newInteger(1))
 	r.addr, r.addrsrc = &addr, "$.x"
 	out, ok := r.settle(ctx, r).(*ScalarVal)
 	if !ok || "x" != strings.Join(out.lk.to, ".") || 1 != len(out.lk.flows) ||
@@ -245,10 +245,10 @@ func TestReferSettlesToALinkCarryingItsTemplate(t *testing.T) {
 
 func TestHoldsLinkAlreadySettled(t *testing.T) {
 	// A tree a caller evaluated before, as vet's anchor under --at is,
-	// holds a refer() or rel() value, or a link, where a parse holds the
+	// holds a relate() or relate() value, or a link, where a parse holds the
 	// call.
-	if !holdsLink(newRefer(nil), map[Val]bool{}) || !holdsLink(newRel(nil), map[Val]bool{}) {
-		t.Fatal("a refer() or rel() value holds a link")
+	if !holdsLink(newPendingLink(nil), map[Val]bool{}) || !holdsLink(newRelate(nil), map[Val]bool{}) {
+		t.Fatal("a relate() or relate() value holds a link")
 	}
 	link := newPath("$.a")
 	link.lk.to = []string{"a"}
@@ -261,25 +261,43 @@ func TestHoldsLinkAlreadySettled(t *testing.T) {
 	}
 }
 
-func TestLinksOfPutsThroughAMeetAndAGraphAtom(t *testing.T) {
-	// A link a meet or a graph atom holds as itself is put back there.
+func TestLinksOfPutsThroughAMeet(t *testing.T) {
+	// A link a meet holds as itself is put back there.
+	link := newPath("$.gone")
+	link.lk.to = []string{"gone"}
+	cj := newConjunct([]Val{link, newScalarKind(KindString)})
+	sites := linksOf(cj)
+	if 1 != len(sites) {
+		t.Fatalf("expected one link in %s, got %d", cj.Canon(), len(sites))
+	}
+	sites[0].put(newNil("gone"))
+	if !cj.peg[0].Nil() {
+		t.Fatal("the link's place should hold what was put there")
+	}
+}
+
+func TestRootLinksMarksALinkUnderNoRelate(t *testing.T) {
 	link := func() *ScalarVal {
-		l := newPath("$.gone")
-		l.lk.to = []string{"gone"}
+		l := newPath("$.a")
+		l.lk.to = []string{"a"}
 		return l
 	}
 	cj := newConjunct([]Val{link(), newScalarKind(KindString)})
-	ga := newGraphAtom("acyclic", "", link())
-	for _, root := range []Val{cj, ga} {
-		sites := linksOf(root)
-		if 1 != len(sites) {
-			t.Fatalf("expected one link in %s, got %d", root.Canon(), len(sites))
-		}
-		sites[0].put(newNil("gone"))
+	below := newMap()
+	below.set("k", link())
+	below.lk.root = true
+	root := newMap()
+	root.set("cj", cj)
+	root.set("below", below)
+	rootLinks(root)
+	if !cj.peg[0].linkInfo().root {
+		t.Fatal("a link under no relate() should be rooted where it stands")
 	}
-	if !cj.peg[0].Nil() || !ga.held.Nil() {
-		t.Fatal("each link's place should hold what was put there")
+	if below.peg["k"].linkInfo().root {
+		t.Fatal("a link under a relate() is left as it is")
 	}
+	// The document itself is held by nothing, so nothing is put.
+	rootLinks(link())
 }
 
 func TestRecurseBudgetBackstop(t *testing.T) {
@@ -311,73 +329,50 @@ func TestRecurseGenArms(t *testing.T) {
 
 func TestGraphAtomShape(t *testing.T) {
 	ctx := &Ctx{root: newMap(), collect: true}
+	decl := func(acyclic bool, inverses ...string) *GraphAtomVal {
+		return newGraphAtom(&declRecord{acyclic: acyclic, inverses: inverses})
+	}
 
-	// Bare atom: DONE at birth, self-drive answers itself.
-	bare := newGraphAtom("acyclic", "", nil)
+	// The declaration alone: DONE at birth, silent, and its canon the call.
+	bare := decl(true)
 	if DONE != bare.Dc() {
 		t.Fatalf("bare dc = %d", bare.Dc())
 	}
-	if bare != bare.Unify(nil, ctx) {
-		t.Fatal("bare self-drive must answer itself")
+	if out, err := bare.Gen(ctx); nil != out || nil != err {
+		t.Fatalf("bare gen = %v %v", out, err)
+	}
+	if "acyclic()" != bare.Canon() {
+		t.Fatalf("bare canon = %q", bare.Canon())
+	}
+	if bare != bare.Unify(top(), ctx) {
+		t.Fatal("met with top, the atom is itself")
 	}
 
-	// A held that is already done: the self-drive records DONE in
-	// place and answers the atom.
-	heldAtom := newGraphAtom("inverse", "q", newInteger(1))
-	heldAtom.dc = 0
-	if heldAtom != heldAtom.Unify(nil, ctx) || DONE != heldAtom.dc {
-		t.Fatalf("held-done self-drive: dc = %d", heldAtom.dc)
+	// Atoms meet on a fresh value, which the meet's riders fill.
+	inv := decl(false, "q")
+	met, ok := bare.Unify(inv, ctx).(*GraphAtomVal)
+	if !ok || met == bare || met == inv {
+		t.Fatal("two atoms must meet on a value of their own")
 	}
 
-	broken := newGraphAtom("acyclic", "",
-		newConjunct([]Val{newInteger(1), newInteger(2)}))
-	if out := broken.Unify(nil, ctx); !out.Nil() {
-		t.Fatalf("broken self-drive = %s", out.Canon())
+	// A value is handed back as it is: the atom holds nothing.
+	seven := newInteger(7)
+	if Val(seven) != bare.Unify(seven, ctx) {
+		t.Fatal("a value must be handed back as it is")
 	}
 
-	// The clone arm carries the declaration and the held.
-	c, ok := clonePath(heldAtom, []string{"p"}).(*GraphAtomVal)
-	if !ok || "inverse" != c.akind || "q" != c.invname ||
-		heldAtom.held != c.held || DONE != c.dc {
+	// The clone carries the declaration.
+	c, ok := clonePath(inv, []string{"p"}).(*GraphAtomVal)
+	if !ok || DONE != c.dc || `inverse("q")` != c.Canon() {
 		t.Fatalf("clone = %+v", c)
 	}
 
-	// Dedup with one side unheld: the held side's value survives.
-	dup := newGraphAtom("inverse", "q", nil)
-	merged, ok := heldAtom.Unify(dup, ctx).(*GraphAtomVal)
-	if !ok || nil == merged.held {
-		t.Fatal("dedup dropped the held")
-	}
-
-	// Absorbing a first value: the atom carries it.
-	carry, ok := bare.Unify(newInteger(7), ctx).(*GraphAtomVal)
-	if !ok || nil == carry.held {
-		t.Fatal("absorb did not carry")
-	}
-
-	// Dedup with BOTH sides held: the helds meet; agreeing values
-	// merge, contradicting ones answer the nil.
-	both, ok := carry.Unify(newGraphAtom("acyclic", "", newInteger(7)), ctx).(*GraphAtomVal)
-	if !ok || nil == both.held {
-		t.Fatal("held-held dedup dropped the value")
-	}
-	if out := both.Unify(newGraphAtom("acyclic", "", newInteger(8)), ctx); !out.Nil() {
-		t.Fatalf("contradicting helds must refuse, got %s", out.Canon())
-	}
-
-	// The fold-order slot and superior, as TestRelValShape pins
-	// rel's; canon with and without a held.
+	// The fold-order slot and superior, as TestRelValShape pins rel's.
 	if 46000 != bare.cjo() {
 		t.Fatalf("cjo = %d", bare.cjo())
 	}
 	if !isTop(bare.superior()) {
 		t.Fatal("an atom has no meaningful superior")
-	}
-	if "acyclic()" != bare.Canon() {
-		t.Fatalf("bare canon = %q", bare.Canon())
-	}
-	if c := newGraphAtom("inverse", "q", nil).Canon(); `inverse("q")` != c {
-		t.Fatalf("inverse canon = %q", c)
 	}
 }
 
@@ -408,7 +403,7 @@ func TestRecurseResidualShape(t *testing.T) {
 
 	// Anything else -- here a graph atom -- waits beside the residual
 	// the same way.
-	atom := newGraphAtom("acyclic", "", nil)
+	atom := newGraphAtom(&declRecord{acyclic: true})
 	if _, ok := r.Unify(atom, ctx).(*ConjunctVal); !ok {
 		t.Fatal("a non-structural peer must hold in a conjunct")
 	}

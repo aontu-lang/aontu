@@ -49,7 +49,7 @@ It reports *genuine errors* only:
 | `a:1 & string`          | yes: `no_scalar_unify`                        |
 | `x:foo(1)`              | yes: `unknown_function`                       |
 | `a:$.missing`           | yes: `no_path`                                |
-| `b: refer() & path("$.nope")` | yes: `refer_unresolved` (a `rel()` member naming no entity: `rel_unresolved`) |
+| `b: relate() & path("$.nope")` | yes: `rel_unresolved`                         |
 | `a:string`              | **no**: a non-concrete schema is valid        |
 | `a:{b:string, c:1}`     | **no**: partial/constraint documents are valid |
 | `port:*8080 \| integer` | **no**: defaults and disjunctions are valid    |
@@ -81,7 +81,7 @@ bold, then the text its `description` keys hold, under the kind.
 **Completion** offers a context-free list (clients filter by the typed
 prefix): the built-in functions (the engine's full roster, 68 today, the
 constraint atoms (`min`, `re`, `len`, …) and the relation atoms
-(`refer`, `rel`, `acyclic`, `inverse`) included), the kind keywords
+(`relate`, `acyclic`, `inverse`) included), the kind keywords
 (`string`, `number`, `integer`, `float`, `biginteger`, `bigdecimal`,
 `boolean`, `map`, `list`, `constraint`) and the literals (`_`, `true`,
 `false`, `null`, `any`).

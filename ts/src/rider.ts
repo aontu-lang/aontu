@@ -42,8 +42,29 @@ function unionVia(...lists: (string[] | undefined)[]): string[] {
 }
 
 
+// The graph atoms a value carries: `acyclic()`, and `inverse(k)` by name.
+export type DeclRecord = {
+  acyclic: boolean
+  inverses: string[]
+}
+
+
+function unionDecls(records: (DeclRecord | undefined)[]): DeclRecord {
+  return {
+    acyclic: records.some((d) => true === d?.acyclic),
+    inverses: unionVia(...records.map((d) => d?.inverses)),
+  }
+}
+
+
+function graphAtomsText(d: DeclRecord): string {
+  return [...(d.acyclic ? ['acyclic()'] : []),
+    ...d.inverses.map((k) => 'inverse(' + JSON.stringify(k) + ')')].join('&')
+}
+
+
 function rides(v: any): boolean {
-  return null != v?.deprecation || null != v?.meta
+  return null != v?.deprecation || null != v?.meta || null != v?.genrec
 }
 
 
@@ -75,9 +96,24 @@ function layerText<T>(layer: Record<string, T>, text: (v: T) => string): string 
 }
 
 
-// A value's riders around its rendering: the deprecation record, then
-// the annotation record, each as the reparseable call that carries it.
+function sameRec(a: any, b: any): boolean {
+  return a.genrec === b.genrec ||
+    (null != a.genrec && null != b.genrec && a.genrec.canon === b.genrec.canon)
+}
+
+
+// A value's riders around its rendering: its graph atoms and output record
+// after it, then the deprecation and annotation records, each as the call
+// that carries it. An atom met with nothing is its graph atoms already.
 function riderText(s: string, v: any): string {
+  if (null != v.reldecl && true !== v.isGraphAtom) {
+    s = (true === v.isDisjunct && 1 < v.peg.length ? '(' + s + ')' : s) +
+      '&' + graphAtomsText(v.reldecl)
+  }
+  if (null != v.genrec) {
+    const call = 'gen(' + v.genrec.canon + ')'
+    s = true === v.isTop ? call : s + '&' + call
+  }
   const d: RiderRecord<string> | undefined = v.deprecation
   if (null != d) {
     const layers = recordLayers(d)
@@ -90,14 +126,17 @@ function riderText(s: string, v: any): string {
       layerText(l, (x: any) => x.canon))].join(',') + ')'
   }
   return s
-} /* node:coverage ignore next 10 */
+} /* node:coverage ignore next 13 */
 
 
 export {
   bare,
+  graphAtomsText,
+  unionDecls,
   unionRecords,
   unionVia,
   recordLayers,
   riderText,
   rides,
+  sameRec,
 }

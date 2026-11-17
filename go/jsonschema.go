@@ -218,6 +218,9 @@ func schemaLoseLeafKind(sc *schemaCtx, path []string, k Kind) {
 	}
 }
 
+const schemaGenLost = "JSON Schema says what a value is and not how it is written, " +
+	"so the schema leaves the annotation out"
+
 func schemaLoseExactKind(sc *schemaCtx, path []string, leaf, t string) {
 	sc.lose(path, leaf,
 		"JSON Schema has no type for one leaf of a number: the schema says \""+t+
@@ -1553,6 +1556,10 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		return map[string]any{}
 	}
 
+	if nil != v.genRec() {
+		sc.lose(path, "gen", schemaGenLost)
+	}
+
 	switch t := v.(type) {
 	case *PrefVal:
 		// A bare `*x` admits every value of x's kind and prefers x (ADR-004),
@@ -1732,7 +1739,7 @@ func schemaResidueName(v Val) string {
 // does not generate. Used for default and for enum members: both are
 // VALUES in the schema, so a member that is itself a shape has none.
 func schemaGenerated(v Val) (any, bool) {
-	ctx := &Ctx{root: v, collect: true}
+	ctx := &Ctx{root: v, collect: true, plain: true}
 	out, err := v.Gen(ctx)
 	if nil != err || 0 < len(ctx.err) {
 		return nil, false

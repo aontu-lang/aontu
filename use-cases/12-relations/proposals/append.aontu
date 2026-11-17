@@ -1,5 +1,5 @@
 # proposals/append.aontu --- a proposal appends a consumer to an
-# EXISTING list from a separate position. The schema's rel() rewrote
+# EXISTING list from a separate position. The schema's relate() rewrote
 # the catalog list once, and the rewrite installed its leaf constraint
 # as the list's element spread -- so the element arriving here is
 # converted exactly as the originals were, its inverse is written out,

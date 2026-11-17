@@ -6,14 +6,16 @@ const err_1 = require("../err");
 const ScalarVal_1 = require("./ScalarVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const numkind_1 = require("./numkind");
+const genwrite_1 = require("./genwrite");
 const utility_1 = require("../utility");
 class IntegerVal extends ScalarVal_1.ScalarVal {
     get canon() {
         return (0, numkind_1.integerDigits)(this.peg);
     }
-    gen(_ctx) {
+    gen(ctx) {
         const peg = this.peg;
-        return Number.isSafeInteger(peg) ? peg : BigInt(peg);
+        const out = Number.isSafeInteger(peg) ? peg : BigInt(peg);
+        return (0, genwrite_1.genWrites)(ctx, this) ? (0, genwrite_1.genWrite)(ctx, this, out) : out;
     }
     constructor(spec, ctx) {
         // An IntegerVal must hold a value of *integer kind*: integral AND

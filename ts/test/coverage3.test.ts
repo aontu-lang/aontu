@@ -20,7 +20,7 @@ import { HideFuncVal } from '../dist/val/HideFuncVal'
 import { MoveFuncVal } from '../dist/val/MoveFuncVal'
 import { PrefFuncVal } from '../dist/val/PrefFuncVal'
 import { TypeFuncVal } from '../dist/val/TypeFuncVal'
-import { Unify, holdsLink, linksOf } from '../dist/unify'
+import { Unify, holdsLink, linksOf, rootLinks } from '../dist/unify'
 import { main as cliMain, evalSource } from '../dist/cli'
 import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
@@ -31,7 +31,7 @@ import { collectDeprecations } from '../dist/utility'
 import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
 import { Provenance, markSpread } from '../dist/provenance'
-import { ReferVal, RelVal, RelFuncVal, addressPath, findAt } from '../dist/val/ReferFuncVal'
+import { PendingLinkVal, RelateVal, RelateFuncVal, addressPath, findAt } from '../dist/val/RelateFuncVal'
 import { EmptyVal } from '../dist/val/EmptyVal'
 import { SealVal, sealTree, sealBag, sealChild } from '../dist/val/SealVal'
 import { joinFlows, parseAddress, PathVal } from '../dist/val/PathVal'
@@ -586,8 +586,8 @@ describe('coverage3-funcs', () => {
     Assert.equal(closed.same(closed.clone(ctx)), true)
     Assert.equal(closed.same(open), false)
 
-    const rel: any = new RelVal({ tval: new StringVal({ peg: 'x' }, ctx) } as any, ctx)
-    Assert.equal(rel.unify(new ConstraintKindVal({}, ctx), ctx).canon, 'constraint&rel("x")')
+    const rel: any = new RelateVal({ tval: new StringVal({ peg: 'x' }, ctx) } as any, ctx)
+    Assert.equal(rel.unify(new ConstraintKindVal({}, ctx), ctx).canon, 'constraint&relate("x")')
   })
 
   // The empty-string flags fold idempotently, and a value carrying one
@@ -1474,89 +1474,69 @@ describe('coverage3-address', () => {
 describe('coverage3-residual-shapes', () => {
 
 
-  test('rel-func-shape', () => {
-    // The clone hook and name of the rel() function itself: specs
-    // resolve rel() before any clone or unresolved canon needs them,
+  test('relate-func-shape', () => {
+    // The clone hook and name of the relate() function itself: specs
+    // resolve relate() before any clone or unresolved canon needs them,
     // so the hooks are pinned here the way id-func-shape pins id's.
     const ctx = new Aontu().ctx({})
-    const fn = new RelFuncVal({ peg: [] }, ctx)
-    Assert.strictEqual(fn.funcname(), 'rel')
-    Assert.strictEqual((fn as any).isRelFunc, true)
+    const fn = new RelateFuncVal({ peg: [] }, ctx)
+    Assert.strictEqual(fn.funcname(), 'relate')
+    Assert.strictEqual((fn as any).isRelateFunc, true)
     const made: any = fn.make(ctx, { peg: fn.peg })
-    Assert.strictEqual(made.isRelFunc, true)
+    Assert.strictEqual(made.isRelateFunc, true)
     // Resolving with no argument answers the settled residual with
     // the open type.
     const out: any = fn.resolve(ctx, [])
-    Assert.strictEqual(out.isRel, true)
+    Assert.strictEqual(out.isRelate, true)
     Assert.strictEqual(out.tval.isTop, true)
-    Assert.strictEqual(out.canon, 'rel()')
+    Assert.strictEqual(out.canon, 'relate()')
   })
 
 
-  test('constraint-hands-drive-to-rel-and-atom', () => {
+  test('constraint-hands-drive-to-relate', () => {
     const ctx: any = new Aontu().ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
     const con: any = (new Aontu().unify('c: re("^j")') as any).peg.c
     Assert.strictEqual(con.isConstraint, true)
 
-    const atom: any = new GraphAtomVal({ akind: 'acyclic' } as any, ctx)
-    const viaAtom: any = con.unify(atom, ctx)
-    Assert.strictEqual(viaAtom.isGraphAtom, true)
-    Assert.strictEqual(viaAtom.held.isConstraint, true)
-
-    const rel: any = (new Aontu().unify('r: rel()') as any).peg.r
-    Assert.strictEqual(rel.isRel, true)
+    const rel: any = (new Aontu().unify('r: relate()') as any).peg.r
+    Assert.strictEqual(rel.isRelate, true)
     const viaRel: any = con.unify(rel, ctx)
-    Assert.strictEqual(viaRel.isRel, true)
+    Assert.strictEqual(viaRel.isRelate, true)
   })
 
 
   test('graph-atom-shape', () => {
     const ctx: any = new Aontu().ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
+    const decl = (acyclic: boolean, inverses: string[]): any =>
+      new GraphAtomVal({ reldecl: { acyclic, inverses } } as any, ctx)
 
-    // Bare atom: DONE at birth, self-drive answers itself.
-    const bare: any = new GraphAtomVal({ akind: 'acyclic' } as any, ctx)
+    // The declaration alone: DONE at birth, silent, and its canon the call.
+    const bare: any = decl(true, [])
     Assert.strictEqual(bare.done, true)
-    Assert.strictEqual(bare.unify(null as any, ctx), bare)
+    Assert.strictEqual(bare.gen(ctx), undefined)
+    Assert.strictEqual(bare.canon, 'acyclic()')
+    Assert.strictEqual(bare.unify(top(), ctx), bare)
 
-    // A held that is already done: the self-drive records DONE in
-    // place and answers the atom.
-    const held: any = new GraphAtomVal({
-      akind: 'inverse', invname: 'q', held: new IntegerVal({ peg: 1 }, ctx),
-    } as any, ctx)
-    held.dc = 0
-    Assert.strictEqual(held.unify(null as any, ctx), held)
-    Assert.strictEqual(held.done, true)
+    // Atoms meet on a fresh value, which the meet's riders fill.
+    const inv: any = decl(false, ['q'])
+    const met: any = bare.unify(inv, ctx)
+    Assert.strictEqual(met.isGraphAtom, true)
+    Assert.notStrictEqual(met, bare)
+    Assert.notStrictEqual(met, inv)
 
-    const broken: any = new GraphAtomVal({
-      akind: 'acyclic', held: new ConjunctVal({
-        peg: [new IntegerVal({ peg: 1 }, ctx), new IntegerVal({ peg: 2 }, ctx)],
-      }, ctx),
-    } as any, ctx)
-    Assert.strictEqual(broken.done, false)
-    Assert.strictEqual(broken.unify(null as any, ctx).isNil, true)
+    // A value is handed back as it is: the atom holds nothing.
+    const seven = new IntegerVal({ peg: 7 }, ctx)
+    Assert.strictEqual(bare.unify(seven, ctx), seven)
 
-    // The clone hook carries the declaration and the held.
-    const c: any = held.clone(ctx)
-    Assert.strictEqual(c.akind, 'inverse')
-    Assert.strictEqual(c.invname, 'q')
-    Assert.strictEqual(c.held, held.held)
+    // The clone carries the declaration.
+    const c: any = inv.clone(ctx)
+    Assert.deepStrictEqual(c.reldecl, { acyclic: false, inverses: ['q'] })
     Assert.strictEqual(c.done, true)
+    Assert.strictEqual(c.canon, 'inverse("q")')
 
-    // Dedup with one side unheld: the held side's value survives.
-    const dup: any = new GraphAtomVal(
-      { akind: 'inverse', invname: 'q' } as any, ctx)
-    const merged: any = held.unify(dup, ctx)
-    Assert.strictEqual(merged.isGraphAtom, true)
-    Assert.strictEqual(merged.held.peg, 1)
-
-    // Absorbing a first value: the atom carries it.
-    const carry: any = bare.unify(new IntegerVal({ peg: 7 }, ctx), ctx)
-    Assert.strictEqual(carry.isGraphAtom, true)
-    Assert.strictEqual(carry.held.peg, 7)
-
-    // The funcval make/name hooks, as rel-func-shape pins rel's.
+    // The funcval make/name hooks, as relate-func-shape pins relate's.
     const afn: any = new AcyclicFuncVal({ peg: [] }, ctx)
     Assert.strictEqual(afn.funcname(), 'acyclic')
     Assert.strictEqual((afn.make(ctx, { peg: [] }) as any).isVal, true)
@@ -1599,7 +1579,8 @@ describe('coverage3-residual-shapes', () => {
 
     // Anything else -- here a graph atom -- waits beside the
     // residual the same way.
-    const atom: any = new GraphAtomVal({ akind: 'acyclic' } as any, ctx)
+    const atom: any = new GraphAtomVal(
+      { reldecl: { acyclic: true, inverses: [] } } as any, ctx)
     Assert.strictEqual(r.unify(atom, ctx).isConjunct, true)
 
     // bumpRecurse: the guard arms (nothing, a non-val), the conjunct
@@ -1631,7 +1612,7 @@ describe('coverage3-residual-shapes', () => {
 })
 
 
-describe('coverage3-refer', () => {
+describe('coverage3-link', () => {
 
   test('find-at-walks-into-non-bags', () => {
     const ctx = new Aontu().ctx({})
@@ -1651,9 +1632,9 @@ describe('coverage3-refer', () => {
     Assert.strictEqual(found.key, 'p')
   })
 
-  test('refer-peers-the-dispatcher-never-hands-it', () => {
+  test('pending-link-peers-the-dispatcher-never-hands-it', () => {
     const ctx = new Aontu().ctx({})
-    const r: any = new ReferVal({}, ctx)
+    const r: any = new PendingLinkVal({}, ctx)
     // A NIL peer is absorbing, as everywhere else: the residual answers
     // the existing failure rather than minting a second one.
     const nil: any = new NilVal({ why: 'test-nil' }, ctx)
@@ -1662,10 +1643,10 @@ describe('coverage3-refer', () => {
     Assert.strictEqual(r.unify(undefined as any, ctx), r)
   })
 
-  test('refer-second-path-peer-refines-by-prefix', () => {
+  test('pending-link-second-path-peer-refines-by-prefix', () => {
     const ctx: any = new Aontu().ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
-    const r: any = new ReferVal({}, ctx)
+    const r: any = new PendingLinkVal({}, ctx)
     r.addr = parseAddress('$.q')
     r.addrsrc = '$.q'
     const refined: any = r.unify(new PathVal({ peg: '$.q.r' }, ctx), ctx)
@@ -1678,13 +1659,13 @@ describe('coverage3-refer', () => {
     Assert.strictEqual(true, nil.isNil)
   })
 
-  test('refer-holds-a-second-constraint-by-meet', () => {
+  test('pending-link-holds-a-second-constraint-by-meet', () => {
     // Same cross-pass channel as the second-path arm: constraints in
     // one conjunct merge with each other before the residual folds,
     // so held's meet arm is only reached by a late-delivered peer.
     const ctx: any = new Aontu().ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
-    const r: any = new ReferVal({}, ctx)
+    const r: any = new PendingLinkVal({}, ctx)
     const r1: any = r.unify(new ScalarKindVal({ peg: String }, ctx), ctx)
     Assert.strictEqual(true, null != r1.held)
     const r2: any = r1.unify(new ScalarKindVal({ peg: String }, ctx), ctx)
@@ -1692,7 +1673,7 @@ describe('coverage3-refer', () => {
     Assert.strictEqual(true, true !== r2.held.isNil)
   })
 
-  test('refer-settles-to-a-link-carrying-its-template', () => {
+  test('pending-link-settles-to-a-link-carrying-its-template', () => {
     // The template rides the path value; the target is read once the
     // document is evaluated, so the link settles whether or not the
     // root holds it yet.
@@ -1700,7 +1681,7 @@ describe('coverage3-refer', () => {
     const ctx: any = a0.ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
 
-    const r: any = new ReferVal({}, ctx)
+    const r: any = new PendingLinkVal({}, ctx)
     r.tval = new IntegerVal({ peg: 1 }, ctx)
     r.addr = parseAddress('$.x')
     r.addrsrc = '$.x'
@@ -1714,34 +1695,44 @@ describe('coverage3-refer', () => {
 
   test('a-tree-holds-a-link-it-has-already-settled', () => {
     // A tree a caller evaluated before, as vet's anchor under --at is,
-    // holds a refer() or rel() value, or a link, where a parse holds
+    // holds a relate() value or a pending link, or a link, where a parse holds
     // the call.
     const ctx: any = new Aontu().ctx({ collect: true })
-    Assert.strictEqual(holdsLink(new ReferVal({}, ctx)), true)
-    Assert.strictEqual(holdsLink(new RelVal({}, ctx)), true)
+    Assert.strictEqual(holdsLink(new PendingLinkVal({}, ctx)), true)
+    Assert.strictEqual(holdsLink(new RelateVal({}, ctx)), true)
     const link: any = new PathVal({ peg: '$.a' }, ctx)
     link.linkto = ['a']
     Assert.strictEqual(holdsLink(new MapVal({ peg: { b: link } }, ctx)), true)
     Assert.strictEqual(holdsLink(new MapVal({ peg: { b: new PathVal({ peg: '$.a' }, ctx) } }, ctx)), false)
   })
 
-  test('links-are-put-back-through-a-meet-and-a-graph-atom', () => {
-    // A link a meet or a graph atom holds as itself is put back there.
+  test('links-are-put-back-through-a-meet', () => {
+    // A link a meet holds as itself is put back there.
+    const ctx: any = new Aontu().ctx({ collect: true })
+    const link: any = new PathVal({ peg: '$.gone' }, ctx)
+    link.linkto = ['gone']
+    const cj: any = new ConjunctVal({ peg: [link, new ScalarKindVal({ peg: String }, ctx)] }, ctx)
+    const sites = linksOf(cj)
+    Assert.strictEqual(sites.length, 1)
+    sites[0].put(new NilVal({ why: 'gone' }, ctx))
+    Assert.strictEqual(cj.peg[0].isNil, true)
+  })
+
+  test('a-link-under-no-relate-is-rooted-where-it-stands', () => {
     const ctx: any = new Aontu().ctx({ collect: true })
     const link = (): any => {
-      const l: any = new PathVal({ peg: '$.gone' }, ctx)
-      l.linkto = ['gone']
+      const l: any = new PathVal({ peg: '$.a' }, ctx)
+      l.linkto = ['a']
       return l
     }
     const cj: any = new ConjunctVal({ peg: [link(), new ScalarKindVal({ peg: String }, ctx)] }, ctx)
-    const ga: any = new GraphAtomVal({ akind: 'acyclic', held: link() } as any, ctx)
-    for (const root of [cj, ga]) {
-      const sites = linksOf(root)
-      Assert.strictEqual(sites.length, 1)
-      sites[0].put(new NilVal({ why: 'gone' }, ctx))
-    }
-    Assert.strictEqual(cj.peg[0].isNil, true)
-    Assert.strictEqual(ga.held.isNil, true)
+    const below: any = new MapVal({ peg: { k: link() } }, ctx)
+    below.relroot = true
+    rootLinks(new MapVal({ peg: { cj, below } }, ctx))
+    Assert.strictEqual(cj.peg[0].relroot, true)
+    Assert.strictEqual(below.peg.k.relroot, undefined)
+    // The document itself is held by nothing, so nothing is put.
+    rootLinks(link())
   })
 
   test('join-flows-keeps-each-template-once', () => {
@@ -1755,34 +1746,34 @@ describe('coverage3-refer', () => {
     Assert.deepStrictEqual(joinFlows(a, [p1, p2]), [p1, p2])
   })
 
-  test('refer-meets-refer-as-one-link', () => {
-    // Two refer() values at one position before either has an address:
+  test('pending-link-meets-pending-link-as-one-link', () => {
+    // Pending links at one position before either has an address:
     // one link, both templates, the address and the held constraints of
     // either side.
     const ctx: any = new Aontu().ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
-    const a: any = new ReferVal({}, ctx)
+    const a: any = new PendingLinkVal({}, ctx)
     a.tval = new MapVal({ peg: { p: new IntegerVal({ peg: 1 }, ctx) } }, ctx)
-    const b: any = new ReferVal({}, ctx)
+    const b: any = new PendingLinkVal({}, ctx)
     b.tval = new MapVal({ peg: { q: new IntegerVal({ peg: 2 }, ctx) } }, ctx)
     b.held = new ScalarKindVal({ peg: String }, ctx)
     const both: any = a.unify(b, ctx)
-    Assert.strictEqual(both.isRefer, true)
+    Assert.strictEqual(both.isPendingLink, true)
     Assert.strictEqual(both.tval.canon, '{"p":1,"q":2}')
     Assert.strictEqual(both.held, b.held)
-    const c: any = new ReferVal({}, ctx)
+    const c: any = new PendingLinkVal({}, ctx)
     c.held = new ScalarKindVal({ peg: String }, ctx)
     Assert.strictEqual(true !== both.unify(c, ctx).held.isNil, true)
   })
 
-  test('refer-climb-off-the-top-refuses', () => {
+  test('pending-link-climb-off-the-top-refuses', () => {
     // A relative address with more parent steps than the link has
     // ancestors. No later pass can grow the tree upwards, so this
     // refuses at once rather than residuating to the last pass.
     const a0 = new Aontu()
     const ctx: any = a0.ctx({ collect: true })
     ctx.root = new MapVal({ peg: {} }, ctx)
-    const r: any = new ReferVal({}, ctx)
+    const r: any = new PendingLinkVal({}, ctx)
     r.addr = parseAddress('...z')
     r.addrsrc = '...z'
     r.path = ['a', 'dep']
@@ -1817,11 +1808,15 @@ describe('coverage3-graph', () => {
     // the AT-THE-ROOT case has no enclosing key for a document to give
     // it.
     const ctx = new Aontu().ctx({})
-    const link = (addr: string, relkey?: string) => {
+    const link = (addr: string) => {
       const v: any = new StringVal({ peg: addr }, ctx)
       v.link = addr
-      if (undefined !== relkey) { v.relkey = relkey }
       return v
+    }
+    const related = (peg: any) => {
+      const bag: any = new MapVal({ peg }, ctx)
+      bag.relroot = true
+      return bag
     }
 
     // A link under a key: the key is the relation, its parent the node.
@@ -1841,20 +1836,28 @@ describe('coverage3-graph', () => {
         at: '$.web.dependsOn.0'
       }])
 
-    // A DECLARED predicate cuts at the key the rel() sat on, wherever
-    // it is on the way down — which is what makes a MAP-valued
-    // relation report the relation rather than the inner label.
+    // The field a relate() was written at names the relation of the
+    // links below it, wherever they are on the way down — which is
+    // what makes a MAP-valued relation report the relation rather than
+    // the inner label.
     root = new MapVal({ peg: {} }, ctx)
     root.peg.web = new MapVal({
-      peg: {
-        dependsOn: new MapVal(
-          { peg: { primary: link('$.db', 'dependsOn') } }, ctx)
-      }
+      peg: { dependsOn: related({ primary: link('$.db') }) }
     }, ctx)
     Assert.deepEqual(graphOf(root).edges,
       [{
         from: '$.web', key: 'dependsOn', to: '$.db',
         at: '$.web.dependsOn.primary'
+      }])
+
+    // A link with a call of its own keeps its own key below such a field.
+    const own: any = link('$.db')
+    own.relroot = true
+    root = new MapVal({ peg: { dependsOn: related({ primary: own }) } }, ctx)
+    Assert.deepEqual(graphOf(root).edges,
+      [{
+        from: '$.dependsOn', key: 'primary', to: '$.db',
+        at: '$.dependsOn.primary'
       }])
 
     // A link AT THE TOP of the document has no node above it: the
@@ -1863,12 +1866,13 @@ describe('coverage3-graph', () => {
     Assert.deepEqual(graphOf(root).edges,
       [{ from: '$', key: 'dep', to: '$.db', at: '$.dep' }])
 
-    // A declared predicate that is not on the path falls back to the
-    // inference — a shape no rel() produces, since the predicate IS a
-    // segment of the link's own path.
-    root = new MapVal({ peg: { dep: link('$.db', 'nowhere') } }, ctx)
+    // A field whose key names no relation leaves each link its own key,
+    // and so does the document itself, which has no field.
+    root = new MapVal({ peg: { 'no name': related({ dep: link('$.db') }) } }, ctx)
     Assert.deepEqual(graphOf(root).edges,
-      [{ from: '$', key: 'nowhere', to: '$.db', at: '$.dep' }])
+      [{ from: '$.no name', key: 'dep', to: '$.db', at: '$.no name.dep' }])
+    Assert.deepEqual(graphOf(related({ dep: link('$.db') })).edges,
+      [{ from: '$', key: 'dep', to: '$.db', at: '$.dep' }])
 
     // A link at the root of a LIST document: nothing but indices above
     // it, so the source is the root and the relation is unlabelled.

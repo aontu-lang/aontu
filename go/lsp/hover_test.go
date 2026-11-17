@@ -90,7 +90,7 @@ func TestCompletionsList(t *testing.T) {
 		t.Errorf("string kind = %d, want Keyword", byLabel["string"].Kind)
 	}
 	for _, want := range []string{"close", "upper", "path", "min", "max",
-		"above", "below", "neq", "refer", "string", "number",
+		"above", "below", "neq", "relate", "string", "number",
 		"integer", "float", "biginteger", "bigdecimal", "true", "null", "any", "map", "list", "constraint"} {
 		if _, ok := byLabel[want]; !ok {
 			t.Errorf("missing completion %q", want)
@@ -133,7 +133,7 @@ func TestBuiltinFuncNamesParity(t *testing.T) {
 	// The completion function list must match the engine's recognised
 	// functions exactly (guards against drift).
 	got := aontu.BuiltinFuncNames()
-	want := []string{"abnf", "above", "acyclic", "add", "apply", "below", "close", "contains", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "format", "fragment", "greatest", "hide", "ident", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "meta", "min", "mod", "move", "mul", "mulof", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "refer", "rel", "rem", "rep", "rest", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
+	want := []string{"abnf", "above", "acyclic", "add", "apply", "below", "close", "contains", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "format", "fragment", "gen", "greatest", "hide", "ident", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "meta", "min", "mod", "move", "mul", "mulof", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "relate", "rem", "rep", "rest", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
 	if len(got) != len(want) {
 		t.Fatalf("BuiltinFuncNames = %v, want %v", got, want)
 	}

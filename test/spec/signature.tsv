@@ -15,8 +15,10 @@
 #   type = word {'|' word}
 #   mode = 'capture' | 'template' | 'trial' | 'projector' | 'text'
 # `value` mode is unmarked. `constraint` is the result word for
-# residuals whose meet depends on the peer; `any` is the honest type
-# where a function is a wrapper.
+# residuals whose meet depends on the peer; `annotation` is the result
+# word for a call that rides the value it meets and is read where that
+# value is generated; `any` is the honest type where a function is a
+# wrapper.
 upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string
 lower(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string
 copy(v: any) : any
@@ -49,10 +51,10 @@ rest(trial t: any, ...c?: (trial map)) : constraint
 deprecate(v: any, r?: map) : any
 meta(v: any, ...r: map) : any
 ident(v: any, r: map) : any
+gen(spec: string|map) : annotation
 acyclic() : constraint
 inverse(projector k: string) : constraint
-refer(template t?: any) : constraint
-rel(template t?: any) : constraint
+relate(template t?: any) : constraint
 pack(d: map|list, template t: any) : map
 each(d: map|list, template t: any) : list
 apply(v: any, template f: any) : any

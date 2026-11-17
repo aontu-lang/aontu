@@ -2,25 +2,14 @@ import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FuncBaseVal } from './FuncBaseVal';
 import { FeatureVal } from './FeatureVal';
-export type RelDecl = {
-    acyclic?: boolean;
-    inverses: Set<string>;
-};
-export declare function relDecls(ctx: any): Map<string, RelDecl>;
 declare class GraphAtomVal extends FeatureVal {
     isGraphAtom: boolean;
     isGenable: boolean;
     cjo: number;
-    akind: 'acyclic' | 'inverse';
-    invname?: string;
-    held?: Val;
     constructor(spec: ValSpec, ctx?: AontuContext);
-    clone(ctx: AontuContext, spec?: ValSpec): Val;
-    private carry;
-    register(ctx: AontuContext): void;
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
-    gen(ctx: AontuContext): any;
+    gen(_ctx: AontuContext): undefined;
 }
 declare class AcyclicFuncVal extends FuncBaseVal {
     isAcyclicFunc: boolean;

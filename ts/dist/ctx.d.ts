@@ -34,6 +34,8 @@ declare class AontuContext {
     seen: Record<string, number>;
     collect: boolean;
     probe: boolean;
+    genat?: string[];
+    plain?: boolean;
     prov?: any;
     reads?: Set<string>;
     err: any[];
@@ -54,10 +56,6 @@ declare class AontuContext {
     _depth: {
         n: number;
     };
-    _reldecls: Map<string, {
-        acyclic?: boolean;
-        inverses: Set<string>;
-    }>;
     _fixroot: any;
     budget: {
         passes: number;

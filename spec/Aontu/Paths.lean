@@ -288,7 +288,7 @@ as written, and a link's template, placed where it lands, at its link's
 target (`Seg.lands`), wherever the link stands (ruling 50). -/
 def plArgs (pos : List Seg) (f : Fn) : List Val → List Val
   | [] => []
-  | v :: vs => v.placed (if f = .refer ∨ f = .rel then [.lands 0] else pos) ::
+  | v :: vs => v.placed (if f = .relate then [.lands 0] else pos) ::
       (if f = .each ∨ f = .pack then vs else plArgs pos f vs)
 
 def plSpread (pos : List Seg) : Option Val → Option Val
@@ -1042,8 +1042,8 @@ def addrsFields : List (String × Bool × Val) → List Addr
 end
 
 /-- The addresses a link holds at its position, at the leaves of the
-value it stands in there: a `refer`'s one, and one at each leaf of a
-relation's value. -/
+value it stands in there: one where that value is a path, and one at
+each leaf of a bag. -/
 def linkAddrs (e : List Seg × Val × Val) : List Addr := e.2.2.addrs
 
 /-- The written path an address names from the position its link stands
@@ -1153,7 +1153,7 @@ def Val.atTarget (T : List Seg) : Val → Val
   | .rest t cs => .rest (t.atTarget T) (atCovers T cs)
   | .select s arms d => .select (s.atTarget T) (atPairs T arms) (atSpread T d)
   | .filter s c => .filter (s.atTarget T) (c.atTarget T)
-  | .call f args => if f = .refer ∨ f = .rel then .call f args else .call f (atItems T args)
+  | .call f args => if f = .relate then .call f args else .call f (atItems T args)
   | .ride k v r => .ride k (v.atTarget T) r
   | .link v t => .link (v.atTarget T) t
   | v => v
@@ -1184,11 +1184,10 @@ def atCovers (T : List Seg) : List Cover → List Cover
 end
 
 mutual
-/-- The links a term writes, at any depth: each `refer` and each `rel`,
+/-- The links a term writes, at any depth: each `relate`,
 in a call's arguments and in another link's template as well. -/
 def Val.linkCalls : Val → ℕ
-  | .call .refer args => lcItems args + 1
-  | .call .rel args => lcItems args + 1
+  | .call .relate args => lcItems args + 1
   | .call _ args => lcItems args
   | .ride _ v _ => v.linkCalls
   | .link v t => v.linkCalls + t.linkCalls
@@ -2373,7 +2372,7 @@ def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Va
     (S.atUses cp rt dl []).placedT [])
 
 /-- A document's declarations with the relation kind declared under its
-name, which a `rel` reads as (`relKind`). -/
+name, which a `relate` reads as (`relKind`). -/
 def Decls.withRel (ds : Decls) : Decls := ds ++ [(relName, relKind)]
 
 /-- A document with its links read, `r` reading a document to its roots,

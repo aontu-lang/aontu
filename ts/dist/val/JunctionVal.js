@@ -26,8 +26,9 @@ class JunctionVal extends FeatureVal_1.FeatureVal {
         return out;
     }
     get canon() {
+        // A pending link beside a template has no text of its own.
         const parts = this.peg.map((v) => [v.cjo, v.isJunction && Array.isArray(v.peg) && 1 < v.peg.length ?
-                '(' + (0, utility_1.canonRiders)(v) + ')' : (0, utility_1.canonRiders)(v)]);
+                '(' + (0, utility_1.canonRiders)(v) + ')' : (0, utility_1.canonRiders)(v)]).filter((p) => '' !== p[1]);
         // A meet is one value whatever order its terms were met in, so terms
         // of one rank are written in code-point order.
         if ('&' === this.getJunctionSymbol()) {

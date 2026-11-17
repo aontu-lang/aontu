@@ -87,10 +87,67 @@ func layerText[T any](layer map[string]T, text func(T) string) string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-// riderText wraps a value's rendering in its riders: the deprecation
-// record, then the annotation record, each as the reparseable call that
-// carries it.
+func sameRec(a, b Val) bool {
+	ra, rb := a.genRec(), b.genRec()
+	return ra == rb || (nil != ra && nil != rb && ra.Canon() == rb.Canon())
+}
+
+// declRecord is the graph atoms a value carries: `acyclic()`, and
+// `inverse(k)` by name. Mirrors DeclRecord in ts/src/rider.ts.
+type declRecord struct {
+	acyclic  bool
+	inverses []string
+}
+
+func unionDecls(recs ...*declRecord) *declRecord {
+	var out *declRecord
+	lists := [][]string{}
+	for _, r := range recs {
+		if nil == r {
+			continue
+		}
+		if nil == out {
+			out = &declRecord{}
+		}
+		out.acyclic = out.acyclic || r.acyclic
+		lists = append(lists, r.inverses)
+	}
+	if nil != out {
+		out.inverses = unionVia(lists...)
+	}
+	return out
+}
+
+func graphAtomsText(d *declRecord) string {
+	parts := []string{}
+	if d.acyclic {
+		parts = append(parts, "acyclic()")
+	}
+	for _, k := range d.inverses {
+		parts = append(parts, "inverse("+jsonString(k)+")")
+	}
+	return strings.Join(parts, "&")
+}
+
+// riderText wraps a value's rendering in its riders: its graph atoms and
+// output record after it, then the deprecation and annotation records,
+// each as the call that carries it. An atom met with nothing is its graph
+// atoms already.
 func riderText(s string, v Val) string {
+	if d := v.declRec(); nil != d && !isGraphAtom(v) {
+		if dj, ok := v.(*DisjunctVal); ok && 1 < len(dj.peg) {
+			s = "(" + s + ")"
+		}
+		s += "&" + graphAtomsText(d)
+	}
+	if g := v.genRec(); nil != g {
+		call := "gen(" + g.Canon() + ")"
+		if isTop(v) {
+			s = call
+		} else {
+			s += "&" + call
+		}
+	}
 	if d := v.deprecRec(); nil != d {
 		layers := riderLayers(d)
 		if 0 == len(layers) {
@@ -121,15 +178,20 @@ func ride(out, a, b Val) {
 	recs := []map[string][]string{out.deprecRec()}
 	metas := []map[string][]Val{out.metaRec()}
 	idents := []map[string][]Val{out.identRec()}
+	decls := []*declRecord{out.declRec()}
 	for _, v := range []Val{a, b} {
 		if nil != v {
 			recs = append(recs, v.deprecRec())
 			metas = append(metas, v.metaRec())
 			idents = append(idents, v.identRec())
+			decls = append(decls, v.declRec())
 		}
 	}
 	if dep := unionRiders(sameString, recs...); nil != dep {
 		out.setDeprecRec(dep)
+	}
+	if decl := unionDecls(decls...); nil != decl {
+		out.setDeclRec(decl)
 	}
 	if ident := unionRiders(valCanon, idents...); nil != ident {
 		out.setIdentRec(ident)
@@ -166,16 +228,20 @@ func unionVia(lists ...[]string) []string {
 
 // rideOn gives the meet's riders to its result. A top takes them on a
 // fresh top, and only where they add to its own, because an operand
-// top may be a value written elsewhere.
-func rideOn(out, a, b Val) Val {
+// top may be a value written elsewhere. An output record is unified,
+// not joined, so it can refuse the meet.
+func rideOn(ctx *Ctx, out, a, b Val) Val {
 	if !isTop(out) {
 		ride(out, a, b)
-		return out
+		return genOn(ctx, out, a, b)
 	}
 	if !rides(a) && !rides(b) {
 		return out
 	}
-	t := clonePath(out, out.vpath())
+	t := genOn(ctx, clonePath(out, out.vpath()), a, b)
+	if t.Nil() {
+		return t
+	}
 	ride(t, a, b)
 	if riderText("", t) == riderText("", out) {
 		return out
@@ -184,7 +250,7 @@ func rideOn(out, a, b Val) Val {
 }
 
 func rides(v Val) bool {
-	return nil != v && (nil != v.deprecRec() || nil != v.metaRec())
+	return nil != v && (nil != v.deprecRec() || nil != v.metaRec() || nil != v.genRec())
 }
 
 // deprecationMessage is the one-line prose for a deprecation record;

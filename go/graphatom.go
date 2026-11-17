@@ -3,21 +3,12 @@
 package aontu
 
 
-import (
-	"strconv"
-)
-
-type relDecl struct {
-	acyclic  bool
-	inverses map[string]bool
-}
-
+// GraphAtomVal is a graph atom met with nothing: the declaration alone.
+// Met with a value it hands the value back as it is, and the meet's
+// riders carry the declaration on to it, as they carry `meta()` and
+// `deprecate()`. Mirrors ts/src/val/GraphAtomVal.ts.
 type GraphAtomVal struct {
 	base
-	akind   string // "acyclic" | "inverse"
-	invname string
-	// The value the atom rides on; nil until the atom meets one.
-	held Val
 }
 
 func predicateNameOK(s string) bool {
@@ -59,137 +50,32 @@ func predicateName(v Val) (string, bool) {
 	return s, true
 }
 
-func newGraphAtom(akind, invname string, held Val) *GraphAtomVal {
-	g := &GraphAtomVal{akind: akind, invname: invname, held: held}
+func newGraphAtom(d *declRecord) *GraphAtomVal {
+	g := &GraphAtomVal{}
 	g.site.sp = unsited
-	// A settled residual, like an unmet rel(): the bare atom is its
-	// own value, and a type() body carrying one must settle. Holding
-	// an unsettled value, it is exactly as done as the value.
+	g.decl = d
 	g.dc = DONE
-	if nil != held && DONE != held.Dc() {
-		g.dc = 0
-	}
 	return g
 }
 
 func (g *GraphAtomVal) cjo() int      { return 46000 }
 func (g *GraphAtomVal) superior() Val { return top() }
 
-func (g *GraphAtomVal) register(ctx *Ctx) {
-	if nil == ctx || 0 == len(g.path) {
-		return
-	}
-	seg := g.path[len(g.path)-1]
-	if !predicateNameOK(seg) {
-		return
-	}
-	if nil == ctx.reldecls {
-		ctx.reldecls = map[string]*relDecl{}
-	}
-	d := ctx.reldecls[seg]
-	if nil == d {
-		d = &relDecl{inverses: map[string]bool{}}
-		ctx.reldecls[seg] = d
-	}
-	if "acyclic" == g.akind {
-		d.acyclic = true
-	} else if "" != g.invname {
-		d.inverses[g.invname] = true
-	}
-}
-
-func (g *GraphAtomVal) carry(held Val) *GraphAtomVal {
-	out := newGraphAtom(g.akind, g.invname, held)
-	copyMarks(out, g)
-	out.site.sp, out.site.spu, out.site.url = g.site.sp, g.site.spu, g.site.url
-	out.path = cp(g.path)
-	return out
-}
-
 func (g *GraphAtomVal) Unify(peer Val, ctx *Ctx) Val {
-	g.register(ctx)
-
-	// The self-drive: the dispatcher hands a not-done result top() to
-	// finish converging, and the held is what still has work to do. (A
-	// nil-valued peer never arrives -- unite's ladder absorbs it.)
-	if nil == peer || isTop(peer) {
-		if nil == g.held {
-			return g
-		}
-		if DONE == g.held.Dc() {
-			// Doneness is monotone, so recording it in place is safe
-			// -- and without it the bag walk keeps asking and
-			// generation refuses a finished value.
-			g.dc = DONE
-			return g
-		}
-		held := unite(ctx, g.held, nil)
-		if held.Nil() {
-			return held
-		}
-		g.held = held
-		if DONE == held.Dc() {
-			g.dc = DONE
-		}
+	// Atoms meet on a fresh value, since each may be written elsewhere.
+	if isGraphAtom(peer) {
+		return clonePath(g, g.path)
+	}
+	if isTop(peer) {
 		return g
 	}
-
-	// The SAME declaration twice is one declaration; their helds merge.
-	if pg, ok := peer.(*GraphAtomVal); ok &&
-		pg.akind == g.akind && pg.invname == g.invname {
-		var held Val
-		switch {
-		case nil == g.held:
-			held = pg.held
-		case nil == pg.held:
-			held = g.held
-		default:
-			held = unite(ctx, g.held, pg.held)
-		}
-		if nil == held {
-			return g
-		}
-		if held.Nil() {
-			return held
-		}
-		return g.carry(held)
-	}
-
-	// Anything else -- the rel, the container, a different atom -- is
-	// ABSORBED: the atom carries the value and the fold's pairwise
-	// walk merges across it.
-	var held Val
-	if nil == g.held {
-		held = peer
-	} else {
-		held = unite(ctx, g.held, peer)
-	}
-	if held.Nil() {
-		return held
-	}
-	return g.carry(held)
+	return peer
 }
 
-func (g *GraphAtomVal) Canon() string {
-	own := "acyclic()"
-	if "inverse" == g.akind {
-		own = "inverse(" + strconv.Quote(g.invname) + ")"
-	}
-	if nil == g.held {
-		return own
-	}
-	return g.held.Canon() + "&" + own
-}
+func (g *GraphAtomVal) Canon() string { return graphAtomsText(g.decl) }
 
-func (g *GraphAtomVal) Gen(ctx *Ctx) (any, error) {
-	// The atom is transparent at generation -- its verdict is global
-	// (relationFindings), never a value at this field -- and a BARE
-	// atom is silent, exactly as an unmet rel() is.
-	if nil == g.held {
-		return nil, nil
-	}
-	return g.held.Gen(ctx)
-}
+// Gen is silent, as an unmet relate() is: the verdict is the relation's.
+func (g *GraphAtomVal) Gen(ctx *Ctx) (any, error) { return nil, nil }
 
 func isGraphAtom(v Val) bool {
 	_, ok := v.(*GraphAtomVal)

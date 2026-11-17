@@ -26,6 +26,7 @@ import { top } from './top'
 import { FeatureVal } from './FeatureVal'
 import { trialUnify } from './FuncBaseVal'
 import { superOf } from './SuperFuncVal'
+import { genHeld } from '../genrec'
 
 
 function prefInnerPeg(v: Val): Val {
@@ -306,7 +307,7 @@ class PrefVal extends FeatureVal {
       }
     }
 
-    return val.gen(ctx)
+    return null == this.genrec ? val.gen(ctx) : genHeld(ctx, this)
   }
 } /* node:coverage ignore next 7 */
 

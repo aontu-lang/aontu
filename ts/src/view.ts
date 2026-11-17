@@ -7,9 +7,10 @@ import { Aontu } from './aontu'
 import { failureFinding, engineFinding, anchorAt, throughResidue } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
-import { graphOf } from './graph'
-import type { Graph } from './graph'
+import { declsOf, graphOf } from './graph'
+import type { Graph, RelDecl } from './graph'
 import { cmpCodePoint } from './keyorder'
+import { genPlain } from './val/genwrite'
 import { Provenance } from './provenance'
 import type { WhyConjunct } from './provenance'
 import { why, pathParts } from './query'
@@ -343,7 +344,7 @@ function lineBreakFinding(path: string): VetFinding {
 // many positions wrote it.
 type Triple = { from: string, key: string, to: string }
 
-type RelDecls = Map<string, { acyclic?: boolean, inverses: Set<string> }>
+type RelDecls = Map<string, RelDecl>
 
 
 // A prefix test on PATHS, not strings: `$.a` covers `$.a.b` and `$.a`
@@ -4387,7 +4388,7 @@ function drawLoaded(
         }
       }
       const before = ctx.err.length
-      const listed = steps.gen(ctx)
+      const listed = genPlain(steps, ctx)
       if (before < ctx.err.length) {
         return { errors: [engineFinding(ctx.err[before], ctx, '$')] }
       }
@@ -4401,7 +4402,7 @@ function drawLoaded(
     // generated values, so a document that is not concrete is an
     // error here, exactly as `aontu file.aontu` on it is.
     const before = ctx.err.length
-    const value = root.gen(ctx)
+    const value = genPlain(root, ctx)
     if (before < ctx.err.length) {
       return {
         errors: [engineFinding(ctx.err[before], ctx, '$')],
@@ -4444,7 +4445,7 @@ function drawLoaded(
       ? drawTreemapParts(root, o, max, loss) : drawTreemap(root, o, max, loss)
   }
 
-  const decls: RelDecls = ctx._reldecls
+  const decls = declsOf(root)
   // An empty relation name is no relation, so both ports read it as
   // "every relation" rather than one that names nothing.
   const relation = options.relation || undefined
@@ -4726,7 +4727,7 @@ export function viewSet(
   let declared: any = undefined
   if (null != node) {
     const before = ctx.err.length
-    declared = node.gen(ctx)
+    declared = genPlain(node, ctx)
     if (before < ctx.err.length) {
       return {
         verdict: 'error', views: [],

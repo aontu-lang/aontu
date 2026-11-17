@@ -23,6 +23,7 @@ import { NilVal } from './NilVal'
 import { FeatureVal } from './FeatureVal'
 import { ExpectVal } from './ExpectVal'
 import { cmpCodePoint } from '../keyorder'
+import { genWriteBag, genWrites } from './genwrite'
 
 
 abstract class BagVal extends FeatureVal {
@@ -85,7 +86,7 @@ abstract class BagVal extends FeatureVal {
     const scj: any = (this as any).spread?.cj
     const pcj: any = peer.spread?.cj
     if ((null == scj) !== (null == pcj) ||
-      (null != scj && null != pcj && scj.canon !== pcj.canon)) {
+      (null != scj && null != pcj && templateKey(scj) !== templateKey(pcj))) {
       return false
     }
 
@@ -116,6 +117,8 @@ abstract class BagVal extends FeatureVal {
     if ((this.mark.type || this.mark.hide) && true !== ctx?.probe) {
       return undefined
     }
+
+    const outer = ctx?.genat
 
     let entries = items(this.peg)
     if (this.isMap) {
@@ -163,7 +166,7 @@ abstract class BagVal extends FeatureVal {
       if (child.isDisjunct && optional) {
         const dctx = ctx.clone({ err: [], collect: true })
 
-        let cval = child.gen(towardAt(this, dctx, p, out))
+        let cval = child.gen(towardAt(this, dctx, p, out, at))
 
         if (raiseParse(dctx, child, ctx) || undefined === cval || empty(cval)) {
           continue
@@ -175,7 +178,7 @@ abstract class BagVal extends FeatureVal {
       else if (bagGenable(child)) {
         const cctx = optional ? ctx.clone({ err: [], collect: true }) : ctx
 
-        let cval = child.gen(towardAt(this, cctx, p, out))
+        let cval = child.gen(towardAt(this, cctx, p, out, at))
 
         if (optional &&
           (raiseParse(cctx, child, ctx) || undefined === cval || empty(cval))) {
@@ -220,7 +223,11 @@ abstract class BagVal extends FeatureVal {
 
     }
 
-    return out
+    if (null != ctx) {
+      ctx.genat = outer
+    }
+
+    return genWrites(ctx, this) ? genWriteBag(ctx, this, out) : out
   }
 
 } /* node:coverage ignore next 6 */
@@ -231,9 +238,15 @@ export {
 }
 
 
-function towardAt(bag: BagVal, ctx: AontuContext, p: any, out: any): AontuContext {
-  return undefined === ctx?._toward ? ctx :
+function towardAt(
+  bag: BagVal, ctx: AontuContext, p: any, out: any, at: string[]
+): AontuContext {
+  const tctx = undefined === ctx?._toward ? ctx :
     towardMember(ctx, bag.isMap ? String(p) : out.length)
+  if (null != tctx) {
+    tctx.genat = at
+  }
+  return tctx
 }
 
 
@@ -249,6 +262,14 @@ function raiseParse(gctx: AontuContext, child: Val, ctx: AontuContext): boolean 
 
 
 // A key is data, never a property lookup: a key table has no prototype.
+// A template's identity: its canon, and the pending links canon leaves out.
+export function templateKey(cj: any): string {
+  const links: any[] = true === cj.isPendingLink ? [cj]
+    : true === cj.isConjunct ? cj.peg.filter((t: any) => true === t.isPendingLink) : []
+  return cj.canon + links.map((l) => '\x00' + l.tval.canon).join('')
+}
+
+
 export function keyTable<T = any>(): Record<string, T> {
   return Object.create(null)
 }
@@ -285,9 +306,6 @@ export function sizingResidue(v: any): { con: any, bag: any } | undefined {
 }
 
 export function bagGenable(child: any): boolean {
-  if (true === child.isGraphAtom) {
-    return undefined === child.held || bagGenable(child.held)
-  }
   // The recursive residual carries its own generation refusal
   // (recursion_unexpanded), which names the schema and the site --
   // the bag's generic residue error would bury both.
@@ -302,6 +320,7 @@ export function bagGenable(child: any): boolean {
     || true === child.isRef
     || true === child.isDisjunct
     || true === child.isNil
+    || true === child.isGraphAtom
     || undefined !== sizingResidue(child)
 }
 

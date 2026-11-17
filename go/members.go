@@ -48,12 +48,13 @@ func filledMember(v Val, ctx *Ctx) bool {
 	c2 := *ctx
 	c2.err = nil
 	c2.collect = true
+	c2.plain = true
 	// Generation in collect mode records its failures on the context
 	// and answers nil, so a subtree that cannot generate arrives here
 	// as no value (the emittedMembers shape).
 	cv, err := v.Gen(&c2)
 	if nil != err || nil == cv {
-		return nil == err && gensNull(ctx, v)
+		return nil == err && gensNull(&c2, v)
 	}
 	return !isEmptyGen(cv)
 }

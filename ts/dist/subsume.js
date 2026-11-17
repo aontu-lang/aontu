@@ -54,8 +54,13 @@ function siteOf(v, role, url) {
         len: v.site.len,
         role: role,
         src: v.site.src,
-        value: v.canon,
+        value: shownText(v),
     };
+}
+function shownText(v) {
+    return true === v.isPendingLink ||
+        (true === v.isConjunct && v.peg.some((t) => true === t.isPendingLink))
+        ? (0, hcanon_1.hcanon)(v, true) : v.canon;
 }
 // One finding: general and specific sites (general first — it is the
 // contract being weakened or broken), canons as expected/actual.
@@ -70,8 +75,8 @@ function record(state, code, path, g, s, message) {
             siteOf(g, 'general', state.generalUrl),
             siteOf(s, 'specific', state.specificUrl),
         ],
-        expected: g.canon,
-        actual: s.canon,
+        expected: shownText(g),
+        actual: shownText(s),
     });
 }
 function admission(v) {
@@ -268,7 +273,7 @@ function subsumeNode(state, path, g0, s0) {
         }
     }
     if (unresolved(g) || unresolved(s)) {
-        if ((0, hcanon_1.hcanon)(g) === (0, hcanon_1.hcanon)(s)) {
+        if ((0, hcanon_1.hcanon)(g, true) === (0, hcanon_1.hcanon)(s, true)) {
             return 'yes';
         }
         record(state, 'sub_unresolved', path, g, s, 'unresolved residue: the admitted set is not comparable');
@@ -451,7 +456,7 @@ function subsumeNode(state, path, g0, s0) {
         const sk = s.peg.map((_, i) => '' + i);
         return assume(state, g0, s0, () => subsumeBag(state, path, g, s, gk, sk, (v, k) => v.peg[Number(k)]));
     }
-    if (true !== g?.isNil && true !== s?.isNil && (0, hcanon_1.hcanon)(g) === (0, hcanon_1.hcanon)(s)) {
+    if (true !== g?.isNil && true !== s?.isNil && (0, hcanon_1.hcanon)(g, true) === (0, hcanon_1.hcanon)(s, true)) {
         return 'yes';
     }
     record(state, 'sub_unresolved', path, g, s, 'no subsumption rule covers this pair of value formers');
@@ -499,8 +504,8 @@ function subsumeRecursion(state, path, g0, s0, g, s) {
 // Values of one hash form are one value (use-cases/BUGS.md 64), unless a
 // recursion inside names a definition its own document holds.
 function identical(g, s) {
-    const h = (0, hcanon_1.hcanon)(g);
-    return h === (0, hcanon_1.hcanon)(s) && !/\$\.|%/.test(h);
+    const h = (0, hcanon_1.hcanon)(g, true);
+    return h === (0, hcanon_1.hcanon)(s, true) && !/\$\.|%/.test(h);
 }
 // A recursion's definition in its own document, or the value itself.
 function unfold(root, v) {
@@ -624,7 +629,7 @@ function subsumeBag(state, path, g, s, gKeys, sKeys, child) {
     const gcj = g.spread?.cj;
     const scj = s.spread?.cj;
     if (null != gcj || null != scj) {
-        const sameTemplate = null != gcj && null != scj && (0, hcanon_1.hcanon)(gcj) === (0, hcanon_1.hcanon)(scj);
+        const sameTemplate = null != gcj && null != scj && (0, hcanon_1.hcanon)(gcj, true) === (0, hcanon_1.hcanon)(scj, true);
         if (!sameTemplate &&
             (true === gcj?.isPathDependent || true === scj?.isPathDependent)) {
             record(state, 'sub_path_dependent_spread', path, gcj ?? g, scj ?? s, 'a path-dependent spread template cannot be compared structurally');

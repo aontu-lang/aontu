@@ -1,7 +1,7 @@
 # pipeline.aontu --- the ETL topology: which job feeds which. Both
 # directions are written out -- deriving the inverse FOR the author is
 # generation, not validation, and inverse() only checks -- and every
-# list is a plain list of addresses: the schema's rel() checks them.
+# list is a plain list of addresses: the schema's relate() checks them.
 pipeline: jobs: {
   &: $.spec.Job
 

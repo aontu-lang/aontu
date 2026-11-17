@@ -6,6 +6,7 @@ import { AontuContext } from '../ctx'
 import { cmpCodePoint } from '../keyorder'
 import { empty } from './Val'
 import { bagGenable } from './BagVal'
+import { genPlain } from './genwrite'
 
 
 type Member = { key: string, val: Val }
@@ -45,7 +46,7 @@ function filled(val: any, ctx: AontuContext): boolean {
   if (!bagGenable(val)) {
     return false
   }
-  const cval = val.gen(ctx.clone({ err: [], collect: true }))
+  const cval = genPlain(val, ctx.clone({ err: [], collect: true }))
   return undefined !== cval && !empty(cval)
 }
 

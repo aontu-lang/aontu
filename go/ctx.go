@@ -19,7 +19,6 @@ type Ctx struct {
 	cc    int // current fixpoint pass (for late-resolving funcs)
 	trial bool
 	matchRead bool
-	reldecls map[string]*relDecl
 	fixroot Val
 	settle bool
 	vars   map[string]Val // user-provided variables, resolved by $name
@@ -30,6 +29,11 @@ type Ctx struct {
 	slot []string
 
 	toward *towardData
+
+	// Generation: its container's place, whether it only reads, whether a null was written.
+	at        []string
+	plain     bool
+	wroteNull bool
 
 	argsnap bool
 
@@ -81,6 +85,13 @@ func genErr(ctx *Ctx, gerr error) error {
 			Details: ctx.err[0].details}
 	}
 	return nil
+}
+
+func genCollectPlain(ctx *Ctx, v Val) (any, error) {
+	was := ctx.plain
+	ctx.plain = true
+	defer func() { ctx.plain = was }()
+	return genCollect(ctx, v)
 }
 
 func genCollect(ctx *Ctx, v Val) (any, error) {

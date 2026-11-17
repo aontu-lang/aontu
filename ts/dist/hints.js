@@ -210,14 +210,17 @@ const hints = {
         'trust.budget.trials (docs/trust.md).',
     recursion_budget: 'A recursive schema expanded past the evaluation depth budget\nwithout meeting concrete data. Expansion is driven by the data --\nfinite data always terminates -- so a chain this deep means two\ndefinitions feeding each other, or data deeper than the budget\n(docs/trust.md raises it deliberately).',
     list_length: 'A literal list alternative in a disjunction admits only a list of\nits own length -- a spread (&:) makes it variadic. Outside a\ndisjunction two statements of one list still merge elementwise.\n \nExamples:\n  x: [] | [&: integer]\n  x: [1, 2]      -> [1,2]  # The variadic arm;\n  x: []          -> []     # ... or exactly empty;\n  y: [a] | [b]\n  y: [a, extra]  -> nil    # ... a literal arm is its length.',
-    relation_cycle: 'This relation declared acyclic(), and its edges form a cycle. The\nverdict lands at generation, where every edge is known; the error\npoints at an edge on the cycle and names the nodes it runs\nthrough, closing back on the first.\n \nExamples:\n  dependsOn: rel() & acyclic()\n  a: {dependsOn: ["$.b"]}\n  b: {dependsOn: ["$.a"]}   -> nil   # $.a -> $.b -> $.a;\n  b: {dependsOn: []}        -> {..}  # ... one edge fewer passes.',
-    relation_inverse_missing: 'This relation declared inverse(name), and an edge has no mirroring\nedge under that name: A relates to B, and B does not name A back.\nThe declaration asks for the mirror to be WRITTEN, and never writes\nit for the author -- generation is refused until the document says\nboth directions.\n \nExamples:\n  a: {dependsOn: rel() & inverse(dependedOnBy) & [b]}\n  b: {dependedOnBy: rel() & [a]}  -> {..}  # Mirrored;\n  b: {dependedOnBy: rel() & []}   -> nil   # ... and this is not.',
+    relation_cycle: 'This relation declared acyclic(), and its edges form a cycle. The\nverdict lands at generation, where every edge is known; the error\npoints at an edge on the cycle and names the nodes it runs\nthrough, closing back on the first.\n \nExamples:\n  a: {dependsOn: relate() & acyclic() & [path($.b)]}\n  b: {dependsOn: relate() & [path($.a)]}  -> nil   # $.a -> $.b -> $.a;\n  b: {dependsOn: relate() & []}           -> {..}  # ... one edge fewer passes.',
+    relation_inverse_missing: 'This relation declared inverse(name), and an edge has no mirroring\nedge under that name: A relates to B, and B does not name A back.\nThe declaration asks for the mirror to be WRITTEN, and never writes\nit for the author -- generation is refused until the document says\nboth directions.\n \nExamples:\n  a: {dependsOn: relate() & inverse(dependedOnBy) & [path($.b)]}\n  b: {dependedOnBy: relate() & [path($.a)]}  -> {..}  # Mirrored;\n  b: {dependedOnBy: relate() & []}           -> nil   # ... and this is not.',
     inverse_name: 'The argument to inverse() is not a relation name. The mirroring\npredicate is a D-1 name -- a letter or `_`, then letters, digits,\n`_` or `-` -- spelled bare or quoted.\n \nExamples:\n  inverse(dependedOnBy)  -> inverse  # A name;\n  inverse("dep-on")     -> inverse  # ... quoted when hyphenated;\n  inverse(1)             -> nil      # ... a number is not a name.',
-    rel_address: 'A rel() field holds tree addresses: one path value, a list of path\nvalues, or a map whose leaves are path values. A bare string is never\nan address — `path("...")` is the one conversion — and this value can\nnever be one.\n \nExamples:\n  dependsOn: rel() & [path($.ledger)]  -> {..}  # A list of addresses;\n  hostedOn: rel() & path($.bastion)    -> {..}  # ... or one;\n  dependsOn: rel() & ["$.ledger"]      -> nil   # ... a string is not a path;\n  dependsOn: rel() & [7]               -> nil   # ... and neither is 7.',
+    rel_address: 'A relate() field holds tree addresses: one path value, a list of path\nvalues, or a map whose leaves are path values. A bare string is never\nan address — `path("...")` is the one conversion — and this value can\nnever be one.\n \nExamples:\n  dependsOn: relate() & [path($.ledger)]  -> {..}  # A list of addresses;\n  hostedOn: relate() & path($.bastion)    -> {..}  # ... or one;\n  dependsOn: relate() & ["$.ledger"]      -> nil   # ... a string is not a path;\n  dependsOn: relate() & [7]               -> nil   # ... and neither is 7.',
+    // RETIRED with the function refer(), whose links relate() makes.
+    // Registered still, errcodes.tsv being append-only, so a code a
+    // released engine raised keeps its meaning.
     refer_address: 'A refer() was given something that is not a tree address. An address\nis a PATH VALUE — `path($.a.b)` from the document root, `path(.b)`\nfrom the link\'s own sibling scope — and only a path value can be one:\na bare string never is, and `path("...")` is the one conversion.\n \nExamples:\n  refer() & path($.services.auth)  -> ...   # From the root;\n  refer() & path(.auth)            -> ...   # ... or beside the link;\n  refer() & "$.services.auth"      -> nil   # ... a string is not a path;\n  refer() & 1                      -> nil   # ... and neither is a number.',
     path_address: 'This is not a tree address, so it cannot be a path value. An address\nis `$.a.b` from the document root, or `.b` from the sibling scope with\none more leading dot per parent step -- the grammar path() captures.\nString text with no anchor converts as RELATIVE, and a string\nconverts ONLY through the call\'s own argument.\n \nExamples:\n  d: path("$.services.auth") -> path($.services.auth) # A converted string;\n  d: path("auth")           -> path(.auth)  # ... anchorless text is relative;\n  d: path("a..b")           -> nil   # ... but this spells nothing;\n  d: path("$")              -> nil   # ... and the root is not addressable.',
-    rel_unresolved: 'The address names no node in this evaluation. Every position in the\ndocument is addressable; nothing outside it is.\n \nExamples:\n  p: {}\n  q: rel() & "$.p"       -> {..}  # $.p is a node;\n  q: rel() & "$.nosuch"  -> nil   # ... $.nosuch is not.',
-    refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
+    rel_unresolved: 'A relate() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  p: {}\n  q: relate() & path($.p)       -> {..}  # $.p is a node;\n  q: relate() & path($.nosuch)  -> nil   # ... $.nosuch is not.',
+    refer_unresolved: 'A name that has to be a node of this document names none: an endpoint\ngiven to `aontu reaches`, or the root given to a tree view. Check the\nspelling against the nodes the note lists. A link whose address names\nno node answers rel_unresolved.',
     view_relation_unknown: 'The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
     view_kind_unknown: 'The figure kind is not one the verb draws. The note lists\nthe kinds.',
     // RETIRED with the `render` verb (ADR-038). Registered still,
@@ -410,6 +413,70 @@ const hints = {
         '  div(1000, 4)       -> 250    # Integer cents, exact;\n' +
         '  div(10.0, 4.0)     -> 2.5    # ... or binary64, approximate;\n' +
         '  mul(0d10.0, 0d4.0) -> 0d40.0 # Multiplication IS exact and stays.',
+    gen_option: 'This output option is not one the value\'s type takes. A gen()\n' +
+        'annotation rides the value it meets, and its record has to unify\n' +
+        'with the standard options of that value\'s type. The bundled model\n' +
+        'aontu:gen holds them: every option of every type, each with the\n' +
+        'default that leaves the output as it is. A string given to gen() is\n' +
+        'the form, so gen("key") is the record {form:"key"}.\n' +
+        ' \n' +
+        '  type:     {type}\n' +
+        '  options:  {set}\n' +
+        '  record:   {got}\n' +
+        '  refused:  {option}\n' +
+        ' \nExamples:\n' +
+        '  1.234 & gen({significant:2})  -> 1.234  # Generates 1.2;\n' +
+        '  "a" & gen({significant:2})    -> nil    # A string has no such option;\n' +
+        '  1.234 & gen({significant:0})  -> nil    # ... a number takes 1 or more;\n' +
+        '  1.234 & gen({digits:2})       -> nil    # ... and under that name only;\n' +
+        '  "a" & gen("key")              -> nil    # ... nor has it a form.',
+    gen_conflict: 'Two gen() annotations ride this value and their records do not\n' +
+        'unify. An output option is an instruction, and two that disagree\n' +
+        'cannot both be followed, so the meet is refused, where two meta()\n' +
+        'records would be kept side by side.\n' +
+        ' \n' +
+        '  one:    {a}\n' +
+        '  other:  {b}\n' +
+        ' \nExamples:\n' +
+        '  1.5 & gen({significant:2}) & gen({significant:2})  -> 1.5  # One instruction;\n' +
+        '  1.5 & gen({significant:2}) & gen({significant:3})  -> nil  # ... two that disagree.',
+    gen_key_clash: 'Two keys of this map would be written as one key. The keys option\n' +
+        'of gen() writes each key in a naming style, and two keys that\n' +
+        'differ only in how their words are joined have one spelling in\n' +
+        'that style, so the output would hold one member where the document\n' +
+        'holds two. Rename one of the keys, or leave the map\'s keys as they\n' +
+        'are written.\n' +
+        ' \n' +
+        '  written as:  {written}\n' +
+        '  one:         {a}\n' +
+        '  other:       {b}\n' +
+        ' \nExamples:\n' +
+        '  {orderId:1} & gen({keys:"snake"})    -> {..}  # Generates {"order_id":1};\n' +
+        '  {a_b:1, aB:2} & gen({keys:"snake"})  -> nil   # ... both are a_b.',
+    gen_address: 'This address has no absolute form. The form option of gen() writes\n' +
+        'an address from the root of the document, and a relative address is\n' +
+        'resolved from the place its value is generated at. One that climbs\n' +
+        'past the root names nothing to write. Write the address from the\n' +
+        'root, or ask for the form "verbatim" or "key", which need no\n' +
+        'position.\n' +
+        ' \n' +
+        '  address:  {addr}\n' +
+        ' \nExamples:\n' +
+        '  a: {x: path(..b) & gen({form:"absolute"})}  -> {..}  # Generates "$.b";\n' +
+        '  x: path(..b) & gen({form:"absolute"})       -> nil   # ... past the root.',
+    gen_custom: 'The custom expression of a gen() record gave no output for this\n' +
+        'value. The expression is the last step of writing: it is evaluated\n' +
+        'on its own, as apply() evaluates one, with the hole _ standing for\n' +
+        'what the value writes without it. So it reads nothing else of the\n' +
+        'document, and what it is given is data: a string, a number, a map.\n' +
+        ' \n' +
+        '  custom:      {custom}\n' +
+        '  given:       {given}\n' +
+        '  stopped by:  {cause}\n' +
+        ' \nExamples:\n' +
+        '  "a" & gen({custom: upper(_)})        -> "a"  # Generates "A";\n' +
+        '  "a" & gen({custom: $.prefix + _})    -> nil  # It reads no reference;\n' +
+        '  {a:1} & gen({custom: upper(_)})      -> nil  # ... and upper() takes no map.',
     float_overflow: 'This result is not a finite binary64 number, so it is not a value\n' +
         'aontu can carry. There is no notation for an infinity or a NaN in\n' +
         'a JSON superset, and no JSON a generator could emit for one, so\n' +
@@ -451,7 +518,7 @@ const hints = {
     'list': 'Type mismatch: expected a list value but got a different type.',
     'string_empty': 'The string type admits only NON-EMPTY strings. Meet it with empty() to\nadmit "" as well.\n \nExamples:\n  a: string & x              -> "x"\n  b: string & ""             -> nil   # "" is not a string value;\n  c: string & empty() & ""   -> ""    # ... unless empty() admits it.',
     'empty_domain': 'empty() admits the empty string, so it only unifies with strings:\na string value, the string type, or a string constraint.',
-    'constraint_kind': 'Type mismatch: expected a constraint (min, max, re, len, refer, ...)\nbut got a different type.',
+    'constraint_kind': 'Type mismatch: expected a constraint (min, max, re, len, relate, ...)\nbut got a different type.',
     // Argument errors
     'arg': 'Missing required argument. A function requires an argument but none was provided.',
     'invalid-arg': 'Invalid argument provided. The argument does not match the expected type or format.',
@@ -781,7 +848,7 @@ const codeClasses = {
     view_part_names: 'reference',
     // First-class paths (sketch/PATHS.0.md): text that is not a
     // tree address, met by path()'s capture or promotion. The same
-    // class as refer_address, because it is the same mistake.
+    // class as rel_address, because it is the same mistake.
     path_address: 'parse',
     pack_data: 'parse',
     pack_key: 'parse',
@@ -900,6 +967,11 @@ const codeClasses = {
     divide_by_zero: 'conflict',
     inexact_divide: 'conflict',
     float_overflow: 'conflict',
+    gen_option: 'conflict',
+    gen_conflict: 'conflict',
+    gen_key_clash: 'conflict',
+    gen_address: 'reference',
+    gen_custom: 'conflict',
     decimal_budget: 'conflict',
     lossy_integer_literal: 'conflict',
     arg: 'conflict',

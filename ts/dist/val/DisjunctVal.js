@@ -6,6 +6,7 @@ const type_1 = require("../type");
 const err_1 = require("../err");
 const exactjson_1 = require("../exactjson");
 const unify_1 = require("../unify");
+const rider_1 = require("../rider");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
 const NilVal_1 = require("../val/NilVal");
@@ -50,12 +51,13 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         // The peer's annotations ride the result once, not each member, so a
         // disjunction met with itself is itself.
         const annotated = null != peer.meta || null != peer.deprecation ||
-            null != peer.via;
+            null != peer.via || null != peer.reldecl;
         const member = annotated ? peer.clone(ctx, { path: peer.path }) : peer;
         if (annotated) {
             member.meta = undefined;
             member.deprecation = undefined;
             member.via = undefined;
+            member.reldecl = undefined;
         }
         const savedErr = ctx.err;
         const savedTrialMode = ctx._trialMode;
@@ -135,7 +137,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             // (No need for a fresh NilVal — any isNil value gets filtered.)
             for (let vI = 0; vI < oval.length; vI++) {
                 for (let kI = vI + 1; kI < oval.length; kI++) {
-                    if (oval[kI].same(oval[vI])) {
+                    if (oval[kI].same(oval[vI]) && (0, rider_1.sameRec)(oval[kI], oval[vI])) {
                         oval[vI] = keepRiders(ctx, oval[vI], oval[kI]);
                         oval[kI] = NilVal_1.TRIAL_NIL;
                         continue;
@@ -143,7 +145,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     const a = oval[vI];
                     const b = oval[kI];
                     if (true === a.isPref && true === b.isPref
-                        && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b))) {
+                        && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b)) && (0, rider_1.sameRec)(a, b)) {
                         if (a.rank <= b.rank) {
                             oval[vI] = keepRiders(ctx, a, b);
                             oval[kI] = NilVal_1.TRIAL_NIL;
@@ -206,7 +208,9 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     atRank[pref.rank] = vI;
                 }
                 else {
-                    const folded = pref.unify(this.peg[at], ctx);
+                    // Twins that differ in their output records do not fold into one.
+                    const folded = (0, rider_1.sameRec)(pref, this.peg[at]) ? pref.unify(this.peg[at], ctx) :
+                        (0, err_1.makeNilErr)(ctx, 'pref_rank_clash', pref, this.peg[at], 'unify');
                     if (folded.isNil) {
                         return folded;
                     }
@@ -243,23 +247,10 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             }
             const prefs = this.peg.filter((v) => v instanceof PrefVal_1.PrefVal);
             if (0 === prefs.length && 1 < this.peg.length) {
-                const gctx = ctx.clone({ err: [], collect: true });
-                let firstOut;
-                let allSame = true;
-                for (let gI = 0; gI < this.peg.length && allSame; gI++) {
-                    const gout = this.peg[gI].gen(gctx);
-                    if (0 < gctx.err.length || undefined === gout) {
-                        allSame = false;
-                    }
-                    else if (0 === gI) {
-                        firstOut = gout;
-                    }
-                    else {
-                        allSame = genShape(this.peg[gI], gout) === genShape(this.peg[0], firstOut);
-                    }
-                }
-                if (allSame) {
-                    return firstOut;
+                const read = armsAlike(this.peg, ctx, true);
+                const alike = undefined === read || true === ctx.plain ? read : armsAlike(this.peg, ctx, false);
+                if (undefined !== alike) {
+                    return alike.out;
                 }
             }
             if (0 === prefs.length && 1 < this.peg.length) {
@@ -316,9 +307,28 @@ function keepRiders(ctx, keep, drop, sends = true) {
     return out;
 }
 function ridden(v) {
-    return null != v.deprecation || null != v.meta || null != v.flows ||
+    return null != v.deprecation || null != v.meta || null != v.flows || null != v.reldecl ||
         (true === v.isBag && Object.values(v.peg).some(ridden)) ||
         (true === v.isPref && ridden(v.peg));
+}
+// Read plain first: values that differ stay apart though an option writes them alike.
+function armsAlike(arms, ctx, plain) {
+    const gctx = ctx.clone({ err: [], collect: true });
+    gctx.plain = plain;
+    let first;
+    for (let gI = 0; gI < arms.length; gI++) {
+        const gout = arms[gI].gen(gctx);
+        if (0 < gctx.err.length || undefined === gout) {
+            return undefined;
+        }
+        if (0 === gI) {
+            first = gout;
+        }
+        else if (genShape(arms[gI], gout) !== genShape(arms[0], first)) {
+            return undefined;
+        }
+    }
+    return { out: first };
 }
 function genShape(v, out) {
     if ('number' === typeof out && true === v?.isScalar) {

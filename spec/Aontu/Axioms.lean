@@ -8,6 +8,8 @@ import Aontu.Alias
 import Aontu.Verdict
 import Aontu.Paths
 import Aontu.Subsume
+import Aontu.Reorder
+import Aontu.Written
 
 /-!
 # The axioms
@@ -410,3 +412,51 @@ line each comment states.
 /-- info: 'Aontu.not_genLe_of_refutes' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.not_genLe_of_refutes
+
+/-- info: 'Aontu.Val.Reordered.judge' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Val.Reordered.judge
+
+/-- info: 'Aontu.Val.Reordered.atKey' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.Val.Reordered.atKey
+
+/-- info: 'Aontu.judge_env_of_perm' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.judge_env_of_perm
+
+/-- info: 'Aontu.instance_orderIndependent' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.instance_orderIndependent
+
+/-- info: 'Aontu.Number.significant_of_le' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.significant_of_le
+
+/-- info: 'Aontu.Number.inLeafOf_isSome' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.inLeafOf_isSome
+
+/-- info: 'Aontu.Number.significant_isSome' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.significant_isSome
+
+/-- info: 'Aontu.Number.rounded_none' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_none
+
+/-- info: 'Aontu.Number.rounded_places_of_whole' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_places_of_whole
+
+/-- info: 'Aontu.Number.dropOf_significant' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.Number.dropOf_significant
+
+/-- info: 'Aontu.Number.rounded_significant' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_significant
+
+/-- info: 'Aontu.Number.rounded_isSome' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_isSome

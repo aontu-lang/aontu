@@ -13,6 +13,7 @@ exports.admitsSettled = admitsSettled;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
 const BagVal_1 = require("./BagVal");
+const genwrite_1 = require("./genwrite");
 const top_1 = require("./top");
 function isObject(v) {
     return null != v && 'object' === typeof v && !Array.isArray(v);
@@ -95,7 +96,7 @@ function admitsJson(met, out, own) {
 function genToward(value, ctx, own) {
     const tctx = ctx.clone({});
     tctx._toward = { v: own };
-    return value.gen(tctx);
+    return (0, genwrite_1.genPlain)(value, tctx);
 }
 function towardMember(ctx, key) {
     const data = ctx._toward?.v;
@@ -109,12 +110,12 @@ function towardMember(ctx, key) {
 }
 function armAdmits(arm, ctx, own) {
     const actx = ctx.clone({ err: [], collect: true });
-    const out = arm.gen(actx);
+    const out = (0, genwrite_1.genPlain)(arm, actx);
     return 0 === actx.err.length && undefined !== out && admitsJson(arm, out, own);
 }
 function ownJson(value, ctx) {
     const gctx = ctx.clone({ err: [], collect: true });
-    const own = value.clone(gctx).gen(gctx);
+    const own = (0, genwrite_1.genPlain)(value.clone(gctx), gctx);
     return 0 < gctx.err.length ? undefined : own;
 }
 // The meet run to a fixpoint as the document is, the calls that wait for

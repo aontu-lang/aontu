@@ -26,6 +26,7 @@ const formatgrammar_1 = require("../formatgrammar");
 const regex_1 = require("../regex");
 const hints_1 = require("../hints");
 const FeatureVal_1 = require("./FeatureVal");
+const genwrite_1 = require("./genwrite");
 const site_1 = require("../site");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const numcmp_1 = require("./numcmp");
@@ -599,8 +600,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // Every branch of the ladder assigns, so no initialiser: a
         // residual is stable and the ladder is total.
         let out;
-        if (true === peer?.isRel
-            || true === peer?.isGraphAtom) {
+        if (true === peer?.isRelate) {
             out = peer.unify(this, ctx);
         }
         else if (null != this.pending) {
@@ -1846,7 +1846,7 @@ function emittedEntries(bag, ctx) {
             return undefined;
         }
         const gctx = ctx.clone({ err: [], collect: true });
-        const cval = child.gen(gctx);
+        const cval = (0, genwrite_1.genPlain)(child, gctx);
         // A required member that fails is a member: its own failure is the
         // finding, so the count does not decide on the members that remain.
         if (undefined === cval && !optional && 0 < gctx.err.length) {

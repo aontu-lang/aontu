@@ -5,9 +5,11 @@ import Aontu.Admits
 import Aontu.Names
 import Aontu.Alias
 import Aontu.Order
+import Aontu.Reorder
 import Aontu.Subsume
 import Aontu.Meet
 import Aontu.Output
+import Aontu.Written
 import Aontu.Verdict
 import Aontu.Trial
 import Aontu.Check

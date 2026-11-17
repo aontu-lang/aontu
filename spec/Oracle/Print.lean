@@ -211,8 +211,7 @@ def Fn.name : Fn → String
   | .pref => "pref"
   | .move => "move"
   | .copy => "copy"
-  | .refer => "refer"
-  | .rel => "rel"
+  | .relate => "relate"
   | .path => "path"
   | .abnf => "abnf"
   | .parse => "parse"
@@ -321,7 +320,7 @@ def Val.src : Val → Option String
   | .ride .type _ _ | .ride .hide _ _ | .ride .opened _ _ | .ride .lifts _ _ | .ride .seals _ _
   | .ride (.move _) _ _ | .ride .void _ _ => none
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
-  | .link v t => do pure s!"(refer({← t.src})) & ({← v.src})"
+  | .link v t => do pure s!"(relate({← t.src})) & ({← v.src})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []

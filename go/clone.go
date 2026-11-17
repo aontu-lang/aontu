@@ -194,7 +194,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
-	case *ReferVal:
+	case *PendingLinkVal:
 		c := *n
 		c.path = cp(path)
 		return &c
@@ -207,12 +207,10 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c.path = cp(path)
 		return &c
 	case *GraphAtomVal:
-		// The held value is shared, as TS GraphAtomVal.clone shares it;
-		// the path is not, since register() reads the predicate from it.
 		c := *n
 		c.path = cp(path)
 		return &c
-	case *RelVal:
+	case *RelateVal:
 		c := *n
 		c.path = cp(path)
 		return &c

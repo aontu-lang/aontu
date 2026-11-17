@@ -9,6 +9,7 @@ import {
 } from '../site'
 
 import { FROM_SPREAD, INNER_OF, WRITTEN } from '../provenance'
+import type { DeclRecord } from '../rider'
 
 
 // THE DISPATCH RECORD (RENDER.0.md D11, P7): the address of the node
@@ -146,18 +147,26 @@ abstract class Val {
 
   meta?: Record<string, Val[]>
 
+  genrec?: Val
+  genopts?: Record<string, any>
+
   // The aliases this value is a copy of, which the exporter writes as $ref.
   via?: string[]
 
   // A declaration's record (ADR-056, ADR-073), which no copy carries.
   identity?: Record<string, any[]>
 
+  // The graph atoms met here, which the relation checks read by key name.
+  reldecl?: DeclRecord
+
   link?: string
-  // A link's target path, its own missing-target code where it isn't
-  // refer()'s, and its templates, each with the target it meets.
+  // A link's target path, and each template with the target it meets.
   linkto?: string[]
-  linkcode?: string
   flows?: [string, Val][]
+  // The templates of the `relate()` calls met here, and whether one was
+  // written at this value itself, where canon writes it back.
+  relates?: Val[]
+  relroot?: boolean
 
   origin?: string
 
@@ -271,11 +280,14 @@ abstract class Val {
     if (null != this.linkto) {
       out.linkto = this.linkto
     }
-    if (null != this.linkcode) {
-      out.linkcode = this.linkcode
-    }
     if (null != this.flows) {
       out.flows = this.flows
+    }
+    if (null != this.relates) {
+      out.relates = this.relates
+    }
+    if (null != this.relroot) {
+      out.relroot = this.relroot
     }
     if (null != this.deprecation) {
       out.deprecation = this.deprecation
@@ -283,11 +295,18 @@ abstract class Val {
     if (null != this.meta) {
       out.meta = this.meta
     }
+    if (null != this.genrec) {
+      out.genrec = this.genrec
+      out.genopts = this.genopts
+    }
     if (null != this.via) {
       out.via = this.via
     }
     if (null != this.identity) {
       out.identity = this.identity
+    }
+    if (null != this.reldecl) {
+      out.reldecl = this.reldecl
     }
 
     if (null != this.origin) {

@@ -43,6 +43,8 @@ Saying what data must look like, from optional keys to recursive shapes.
 - [Make a field optional](make-a-field-optional.md). Suffix a key with `?` so a field that never receives a value is dropped instead of erroring.
 - [Name a reusable constraint](name-a-reusable-constraint.md). Build a `uint8`/`port` vocabulary as a `type()`-marked block of ordinary fields.
 - [Define a recursive schema](define-a-recursive-schema.md). Reference a definition inside itself to get a schema that applies at every depth of the data.
+- [Model a file system](model-a-file-system.md). Model folders and files as one table of nodes, with a base type, two subtypes of it, and a parent relation whose target must be a folder.
+- [Model a microservices architecture](model-a-microservices-architecture.md). Model services and the stores they own as two tables, with a dependency relation that must name a service that can be called and may not loop, and one owner for each store.
 - [Carry exact money over JSON](carry-exact-money-over-json.md). Keep money exact inside aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
 - [Export JSON Schema](export-json-schema.md). Export a model as JSON Schema 2020-12 with `aontu jsonschema`, and read the loss report it owes you.
 - [Import JSON Schema](import-json-schema.md). Import a JSON Schema 2020-12 document as aontu with `aontu jsonschema import`, and check data against it the way JSON Schema does.
@@ -67,7 +69,7 @@ The gate verbs: vet, breaking, relations, reaches, and hash.
 
 - [Validate data in CI](validate-in-ci.md). Run aontu vet in a pipeline so a document that does not hold fails the build, with the reason attached.
 - [Gate schema changes](gate-schema-changes.md). Gate schema edits with aontu breaking, so a change that would refuse previously valid documents fails the review.
-- [Check that components agree about their relations](check-relations.md). Declare a relation once at the field with rel(), acyclic() and inverse(), and have the whole model's edge set checked.
+- [Check that components agree about their relations](check-relations.md). Declare a relation once at the field with relate(), acyclic() and inverse(), and have the whole model's edge set checked.
 - [Query reachability between entities](query-reachability.md). Ask whether one entity reaches another over the declared edges with aontu reaches, and get the path as the answer.
 - [Pin what a document means](pin-a-document-hash.md). Pin a document's meaning to one string with aontu hash, and detect when the meaning moves.
 - [Format a document](format-a-document.md). Put a document in the agreed form with `aontu fmt`, gate a repository on it in CI, and read what the formatter will and will not change.

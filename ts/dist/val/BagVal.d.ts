@@ -20,6 +20,7 @@ declare abstract class BagVal extends FeatureVal {
     gen(ctx: AontuContext): any;
 }
 export { BagVal, };
+export declare function templateKey(cj: any): string;
 export declare function keyTable<T = any>(): Record<string, T>;
 export declare function putKey(out: any, key: string, val: any): void;
 export declare function sizingResidue(v: any): {

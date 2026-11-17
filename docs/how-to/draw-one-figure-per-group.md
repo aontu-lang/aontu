@@ -19,20 +19,20 @@ columns:
 
 <!-- test: file shop.aontu -->
 ```aontu
-domains: billing: tables: [&: refer() path($.invoice) path($.payment)]
-domains: identity: tables: [&: refer() path($.customer)]
+domains: billing: tables: [&: relate() path($.invoice) path($.payment)]
+domains: identity: tables: [&: relate() path($.customer)]
 
 customer: { domain:identity columns: { id:integer email:string } }
 
 invoice: domain: billing
 invoice: columns: {
   id: integer
-  customer: refer() & path($.customer)
+  customer: relate() & path($.customer)
   total: number
 }
 
 payment: domain: billing
-payment: columns: { id:integer invoice:refer() & path($.invoice) }
+payment: columns: { id:integer invoice:relate() & path($.invoice) }
 ```
 
 ## Draw one group's tables

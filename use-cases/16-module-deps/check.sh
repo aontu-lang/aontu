@@ -61,7 +61,7 @@ has rel out 'verdict: pass'
 ok "relations: acyclic + inverse both hold across the codebase"
 
 # 3. THE LAYERING RULE, ENFORCED BY UNIFICATION ALONE. auth is core
-# and catalog is feature, so the CoreDep shape rel() flows into
+# and catalog is feature, so the CoreDep shape relate() flows into
 # catalog says layer is core or util, and catalog's own layer says
 # feature. Two disjunctions with nothing in common do not meet: the
 # architecture rule refuses as an ordinary conflict, at generation,

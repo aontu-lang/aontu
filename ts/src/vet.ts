@@ -22,6 +22,7 @@ import { subsumeNode, effectiveDefault, newPairs } from './subsume'
 import { noPathFinding } from './query'
 import { fillDiff } from './admit'
 import { genToward } from './val/admission'
+import { genPlain } from './val/genwrite'
 import { cmpCodePoint } from './keyorder'
 import { pointerOf } from './sourcemap'
 
@@ -806,7 +807,7 @@ export function vet(
   const genCtx: any = aontu.ctx({ collect: true })
   genCtx.root = unified
   genCtx.probe = null != options.at
-  const generated = unified.gen(genCtx)
+  const generated = genPlain(unified, genCtx)
   for (const err of genCtx.err) {
     materialise(err, genCtx)
     findings.push(pointed(findingOf(err, prov), err.path))
@@ -824,7 +825,7 @@ export function vet(
       materialise(err, ownCtx)
       findings.push(pointed(findingOf(err, prov), err.path))
     }
-    const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined
+    const ownGen = 0 === ownCtx.err.length ? genPlain(own, genOwn) : undefined
     // Under --at the paths are the anchor's, as every other finding's are.
     const anchorPath: string[] = (ctx as any).path ?? []
     const towardCtx = genCtx.clone({ err: [], collect: true })

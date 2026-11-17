@@ -105,11 +105,14 @@ class Val {
         if (null != this.linkto) {
             out.linkto = this.linkto;
         }
-        if (null != this.linkcode) {
-            out.linkcode = this.linkcode;
-        }
         if (null != this.flows) {
             out.flows = this.flows;
+        }
+        if (null != this.relates) {
+            out.relates = this.relates;
+        }
+        if (null != this.relroot) {
+            out.relroot = this.relroot;
         }
         if (null != this.deprecation) {
             out.deprecation = this.deprecation;
@@ -117,11 +120,18 @@ class Val {
         if (null != this.meta) {
             out.meta = this.meta;
         }
+        if (null != this.genrec) {
+            out.genrec = this.genrec;
+            out.genopts = this.genopts;
+        }
         if (null != this.via) {
             out.via = this.via;
         }
         if (null != this.identity) {
             out.identity = this.identity;
+        }
+        if (null != this.reldecl) {
+            out.reldecl = this.reldecl;
         }
         if (null != this.origin) {
             out.origin = this.origin;

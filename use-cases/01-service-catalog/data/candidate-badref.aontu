@@ -1,5 +1,5 @@
 # The scaffolder's candidate entry, with a dependency address no file
-# writes -- the rel() existence check is what must catch it. An
+# writes -- the relate() existence check is what must catch it. An
 # address is a path value (ADR-016), so the scaffolder emits Aontu
 # rather than JSON: a plain string is never an address.
 kind: service

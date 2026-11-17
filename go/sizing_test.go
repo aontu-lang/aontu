@@ -94,7 +94,7 @@ func TestExportingANonResidueConjunct(t *testing.T) {
 	// The exporter's fall-through: a conjunct that is NOT a sizing
 	// residue is residue like any other, and is reported as a loss
 	// rather than exported as half a schema.
-	r := New().JSONSchema("a: refer() & string\n", "")
+	r := New().JSONSchema("a: relate() & string\n", "")
 	if "lossy" != r.Verdict {
 		t.Fatalf("verdict %q, want lossy: %v", r.Verdict, r.Lossy)
 	}

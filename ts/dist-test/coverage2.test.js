@@ -139,7 +139,7 @@ function pendingCtx() {
     (0, node_test_1.test)('an-interactive-stdout-gives-the-text-figure-its-escapes', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style-'));
         const file = Path.join(dir, 'm.aontu');
-        Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: [&: relate(), path($.b)]}\nb: {}\n');
         const desc = Object.getOwnPropertyDescriptor(process, 'stdout');
         let out = '';
         const fake = new node_stream_1.PassThrough();
@@ -170,7 +170,7 @@ function pendingCtx() {
     (0, node_test_1.test)('style-auto-honours-an-empty-no-color-and-an-explicit-style-wins', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style3-'));
         const file = Path.join(dir, 'm.aontu');
-        Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: [&: relate(), path($.b)]}\nb: {}\n');
         const desc = Object.getOwnPropertyDescriptor(process, 'stdout');
         let out = '';
         const fake = new node_stream_1.PassThrough();

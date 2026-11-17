@@ -26,6 +26,7 @@
 1	spec-share-3.test.ts
 1	val-basic.test.ts
 1	val-conjunct.test.ts
+1	annotation.test.ts
 1	val-disjunct.test.ts
 1	val-pref.test.ts
 1	val-ref.test.ts

@@ -29,7 +29,7 @@ different build.
 
 | Case | Scenario | aontu surface exercised |
 |------|----------|-------------------------|
-| [01-service-catalog](01-service-catalog/) | Company-wide service catalog as system ontology (two views of the same entities) | `refer()` over tree paths, `relations` (acyclic + inverse), `@"aontu:system"`, `get`/`why`, vet-gated onboarding |
+| [01-service-catalog](01-service-catalog/) | Company-wide service catalog as system ontology (two views of the same entities) | `relate()` over tree paths, `relations` (acyclic + inverse), `@"aontu:system"`, `get`/`why`, vet-gated onboarding |
 | [02-deploy-config](02-deploy-config/) | Multi-environment deployment config: org → team → service → env layering | ranked `*`/`**` defaults, includes, `close()`, constraint atoms, `pack`, `filter`, `why` |
 | [03-api-contract](03-api-contract/) | REST API contract as the truth an agent codes against; emit→validate→repair | `vet` (json/sarif/exit classes), `--at`, `--closed`, repair from vet's findings |
 | [04-schema-evolution](04-schema-evolution/) | Governance of a shared schema across v1→v3 | `subsume` profiles, `breaking --against`, `deprecate()`, `aontu_policy.compat`, `hash`, `diff` |
@@ -40,11 +40,11 @@ different build.
 | [09-agent-tools](09-agent-tools/) | An agent platform's tool registry; runtime call guardrail; the MCP server itself | per-tool `vet --at`, the real `aontu-mcp` over JSON-RPC, `agentsmd`, generation |
 | [10-data-model](10-data-model/) | Enterprise data domain with exact money and 64-bit ids | `0d` exact leaves, `lossy_integer_literal`, cross-field constraints, batch `vet`, `subsume`, the schema rendered as TypeScript and Go |
 | [11-shared-modules](11-shared-modules/) | Shared truth across repos: a schema package published, served and synced into a consumer | `publish`/`sync`/`get`/`why`, `pkg tidy`/`verify`/`serve`, three lockfile pins, integrity errors, `#aon1-…` inline pins |
-| [12-relations](12-relations/) | Pipeline DAG: field-declared relations, one line of schema | `rel(t)`, held constraints, `acyclic()`/`inverse(n)` atoms, verdict at generation, `relations`/`reaches` |
+| [12-relations](12-relations/) | Pipeline DAG: field-declared relations, one line of schema | `relate(t)`, held constraints, `acyclic()`/`inverse(n)` atoms, verdict at generation, `relations`/`reaches` |
 | [13-recursive-schema](13-recursive-schema/) | Approval chain: a schema one reference deep over any-depth data | recursive residuals (`$.spec.Step`), mu-form canon + hash, `recursion_unexpanded`, `vet --at` over plain JSON |
 | [14-jsonschema-export](14-jsonschema-export/) | JSON Schema as the bridge out: MCP inputSchema, OpenAPI, stock validators | `jsonschema --at`/`--strict`/`--format json`, the stderr loss report, exit classes, the money-wire `const` mark |
 | [15-code-generation](15-code-generation/) | The model as the source of the code: Go, TypeScript and SQL from one catalogue, each over a slice | list-spread + `pick` line building, `join` file assembly, backtick target text, `match` type mapping, both-ports byte parity |
-| [16-module-deps](16-module-deps/) | A codebase's own module graph: four layers, no upward dependencies, drawn as a dependency tree and as the architecture layers | `rel(t)` target-shape flow as an architecture rule, `acyclic()`/`inverse(n)`, `reaches`, the tree, matrix and layer views |
+| [16-module-deps](16-module-deps/) | A codebase's own module graph: four layers, no upward dependencies, drawn as a dependency tree and as the architecture layers | `relate(t)` target-shape flow as an architecture rule, `acyclic()`/`inverse(n)`, `reaches`, the tree, matrix and layer views |
 | [17-lambda-handlers](17-lambda-handlers/) | Twelve Lambda handlers and their index from one service model, by a rule set written twice: as canonical aontu, and as a Lambda handler with its aontu on marked lines | `replace` with no hole syntax, `esc: sq`, verbatim whitespace, the empty-selection conditional, `each` order and the split-form-join chain, the template surface and its round trip, both-ports byte parity |
 | [18-role-permissions](18-role-permissions/) | Role permissions for agent edits: which role may change which subtree, asked before the change | `allow` (the deciding entry named as a path into the role model, `--at`, `--format json`, exit classes), a `close()`d role vocabulary, the allow-then-`set` loop, an agent skill, `why` on the rule |
 

@@ -186,6 +186,43 @@ an exact value's digits faithfully (the `24.0` above), but a standard
 JSON reader hands them back as a float. Exactness survives writing,
 not the round trip, which is exactly why the wire field is a string.
 
+## Write the string from the value
+
+The producer's formatting can be the model's own. A
+[`gen()`](../reference-language.md#a-number-as-a-string) record that
+gives `places` and `as: "string"` writes a number as the canonical wire
+form at that scale, whatever scale the value holds. Write the amounts
+as `write.aontu`:
+
+<!-- test: file write.aontu -->
+```aontu
+money: { &: number & gen({ places:2 as:"string" }) }
+money: amount: 0d3998.19
+money: refund: -0d12.05
+money: short: 0d10.5
+money: whole: 10
+```
+
+<!-- test: run -->
+```sh
+$ aontu write.aontu
+{
+  "money": {
+    "amount": "3998.19",
+    "refund": "-12.05",
+    "short": "10.50",
+    "whole": "10.00"
+  }
+}
+```
+
+The record pads `10.5` to the scale and writes the integer `10` at it
+too: no exponent, and never `-0.00`. Inside the document each amount is
+still the number, so its arithmetic is unchanged. A value that
+holds more places is rounded, a tie to the even digit, so a schema that
+has to refuse such a value says so itself, with
+[`mulof(0d0.01)`](../reference-language.md#mulofn-number--constraint).
+
 ## The convention survives export
 
 A bare `bigdecimal` field is a loss on a JSON Schema export: the

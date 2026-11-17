@@ -1,0 +1,713 @@
+# GEN -- `gen(spec: string|map) : annotation`: an annotation that says how the value
+# it meets is written where the document is generated. It is `any` carrying
+# a record, so the meet leaves the value as it is and the record rides the
+# result, through meets, reference copies and spreads. Two records unify as
+# maps, and a disagreement refuses with gen_conflict. A record must unify
+# with the standard options of its value's type, which the bundled model
+# aontu:gen holds, and one that does not refuses with gen_option. The
+# options are read at generation only: every other reading of the value is
+# of the value. A string given to gen() is the form, so gen("key") is
+# gen({form: "key"}), and `custom` is an expression that writes the output.
+# Every expectation is both engines' agreed answer.
+# 
+# `significant: n` rounds a number to n significant digits where it is
+# generated: the decimal the number shows, a tie to the even digit, in the
+# number's own leaf. A float is the double nearest the rounded decimal.
+gen-sig-float	gens	v: 3.14159 & gen({significant: 2})	{"v":3.1}
+gen-sig-float-kind-first	gens	v: float & gen({significant: 2}), v: 3.14159	{"v":3.1}
+gen-sig-float-to-whole	gens	v: 1234.5 & gen({significant: 2})	{"v":1200}
+gen-sig-float-small	gens	v: 0.000012345 & gen({significant: 2})	{"v":0.000012}
+gen-sig-float-negative	gens	v: -3.14159 & gen({significant: 3})	{"v":-3.14}
+gen-sig-float-carries	gens	v: 99.96 & gen({significant: 3})	{"v":100}
+gen-sig-float-fewer-digits-than-asked	gens	v: 1.5 & gen({significant: 5})	{"v":1.5}
+gen-sig-float-exactly-as-many	gens	v: 1.25 & gen({significant: 3})	{"v":1.25}
+gen-sig-float-whole	gens	v: 1234.0 & gen({significant: 2})	{"v":1200}
+gen-sig-float-zero	gens	v: 0.0 & gen({significant: 2})	{"v":0}
+gen-sig-float-exponent-form	gens	v: 1.5e21 & gen({significant: 1})	{"v":2e+21}
+gen-sig-float-large-unchanged	gens	v: 1e21 & gen({significant: 2})	{"v":1e+21}
+gen-sig-float-small-exponent	gens	v: 1.25e-7 & gen({significant: 2})	{"v":1.2e-7}
+gen-sig-float-least-double	gens	v: 5e-324 & gen({significant: 1})	{"v":5e-324}
+gen-sig-float-seventeen-digits	gens	v: 0.30000000000000004 & gen({significant: 16})	{"v":0.3}
+gen-sig-float-largest-kept	gens	v: 1.7976931348623157e308 & gen({significant: 17})	{"v":1.7976931348623157e+308}
+# A tie goes to the even digit, and the number rounded is the decimal the
+# float shows: 0.15 is a tie, where its binary value is a little below one.
+gen-sig-tie-down-to-even	gens	v: 0.25 & gen({significant: 1})	{"v":0.2}
+gen-sig-tie-up-to-even	gens	v: 0.35 & gen({significant: 1})	{"v":0.4}
+gen-sig-tie-shown-decimal	gens	v: 0.15 & gen({significant: 1})	{"v":0.2}
+gen-sig-tie-two-digits	gens	v: 0.125 & gen({significant: 2})	{"v":0.12}
+gen-sig-tie-whole	gens	v: 2.5 & gen({significant: 1})	{"v":2}
+gen-sig-tie-whole-odd	gens	v: 3.5 & gen({significant: 1})	{"v":4}
+gen-sig-tie-negative	gens	v: -2.5 & gen({significant: 1})	{"v":-2}
+gen-sig-tie-after-zero	gens	v: 1.005 & gen({significant: 3})	{"v":1}
+gen-sig-tie-carries	gens	v: 9.995 & gen({significant: 3})	{"v":10}
+gen-sig-above-a-tie	gens	v: 0.251 & gen({significant: 1})	{"v":0.3}
+gen-sig-below-a-tie	gens	v: 0.349 & gen({significant: 1})	{"v":0.3}
+# An integer rounds exactly and is written digit for digit, also where no
+# double holds the rounded number.
+gen-sig-integer	gens	v: 1234 & gen({significant: 2})	{"v":1200}
+gen-sig-integer-tie-even	gens	v: 25 & gen({significant: 1})	{"v":20}
+gen-sig-integer-tie-odd	gens	v: 15 & gen({significant: 1})	{"v":20}
+gen-sig-integer-below-tie	gens	v: 149 & gen({significant: 2})	{"v":150}
+gen-sig-integer-at-tie	gens	v: 150 & gen({significant: 1})	{"v":200}
+gen-sig-integer-negative	gens	v: -15 & gen({significant: 1})	{"v":-20}
+gen-sig-integer-zero	gens	v: 0 & gen({significant: 1})	{"v":0}
+gen-sig-integer-unchanged	gens	v: 1200 & gen({significant: 3})	{"v":1200}
+gen-sig-integer-carries	gens	v: 999 & gen({significant: 2})	{"v":1000}
+gen-sig-integer-past-safe	gens	v: 1234567890123456768 & gen({significant: 3})	{"v":1230000000000000000}
+gen-sig-integer-no-double-holds	gens	v: 999999999999999104 & gen({significant: 15})	{"v":999999999999999000}
+gen-sig-integer-past-the-window	gens	v: 9223372036854774784 & gen({significant: 5})	{"v":9223400000000000000}
+gen-sig-integer-exponent-literal	gens	v: 1e3 & gen({significant: 1})	{"v":1000}
+# The exact leaves round exactly, and a bigdecimal keeps its one place.
+gen-sig-biginteger	gens	v: 0d123456789012345678901 & gen({significant: 3})	{"v":123000000000000000000}
+gen-sig-biginteger-tie	gens	v: 0d25 & gen({significant: 1})	{"v":20}
+gen-sig-biginteger-negative	gens	v: -0d123456789012345678905 & gen({significant: 20})	{"v":-123456789012345678900}
+gen-sig-biginteger-unchanged	gens	v: 0d9007199254740993 & gen({significant: 16})	{"v":9007199254740993}
+gen-sig-bigdecimal	gens	v: 0d1234.5 & gen({significant: 2})	{"v":1200.0}
+gen-sig-bigdecimal-tie-even	gens	v: 0d0.125 & gen({significant: 2})	{"v":0.12}
+gen-sig-bigdecimal-tie-odd	gens	v: 0d0.135 & gen({significant: 2})	{"v":0.14}
+gen-sig-bigdecimal-whole	gens	v: 0d1e3 & gen({significant: 2})	{"v":1000.0}
+gen-sig-bigdecimal-carries	gens	v: 0d99.95 & gen({significant: 3})	{"v":100.0}
+gen-sig-bigdecimal-negative	gens	v: -0d2.5 & gen({significant: 1})	{"v":-2.0}
+gen-sig-bigdecimal-small	gens	v: 0d0.000012345 & gen({significant: 2})	{"v":0.000012}
+gen-sig-bigdecimal-long	gens	v: 0d123456789.123456789123456789 & gen({significant: 20})	{"v":123456789.12345678912}
+# The default writes every digit, a count past the digits changes nothing,
+# and a float whose rounded decimal no double holds is refused where it is
+# generated.
+gen-sig-all	gens	v: 3.14159 & gen({significant: "all"})	{"v":3.14159}
+gen-sig-empty-record	gens	v: 3.14159 & gen({})	{"v":3.14159}
+gen-sig-large-count	gens	v: 3.14159 & gen({significant: 1000000})	{"v":3.14159}
+gen-sig-float-overflow	errc	v: 1.7976931348623157e308 & gen({significant: 1})	float_overflow
+gen-sig-float-overflow-negative	errc	v: -1.7976931348623157e308 & gen({significant: 2})	float_overflow
+gen-sig-float-overflow-is-not-in-canon	canon	v: 1.7976931348623157e308 & gen({significant: 1})	{"v":1.7976931348623157e+308&gen({"significant":1})}
+# 
+# `places: n` rounds a number to n digits after the point, by the rule
+# `significant` rounds by: the decimal the number shows, a tie to the even
+# digit, in the number's own leaf. An integer shows none and is unchanged,
+# and a number that rounds to zero is written as zero, with no sign.
+gen-places-float	gens	v: 3.14159 & gen({places: 2})	{"v":3.14}
+gen-places-float-kind-first	gens	v: float & gen({places: 2}), v: 3.14159	{"v":3.14}
+gen-places-number-kind-takes-a-float	gens	v: number & gen({places: 2}), v: 24.567	{"v":24.57}
+gen-places-number-kind-takes-an-integer	gens	v: number & gen({places: 2}), v: 24	{"v":24}
+gen-places-tie-shown-decimal	gens	v: 2.675 & gen({places: 2})	{"v":2.68}
+gen-places-tie-down-to-even	gens	v: 0.125 & gen({places: 2})	{"v":0.12}
+gen-places-tie-up-to-even	gens	v: 0.135 & gen({places: 2})	{"v":0.14}
+gen-places-tie-to-zero	gens	v: 0.5 & gen({places: 0})	{"v":0}
+gen-places-tie-whole-odd	gens	v: 1.5 & gen({places: 0})	{"v":2}
+gen-places-tie-whole-even	gens	v: 2.5 & gen({places: 0})	{"v":2}
+gen-places-negative	gens	v: -3.14159 & gen({places: 3})	{"v":-3.142}
+gen-places-negative-tie	gens	v: -2.5 & gen({places: 0})	{"v":-2}
+gen-places-fewer-than-asked	gens	v: 24.5 & gen({places: 2})	{"v":24.5}
+gen-places-exactly-as-many	gens	v: 24.25 & gen({places: 2})	{"v":24.25}
+gen-places-carries	gens	v: 9.999 & gen({places: 2})	{"v":10}
+gen-places-to-zero	gens	v: 0.004 & gen({places: 2})	{"v":0}
+gen-places-negative-to-zero	gens	v: -0.004 & gen({places: 2})	{"v":0}
+gen-places-small-kept	gens	v: 0.006 & gen({places: 2})	{"v":0.01}
+gen-places-least-double	gens	v: 5e-324 & gen({places: 2})	{"v":0}
+gen-places-large-unchanged	gens	v: 1e21 & gen({places: 2})	{"v":1e+21}
+gen-places-largest-unchanged	gens	v: 1.7976931348623157e308 & gen({places: 0})	{"v":1.7976931348623157e+308}
+gen-places-zero	gens	v: 0.0 & gen({places: 2})	{"v":0}
+gen-places-integer	gens	v: 24 & gen({places: 2})	{"v":24}
+gen-places-integer-none	gens	v: 24 & gen({places: 0})	{"v":24}
+gen-places-biginteger	gens	v: 0d123456789012345678901 & gen({places: 2})	{"v":123456789012345678901}
+gen-places-bigdecimal	gens	v: 0d24.456 & gen({places: 2})	{"v":24.46}
+gen-places-bigdecimal-keeps-one-place	gens	v: 0d24.456 & gen({places: 0})	{"v":24.0}
+gen-places-bigdecimal-tie	gens	v: 0d0.125 & gen({places: 2})	{"v":0.12}
+gen-places-bigdecimal-to-zero	gens	v: -0d0.004 & gen({places: 2})	{"v":0.0}
+gen-places-bigdecimal-long	gens	v: 0d0.123456789123456789123456789 & gen({places: 20})	{"v":0.12345678912345678912}
+gen-places-all	gens	v: 3.14159 & gen({places: "all"})	{"v":3.14159}
+gen-places-most	gens	v: 3.14159 & gen({places: 4096})	{"v":3.14159}
+gen-places-past-the-bound	errc	v: 3.14159 & gen({places: 4097})	gen_option
+gen-places-negative-count	errc	v: 3.14159 & gen({places: -1})	gen_option
+gen-places-fraction	errc	v: 3.14159 & gen({places: 1.5})	gen_option
+# A record that gives both rounds once, at whichever position keeps fewer
+# digits: 1.2451 to four digits and then to two places would be 1.24.
+gen-both-places-coarser	gens	v: 1234.5678 & gen({significant: 6, places: 1})	{"v":1234.6}
+gen-both-significant-coarser	gens	v: 1234.5678 & gen({significant: 3, places: 2})	{"v":1230}
+gen-both-one-rounding	gens	v: 1.2451 & gen({significant: 4, places: 2})	{"v":1.25}
+gen-both-neither-rounds	gens	v: 1.25 & gen({significant: 5, places: 3})	{"v":1.25}
+gen-both-from-two-annotations	gens	v: 1.2451 & gen({places: 2}) & gen({significant: 4})	{"v":1.25}
+gen-both-bigdecimal	gens	v: 0d1234.5678 & gen({significant: 6, places: 1})	{"v":1234.6}
+# 
+# `as: "string"` writes a number as a JSON string that holds the characters
+# the number would have been written with.
+gen-as-string-float	gens	v: 3.14159 & gen({as: "string"})	{"v":"3.14159"}
+gen-as-string-rounded	gens	v: 3.14159 & gen({significant: 2, as: "string"})	{"v":"3.1"}
+gen-as-string-exponent-form	gens	v: 1e21 & gen({as: "string"})	{"v":"1e+21"}
+gen-as-string-small-exponent	gens	v: 1.5e-7 & gen({as: "string"})	{"v":"1.5e-7"}
+gen-as-string-whole-float	gens	v: 2.0 & gen({as: "string"})	{"v":"2"}
+gen-as-string-negative-zero	gens	v: -0.0 & gen({as: "string"})	{"v":"0"}
+gen-as-string-integer	gens	v: 42 & gen({as: "string"})	{"v":"42"}
+gen-as-string-integer-past-safe	gens	v: 1234567890123456768 & gen({as: "string"})	{"v":"1234567890123456768"}
+gen-as-string-biginteger	gens	v: 0d123456789012345678901 & gen({as: "string"})	{"v":"123456789012345678901"}
+gen-as-string-bigdecimal	gens	v: 0d24.5 & gen({as: "string"})	{"v":"24.5"}
+gen-as-string-bigdecimal-one-place	gens	v: 0d1e3 & gen({as: "string"})	{"v":"1000.0"}
+gen-as-number	gens	v: 3.14159 & gen({as: "number"})	{"v":3.14159}
+gen-as-string-kind-first	gens	v: number & gen({as: "string"}), v: 7	{"v":"7"}
+gen-as-string-reads-the-number	gens	v: 7 & gen({as: "string"}) & max(9), w: add($.v, 1)	{"v":"7","w":8}
+gen-as-string-float-overflow	errc	v: 1.7976931348623157e308 & gen({significant: 1, as: "string"})	float_overflow
+gen-as-unknown	errc	v: 1.5 & gen({as: "text"})	gen_option
+gen-as-boolean-on-a-number	errc	v: 1.5 & gen({as: "boolean"})	gen_option
+# With `places: n` the string is the rounded number in plain decimal
+# notation with exactly n digits after the point, zeros added to make them:
+# no exponent, no negative zero, and no digit of a binary remainder.
+gen-fixed-integer	gens	v: 24 & gen({places: 2, as: "string"})	{"v":"24.00"}
+gen-fixed-float-padded	gens	v: 24.5 & gen({places: 2, as: "string"})	{"v":"24.50"}
+gen-fixed-float-rounded	gens	v: 24.567 & gen({places: 2, as: "string"})	{"v":"24.57"}
+gen-fixed-no-binary-remainder	gens	v: 0.30000000000000004 & gen({places: 2, as: "string"})	{"v":"0.30"}
+gen-fixed-no-places	gens	v: 24.567 & gen({places: 0, as: "string"})	{"v":"25"}
+gen-fixed-zero	gens	v: 0.0 & gen({places: 2, as: "string"})	{"v":"0.00"}
+gen-fixed-rounds-to-zero	gens	v: 0.004 & gen({places: 2, as: "string"})	{"v":"0.00"}
+gen-fixed-no-negative-zero	gens	v: -0.004 & gen({places: 2, as: "string"})	{"v":"0.00"}
+gen-fixed-negative	gens	v: -24.456 & gen({places: 1, as: "string"})	{"v":"-24.5"}
+gen-fixed-below-one	gens	v: 0.05 & gen({places: 3, as: "string"})	{"v":"0.050"}
+gen-fixed-negative-below-one	gens	v: -0.05 & gen({places: 3, as: "string"})	{"v":"-0.050"}
+gen-fixed-small	gens	v: 1.5e-7 & gen({places: 8, as: "string"})	{"v":"0.00000015"}
+gen-fixed-large-plain	gens	v: 1e21 & gen({places: 2, as: "string"})	{"v":"1000000000000000000000.00"}
+gen-fixed-integer-past-safe	gens	v: 1234567890123456768 & gen({places: 1, as: "string"})	{"v":"1234567890123456768.0"}
+gen-fixed-integer-no-places	gens	v: 24 & gen({places: 0, as: "string"})	{"v":"24"}
+gen-fixed-biginteger	gens	v: 0d123456789012345678901 & gen({places: 2, as: "string"})	{"v":"123456789012345678901.00"}
+gen-fixed-bigdecimal	gens	v: 0d24.456 & gen({places: 2, as: "string"})	{"v":"24.46"}
+gen-fixed-bigdecimal-no-places	gens	v: 0d24.456 & gen({places: 0, as: "string"})	{"v":"24"}
+gen-fixed-bigdecimal-padded	gens	v: 0d24.5 & gen({places: 4, as: "string"})	{"v":"24.5000"}
+gen-fixed-bigdecimal-whole	gens	v: 0d1e3 & gen({places: 2, as: "string"})	{"v":"1000.00"}
+gen-fixed-with-significant	gens	v: 1234.5678 & gen({significant: 3, places: 2, as: "string"})	{"v":"1230.00"}
+gen-fixed-money	gens	m: {&: number & gen({places: 2, as: "string"})}, m: {a: 19.99, b: 5, c: 0d0.1}	{"m":{"a":"19.99","b":"5.00","c":"0.10"}}
+gen-fixed-float-overflow	errc	v: 1.7976931348623157e308 & gen({significant: 1, places: 2, as: "string"})	float_overflow
+# 
+# Canon writes the annotation after the value it rides, as the last term
+# of its meet whatever order the terms were written in, and inside the
+# other riders. An empty record leaves nothing.
+gen-canon-value	canon	v: 3.14159 & gen({significant: 2})	{"v":3.14159&gen({"significant":2})}
+gen-canon-value-after	canon	v: gen({significant: 2}) & 3.14159	{"v":3.14159&gen({"significant":2})}
+gen-canon-kind	canon	v: float & gen({significant: 2})	{"v":float&gen({"significant":2})}
+gen-canon-any	canon	v: gen({significant: 2})	{"v":gen({"significant":2})}
+gen-canon-last-term	canon	v: gen({significant: 2}) & float & min(1) & mulof(0.5)	{"v":float&min(1)&mulof(0.5)&gen({"significant":2})}
+gen-canon-empty-record	canon	v: 1.5 & gen({})	{"v":1.5}
+gen-canon-empty-record-alone	canon	v: gen({})	{"v":any}
+gen-canon-record-keys-sort	canon	v: gen({b: 1, a: {d: "x", c: [1, 2]}})	{"v":gen({"a":{"c":[1,2],"d":"x"},"b":1})}
+gen-canon-inside-meta	canon	v: meta(1.5, {title: "t"}) & gen({significant: 2})	{"v":meta(1.5&gen({"significant":2}),{"title":"t"})}
+gen-canon-meta-around	canon	v: meta(1.5 & gen({significant: 2}), {title: "t"})	{"v":meta(1.5&gen({"significant":2}),{"title":"t"})}
+gen-canon-inside-deprecate	canon	v: deprecate(1.5 & gen({significant: 2}))	{"v":deprecate(1.5&gen({"significant":2}))}
+gen-canon-map-member-and-item	canon	v: [1.5 & gen({significant: 1}), {y: 0d1.5 & gen({significant: 1})}]	{"v":[1.5&gen({"significant":1}),{"y":0d1.5&gen({"significant":1})}]}
+gen-canon-preference	canon	v: *1.2345 & gen({significant: 2})	{"v":*1.2345&gen({"significant":2})}
+gen-canon-disjunction-arms	canon	v: (*1.2345 | float) & gen({significant: 2})	{"v":*1.2345&gen({"significant":2})|float&gen({"significant":2})}
+gen-canon-spread	canon	m: {&: number & gen({significant: 2}), a: 1.234}	{"m":{&:number&gen({"significant":2}),"a":1.234&gen({"significant":2})}}
+gen-canon-record-of-several	canon	v: 1.5 & gen({places: 2, as: "string"})	{"v":1.5&gen({"as":"string","places":2})}
+gen-canon-map-record	canon	o: {a: 1} & gen({keys: "snake", empty: "omit"})	{"o":{"a":1}&gen({"empty":"omit","keys":"snake"})}
+gen-canon-list-record	canon	l: [1] & gen({empty: "omit"})	{"l":[1]&gen({"empty":"omit"})}
+gen-canon-path-record	canon	x: path(.b) & gen({form: "key"})	{"x":path(.b)&gen({"form":"key"})}
+gen-canon-string-record	canon	x: "" & gen({empty: "omit"})	{"x":""&gen({"empty":"omit"})}
+gen-hcanon-map-record	hcanon	o: {a: 1} & gen({keys: "snake"})	{"o":{"a":1}&gen({"keys":"snake"})}
+gen-hash-as-string	hash	v: 3.14159 & gen({as: "string"})	aon1-HxM3wztMFSjKY2ArOG0GQZ-qQwl3oPpU7TR3Aq8aGm4
+gen-hcanon-value	hcanon	v: 3.14159 & gen({significant: 2})	{"v":3.14159&gen({"significant":2})}
+gen-hash-two-digits	hash	v: 3.14159 & gen({significant: 2})	aon1-eMRazRTc9sywzZjw-VSy-pW_C50X4YL0tuF5ERud5wg
+gen-hash-three-digits	hash	v: 3.14159 & gen({significant: 3})	aon1-mzgyoeFstWpbyR9LUE90XWfd60I3_H_J0HNvtm2c6xg
+gen-hash-no-annotation	hash	v: 3.14159	aon1-YBBcJLv-_yf8liGa09ckYxcNzDVgUJie-cI33NtfgAI
+gen-hash-statement-order	hash	v: gen({significant: 2}), v: 3.14159	aon1-eMRazRTc9sywzZjw-VSy-pW_C50X4YL0tuF5ERud5wg
+# 
+# The record rides the value: a reference copies it, a spread applies it to
+# each member, a preference keeps it for the value that overrides it, and a
+# value computed from an annotated one carries none.
+gen-rides-reference	gens	x: 1.2345 & gen({significant: 3}), y: $.x	{"x":1.23,"y":1.23}
+gen-rides-named-annotation	gens	s: type({money: gen({significant: 2})}), p: $.s.money & 3.14159	{"p":3.1}
+gen-rides-record-by-reference	gens	s: hide({money: {significant: 2}}), p: 3.14159 & gen($.s.money)	{"p":3.1}
+gen-rides-spread	gens	m: {&: number & gen({significant: 2})}, m: a: 1.234, m: b: 5678	{"m":{"a":1.2,"b":5700}}
+gen-rides-list-item	gens	v: [1.2345 & gen({significant: 2}), 2.3456]	{"v":[1.2,2.3456]}
+gen-rides-preference	gens	v: *1.2345 & gen({significant: 2})	{"v":1.2}
+gen-rides-preference-default	gens	v: (*1.2345 | float) & gen({significant: 2})	{"v":1.2}
+gen-rides-preference-override	gens	v: (*1.2345 | float) & gen({significant: 2}), v: 9.8765	{"v":9.9}
+gen-rides-lone-preference-override	gens	v: *1.2345 & gen({significant: 2}), v: 9.8765	{"v":9.9}
+gen-rides-preference-inner-record	gens	v: *(1.2345 & gen({significant: 2}))	{"v":1.2}
+gen-rides-preference-inner-and-outer-record	gens	v: *(1.25 & gen({significant: 2})) & gen({significant: 2})	{"v":1.2}
+gen-rides-disjunction-annotated-again	gens	v: (*1.255 | float) & gen({significant: 2}), v: gen({significant: 2})	{"v":1.3}
+gen-record-settles-later	gens	s: type({money: gen($.rec)}), rec: hide({significant: add(1, 1)}), p: $.s.money & 1.255	{"p":1.3}
+gen-record-settles-later-any-order	gens	p: $.s.money & 1.255, rec: hide({significant: add(1, 1)}), s: type({money: gen($.rec)})	{"p":1.3}
+gen-rides-kind-then-data	gens	v: float & gen({significant: 2}) & min(1), v: 1.2345	{"v":1.2}
+gen-rides-any-then-data	gens	v: gen({significant: 2}), v: 1.2345	{"v":1.2}
+gen-rides-data-then-any	gens	v: 1.2345, v: gen({significant: 2})	{"v":1.2}
+gen-rides-through-meta	gens	v: meta(1.2345, {title: "t"}) & gen({significant: 2})	{"v":1.2}
+gen-rides-named-value	gens	%m = number & gen({significant: 2}), v: %m & 1.255, w: %m & 7.777	{"v":1.3,"w":7.8}
+gen-rides-copy	gens	x: 1.25 & gen({significant: 2}), y: copy($.x)	{"x":1.2,"y":1.2}
+gen-rides-from-a-type	gens	x: type(1.25 & gen({significant: 2})), y: $.x	{"y":1.2}
+gen-rides-from-a-hidden-value	gens	x: hide(1.25 & gen({significant: 2})), y: $.x	{"y":1.2}
+gen-rides-move	gens	x: 1.25 & gen({significant: 2}), y: move($.x)	{"y":1.2}
+gen-rides-map-copy	gens	a: {b: 1.25 & gen({significant: 2})}, c: $.a	{"a":{"b":1.2},"c":{"b":1.2}}
+gen-rides-pack	gens	a: {b: 1.25 & gen({significant: 2})}, c: pack($.a, _)	{"a":{"b":1.2},"c":{"b":1.2}}
+gen-rides-each	gens	a: [1.25 & gen({significant: 2})], c: each($.a, _)	{"a":[1.2],"c":[1.2]}
+gen-rides-filter	gens	v: filter({a: 1.25 & gen({significant: 1}), b: 2}, number)	{"v":{"a":1,"b":2}}
+gen-rides-list-spread	gens	l: [&: number & gen({significant: 1})], l: [1.25, 35]	{"l":[1,40]}
+gen-rides-nested-preference	gens	v: **1.25 & gen({significant: 2})	{"v":1.2}
+gen-rides-absence-to-nothing	gens	a: maybe($.nope) & gen({significant: 2}), b: 1	{"b":1}
+gen-record-from-a-reference	gens	v: 1.25 & gen({significant: $.n}), n: 2	{"n":2,"v":1.2}
+gen-record-from-a-call	gens	v: 1.25 & gen({significant: add(1, 1)})	{"v":1.2}
+gen-does-not-ride-a-fold	gens	a: {b: 1.25 & gen({significant: 2})}, c: sum($.a)	{"a":{"b":1.2},"c":1.25}
+gen-does-not-ride-rounding	gens	v: upper(1.25 & gen({significant: 1}))	{"v":2}
+gen-does-not-ride-a-sum	gens	v: (1.25 & gen({significant: 2})) + 1	{"v":2.25}
+gen-a-selection-reads-the-value	gens	v: match(1.25 & gen({significant: 1}), number, "n", "other")	{"v":"n"}
+gen-does-not-ride-arithmetic	gens	x: 1.2345 & gen({significant: 3}), y: add($.x, 0)	{"x":1.23,"y":1.2345}
+gen-does-not-ride-text	gens	x: 1.2345 & gen({significant: 3}), y: "v" + $.x	{"x":1.23,"y":"v1.2345"}
+gen-a-bound-reads-the-value	gens	v: 1.2345 & gen({significant: 2}) & max(1.24)	{"v":1.2}
+gen-alone-generates-nothing	errc	v: gen({significant: 2})	mapval_no_gen
+# The statements of one document in three orders (ADR-081).
+gen-order-annotation-first	gens	a: float & gen({significant: 2}), a: min(1), a: 1.2345, b: $.a	{"a":1.2,"b":1.2}
+gen-order-annotation-last	gens	b: $.a, a: 1.2345, a: min(1), a: float & gen({significant: 2})	{"a":1.2,"b":1.2}
+gen-order-annotation-between	gens	a: 1.2345, b: $.a, a: gen({significant: 2}) & float, a: min(1)	{"a":1.2,"b":1.2}
+# 
+# Two annotations on one value unify their records as maps.
+gen-meet-same-record	canon	v: 1.5 & gen({significant: 2}) & gen({significant: 2})	{"v":1.5&gen({"significant":2})}
+gen-meet-records-join	canon	v: gen({a: 1}) & gen({b: 2})	{"v":gen({"a":1,"b":2})}
+gen-meet-records-join-deep	canon	v: gen({a: {b: 1}}) & gen({a: {c: 2}})	{"v":gen({"a":{"b":1,"c":2}})}
+gen-meet-commutes	canon	v: gen({b: 2}) & gen({a: 1})	{"v":gen({"a":1,"b":2})}
+gen-meet-associates	canon	v: gen({a: 1}) & (gen({b: 2}) & gen({c: 3}))	{"v":gen({"a":1,"b":2,"c":3})}
+gen-meet-across-statements	canon	v: float & gen({significant: 2}), v: gen({significant: 2}), v: 1.2345	{"v":1.2345&gen({"significant":2})}
+gen-meet-conflict	errc	v: 1.2345 & gen({significant: 2}) & gen({significant: 3})	gen_conflict
+gen-meet-conflict-across-statements	errc	v: float & gen({significant: 2}), v: float & gen({significant: 3})	gen_conflict
+gen-meet-conflict-with-the-default	errc	v: 1.5 & gen({significant: "all"}) & gen({significant: 2})	gen_conflict
+gen-meet-conflict-through-reference	errc	x: 1.5 & gen({significant: 2}), y: $.x & gen({significant: 3})	gen_conflict
+gen-meet-conflict-inside-preference	errc	v: *(1.2345 & gen({significant: 3})) & gen({significant: 2})	gen_conflict
+gen-meet-conflict-deep	errc	v: gen({a: {b: 1}}) & gen({a: {b: 2}})	gen_conflict
+# Two arms that differ only in their records are two arms.
+gen-arms-differ-by-record	errc	v: (1.2345 & gen({significant: 2})) | (1.2345 & gen({significant: 3}))	disjunct_no_gen
+gen-arms-same-record-are-one	gens	v: (1.2345 & gen({significant: 2})) | (1.2345 & gen({significant: 2}))	{"v":1.2}
+# Two defaults of one rank that differ in their records are two defaults, and
+# clash whichever arm is written first; a default of the lower rank stands.
+gen-twin-defaults-differ	errc	v: (*1.255 & gen({significant: 1})) | (*1.255 & gen({significant: 2}))	pref_rank_clash
+gen-twin-defaults-differ-swapped	errc	v: (*1.255 & gen({significant: 2})) | (*1.255 & gen({significant: 1}))	pref_rank_clash
+gen-twin-defaults-differ-inside	errc	v: *(1.255 & gen({significant: 1})) | *(1.255 & gen({significant: 2}))	pref_rank_clash
+gen-twin-defaults-differ-inside-swapped	errc	v: *(1.255 & gen({significant: 2})) | *(1.255 & gen({significant: 1}))	pref_rank_clash
+gen-twin-default-one-annotated	errc	v: (*1.255 & gen({significant: 2})) | *1.255	pref_rank_clash
+gen-twin-default-one-annotated-swapped	errc	v: *1.255 | (*1.255 & gen({significant: 2}))	pref_rank_clash
+gen-twin-defaults-agree	gens	v: (*1.255 & gen({significant: 2})) | (*1.255 & gen({significant: 2}))	{"v":1.3}
+gen-lower-rank-default-stands	gens	v: (*1.255 & gen({significant: 2})) | (**1.255 & gen({significant: 1}))	{"v":1.3}
+gen-lower-rank-default-stands-swapped	gens	v: (**1.255 & gen({significant: 1})) | (*1.255 & gen({significant: 2}))	{"v":1.3}
+gen-ranked-twins-agree	gens	v: (*1.255 & gen({significant: 2})) | (**1.255 & gen({significant: 2}))	{"v":1.3}
+gen-ranked-twins-agree-are-one	canon	v: (*1.255 & gen({significant: 2})) | (**1.255 & gen({significant: 2}))	{"v":*1.255&gen({"significant":2})}
+gen-ranked-twins-differ-are-two	canon	v: (*1.255 & gen({significant: 2})) | (**1.255 & gen({significant: 1}))	{"v":*1.255&gen({"significant":2})|**1.255&gen({"significant":1})}
+gen-arms-one-annotated	errc	v: (1.255 & gen({significant: 2})) | 1.255	disjunct_no_gen
+gen-arms-one-annotated-swapped	errc	v: 1.255 | (1.255 & gen({significant: 2}))	disjunct_no_gen
+gen-meet-disjunction-with-its-annotated-twin	gens	v: (*1.255 | float) & gen({significant: 2}), v: *1.255 | float	{"v":1.3}
+gen-meet-disjunction-with-its-annotated-twin-swapped	gens	v: *1.255 | float, v: (*1.255 | float) & gen({significant: 2})	{"v":1.3}
+gen-meet-disjunctions-conflict	errc	v: (*1.255 | float) & gen({significant: 2}), v: (*1.255 | float) & gen({significant: 1})	empty
+gen-meet-disjunctions-conflict-swapped	errc	v: (*1.255 | float) & gen({significant: 1}), v: (*1.255 | float) & gen({significant: 2})	empty
+# 
+# A record is held to the standard options of its value's type once the
+# type is known: a scalar, a kind, a map or a list. An annotation meets each
+# arm of a disjunction, and an arm of a type that refuses it drops.
+gen-option-string	errc	v: "ada" & gen({significant: 2})	gen_option
+gen-option-string-kind	errc	v: string & gen({significant: 2})	gen_option
+gen-option-boolean	errc	v: true & gen({significant: 2})	gen_option
+gen-option-null	errc	v: null & gen({significant: 2})	gen_option
+gen-option-path	errc	v: path($.a) & gen({significant: 2}), a: 1	gen_option
+gen-option-map	errc	v: {a: 1} & gen({significant: 2})	gen_option
+gen-option-map-kind	errc	v: map & gen({significant: 2})	gen_option
+gen-option-list	errc	v: [1] & gen({significant: 2})	gen_option
+gen-option-list-kind	errc	v: list & gen({significant: 2})	gen_option
+# An option is read as the value it is: a record of its own says how that
+# value is written, and nothing of how it is read.
+gen-option-read-as-its-value	gens	precision: 2 & gen({as: "string"}), v: 3.14159 & gen({significant: $.precision})	{"precision":"2","v":3.1}
+gen-option-read-before-its-custom	gens	n: 2 & gen({custom: _ + 1}), v: 3.14159 & gen({places: $.n})	{"n":3,"v":3.14}
+gen-option-read-before-its-case	gens	k: "upper" & gen({case: "upper"}), v: "ada" & gen({case: $.k})	{"k":"UPPER","v":"ADA"}
+gen-option-unknown-name	errc	v: 1.5 & gen({digits: 2})	gen_option
+gen-option-zero	errc	v: 1.5 & gen({significant: 0})	gen_option
+gen-option-negative	errc	v: 1.5 & gen({significant: -1})	gen_option
+gen-option-fraction	errc	v: 1.5 & gen({significant: 2.5})	gen_option
+gen-option-text	errc	v: 1.5 & gen({significant: "two"})	gen_option
+gen-option-exact-count	errc	v: 1.5 & gen({significant: 0d2})	gen_option
+gen-option-one-of-two	errc	v: 1.5 & gen({significant: 2, digits: 2})	gen_option
+gen-option-after-the-value	errc	v: gen({significant: 2}), v: "ada"	gen_option
+gen-option-through-reference	errc	s: type({money: gen({significant: 2})}), p: $.s.money & "ada"	gen_option
+gen-option-preference	errc	v: *"a" & gen({significant: 2})	gen_option
+gen-option-preference-resolved-later	errc	v: *$.d & gen({significant: 2}), d: "str"	gen_option
+gen-option-every-type-takes-none	gens	a: "s" & gen({}), b: true & gen({}), c: null & gen({}), d: {x: 1} & gen({}), e: [1] & gen({}), f: path($.a) & gen({})	{"a":"s","b":true,"c":null,"d":{"x":1},"e":[1],"f":"$.a"}
+gen-option-number-kinds	gens	a: 15 & gen({significant: 1}), b: 1.5 & gen({significant: 1}), c: 0d15 & gen({significant: 1}), d: 0d1.5 & gen({significant: 1})	{"a":20,"b":2,"c":20,"d":2.0}
+gen-option-spread-member	errc	m: {&: gen({significant: 1})}, m: a: 1.25, m: b: "s"	gen_option
+gen-option-spread-of-nothing	gens	m: {a: 1.25, b: "s"} & {&: gen({})}	{"m":{"a":1.25,"b":"s"}}
+gen-option-arm-drops	gens	v: (1.5 | "a") & gen({significant: 1})	{"v":2}
+gen-option-arm-drops-either-order	gens	v: gen({significant: 1}), v: "a" | 1.5	{"v":2}
+gen-option-kind-arm-drops	gens	v: (float | string) & gen({significant: 1}), v: 1.5	{"v":2}
+gen-option-kind-arm-refuses-its-data	errc	v: (float | string) & gen({significant: 1}), v: "a"	gen_option
+gen-option-no-arm-left	errc	v: ("a" | "b") & gen({significant: 2})	empty
+gen-option-waits-on-any	canon	v: gen({digits: 2})	{"v":gen({"digits":2})}
+# 
+# Every type has its options. A record that writes out every default of its
+# type generates what no record does.
+gen-defaults-number	gens	v: 3.14159 & gen({significant: "all", places: "all", as: "number"})	{"v":3.14159}
+gen-defaults-string	gens	v: "Ada" & gen({case: "verbatim", empty: "keep"})	{"v":"Ada"}
+gen-defaults-empty-string	gens	v: "" & gen({case: "verbatim", empty: "keep"})	{"v":""}
+gen-defaults-boolean	gens	v: true & gen({as: "boolean"})	{"v":true}
+gen-defaults-null	gens	v: null & gen({empty: "keep"})	{"v":null}
+gen-defaults-path	gens	v: path(.b) & gen({form: "verbatim"})	{"v":".b"}
+gen-defaults-map	gens	v: {aB: 1, c: {}} & gen({keys: "verbatim", empty: "keep"})	{"v":{"aB":1,"c":{}}}
+gen-defaults-list	gens	v: [] & gen({empty: "keep"})	{"v":[]}
+gen-option-string-takes-no-as	errc	v: "7" & gen({as: "number"})	gen_option
+gen-option-null-takes-no-case	errc	v: null & gen({case: "upper"})	gen_option
+gen-option-map-takes-no-form	errc	v: {a: 1} & gen({form: "key"})	gen_option
+gen-option-path-takes-no-case	errc	v: path($.a) & gen({case: "upper"})	gen_option
+gen-option-list-takes-no-keys	errc	v: [1] & gen({keys: "snake"})	gen_option
+gen-option-arm-by-its-type	gens	v: (1.5 | "Ada") & gen({case: "upper"})	{"v":"ADA"}
+gen-option-a-name-two-types-share	gens	v: (boolean | number) & gen({as: "string"}), v: 7	{"v":"7"}
+gen-option-a-name-two-types-share-other-arm	gens	v: (boolean | number) & gen({as: "string"}), v: true	{"v":"true"}
+gen-meet-records-join-options	canon	v: 1.5 & gen({places: 2}) & gen({as: "string"})	{"v":1.5&gen({"as":"string","places":2})}
+gen-meet-conflict-as	errc	v: 1.5 & gen({as: "string"}) & gen({as: "number"})	gen_conflict
+# 
+# A boolean is written as itself, as 1 or 0, or as the string of its name.
+gen-boolean-as-number-true	gens	v: true & gen({as: "number"})	{"v":1}
+gen-boolean-as-number-false	gens	v: false & gen({as: "number"})	{"v":0}
+gen-boolean-as-string-true	gens	v: true & gen({as: "string"})	{"v":"true"}
+gen-boolean-as-string-false	gens	v: false & gen({as: "string"})	{"v":"false"}
+gen-boolean-kind-first	gens	v: boolean & gen({as: "number"}), v: true	{"v":1}
+gen-boolean-default	gens	v: *false & gen({as: "string"}) | boolean	{"v":"false"}
+gen-boolean-default-overridden	gens	v: *false & gen({as: "string"}) | boolean, v: true	{"v":"true"}
+gen-boolean-reads-the-value	gens	v: true & gen({as: "number"}), w: match($.v, true, "yes", "no")	{"v":1,"w":"yes"}
+gen-boolean-as-unknown	errc	v: true & gen({as: "bit"})	gen_option
+gen-boolean-takes-no-places	errc	v: true & gen({places: 2})	gen_option
+# 
+# `case` writes a string as upper() or lower() answers it.
+gen-case-upper	gens	v: "Ada" & gen({case: "upper"})	{"v":"ADA"}
+gen-case-lower	gens	v: "Ada" & gen({case: "lower"})	{"v":"ada"}
+gen-case-is-upper-of-it	gens	v: "straße" & gen({case: "upper"}), w: upper("straße")	{"v":"STRASSE","w":"STRASSE"}
+gen-case-kind-first	gens	v: string & gen({case: "upper"}), v: "ada"	{"v":"ADA"}
+gen-case-reads-the-value	gens	v: "ada" & gen({case: "upper"}) & re("^[a-z]+$"), w: $.v + "!"	{"v":"ADA","w":"ada!"}
+gen-case-spread	gens	m: {&: string & gen({case: "upper"})}, m: {a: "x", b: "y"}	{"m":{"a":"X","b":"Y"}}
+gen-case-of-a-choice	gens	v: ("active" | "closed") & gen({case: "upper"}), v: "active"	{"v":"ACTIVE"}
+gen-case-unknown	errc	v: "ada" & gen({case: "title"})	gen_option
+gen-case-on-a-number	errc	v: 1 & gen({case: "upper"})	gen_option
+# 
+# `empty: "omit"` leaves an empty value out of the map or list that holds
+# it. The empty values are "", null, a map that writes no member and a list
+# that writes no element. Emptiness is judged on what is written.
+gen-empty-string-omitted	gens	u: {name: "ada", nick: "" & gen({empty: "omit"})}	{"u":{"name":"ada"}}
+gen-empty-string-kept	gens	u: {nick: "" & gen({empty: "keep"})}	{"u":{"nick":""}}
+gen-empty-string-not-empty	gens	u: {nick: "x" & gen({empty: "omit"})}	{"u":{"nick":"x"}}
+gen-empty-string-kind-first	gens	u: {nick: string & empty() & gen({empty: "omit"})}, u: nick: ""	{"u":{}}
+gen-empty-string-with-case	gens	u: {a: "" & gen({empty: "omit", case: "upper"}), b: "x" & gen({empty: "omit", case: "upper"})}	{"u":{"b":"X"}}
+gen-empty-string-still-refused-by-its-kind	errc	u: {nick: string & gen({empty: "omit"})}, u: nick: ""	string_empty
+gen-empty-null-omitted	gens	u: {note: null & gen({empty: "omit"}), n: 1}	{"u":{"n":1}}
+gen-empty-null-kept	gens	u: {note: null & gen({empty: "keep"})}	{"u":{"note":null}}
+gen-empty-null-default	gens	u: {note: *null & gen({empty: "omit"}) | string}	{"u":{}}
+gen-empty-null-default-overridden	gens	u: {note: *null & gen({empty: "omit"}) | string}, u: note: "s"	{"u":{"note":"s"}}
+gen-empty-null-arm	gens	u: {note: (null | string) & gen({empty: "omit"})}, u: note: null	{"u":{}}
+gen-empty-null-other-arm	gens	u: {note: (null | string) & gen({empty: "omit"})}, u: note: "s"	{"u":{"note":"s"}}
+gen-empty-map-omitted	gens	u: {m: {} & gen({empty: "omit"}), n: 1}	{"u":{"n":1}}
+gen-empty-map-kept	gens	u: {m: {} & gen({empty: "keep"})}	{"u":{"m":{}}}
+gen-empty-map-not-empty	gens	u: {m: {a: 1} & gen({empty: "omit"})}	{"u":{"m":{"a":1}}}
+gen-empty-map-of-hidden	gens	u: {m: {a: hide(1)} & gen({empty: "omit"})}	{"u":{}}
+gen-empty-map-of-omitted	gens	u: {m: {a: null & gen({empty: "omit"})} & gen({empty: "omit"})}	{"u":{}}
+gen-empty-map-of-omitted-is-kept	gens	u: {m: {a: null & gen({empty: "omit"})}}	{"u":{"m":{}}}
+gen-empty-map-chain	gens	a: {b: {c: {d: "" & gen({empty: "omit"})} & gen({empty: "omit"})} & gen({empty: "omit"})}	{"a":{}}
+gen-empty-map-kind-first	gens	u: {m: map & gen({empty: "omit"})}, u: m: {}	{"u":{}}
+gen-empty-list-omitted	gens	u: {l: [] & gen({empty: "omit"}), n: 1}	{"u":{"n":1}}
+gen-empty-list-kept	gens	u: {l: [] & gen({empty: "keep"})}	{"u":{"l":[]}}
+gen-empty-list-not-empty	gens	u: {l: [1] & gen({empty: "omit"})}	{"u":{"l":[1]}}
+gen-empty-list-of-hidden	gens	u: {l: [hide(1)] & gen({empty: "omit"})}	{"u":{}}
+gen-empty-list-of-omitted	gens	u: {l: [null & gen({empty: "omit"}), "" & gen({empty: "omit"})] & gen({empty: "omit"})}	{"u":{}}
+gen-empty-list-closes-up	gens	l: [1, "" & gen({empty: "omit"}), null & gen({empty: "omit"}), [] & gen({empty: "omit"}), {} & gen({empty: "omit"}), 2]	{"l":[1,2]}
+gen-empty-spread	gens	m: {&: string & empty() & gen({empty: "omit"})}, m: {a: "", b: "x", c: ""}	{"m":{"b":"x"}}
+gen-empty-optional-key	gens	u: {a?: "" & gen({empty: "omit"}), b?: null & gen({empty: "omit"})}	{"u":{}}
+gen-empty-reference-copies	gens	a: hide("" & gen({empty: "omit"})), u: {b: $.a, c: 1}	{"u":{"c":1}}
+gen-empty-a-size-reads-the-value	gens	m: {a: "" & gen({empty: "omit"}), b: 1} & len(2)	{"m":{"b":1}}
+gen-empty-a-closed-map-reads-the-value	gens	m: close({a: string & empty() & gen({empty: "omit"}), b: 1}), m: a: ""	{"m":{"b":1}}
+gen-empty-root-map	gens	{} & gen({empty: "omit"})	null
+gen-empty-root-null	gens	null & gen({empty: "omit"})	null
+gen-empty-root-as-a-hidden-root	gens	hide({a: 1})	null
+gen-empty-on-a-number	errc	v: 0 & gen({empty: "omit"})	gen_option
+gen-empty-on-a-boolean	errc	v: false & gen({empty: "omit"})	gen_option
+gen-empty-unknown	errc	v: "" & gen({empty: "drop"})	gen_option
+# 
+# `form` chooses how an address is written: as the document wrote it, from
+# the root, as a JSON Pointer, or as its last segment. A relative address is
+# resolved from the place the value is generated at, and a link's is the
+# one relate() resolved.
+gen-form-verbatim	gens	a: {x: path(..b.c) & gen({form: "verbatim"})}	{"a":{"x":"..b.c"}}
+gen-form-absolute	gens	a: {x: path(..b.c) & gen({form: "absolute"})}	{"a":{"x":"$.b.c"}}
+gen-form-pointer	gens	a: {x: path(..b.c) & gen({form: "pointer"})}	{"a":{"x":"/b/c"}}
+gen-form-key	gens	a: {x: path(..b.c) & gen({form: "key"})}	{"a":{"x":"c"}}
+gen-form-absolute-of-absolute	gens	x: path($.a.b) & gen({form: "absolute"})	{"x":"$.a.b"}
+gen-form-pointer-of-absolute	gens	x: path($.a.b) & gen({form: "pointer"})	{"x":"/a/b"}
+gen-form-key-of-absolute	gens	x: path($.a.b) & gen({form: "key"})	{"x":"b"}
+gen-form-sibling	gens	a: {x: path(.b) & gen({form: "absolute"})}	{"a":{"x":"$.a.b"}}
+gen-form-sibling-at-the-root	gens	x: path(.b) & gen({form: "pointer"})	{"x":"/b"}
+gen-form-in-a-list	gens	l: [path(.b) & gen({form: "absolute"}), {q: path(.b) & gen({form: "absolute"})}]	{"l":["$.l.b",{"q":"$.l.1.b"}]}
+gen-form-segment-characters	gens	x: path(.b.c-d._e) & gen({form: "pointer"})	{"x":"/b/c-d/_e"}
+# A JSON Pointer writes each key as RFC 6901 does, `~` as `~0` and `/` as
+# `~1`: a key above a relative address is any text, where a written
+# segment holds neither.
+gen-form-pointer-escapes-a-slash	gens	"a/b": {x: 1, p: path(.x) & gen({form: "pointer"})}	{"a/b":{"p":"/a~1b/x","x":1}}
+gen-form-pointer-escapes-a-tilde	gens	"c~d": {x: 1, p: path(.x) & gen({form: "pointer"})}	{"c~d":{"p":"/c~0d/x","x":1}}
+gen-form-pointer-escapes-a-tilde-first	gens	"~/": {x: 1, p: path(.x) & gen({form: "pointer"})}	{"~/":{"p":"/~0~1/x","x":1}}
+gen-form-pointer-escapes-a-link	gens	"c/d": {x: {}, p: relate() & path(.x) & gen({form: "pointer"})}	{"c/d":{"p":"/c~1d/x","x":{}}}
+gen-form-pointer-link-key-with-a-dot	gens	"a.b": {x: {}, p: relate() & path(.x) & gen({form: "pointer"})}	{"a.b":{"p":"/a.b/x","x":{}}}
+gen-form-kind-first	gens	t: type({p: path & gen({form: "pointer"})}), a: {x: $.t.p & path(..b.c)}	{"a":{"x":"/b/c"}}
+gen-form-link-absolute	gens	a: {r: relate() & path(.b) & gen({form: "absolute"}), b: {}}	{"a":{"b":{},"r":"$.a.b"}}
+gen-form-link-pointer	gens	a: {r: relate() & path(.b) & gen({form: "pointer"}), b: {}}	{"a":{"b":{},"r":"/a/b"}}
+gen-form-link-key	gens	a: {r: relate() & path(.b) & gen({form: "key"}), b: {}}	{"a":{"b":{},"r":"b"}}
+gen-form-link-annotation-first	gens	a: {r: relate() & gen({form: "key"}), b: {}}, a: r: path($.a.b)	{"a":{"b":{},"r":"b"}}
+gen-form-link-typed	gens	t: type({F: {kind: "f"}}), n: {&: {kind: "f", up?: relate($.t.F) & gen({form: "key"})}}, n: {a: {}, b: {up: path($.n.a)}}	{"n":{"a":{"kind":"f"},"b":{"kind":"f","up":"a"}}}
+# 
+# A graph atom, acyclic() or inverse(), says nothing of the value it rides
+# beside, so a record met with one is the record of that value: it is
+# held to the value's options and read where the value is generated,
+# whichever of the atom, the address and the annotation is written first.
+gen-atom-annotation-last	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-annotation-first	gens	n: {a: {}, b: {next: gen("key") & relate() & acyclic() & path($.n.a)}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-atom-first	gens	n: {a: {}, b: {next: acyclic() & relate() & path($.n.a) & gen("key")}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-address-later	gens	n: {a: {}, b: {next: relate() & acyclic() & gen("key")}}, n: b: next: path($.n.a)	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-annotation-later	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a)}}, n: b: next: gen("key")	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-relative-absolute	gens	n: {a: {}, b: {next: relate() & acyclic() & path(..a) & gen("absolute")}}	{"n":{"a":{},"b":{"next":"$.n.a"}}}
+gen-atom-pointer	gens	n: {a: {}, b: {next: relate() & acyclic() & path(..a) & gen("pointer")}}	{"n":{"a":{},"b":{"next":"/n/a"}}}
+gen-atom-inverse	gens	n: {a: {back: relate() & path($.n.b)}, b: {next: relate() & inverse(back) & path($.n.a) & gen("key")}}	{"n":{"a":{"back":"$.n.b"},"b":{"next":"a"}}}
+gen-atom-two-atoms	gens	n: {a: {back: relate() & path($.n.b)}, b: {next: relate() & acyclic() & inverse(back) & path($.n.a) & gen("pointer")}}	{"n":{"a":{"back":"$.n.b"},"b":{"next":"/n/a"}}}
+gen-atom-spread-template	gens	n: {&: {next?: relate() & acyclic() & gen("key")}}, n: {a: {}, b: {next: path($.n.a)}, c: {next: path($.n.b)}}	{"n":{"a":{},"b":{"next":"a"},"c":{"next":"b"}}}
+gen-atom-typed	gens	t: type({N: {next?: relate() & acyclic() & gen("key")}}), n: {a: $.t.N, b: $.t.N & {next: path($.n.a)}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-custom	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen({form: "key", custom: "node:" + _})}}	{"n":{"a":{},"b":{"next":"node:a"}}}
+gen-atom-list-of-addresses	gens	n: {a: {}, c: {}, b: {next: relate() & acyclic() & [path($.n.a), path($.n.c)] & gen({custom: join(_, ",")})}}	{"n":{"a":{},"b":{"next":"$.n.a,$.n.c"},"c":{}}}
+gen-atom-list-elements	gens	n: {a: {}, c: {}, b: {next: relate() & acyclic() & [path($.n.a), path($.n.c)] & [&: gen("key")]}}	{"n":{"a":{},"b":{"next":["a","c"]},"c":{}}}
+gen-atom-empty-list-omitted	gens	n: {a: {}, b: {k: 1, next: relate() & acyclic() & [] & gen({empty: "omit"})}}	{"n":{"a":{},"b":{"k":1}}}
+gen-atom-map-keys	gens	n: {a: {}, b: {next: relate() & acyclic() & {firstHop: path($.n.a)} & gen({keys: "snake"})}}	{"n":{"a":{},"b":{"next":{"first_hop":"$.n.a"}}}}
+gen-atom-two-records-agree	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}, n: b: next: gen({form: "key"})	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-copy	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}, c: $.n.b	{"c":{"next":"a"},"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-option-refused	errc	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen({significant: 2})}}	gen_option
+gen-atom-option-refused-annotation-first	errc	n: {a: {}, b: {next: gen({significant: 2}) & relate() & acyclic() & path($.n.a)}}	gen_option
+gen-atom-option-refused-address-later	errc	n: {a: {}, b: {next: relate() & acyclic() & gen({significant: 2})}}, n: b: next: path($.n.a)	gen_option
+gen-atom-option-refused-under-inverse	errc	n: {a: {back: relate() & path($.n.b)}, b: {next: relate() & inverse(back) & path($.n.a) & gen({case: "upper"})}}	gen_option
+gen-atom-records-conflict	errc	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}, n: b: next: gen("pointer")	gen_conflict
+gen-atom-cycle-still-refused	errc	n: {a: {next: relate() & acyclic() & path($.n.b) & gen("key")}, b: {next: relate() & path($.n.a)}}	relation_cycle
+gen-atom-canon	canon	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}	{"n":{"a":{},"b":{"next":relate()&path($.n.a)&acyclic()&gen({"form":"key"})}}}
+gen-atom-canon-annotation-first	canon	n: {a: {}, b: {next: gen("key") & relate() & acyclic() & path($.n.a)}}	{"n":{"a":{},"b":{"next":relate()&path($.n.a)&acyclic()&gen({"form":"key"})}}}
+gen-form-resolves-at-the-copy	gens	a: {x: path(.b) & gen({form: "absolute"})}, c: {d: {e: $.a.x}}	{"a":{"x":"$.a.b"},"c":{"d":{"e":"$.c.d.b"}}}
+gen-form-spread-template	gens	y: {&: {p: path(.b) & gen({form: "absolute"})}}, y: {k: {}, j: {}}	{"y":{"j":{"p":"$.y.j.b"},"k":{"p":"$.y.k.b"}}}
+gen-form-default	gens	x: *path(.b) & gen({form: "absolute"}) | path	{"x":"$.b"}
+gen-form-default-in-a-spread	gens	y: {&: {p: *path(.b) & gen({form: "absolute"}) | path}}, y: k: {}	{"y":{"k":{"p":"$.y.k.b"}}}
+gen-form-type-copy	gens	t: type({p: path(.b) & gen({form: "absolute"})}), y: z: $.t	{"y":{"z":{"p":"$.y.z.b"}}}
+gen-form-default-in-a-type-copy	gens	t: type({p: *path(.b) & gen({form: "absolute"}) | path}), y: z: $.t	{"y":{"z":{"p":"$.y.z.b"}}}
+gen-form-arm	gens	x: (path(.b) | 1) & gen({form: "pointer"})	{"x":"/b"}
+gen-form-key-needs-no-position	gens	x: path(..b) & gen({form: "key"})	{"x":"b"}
+gen-form-climbs-above-the-root	errc	x: path(..b) & gen({form: "absolute"})	gen_address
+gen-form-pointer-climbs-above-the-root	errc	x: path(..b) & gen({form: "pointer"})	gen_address
+gen-form-copy-climbs-above-the-root	errc	a: {x: path(..b.c) & gen({form: "absolute"})}, c: $.a.x	gen_address
+gen-form-root-has-no-scope	errc	path(.b) & gen({form: "absolute"})	gen_address
+gen-form-refusal-names-the-place	err	y: {&: {p: path(....b) & gen({form: "absolute"})}}, y: k: {}	at path $.y.k.p
+gen-overflow-names-the-place	err	y: {&: {p: 1.7976931348623157e308 & gen({significant: 1})}}, y: k: {}	at path $.y.k.p
+gen-form-unknown	errc	x: path($.a) & gen({form: "uri"})	gen_option
+gen-form-on-a-string	errc	x: "$.a" & gen({form: "key"})	gen_option
+gen-form-canon	canon	a: {r: relate() & path(.b) & gen({form: "key"}), b: {}}	{"a":{"b":{},"r":relate()&path(.b)&gen({"form":"key"})}}
+# 
+# A string given to gen() is the form: gen("key") is gen({form: "key"}).
+# The string becomes the record where the call resolves, so the two
+# spellings are one annotation with one canon, and the record is held to
+# the standard set as any other is.
+gen-string-key	gens	a: {x: path(..b.c) & gen("key")}	{"a":{"x":"c"}}
+gen-string-absolute	gens	a: {x: path(..b.c) & gen("absolute")}	{"a":{"x":"$.b.c"}}
+gen-string-pointer	gens	a: {x: path(..b.c) & gen("pointer")}	{"a":{"x":"/b/c"}}
+gen-string-verbatim	gens	a: {x: path(..b.c) & gen("verbatim")}	{"a":{"x":"..b.c"}}
+gen-string-canon-is-the-record	canon	x: path(.b) & gen("key")	{"x":path(.b)&gen({"form":"key"})}
+gen-string-canon-alone	canon	x: gen("key")	{"x":gen({"form":"key"})}
+gen-string-hcanon-is-the-record	hcanon	x: path(.b) & gen("key")	{"x":path(.b)&gen({"form":"key"})}
+gen-string-is-the-record	gens	x: path(.b) & gen("key") & gen({form: "key"})	{"x":"b"}
+gen-string-and-record-are-one-annotation	canon	x: path(.b) & gen("key") & gen({form: "key"})	{"x":path(.b)&gen({"form":"key"})}
+gen-string-kind-first	gens	t: type({p: path & gen("pointer")}), a: {x: $.t.p & path(..b.c)}	{"a":{"x":"/b/c"}}
+gen-string-before-the-value	gens	v: gen("key"), v: path($.a.b)	{"v":"b"}
+gen-string-by-reference	gens	s: hide("key"), x: path($.a.b) & gen($.s)	{"x":"b"}
+gen-string-from-a-call	gens	x: path($.a.b) & gen("k" + "ey")	{"x":"b"}
+gen-string-on-a-link	gens	a: {r: relate() & path(.b) & gen("key"), b: {}}	{"a":{"b":{},"r":"b"}}
+gen-string-spread	gens	m: {&: path & gen("key")}, m: {a: path($.x.y), b: path(.z)}	{"m":{"a":"y","b":"z"}}
+gen-string-arm-of-another-type-drops	gens	x: (path(.b) | "s") & gen("pointer")	{"x":"/b"}
+gen-string-meets-another-option	gens	x: 1.5 & gen({places: 0}) & gen({as: "string"}), y: path(.b) & gen("key") & gen({})	{"x":"2","y":"b"}
+gen-string-conflict	errc	x: path(.b) & gen("key") & gen("pointer")	gen_conflict
+gen-string-conflict-with-a-record	errc	x: path(.b) & gen("key") & gen({form: "pointer"})	gen_conflict
+gen-string-conflict-with-the-default	errc	x: path(.b) & gen("verbatim") & gen("key")	gen_conflict
+gen-string-unknown-form	errc	x: path($.a) & gen("uri")	gen_option
+gen-string-empty	errc	x: path($.a) & gen("")	gen_option
+gen-string-on-a-string	errc	x: "ada" & gen("upper")	gen_option
+gen-string-on-a-number	errc	x: 7 & gen("string")	gen_option
+gen-string-on-a-boolean	errc	x: true & gen("number")	gen_option
+gen-string-on-null	errc	x: null & gen("omit")	gen_option
+gen-string-on-a-map	errc	x: {a: 1} & gen("snake")	gen_option
+gen-string-on-a-list	errc	x: [1] & gen("omit")	gen_option
+gen-string-climbs-past-the-root	errc	x: path(..b) & gen("absolute")	gen_address
+gen-string-alone-generates-nothing	errc	v: gen("key")	mapval_no_gen
+gen-string-vet-refuses-a-number	verdict	v: gen("key")	{"v": 3}	{"verdict":"invalid"}
+# 
+# `keys` writes each key of a map as nom() answers it in that style. It
+# applies to the map's own keys, a key that holds no word is written as it
+# is, and two keys that would be written as one key are refused.
+gen-keys-snake	gens	o: {orderId: 7, shipTo: "Cork"} & gen({keys: "snake"})	{"o":{"order_id":7,"ship_to":"Cork"}}
+gen-keys-camel	gens	o: {order_id: 7, "ship-to": "Cork"} & gen({keys: "camel"})	{"o":{"orderId":7,"shipTo":"Cork"}}
+gen-keys-pascal	gens	o: {order_id: 7, "ship-to": "Cork"} & gen({keys: "pascal"})	{"o":{"OrderId":7,"ShipTo":"Cork"}}
+gen-keys-kebab	gens	o: {orderId: 7, shipTo: "Cork"} & gen({keys: "kebab"})	{"o":{"order-id":7,"ship-to":"Cork"}}
+gen-keys-upper	gens	o: {orderId: 7, shipTo: "Cork"} & gen({keys: "upper"})	{"o":{"ORDER_ID":7,"SHIP_TO":"Cork"}}
+gen-keys-dot	gens	o: {orderId: 7, shipTo: "Cork"} & gen({keys: "dot"})	{"o":{"order.id":7,"ship.to":"Cork"}}
+gen-keys-path	gens	o: {orderId: 7, shipTo: "Cork"} & gen({keys: "path"})	{"o":{"order/id":7,"ship/to":"Cork"}}
+gen-keys-title	gens	o: {orderId: 7, shipTo: "Cork"} & gen({keys: "title"})	{"o":{"Order Id":7,"Ship To":"Cork"}}
+gen-keys-text	gens	o: {orderId: 7, shipTo: "Cork"} & gen({keys: "text"})	{"o":{"Order id":7,"Ship to":"Cork"}}
+gen-keys-is-nom-of-it	gens	o: {HTTPServer2Go: 1} & gen({keys: "kebab"}), n: nom("HTTPServer2Go", "kebab")	{"n":"http-server-2-go","o":{"http-server-2-go":1}}
+gen-keys-its-own-keys-only	gens	o: {orderId: {innerKey: 1}} & gen({keys: "snake"})	{"o":{"order_id":{"innerKey":1}}}
+gen-keys-inner-map-by-its-own-record	gens	o: {orderId: {innerKey: 1} & gen({keys: "upper"})} & gen({keys: "snake"})	{"o":{"order_id":{"INNER_KEY":1}}}
+gen-keys-no-word	gens	o: {_: 1, "-": 2, aB: 3} & gen({keys: "snake"})	{"o":{"-":2,"_":1,"a_b":3}}
+gen-keys-order-is-of-the-written-keys	gens	o: {zebra_one: 1, AlphaTwo: 2} & gen({keys: "camel"})	{"o":{"alphaTwo":2,"zebraOne":1}}
+gen-keys-kind-first	gens	o: map & gen({keys: "snake"}), o: {orderId: 7}	{"o":{"order_id":7}}
+gen-keys-spread-of-maps	gens	m: {&: map & gen({keys: "snake"})}, m: {a: {orderId: 1}, bB: {shipTo: 2}}	{"m":{"a":{"order_id":1},"bB":{"ship_to":2}}}
+gen-keys-list-of-maps	gens	l: [&: map & gen({keys: "snake"})], l: [{orderId: 1}]	{"l":[{"order_id":1}]}
+gen-keys-a-hidden-key-is-not-written	gens	o: {orderId: 7, a_b: hide(1), aB: 2} & gen({keys: "snake"})	{"o":{"a_b":2,"order_id":7}}
+gen-keys-reads-the-key-verbatim	gens	o: {orderId: 7} & gen({keys: "snake"}), w: $.o.orderId	{"o":{"order_id":7},"w":7}
+gen-keys-with-empty	gens	u: {o: {a: hide(1)} & gen({keys: "snake", empty: "omit"})}	{"u":{}}
+gen-keys-verbatim-has-no-clash	gens	o: {a_b: 1, aB: 2} & gen({keys: "verbatim"})	{"o":{"aB":2,"a_b":1}}
+gen-keys-reserved-name	gens	o: {"__proto__": 2, a: 1} & gen({keys: "snake"})	{"o":{"a":1,"proto":2}}
+gen-keys-reserved-name-clash	errc	o: {proto: 1, "__proto__": 2} & gen({keys: "upper"})	gen_key_clash
+gen-keys-clash	errc	o: {a_b: 1, aB: 2} & gen({keys: "snake"})	gen_key_clash
+gen-keys-clash-with-a-key-of-one-word	errc	o: {a: 1, _a: 2} & gen({keys: "camel"})	gen_key_clash
+gen-keys-clash-in-a-spread	errc	m: {&: map & gen({keys: "snake"})}, m: k: {a_b: 1, aB: 2}	gen_key_clash
+gen-keys-clash-names-the-map	err	m: {&: map & gen({keys: "snake"})}, m: k: {a_b: 1, aB: 2}	at path $.m.k
+gen-keys-unknown-style	errc	o: {a: 1} & gen({keys: "train"})	gen_option
+# 
+# `custom` is an expression that writes the output. It is given what the
+# value writes without it, read as data, with the hole `_` standing for it,
+# and what apply() makes of that is generated.
+gen-custom-string	gens	x: "ada" & gen({custom: upper(_)})	{"x":"ADA"}
+gen-custom-identity	gens	x: "ada" & gen({custom: _})	{"x":"ada"}
+gen-custom-constant	gens	x: null & gen({custom: "none"})	{"x":"none"}
+gen-custom-map-of-the-value	gens	x: "ada" & gen({custom: {id: _, kind: "ref"}})	{"x":{"id":"ada","kind":"ref"}}
+gen-custom-list-of-the-value	gens	x: "ada" & gen({custom: [_, upper(_)]})	{"x":["ada","ADA"]}
+gen-custom-after-form	gens	p: path($.fs.nodes.etc) & gen({form: "key", custom: "urn:node:" + _})	{"p":"urn:node:etc"}
+gen-custom-after-form-pointer	gens	a: {r: relate() & path(.b) & gen({form: "pointer", custom: {"$ref": "#" + _}}), b: {}}	{"a":{"b":{},"r":{"$ref":"#/a/b"}}}
+gen-custom-path-verbatim-is-its-text	gens	a: {x: path(..b) & gen({custom: "<" + _ + ">"})}	{"a":{"x":"<..b>"}}
+gen-custom-after-places	gens	price: 24 & gen({places: 2, as: "string", custom: "EUR " + _})	{"price":"EUR 24.00"}
+gen-custom-after-significant	gens	x: 3.14159 & gen({significant: 2, custom: {v: _}})	{"x":{"v":3.1}}
+gen-custom-after-case	gens	x: "a" & gen({case: "upper", custom: "x" + _})	{"x":"xA"}
+gen-custom-after-as-number	gens	x: true & gen({as: "number", custom: _ + 1})	{"x":2}
+gen-custom-reads-a-whole-float-as-an-integer	gens	x: 2.0 & gen({custom: "" + _})	{"x":"2"}
+gen-custom-float-arithmetic	gens	x: 2.0 & gen({custom: _ + 0.5})	{"x":2.5}
+gen-custom-keeps-a-decimal-exact	gens	x: 0d24.5 & gen({custom: _ + 0d0.5})	{"x":25.0}
+gen-custom-integer-past-safe	gens	x: 1234567890123456768 & gen({custom: _})	{"x":1234567890123456768}
+gen-custom-biginteger	gens	x: 0d123456789012345678901 & gen({custom: {n: _}})	{"x":{"n":123456789012345678901}}
+gen-custom-integer-no-double-holds	gens	x: 999999999999999104 & gen({significant: 15, custom: _})	{"x":999999999999999000}
+gen-custom-exponent-form	gens	x: 1e21 & gen({custom: "" + _})	{"x":"1e+21"}
+# A map or a list is given as what it writes: its members by their own
+# records, and its keys in their style.
+gen-custom-list-joined	gens	tags: ["a", "b"] & gen({custom: join(_, ",")})	{"tags":"a,b"}
+gen-custom-map-to-list	gens	m: {a: 1, b: 2} & gen({custom: each(_, _)})	{"m":[1,2]}
+gen-custom-map-summed	gens	m: {a: 1, b: 2} & gen({custom: sum(_)})	{"m":3}
+gen-custom-map-as-data	gens	m: {b: 2.0, a: [1, "x", null, true, 0d1.5]} & gen({custom: _})	{"m":{"a":[1,"x",null,true,1.5],"b":2}}
+gen-custom-after-keys	gens	m: {orderId: 1} & gen({keys: "snake", custom: _})	{"m":{"order_id":1}}
+gen-custom-members-written-first	gens	m: {a: 1.26 & gen({significant: 2}), b: "" & gen({empty: "omit"})} & gen({custom: _})	{"m":{"a":1.3}}
+gen-custom-member-custom-first	gens	l: ["a" & gen({custom: upper(_)}), "b"] & gen({custom: join(_, "-")})	{"l":"A-b"}
+gen-custom-inner-hole-is-the-generators	gens	x: "a" & gen({custom: each([_, _], upper(_))})	{"x":["A","A"]}
+# `empty` is judged on the output. A null that is written is a null, and an
+# expression that generates nothing writes nothing.
+gen-custom-empty-after	gens	u: {nick: "" & gen({empty: "omit", custom: upper(_)}), n: null & gen({empty: "omit", custom: "none"})}	{"u":{"n":"none"}}
+gen-custom-empty-output-omitted	gens	u: {a: null & gen({empty: "omit", custom: _}), b: "" & gen({empty: "omit", custom: null}), c: 1}	{"u":{"c":1}}
+gen-custom-zero-and-false-are-not-empty	gens	u: {a: "" & gen({empty: "omit", custom: 0}), b: "" & gen({empty: "omit", custom: false}), c: "" & gen({empty: "omit", custom: 0d0.0})}	{"u":{"a":0,"b":false,"c":0.0}}
+gen-custom-writes-null	gens	u: {a: "x" & gen({custom: null}), b: null & gen({custom: _}), c: null & gen({custom: hide(_)}), d: 1}	{"u":{"a":null,"b":null,"d":1}}
+gen-custom-writes-null-in-a-list	gens	u: ["x" & gen({custom: null}), null & gen({custom: hide(_)}), 2]	{"u":[null,2]}
+gen-custom-container-writes-null	gens	u: {m: {a: 1} & gen({custom: null}), l: [1] & gen({custom: hide(_)}), k: 1}	{"u":{"k":1,"m":null}}
+gen-custom-optional-key	gens	u: {a?: "x" & gen({custom: null}), b?: "x" & gen({custom: {}}), c: 1}	{"u":{"a":null,"c":1}}
+gen-custom-writes-nothing	gens	x: "ada" & gen({custom: hide(_)}), y: 1	{"y":1}
+# The record rides as any other does: by a kind, a spread, a default, an arm
+# and a reference, where the record it reaches holds no hole.
+gen-custom-kind-first	gens	x: string & gen({custom: "<" + _ + ">"}), x: "a"	{"x":"<a>"}
+gen-custom-spread	gens	l: [&: string & gen({custom: "<" + _ + ">"})], l: ["a", "b"]	{"l":["<a>","<b>"]}
+gen-custom-in-a-generator	gens	l: each(["a", "b"], _ & gen({custom: "<" + _ + ">"}))	{"l":["<a>","<b>"]}
+gen-custom-default	gens	x: *null & gen({custom: "none"}) | string	{"x":"none"}
+gen-custom-arm	gens	x: (null | string) & gen({custom: "<" + _ + ">"}), x: "a"	{"x":"<a>"}
+gen-custom-constant-by-reference	gens	s: hide({custom: "none"}), x: null & gen($.s)	{"x":"none"}
+gen-custom-reference-copies	gens	x: "a" & gen({custom: upper(_)}), y: $.x	{"x":"A","y":"A"}
+gen-custom-nested	gens	x: "a" & gen({custom: upper(_) & gen({custom: _ + "!"})})	{"x":"A!"}
+# Canon and the hash form write the expression as it is written, and two
+# records meet by it.
+gen-custom-canon	canon	p: path($.a.b) & gen({form: "key", custom: "urn:" + _})	{"p":path($.a.b)&gen({"custom":"urn:"+_,"form":"key"})}
+gen-custom-canon-map	canon	x: "a" & gen({custom: {id: _, kind: "ref"}})	{"x":"a"&gen({"custom":{"id":_,"kind":"ref"}})}
+gen-custom-canon-call	canon	x: "a" & gen({custom: each([_, _], upper(_))})	{"x":"a"&gen({"custom":each([_,_],upper(_))})}
+gen-custom-canon-alone	canon	x: gen({custom: upper(_)})	{"x":gen({"custom":upper(_)})}
+gen-custom-canon-by-reference-is-the-same	canon	s: hide({custom: "none"}), x: null & gen($.s), y: null & gen({custom: "none"})	{"s":{"custom":"none"},"x":null&gen({"custom":"none"}),"y":null&gen({"custom":"none"})}
+gen-custom-hcanon	hcanon	x: "a" & gen({custom: upper(_)})	{"x":"a"&gen({"custom":upper(_)})}
+gen-custom-hash	hash	x: "a" & gen({custom: upper(_)})	aon1-rerMn-JZfhjMu8cZBIRUqJRz__0MOtLCHaecPBP1lHo
+gen-custom-hash-of-another-expression	hash	x: "a" & gen({custom: lower(_)})	aon1-IQubqrXd8wuDEvCvZtojHPp7DnsnP4STubEBQ9oDuto
+gen-custom-same-twice	gens	x: "a" & gen({custom: "x" + _}) & gen({custom: "x" + _})	{"x":"xa"}
+gen-custom-same-in-another-spacing	gens	x: "a" & gen({custom: "x"+_}) & gen({custom:   "x"  +  _ })	{"x":"xa"}
+gen-custom-meets-an-option	gens	x: "a" & gen({custom: "x" + _}) & gen({case: "upper"})	{"x":"xA"}
+gen-custom-conflict	errc	x: "a" & gen({custom: "x" + _}) & gen({custom: "y" + _})	gen_conflict
+gen-custom-conflict-with-a-constant	errc	x: "a" & gen({custom: "x"}) & gen({custom: upper(_)})	gen_conflict
+# The expression stands alone, and a failure is found where the value is
+# written.
+gen-custom-reads-no-reference	errc	p: "urn:", x: "ada" & gen({custom: $.p + _})	gen_custom
+gen-custom-refuses-what-it-is-given	errc	x: {a: 1} & gen({custom: upper(_)})	gen_custom
+gen-custom-gives-no-value	errc	x: "a" & gen({custom: string})	gen_custom
+# The output is held to what a document's own generation checks: a relation
+# the expression declares acyclic() that loops gives no output.
+gen-custom-relation-checked	errc	v: 1 & gen({custom: {a: {dep: relate() & acyclic() & path(..b)}, b: {dep: relate() & path(..a)}}})	gen_custom
+gen-custom-relation-passes	gens	v: 1 & gen({custom: {a: {dep: relate() & acyclic() & path(..b)}, b: {}}})	{"v":{"a":{"dep":"..b"},"b":{}}}
+gen-custom-refusal-names-the-place	err	m: {&: string & gen({custom: upper(_) + $.x})}, m: k: "a"	at path $.m.k
+gen-custom-key-is-not-the-members	gens	m: {k: "ada" & gen({custom: key()})}	{"m":{"k":""}}
+gen-custom-hole-outside-the-call	errc	s: hide({custom: upper(_)}), x: "a" & gen($.s)	hole_unbound
+gen-custom-hole-in-another-option	errc	x: path($.a) & gen({form: _})	hole_unbound
+gen-custom-misspelt	errc	x: "a" & gen({costum: upper(_)})	hole_unbound
+gen-custom-misspelt-without-a-hole	errc	x: "a" & gen({costum: "x"})	gen_option
+gen-custom-optional-key-in-the-record	errc	x: "a" & gen({custom?: "x"})	func_arg
+# Only writing evaluates it: a size, a containment, a reference and vet
+# read the value.
+gen-custom-a-size-reads-the-value	gens	l: ["a" & gen({custom: hide(_)}), "b"] & len(2)	{"l":["b"]}
+gen-custom-contains-reads-the-value	gens	l: ["a" & gen({custom: upper(_)})] & contains("a")	{"l":["A"]}
+gen-custom-a-reference-reads-the-value	gens	x: "a" & gen({custom: upper(_)}), y: $.x + "!"	{"x":"A","y":"a!"}
+gen-custom-vet-does-not-evaluate-it	verdict	x: string & gen({custom: upper(_) + $.nope})	{"x": "a"}	{"verdict":"valid"}
+gen-custom-vet-refuses-by-the-value	verdict	x: string & gen({custom: upper(_)})	{"x": 1}	{"verdict":"invalid"}
+# 
+# An option is read where the document is written and nowhere else. A
+# size, a fold, a containment, an admission trial and the test that every
+# arm of a choice generates alike all read the value.
+gen-read-arms-differ-though-written-alike	errc	v: (1.26 | 1.27) & gen({significant: 2})	disjunct_no_gen
+gen-read-arms-differ-though-written-alike-in-a-map	errc	v: {a: 1.26 & gen({significant: 2})} | {a: 1.27 & gen({significant: 2})}	disjunct_no_gen
+gen-read-arms-differ-in-case	errc	v: ("a" | "A") & gen({case: "upper"})	disjunct_no_gen
+gen-read-arms-alike-and-written-alike	gens	v: {a: 1.25 & gen({significant: 2})} | {a: 1.25 & gen({significant: 2}), b?: string}	{"v":{"a":1.2}}
+gen-read-arms-alike-and-written-apart	errc	v: {a: 1.25 & gen({significant: 2})} | {a: 1.25 & gen({significant: 3}), b?: string}	disjunct_no_gen
+gen-read-size-counts-an-omitted-member	gens	m: {a: null & gen({empty: "omit"}), b: 1} & len(2)	{"m":{"b":1}}
+gen-read-size-refuses-by-the-members	errc	m: {a: null & gen({empty: "omit"}), b: 1} & len(1)	constraint
+gen-read-size-of-a-list	gens	l: [1, "" & gen({empty: "omit"})] & len(2)	{"l":[1]}
+gen-read-fold-takes-an-omitted-member	gens	m: {a?: "" & gen({empty: "omit"}), b: "x"}, n: join($.m, ",")	{"m":{"b":"x"},"n":",x"}
+gen-read-contains-the-value	gens	l: [1.26 & gen({significant: 2}), 2.0] & contains(1.26)	{"l":[1.3,2]}
+gen-read-contains-not-what-is-written	errc	l: [1.26 & gen({significant: 2}), 2.0] & contains(1.3)	constraint
+gen-read-contains-the-number	gens	l: [{k: 7 & gen({as: "string"})}] & contains({k: 7})	{"l":[{"k":"7"}]}
+gen-read-contains-not-the-string	errc	l: [{k: 7 & gen({as: "string"})}] & contains({k: "7"})	constraint
+gen-read-contains-the-key-verbatim	gens	l: [{orderId: 7} & gen({keys: "snake"})] & contains({orderId: integer})	{"l":[{"order_id":7}]}
+gen-read-contains-not-the-styled-key	errc	l: [{orderId: 7} & gen({keys: "snake"})] & contains({order_id: integer})	constraint
+gen-read-trial-admits-the-number	gens	x: nof(2, integer, max(9)) & (7 & gen({as: "string"}))	{"x":"7"}
+gen-read-unique-by-the-values	gens	l: [1.26 & gen({significant: 2}), 1.27 & gen({significant: 2})] & unique()	{"l":[1.3,1.3]}
+gen-read-unique-refuses-by-the-values	errc	l: [1.26 & gen({significant: 2}), 1.26 & gen({significant: 2})] & unique()	constraint
+gen-read-optional-member-of-omitted-is-dropped	gens	m: {a?: [null & gen({empty: "omit"})]} & len(1)	{"m":{}}
+# 
+# The argument is one map of concrete data, or one string.
+gen-arg-number	errc	v: 1.5 & gen(2)	func_arg
+gen-arg-string-is-a-form	errc	v: 1.5 & gen("significant")	gen_option
+gen-arg-string-kind	errc	v: path(.b) & gen(string)	func_arg
+gen-arg-boolean	errc	v: 1.5 & gen(true)	func_arg
+gen-arg-path	errc	v: path(.b) & gen(path(.c))	func_arg
+gen-arg-list-of-a-string	errc	v: path(.b) & gen(["key"])	func_arg
+gen-arg-list	errc	v: 1.5 & gen([2])	func_arg
+gen-arg-kind-inside	errc	v: 1.5 & gen({significant: integer})	func_arg
+gen-arg-optional-key	errc	v: 1.5 & gen({significant?: 2})	func_arg
+gen-arg-spread	errc	v: 1.5 & gen({&: integer})	func_arg
+gen-arg-none	errc	v: 1.5 & gen()	func_arity
+gen-arg-two	errc	v: 1.5 & gen({}, {})	func_arity
+gen-arg-unresolved	errc	v: 1.5 & gen($.nosuch)	no_path
+# 
+# vet reads the value and the annotation's own check, never the options.
+gen-vet-annotated-schema-admits	verdict	v: float & gen({significant: 2})	{"v": 3.14159}	{"verdict":"valid"}
+gen-vet-annotated-schema-refuses-as-its-kind	verdict	v: float & gen({significant: 2})	{"v": "ada"}	{"verdict":"invalid"}
+gen-vet-annotation-alone-admits-a-number	verdict	v: gen({significant: 2})	{"v": 3.14159}	{"verdict":"valid"}
+gen-vet-annotation-alone-refuses-a-string	verdict	v: gen({significant: 2})	{"v": "ada"}	{"verdict":"invalid"}
+gen-vet-bound-reads-the-value	verdict	v: float & max(3.14) & gen({significant: 1})	{"v": 3.14}	{"verdict":"valid"}
+gen-vet-reads-no-refusal-of-writing	verdict	o: map & gen({keys: "snake"})	{"o": {"a_b": 1, "aB": 2}}	{"verdict":"valid"}
+gen-vet-reads-no-overflow-of-writing	verdict	v: float & gen({significant: 1})	{"v": 1.7976931348623157e308}	{"verdict":"valid"}
+gen-vet-omit-admits	verdict	v: string & empty() & gen({empty: "omit"})	{"v": ""}	{"verdict":"valid"}
+gen-vet-omit-still-requires	verdict	v: string & gen({empty: "omit"})	{}	{"verdict":"incomplete"}
+gen-vet-as-string-admits-the-number	verdict	v: number & gen({as: "string"})	{"v": 7}	{"verdict":"valid"}
+gen-vet-as-string-refuses-a-string	verdict	v: number & gen({as: "string"})	{"v": "7"}	{"verdict":"invalid"}
+gen-vet-keys-admits-the-key-verbatim	verdict	o: close({orderId: integer}) & gen({keys: "snake"})	{"o": {"orderId": 7}}	{"verdict":"valid"}
+gen-vet-keys-refuses-the-styled-key	verdict	o: close({orderId: integer}) & gen({keys: "snake"})	{"o": {"order_id": 7}}	{"verdict":"invalid"}
+gen-vet-omit-in-a-choice	verdict	v: {a: string & empty() & gen({empty: "omit"}), b?: integer} | {a: integer}	{"v": {"a": ""}}	{"verdict":"valid"}
+gen-vet-places-in-a-choice	verdict	v: {a: float & gen({places: 1}), b?: integer} | {a: string}	{"v": {"a": 3.14159}}	{"verdict":"valid"}
+# 
+# JSON Schema has no keyword for an output option, so the exporter reports
+# the annotation as a loss.
+gen-jsonschema-loss	jsonschema	v: number & gen({significant: 2})	{"lossy":[{"construct":"gen","path":"$.v","reason":"JSON Schema says what a value is and not how it is written, so the schema leaves the annotation out"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"v":{"type":"number"}},"required":["v"],"type":"object"},"verdict":"lossy"}
+gen-jsonschema-loss-member	jsonschema	m: {a: 1.5 & gen({significant: 1})}	{"lossy":[{"construct":"gen","path":"$.m.a","reason":"JSON Schema says what a value is and not how it is written, so the schema leaves the annotation out"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"m":{"properties":{"a":{"const":1.5,"type":"number"}},"required":["a"],"type":"object"}},"required":["m"],"type":"object"},"verdict":"lossy"}
+gen-jsonschema-loss-map	jsonschema	o: {orderId: integer} & gen({keys: "snake"})	{"lossy":[{"construct":"gen","path":"$.o","reason":"JSON Schema says what a value is and not how it is written, so the schema leaves the annotation out"},{"construct":"integer","path":"$.o.orderId","reason":"JSON Schema reads a number by its value, so its integer also admits 1.0 and whole numbers past the integer leaf, which this kind refuses; number & mulof(1) is the integer it means"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"o":{"properties":{"orderId":{"type":"integer"}},"required":["orderId"],"type":"object"}},"required":["o"],"type":"object"},"verdict":"lossy"}

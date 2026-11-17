@@ -5,5 +5,5 @@
 # at one key: the discarded alternative's type was met against the
 # surviving one, the meet emptied, and the engine's INTERNAL trial
 # sentinel reached the user as an error code.
-x: ({ k:1, d?: refer({z:1}) } | { k:2, d?: refer({z:2}) }) & { k:1, d: path($.y) }
+x: ({ k:1, d?: relate({z:1}) } | { k:2, d?: relate({z:2}) }) & { k:1, d: path($.y) }
 y: { }

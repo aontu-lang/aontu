@@ -11,6 +11,7 @@ const top_1 = require("./top");
 const FeatureVal_1 = require("./FeatureVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const SuperFuncVal_1 = require("./SuperFuncVal");
+const genrec_1 = require("../genrec");
 function prefInnerPeg(v) {
     let out = v;
     while (true === out?.isPref) {
@@ -211,7 +212,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 throw new err_1.AontuError(val.msg);
             }
         }
-        return val.gen(ctx);
+        return null == this.genrec ? val.gen(ctx) : (0, genrec_1.genHeld)(ctx, this);
     }
 } /* node:coverage ignore next 7 */
 exports.PrefVal = PrefVal;

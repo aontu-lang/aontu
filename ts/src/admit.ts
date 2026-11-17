@@ -10,6 +10,7 @@ import type { Val } from './type'
 import { Aontu } from './aontu'
 import { ConjunctVal } from './val/ConjunctVal'
 import { admitsJson, fillDiff, genToward } from './val/admission'
+import { genPlain } from './val/genwrite'
 
 
 export { fillDiff }
@@ -18,7 +19,7 @@ export { fillDiff }
 function generated(aontu: Aontu, v: Val, own?: any): any {
   const ctx: any = aontu.ctx({ collect: true })
   ctx.root = v
-  const out = undefined === own ? (v as any).gen(ctx) : genToward(v, ctx, own)
+  const out = undefined === own ? genPlain(v, ctx) : genToward(v, ctx, own)
   return 0 === ctx.err.length ? out : undefined
 }
 

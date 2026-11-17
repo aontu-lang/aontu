@@ -10,6 +10,9 @@ import _ "embed"
 
 const aontuScheme = "aontu:"
 
+//go:embed aontumodel/gen/gen.aontu
+var aontuGen string
+
 //go:embed aontumodel/lang/markdown.aontu
 var aontuLangMarkdown string
 
@@ -26,6 +29,7 @@ var aontuSystem string
 var aontuView string
 
 var aontuSources = map[string]string{
+	"aontu:gen":           aontuGen,
 	"aontu:lang/markdown": aontuLangMarkdown,
 	"aontu:lang/text":     aontuLangText,
 	"aontu:profile":       aontuProfile,
@@ -37,6 +41,7 @@ var aontuSources = map[string]string{
 // not-found message: a typo in an aontu: name is refused naming the
 // set rather than searched for on disk.
 var aontuModels = []string{
+	"aontu:gen",
 	"aontu:lang/markdown",
 	"aontu:lang/text",
 	"aontu:profile",

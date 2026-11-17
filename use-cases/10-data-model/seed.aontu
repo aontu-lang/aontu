@@ -93,16 +93,16 @@ invoices: "inv-3001": {
 
 # --- Generated: one receivables account per customer ------------------
 # pack() derives the account set from the customer bag itself, so the
-# two can never drift apart; refer() makes each account's subject a
+# two can never drift apart; relate() makes each account's subject a
 # checked link, not a loose string.
 #
 # Since ADR-014 an address is a TREE PATH, so the link is BUILT from
 # the destination key: `key()` is the customer id this account was
 # generated for, and `+` puts the bag in front of it. The check is
 # still real -- a customer bag that lost a member would leave an
-# account addressing nothing, and refer() would say so.
+# account addressing nothing, and relate() would say so.
 receivables: pack($.customers, {
-  accountFor: refer() & path("$.customers." + key())
+  accountFor: relate() & path("$.customers." + key())
   openingCents: *0 | integer & min(0)
 })
 

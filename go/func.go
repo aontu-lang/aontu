@@ -16,6 +16,11 @@ import (
 // record beside it.
 var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
 
+// ridesCall: a call whose record rides a value written elsewhere.
+func ridesCall(name string) bool {
+	return riderFuncs[name] || "gen" == name
+}
+
 var wrapperFuncs = map[string]bool{"meta": true, "deprecate": true, "ident": true,
 	"type": true, "hide": true, "close": true, "open": true}
 
@@ -67,10 +72,10 @@ var funcSet = map[string]bool{
 	"deprecate": true,
 	"meta":      true,
 	"ident":     true,
-	"rel":       true,
+	"gen":       true,
+	"relate":    true,
 	"acyclic":   true,
 	"inverse":   true,
-	"refer":     true,
 	"pack":      true,
 	"each":      true,
 	"apply":     true,
@@ -247,10 +252,25 @@ type FuncVal struct {
 	unmarked Val
 }
 
+// A gen call's custom expression is taken where the call is built: its hole is the call's.
 func newFunc(name string, args []Val) *FuncVal {
+	if "gen" == name && 0 < len(args) {
+		if record, ok := args[0].(*MapVal); ok {
+			keptCustom(record)
+		}
+	}
 	f := &FuncVal{name: name, peg: args}
 	f.site.sp = unsited
 	return f
+}
+
+// keptCustom holds the expression as its text: one record, by reference or written here.
+func keptCustom(record *MapVal) {
+	custom, has := record.peg["custom"]
+	if sv, ok := custom.(*ScalarVal); !has || (ok && KindCustom == sv.kind) {
+		return
+	}
+	record.peg["custom"] = liftAt(custom.vpath(), custom, newScalar(KindCustom, custom.Canon()))
 }
 
 func (f *FuncVal) superior() Val { return top() }
@@ -296,10 +316,14 @@ func captureSpelling(rv *RefVal) (string, bool) {
 }
 
 // cjo places a bare `close()` last in a conjunct and a bare `open()`
-// first (SealVal).
+// first (SealVal), and `gen()` after every other term, the late atoms
+// included: canon writes it last, as it writes one that rides a value.
 func (f *FuncVal) cjo() int {
 	if 0 == len(f.peg) && ("close" == f.name || "open" == f.name) {
 		return sealCjo("close" == f.name)
+	}
+	if "gen" == f.name {
+		return 160000
 	}
 	return 99999
 }
@@ -478,7 +502,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 			out.setvpath(cp(home))
 			// A rider's value is its argument, written where it is (ADR-066).
-			if !riderFuncs[f.name] || out.pos() < 0 {
+			if !ridesCall(f.name) || out.pos() < 0 {
 				out.setPos(f.site.sp)
 				out.setPosu(f.site.spu)
 				out.setSrcurl(f.site.url)
@@ -801,6 +825,38 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		out := clonePath(args[0], cp(base))
 		out.setIdentRec(unionRiders(valCanon, out.identRec(), rec))
 		return out
+	case "gen":
+		// `any` carrying the record, which every meet takes to its
+		// result. No option is no record, and a string is the form.
+		if args[0].Nil() {
+			return args[0]
+		}
+		spec := args[0]
+		if sv, ok := spec.(*ScalarVal); ok && KindString == sv.kind {
+			form := newMap()
+			form.set("form", newString(sv.peg.(string)))
+			spec = liftAt(sv.vpath(), sv, form)
+		}
+		rec, isMap := spec.(*MapVal)
+		if !isMap || !isData(rec) {
+			return makeNilErrFull(ctx, "func_arg", f, args[0], "", map[string]string{
+				"func": "gen",
+				"sig":  renderSig(funcSig["gen"]),
+				"arg":  "spec",
+				"argn": "1",
+				"got":  args[0].Canon(),
+			})
+		}
+		out := top()
+		if 0 < len(rec.keys) {
+			// A record the call does not own is copied: a reference shares it.
+			if sv, ok := rec.peg["custom"].(*ScalarVal); ok && KindCustom != sv.kind {
+				rec = clonePath(rec, rec.vpath()).(*MapVal)
+				keptCustom(rec)
+			}
+			out.setGenRec(rec, nil)
+		}
+		return out
 	case "meta":
 		if args[0].Nil() {
 			return args[0]
@@ -836,30 +892,23 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 				return makeNilErrFull(ctx, "inverse_name", f, nil, "inverse", nil)
 			}
 		}
-		out := newGraphAtom(f.name, invname, nil)
+		d := &declRecord{acyclic: "acyclic" == f.name}
+		if "" != invname {
+			d.inverses = []string{invname}
+		}
+		out := newGraphAtom(d)
 		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out
-	case "rel":
+	case "relate":
 		// RELATIONS.0.md §3.2: the relation constraint, sited on the
-		// field. Mirrors RelFuncVal.resolve in
-		// ts/src/val/ReferFuncVal.ts.
+		// field. Mirrors RelateFuncVal.resolve in
+		// ts/src/val/RelateFuncVal.ts.
 		var rt Val
 		if 0 < len(args) {
 			rt = args[0]
 		}
-		out := newRel(rt)
-		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
-		out.path = cp(base)
-		return out
-	case "refer":
-		// G4 phase 2: the function resolves to the RESIDUAL, which does
-		// the address work when it meets a string. Mirrors
-		// ReferFuncVal.resolve in ts/src/val/ReferFuncVal.ts.
-		out := newRefer(nil)
-		if 0 < len(args) {
-			out.tval = args[0]
-		}
+		out := newRelate(rt)
 		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out

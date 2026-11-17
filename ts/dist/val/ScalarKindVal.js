@@ -74,7 +74,7 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
         const peerIsScalarVal = peer.isScalar;
         const peerIsScalarKind = peer.isScalarKind;
         let out = this;
-        if (peer.isConstraint) {
+        if (peer.isConstraint || peer.isRelate) {
             // The constraint algebra owns the kind-meets-constraint rules
             // (narrowing, domain checks) -- delegate, so disjunct trials and
             // direct drives agree with the sorted conjunct fold.

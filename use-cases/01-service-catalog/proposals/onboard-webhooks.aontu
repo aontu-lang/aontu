@@ -1,6 +1,6 @@
 # proposals/onboard-webhooks.aontu --- an AI agent proposed a new
 # service; this entry unifies its raw JSON candidate into the live
-# model, where the full CatalogEntry schema and refer() checks apply.
+# model, where the full CatalogEntry schema and relate() checks apply.
 # The JSON is loaded at its own hidden key and pulled in by reference:
 # `... & @"../data/x.json"` written inline fails with
 # [aontu/mapval_spread_required] (README, gap 2).

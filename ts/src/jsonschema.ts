@@ -6,6 +6,7 @@ import { Aontu } from './aontu'
 import { makeNilErr } from './err'
 import { sizingResidue } from './val/BagVal'
 import { Decimal } from './val/Decimal'
+import { genPlain } from './val/genwrite'
 import { exactNumberText, readExactNumber } from './val/numkind'
 import type { ExactNumber } from './val/numkind'
 import { cmpScaled, scaledOfShown } from './val/numcmp'
@@ -141,6 +142,10 @@ function loseLeafKind(ctx: Ctx, path: string[], name: string, t: string) {
 }
 
 
+
+
+const GEN_LOST = 'JSON Schema says what a value is and not how it is written, ' +
+  'so the schema leaves the annotation out'
 
 
 function loseExactKind(ctx: Ctx, path: string[], leaf: string, t: string) {
@@ -958,6 +963,10 @@ function kindResidue(v: any): { kind: any, con: any } | undefined {
 
 
 function fromValInner(ctx: Ctx, path: string[], v: any): any {
+  if (null != v.genrec) {
+    lose(ctx, path, 'gen', GEN_LOST)
+  }
+
   if (true === v.isPref) {
     // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
     // so `const: x` would refuse what the model admits.
@@ -1118,7 +1127,7 @@ function residueName(v: any): string {
 function generated(v: any): any {
   const a0 = scratch()
   const ctx = a0.ctx({ collect: true })
-  const out = v.gen(ctx)
+  const out = genPlain(v, ctx)
   return 0 === ctx.err.length ? exactJson(out) : undefined
 }
 

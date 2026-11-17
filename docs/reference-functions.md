@@ -217,22 +217,22 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 59 of the 71 names, and 49 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 51 of the 71 use no
-mode but `value`, and 20 carry at least one slot in another mode.
+in 60 of the 71 names, and 50 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 52 of the 71 use no
+mode but `value`, and 19 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
 
-- `template`, five slots: `each`'s, `emit`'s, and `pack`'s second
-  argument, and `refer`'s and `rel`'s only argument. `pack`, `each`, and
+- `template`, four slots: `each`'s, `emit`'s, and `pack`'s second
+  argument, and `relate`'s only argument. `pack`, `each`, and
   `emit` instantiate the template per destination rather than driving
-  it; `refer` and `rel` drive it at the call site.
+  it; `relate` drives it at the call site.
   [Generating children: `pack` and
   `each`](reference-language.md#generating-children-pack-and-each),
   [Transforming: `emit`](reference-language.md#transforming-emit),
   [The placeholder `_`](reference-language.md#the-placeholder-_),
-  [Checked links: `refer(t?)`](reference-language.md#checked-links-refert),
+  [Checked links: `relate(t?)`](reference-language.md#checked-links-relatet),
   and [The argument is a template, not an
   address](reference-language.md#the-argument-is-a-template-not-an-address).
 - `projector`, four slots: `pick`'s and `sort`'s second argument, and
@@ -332,6 +332,7 @@ documentation page and fails on a difference of one space.
 | `folder(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `format(text g: string) : constraint` | `1` | `text` | `constraint` |
 | `fragment(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
+| `gen(spec: string\|map) : annotation` | `1` | `value` | `annotation` |
 | `greatest(d: map\|list) : number` | `1` | `value` | `number` |
 | `hide(v: any) : any` | `1` | `value` | `any` |
 | `ident(v: any, r: map) : any` | `2` | `value` | `any` |
@@ -365,8 +366,7 @@ documentation page and fails on a difference of one space.
 | `pref(v: any) : any` | `1` | `value` | `any` |
 | `project(spec?: string\|map, children?: list) : map` | `0..2` | `value` | `map` |
 | `re(text p: string) : constraint` | `1` | `text` | `constraint` |
-| `refer(template t?: any) : constraint` | `0..1` | `template` | `constraint` |
-| `rel(template t?: any) : constraint` | `0..1` | `template` | `constraint` |
+| `relate(template t?: any) : constraint` | `0..1` | `template` | `constraint` |
 | `rem(a: number, b: number) : number` | `2` | `value` | `number` |
 | `rep(s: string, text p: string, text sub: string) : string` | `3` | `value`, `text` | `string` |
 | `rest(trial t: any, ...c?: (trial map)) : constraint` | `1..n` | `trial` | `constraint` |
@@ -395,12 +395,13 @@ The same 71 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
-The ten result words, and the names under each:
+The eleven result words, and the names under each:
 
 | result | count | names |
 |---|---|---|
+| `annotation` | 1 | `gen` |
 | `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `ident`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
-| `constraint` | 20 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `mulof`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `rest`, `unique`, `when` |
+| `constraint` | 19 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `mulof`, `must`, `neq`, `nof`, `re`, `relate`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
 | `map\|list` | 1 | `filter` |
@@ -410,7 +411,14 @@ The ten result words, and the names under each:
 | `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
 
-The algebra of the twenty that answer `constraint`, including which
+The one name that answers `annotation` is `gen`, whose record rides
+the value it meets and is read where that value is generated:
+[Output options: `gen`](reference-language.md#output-options-gen). Its
+slot is declared `map`, which the signature gate skips, so `gen` reads
+the slot itself and answers `func_arg` for an argument that is not a
+map of concrete data.
+
+The algebra of the nineteen that answer `constraint`, including which
 pairs have a meet and what each one is refused for, is
 [The constraint algebra](reference-language.md#the-constraint-algebra).
 Ten of the eleven that answer `map` are the component functions, written
@@ -442,7 +450,7 @@ specified at [Selecting: `filter` and
 [Band B: `rest`](reference-language.md#band-b-rest), and `meta` at
 [Annotations: `meta`](reference-language.md#annotations-meta).
 
-Twenty-eight names have at least one optional slot. `must` is the one
+Twenty-seven names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message
 `text`. `match` is the one name whose rest group pairs a `trial` member
 with a `value` one.

@@ -4,6 +4,8 @@ import Aontu.Verdict
 import Aontu.Paths
 import Oracle.Print
 import Aontu.Subsume
+import Aontu.Reorder
+import Aontu.Written
 
 /-!
 # The oracle
@@ -392,6 +394,108 @@ def readGenRows (tag : String) (vals : List Val) : IO Unit := do
     if let some j := output (Decls.readR [] v) then
       let some json := j.json | throw (IO.userError "an output has no JSON")
       IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
+    i := i + 1
+
+/-- The numbers `Number.significant` is run on, each with a count of
+digits: every leaf, ties that go down and up to the even digit, a carry,
+an exponent either side, a number no double holds once rounded, and the
+largest double, which rounds to none at one digit and so has no row. -/
+def significantCases : List (Number × ℕ) :=
+  let flt (a : ℤ) (d : ℕ) : Option Number := (Float.nearest a d).map .float
+  let int (n : ℤ) : Option Number := Number.ofIntegerLeaf n
+  let big (n : ℤ) : Option Number := some (.biginteger ⟨n⟩)
+  let dec (c s : ℤ) : Option Number := some (.bigdecimal (BigDecimal.normal c s))
+  [(flt 314159 100000, 2), (flt 12345 10, 2), (flt 12345 1000000000, 2),
+    (flt (-314159) 100000, 3), (flt 9996 100, 3), (flt 15 10, 5), (flt 125 100, 3),
+    (flt 25 100, 1), (flt 35 100, 1), (flt 15 100, 1), (flt 125 1000, 2), (flt 25 10, 1),
+    (flt 35 10, 1), (flt (-25) 10, 1), (flt 1005 1000, 3), (flt 9995 1000, 3),
+    (flt 251 1000, 1), (flt 349 1000, 1), (flt 1500000000000000000000 1, 1),
+    (flt 1000000000000000000000 1, 2), (flt 125 1000000000, 2),
+    (flt 30000000000000004 100000000000000000, 16), (flt 123456789 1000, 4), (flt 1 10, 1),
+    (flt 2 10, 5), (flt 10000000000000000000000 1, 1), (flt 85 10, 1), (flt 95 10, 1),
+    (flt 105 10, 2), (flt 9995 10, 3), (flt 435 100, 2), (flt 445 100, 2), (flt 0 1, 2),
+    (flt ((2 ^ 53 - 1) * 2 ^ 971) 1, 17), (flt ((2 ^ 53 - 1) * 2 ^ 971) 1, 1),
+    (int 1234, 2), (int 25, 1), (int 15, 1), (int 149, 2), (int 150, 1), (int (-15), 1),
+    (int 0, 1), (int 1200, 3), (int 999, 2), (int 1234567890123456768, 3),
+    (int 999999999999999104, 15), (int 9223372036854774784, 5), (int 9007199254740992, 1),
+    (big 123456789012345678901, 3), (big 25, 1), (big (-123456789012345678905), 20),
+    (big 9007199254740993, 16),
+    (dec 12345 1, 2), (dec 125 3, 2), (dec 135 3, 2), (dec 1 (-3), 2), (dec 9995 2, 3),
+    (dec (-25) 1, 1), (dec 12345 9, 2), (dec 123456789123456789123456789 18, 20)].filterMap
+    fun (x, n) => x.map (·, n)
+
+/-- The `gens` rows of `Number.significant`: each number met with the
+annotation that asks for so many digits, with the JSON of the number it
+gives. A number it gives none for has no row. -/
+def significantRows (tag : String) (cases : List (Number × ℕ)) : IO Unit := do
+  let mut i := 0
+  for (x, n) in cases do
+    let some src := x.src | throw (IO.userError "a number has no text")
+    if let some y := x.significant n then
+      IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ " & gen({\"significant\": " ++
+        toString n ++ "})\t{\"v\":" ++ y.text ++ "}")
+    i := i + 1
+
+/-- The numbers `Number.rounded` and `Number.written` are run on, each
+with a count of significant digits, a count of digits after the point,
+either of which a case may leave out, and whether it is written as a
+string: every leaf, ties that go down and up to the even digit, a carry,
+a number that rounds to zero from either side, a case where the two
+counts round at different places, and the plain form of a number the
+engines write with an exponent. -/
+def writtenCases : List (Number × Option ℕ × Option ℕ × Bool) :=
+  let flt (a : ℤ) (d : ℕ) : Option Number := (Float.nearest a d).map .float
+  let int (n : ℤ) : Option Number := Number.ofIntegerLeaf n
+  let big (n : ℤ) : Option Number := some (.biginteger ⟨n⟩)
+  let dec (c s : ℤ) : Option Number := some (.bigdecimal (BigDecimal.normal c s))
+  let places (x : Option Number) (p : ℕ) := (x, (none : Option ℕ), some p, false)
+  let both (x : Option Number) (n p : ℕ) := (x, some n, some p, false)
+  let text (x : Option Number) (n : Option ℕ) := (x, n, (none : Option ℕ), true)
+  let fixed (x : Option Number) (n : Option ℕ) (p : ℕ) := (x, n, some p, true)
+  [places (flt 314159 100000) 2, places (flt 2675 1000) 2, places (flt 125 1000) 2,
+    places (flt 135 1000) 2, places (flt 5 10) 0, places (flt 15 10) 0, places (flt 25 10) 0,
+    places (flt (-314159) 100000) 3, places (flt (-25) 10) 0, places (flt 245 10) 2,
+    places (flt 2425 100) 2, places (flt 9999 1000) 2, places (flt 4 1000) 2,
+    places (flt (-4) 1000) 2, places (flt 6 1000) 2, places (flt 5 (10 ^ 324)) 2,
+    places (flt 1000000000000000000000 1) 2, places (flt ((2 ^ 53 - 1) * 2 ^ 971) 1) 0,
+    places (flt 0 1) 2, places (int 24) 2, places (int 24) 0,
+    places (big 123456789012345678901) 2, places (dec 24456 3) 2, places (dec 24456 3) 0,
+    places (dec 125 3) 2, places (dec (-4) 3) 2,
+    places (dec 123456789123456789123456789 27) 20,
+    both (flt 12345678 10000) 6 1, both (flt 12345678 10000) 3 2, both (flt 12451 10000) 4 2,
+    both (flt 125 100) 5 3, both (dec 12345678 4) 6 1,
+    text (flt 314159 100000) none, text (flt 314159 100000) (some 2),
+    text (flt 1000000000000000000000 1) none, text (flt 15 100000000) none,
+    text (flt 2 1) none, text (flt 0 1) none, text (int 42) none,
+    text (int 1234567890123456768) none, text (big 123456789012345678901) none,
+    text (dec 245 1) none, text (dec 1 (-3)) none,
+    fixed (int 24) none 2, fixed (flt 245 10) none 2, fixed (flt 24567 1000) none 2,
+    fixed (flt 30000000000000004 100000000000000000) none 2, fixed (flt 24567 1000) none 0,
+    fixed (flt 0 1) none 2, fixed (flt 4 1000) none 2, fixed (flt (-4) 1000) none 2,
+    fixed (flt (-24456) 1000) none 1, fixed (flt 5 100) none 3, fixed (flt (-5) 100) none 3,
+    fixed (flt 15 100000000) none 8, fixed (flt 1000000000000000000000 1) none 2,
+    fixed (int 1234567890123456768) none 1, fixed (int 24) none 0,
+    fixed (big 123456789012345678901) none 2, fixed (dec 24456 3) none 2,
+    fixed (dec 24456 3) none 0, fixed (dec 245 1) none 4, fixed (dec 1 (-3)) none 2,
+    fixed (flt 12345678 10000) (some 3) 2].filterMap
+    fun (x, n, p, s) => x.map (·, n, p, s)
+
+/-- The `gens` rows of `Number.rounded` and `Number.written`: each
+number met with the annotation whose record gives the options, with the
+JSON of what it writes. A number it writes nothing for has no row. -/
+def writtenRows (tag : String) (cases : List (Number × Option ℕ × Option ℕ × Bool)) :
+    IO Unit := do
+  let mut i := 0
+  for (x, n, p, s) in cases do
+    let some src := x.src | throw (IO.userError "a number has no text")
+    let opts := (n.elim [] fun k => ["\"significant\": " ++ toString k]) ++
+      (p.elim [] fun k => ["\"places\": " ++ toString k]) ++
+      (if s then ["\"as\": \"string\""] else [])
+    let json := if s then (x.written n p).map fun t => "\"" ++ t ++ "\""
+      else (x.rounded n p).map Number.text
+    if let some j := json then
+      IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ " & gen({" ++
+        ", ".intercalate opts ++ "})\t{\"v\":" ++ j ++ "}")
     i := i + 1
 
 /-! ## The verdicts -/
@@ -1609,7 +1713,7 @@ def bodyPlaceCases : List (Decls × Val × Data) :=
   let xy : Val := m [("x", int 1), ("y", rel 1 ["x"])]
   let chain (y : Val) : Val := m [("x", .path [.key "a"]), ("y", y)]
   let ak : Val := m [("a", m [("k", int 1)])]
-  let lk (t : Val) : Val := .meet (.call .refer [t]) (.addr ⟨1, ["m"]⟩)
+  let lk (t : Val) : Val := .meet (.call .relate [t]) (.addr ⟨1, ["m"]⟩)
   let lb (mv t : Val) (ks : List String) : Val := m [("m", mv), ("n", lk t), ("z", rel 1 ("m" :: ks))]
   [([("T", xy)], m [], .map []),
     ([("T", xy)], m [("z", .alias "T")], .map []),
@@ -1637,9 +1741,9 @@ def bodyPlaceCases : List (Decls × Val × Data) :=
 
 /-- A call in a recursive name's body, made where the body unfolds, as
 both ports make it wherever the body stands (#663): a `pref`, a `copy`
-and a `refer` over the name itself, which wait on the recursion, the
+and a `relate` over the name itself, which wait on the recursion, the
 `copy` with data that supplies its member and data that refuses it;
-an `upper`, a `copy`, a `refer` and a `super` beside the name, the
+an `upper`, a `copy`, a `relate` and a `super` beside the name, the
 `upper` with data that matches what it makes and data that doesn't;
 a `match` over a literal, and an `upper` over a path to the body's own
 member (#403); and a link in the body whose template is the name and
@@ -1656,17 +1760,17 @@ def recursiveCallCases : List (Decls × Val × Data) :=
   let rel (k : String) : Val := .path [.up 1, .key k]
   let xT : Val := m [("x", .meet (m []) (.alias "T"))]
   let xd (n : Data) : Data := .map [("x", .map [("m", .map []), ("n", n)])]
-  let tR : Val := tB (.meet (.call .refer [.alias "T"]) (.addr ⟨1, ["m"]⟩))
+  let tR : Val := tB (.meet (.call .relate [.alias "T"]) (.addr ⟨1, ["m"]⟩))
   [([("T", tB (.call .pref [.alias "T"]))], xT, .map []),
     ([("T", tB (.call .copy [.alias "T"]))], xT, .map []),
-    ([("T", tB (.call .refer [.alias "T"]))], xT, .map []),
+    ([("T", tB (.call .relate [.alias "T"]))], xT, .map []),
     ([("T", tB (.call .copy [.alias "T"]))], xT, xd (.map [("m", .map [])])),
     ([("T", tB (.call .copy [.alias "T"]))], xT, xd (.integer 1 (by decide))),
     ([("T", tO (.call .upper [.lit (.str "x")]))], xT, .map []),
     ([("T", tO (.call .upper [.lit (.str "x")]))], xT, xd (.str "X")),
     ([("T", tO (.call .upper [.lit (.str "x")]))], xT, xd (.str "x")),
     ([("T", tO (.call .copy [m [("k", int 1)]]))], xT, .map []),
-    ([("T", tO (.call .refer [m [("k", int 1)]]))], xT, .map []),
+    ([("T", tO (.call .relate [m [("k", int 1)]]))], xT, .map []),
     ([("T", tO (.call .super [int 1]))], xT, .map []),
     ([("T", tO (.select (.lit (.str "a")) [(.lit (.str "a"), int 1), (.lit (.str "b"), int 2)] none))], xT, .map []),
     ([("T", tP [("s", .lit (.str "x")), ("u", .call .upper [rel "s"])])], xT, .map []),
@@ -1683,7 +1787,7 @@ that conflict once the chain lands. -/
 def bodyChainCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let rf (t : Val) (ks : List String) : Val := .meet (.call .refer [t]) (.addr ⟨1, ks⟩)
+  let rf (t : Val) (ks : List String) : Val := .meet (.call .relate [t]) (.addr ⟨1, ks⟩)
   [([("T", m [("m", m []), ("n", rf (m [("q", m [])]) ["m"]), ("o", rf (m [("k", int 1)]) ["m", "q"]),
       ("z", .path [.up 1, .key "m", .key "q", .key "k"])])], m [], .map []),
     ([("T", m [("m", m []), ("n", rf (m [("q", m [("k", int 1)])]) ["m"]), ("o", rf (m [("k", int 2)]) ["m", "q"])])],
@@ -1720,7 +1824,7 @@ there, where both ports expand it for the link; and the use with data
 at it, which both read alike. -/
 def loneLinkCases : List (Decls × Val × Data) :=
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let tR : Val := m [("m", m []), ("n", .meet (.call .refer [.alias "T"]) (.addr ⟨1, ["m"]⟩))]
+  let tR : Val := m [("m", m []), ("n", .meet (.call .relate [.alias "T"]) (.addr ⟨1, ["m"]⟩))]
   [([("T", tR)], m [("x", .alias "T")], .map []),
     ([("T", tR)], m [("x", .alias "T")], .map [("x", .map [])]),
     ([("T", tR)], m [("x", .alias "T")], .map [("x", .map [("m", .map [])])])]
@@ -1822,6 +1926,99 @@ theorem copyDestCases_checkable : ∀ c ∈ copyDestCases,
 theorem copy_dest_verdict_exact : ∀ c ∈ copyDestCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (copyDestCases_checkable c hc).1 (copyDestCases_checkable c hc).2 v
+
+/-- One document in three orders (ADR-081): a type and a subtype of it
+that name each other by path, with the subtype written first, with the
+type written first, and with the use written above both. -/
+def orderSchemas : List Val :=
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let s (x : String) : Val := .lit (.str x)
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let n : Val := mo [("k", false, .or [(0, s "d"), (0, s "f")]), ("up", true, p ["s", "D"])]
+  let d : Val := .meet (p ["s", "N"]) (m [("k", s "d")])
+  let use : Val := .meet (p ["s", "N"]) (m [("k", s "d")])
+  [m [("s", .ride .hide (m [("D", d), ("N", n)]) []), ("doc", use)],
+    m [("s", .ride .hide (m [("N", n), ("D", d)]) []), ("doc", use)],
+    m [("doc", use), ("s", .ride .hide (m [("N", n), ("D", d)]) [])]]
+
+/-- The data the three orders are read against: none, data that keeps
+the type two levels down, and data that breaks it there. -/
+def orderData : List Data :=
+  let k (x : String) (up : List (String × Data)) : Data := .map (("k", .str x) :: up)
+  [.map [], .map [("doc", k "d" [("up", k "d" [])])], .map [("doc", k "d" [("up", k "f" [])])]]
+
+def orderCases : List (Decls × Val × Data) :=
+  orderSchemas.flatMap fun S => orderData.map fun j => ([], S, j)
+
+theorem orderCases_checkable : ∀ c ∈ orderCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem order_verdict_exact : ∀ c ∈ orderCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (orderCases_checkable c hc).1 (orderCases_checkable c hc).2 v
+
+/-- The three schemas are one value in three orders, as `Val.Reordered`
+says it: the members of the hidden block swapped, and the members of
+the document. -/
+theorem orderSchemas_reordered : ∀ S ∈ orderSchemas, ∀ S' ∈ orderSchemas, S.Reordered S' := by
+  have first : ∀ S ∈ orderSchemas, (orderSchemas.headD .any).Reordered S := by
+    intro S hS
+    simp only [orderSchemas, List.mem_cons, List.not_mem_nil, or_false] at hS
+    rcases hS with rfl | rfl | rfl
+    · exact .refl _
+    · exact .member [] _ "s" false none false (.ride .hide [] (.members none false (.swap _ _ _)))
+    · exact .trans
+        (.member [] _ "s" false none false (.ride .hide [] (.members none false (.swap _ _ _))))
+        (.members none false (.swap _ _ _))
+  exact fun S hS S' hS' => .trans (.symm (first S hS)) (first S' hS')
+
+/-- The verdict of the order `i` against the datum `k`, in the default
+mode. -/
+def orderVerdict (i k : ℕ) : Verdict :=
+  vetP {} [] (orderSchemas.getD i .any) (orderData.getD k (.map []))
+
+/-! Each order against each datum, one evaluation to a theorem: the nine
+together are more than one check holds in memory. -/
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_0_0 : orderVerdict 0 0 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_0_1 : orderVerdict 0 1 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_0_2 : orderVerdict 0 2 = .invalid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_1_0 : orderVerdict 1 0 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_1_1 : orderVerdict 1 1 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_1_2 : orderVerdict 1 2 = .invalid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_2_0 : orderVerdict 2 0 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_2_1 : orderVerdict 2 1 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_2_2 : orderVerdict 2 2 = .invalid := by decide
+
+/-- The definition reads the three orders alike in the default mode:
+each is `valid` where the data supplies nothing, `valid` on the data
+that keeps the type and `invalid` on the data that breaks it. -/
+theorem order_verdicts_agree : ∀ i, i < 3 → ∀ k, k < 3 → orderVerdict i k = orderVerdict 0 k
+  | 0, _, _, _ => rfl
+  | 1, _, 0, _ => orderVerdict_1_0.trans orderVerdict_0_0.symm
+  | 1, _, 1, _ => orderVerdict_1_1.trans orderVerdict_0_1.symm
+  | 1, _, 2, _ => orderVerdict_1_2.trans orderVerdict_0_2.symm
+  | 2, _, 0, _ => orderVerdict_2_0.trans orderVerdict_0_0.symm
+  | 2, _, 1, _ => orderVerdict_2_1.trans orderVerdict_0_1.symm
+  | 2, _, 2, _ => orderVerdict_2_2.trans orderVerdict_0_2.symm
 
 /-- A path reference's copy reads its target's relative paths where it
 stands (ruling 26), with what the data writes at the target met in:
@@ -2423,13 +2620,13 @@ def absentListCases : List (Decls × Val × Data) :=
     ([], m [("a", .list [gone, int 1] (some .integer) false)], .map [("a", .list [j 1, j 2])]),
     ([], named, .map [("a", .list [j 1, j 2]), ("b", j 1)]),
     ([], named, .map [("a", .list [j 2]), ("b", j 1)]),
-    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .relate [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
       .map [("a", .map [("k", j 2)])]),
-    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .relate [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
       .map [("a", .map [("k", j 1)])]),
-    ([], m [("a", m []), ("l", lst [hide (int 1), .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+    ([], m [("a", m []), ("l", lst [hide (int 1), .meet (.call .relate [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
       .map [("a", .map [("k", j 2)])]),
-    ([], m [("a", m []), ("l", lst [int 1, gone, .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+    ([], m [("a", m []), ("l", lst [int 1, gone, .meet (.call .relate [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
       .map [("a", .map [("k", j 2)])])]
 
 theorem absentListCases_checkable : ∀ c ∈ absentListCases,
@@ -2837,7 +3034,7 @@ theorem round_verdict_exact : ∀ c ∈ roundCases, ∀ (m : Mode) (v : Verdict)
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (roundCases_checkable c hc).1 (roundCases_checkable c hc).2 v
 
-/-- `refer` of a path value: its template met into the target, beside
+/-- `relate` of a path value: its template met into the target, beside
 data that agrees with it, data that refuses it and data that writes the
 link as a string; a template that clashes with the target; no
 template; a target that names nothing, one only the data supplies, a
@@ -2858,8 +3055,8 @@ def referCases : List (Decls × Val × Data) :=
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
-  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
-  let rf0 (a : Val) : Val := .meet (.call .refer []) a
+  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
+  let rf0 (a : Val) : Val := .meet (.call .relate []) a
   let a1 : Val := m [("p", int 1)]
   let r3 : Val := rf (m [("r", int 3)]) (ad 0 ["a"])
   let svc (t : Val) : Val := m [("s", m [("auth", m [("k", int 1)]), ("billing", m [("dep", rf t (ad 2 ["auth"]))])])]
@@ -2868,8 +3065,8 @@ def referCases : List (Decls × Val × Data) :=
   let k1 : Val := m [("k", int 1)]
   let x2 : Val := rf (m [("p", int 1)]) (ad 0 ["h", "z"])
   let y2 : Val := rf (m [("z", m [])]) (ad 0 ["h"])
-  let kd1 (t : Val) : Val := .map [("k", false, int 1), ("d", true, .call .refer [t])] none false
-  let kd2 (t : Val) : Val := .map [("k", false, int 2), ("d", true, .call .refer [t])] none false
+  let kd1 (t : Val) : Val := .map [("k", false, int 1), ("d", true, .call .relate [t])] none false
+  let kd2 (t : Val) : Val := .map [("k", false, int 2), ("d", true, .call .relate [t])] none false
   let peer : Val := m [("k", int 2), ("d", ad 0 ["y"])]
   [([], m [("a", a1), ("b", r3)], .map []),
     ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 3)])]),
@@ -2890,8 +3087,8 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("a", .list [int 1, int 2] none false), ("b", rf .integer (ad 0 ["a", "1"]))], .map []),
     ([], m [("a", .list [int 1, int 2] none false), ("b", rf .string (ad 0 ["a", "1"]))], .map []),
     ([], m [("a", .list [int 1, int 2] none false), ("b", rf0 (ad 0 ["a", "5"]))], .map []),
-    ([], m [("a", int 1), ("b", .meet (.call .refer []) (.lit (.str "$.a")))], .map []),
-    ([], m [("b", .call .refer [])], .map []),
+    ([], m [("a", int 1), ("b", .meet (.call .relate []) (.lit (.str "$.a")))], .map []),
+    ([], m [("b", .call .relate [])], .map []),
     ([("L", r3)], m [("a", a1), ("b", .alias "L")], .map []),
     ([("L", r3)], m [("a", a1), ("b", .alias "L")], .map [("a", .map [("r", j 4)])]),
     ([("L", r3)], m [("a", a1)], .map [("a", .map [("r", j 4)])]),
@@ -2901,7 +3098,7 @@ def referCases : List (Decls × Val × Data) :=
     ([("L", rf (hide k1) (ad 0 ["a"]))], m [("a", m [])], .map []),
     ([("L", rf (m [("x", type k1)]) (ad 0 ["a"]))], m [("a", m [])], .map [("a", .map [])]),
     ([("L", rf (type k1) (ad 0 ["a"]))], m [("a", m [])], .map [("a", .map [("k", j 1)])]),
-    ([], m [("h", m []), ("y", y2), ("x", .meet (.call .refer [m [("p", int 1)]]) (rf (m [("q", int 2)]) (ad 0 ["h", "z"])))],
+    ([], m [("h", m []), ("y", y2), ("x", .meet (.call .relate [m [("p", int 1)]]) (rf (m [("q", int 2)]) (ad 0 ["h", "z"])))],
       .map []),
     ([], m [("x", x2), ("h", m []), ("y", y2)], .map []),
     ([], m [("x", x2), ("h", m []), ("y", y2)], .map [("h", .map [("z", .map [("p", j 2)])])]),
@@ -2933,8 +3130,8 @@ def referCases : List (Decls × Val × Data) :=
       .map [("x", .map [("k", j 1)])]),
     ([], m [("w", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (0, m [("e", int 1)])]),
       ("x", .path [.key "w"]), ("y", m [("z", .integer)])], .map []),
-    ([], m [("x", .meet (.or [(0, .map [("d", true, .call .refer [m [("z", int 1)]])] none false),
-        (0, .map [("d", true, .call .refer [m [("z", int 2)]])] none false)]) (m [("d", ad 0 ["y"])])),
+    ([], m [("x", .meet (.or [(0, .map [("d", true, .call .relate [m [("z", int 1)]])] none false),
+        (0, .map [("d", true, .call .relate [m [("z", int 2)]])] none false)]) (m [("d", ad 0 ["y"])])),
       ("y", m [("z", .integer)])], .map []),
     ([], m [("x", .meet (.or [(1, m [("k", int 1)]), (0, m [("k", int 2), ("d", rf (m [("z", int 1)]) (ad 0 ["y"]))])])
         (m [("k", int 2)])), ("y", m [("z", .integer)])], .map []),
@@ -2983,7 +3180,7 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("a", m []), ("b", rf (m [("l", .list [int 1] none false)]) (ad 0 ["a"])),
         ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]),
         ("y", m [("v", int 2)])], .map []),
-    ([], m [("s", rf (int 1) (ad 0 ["s"])), ("u", .call .refer [])], .map []),
+    ([], m [("s", rf (int 1) (ad 0 ["s"])), ("u", .call .relate [])], .map []),
     ([], m [("s", rf (int 1) (ad 0 ["s"]))], .map []),
     ([], m [("s", rf (m [("n", rf (int 1) (ad 0 ["t", "n"]))]) (ad 0 ["t"])), ("t", m [])], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
@@ -2991,13 +3188,13 @@ def referCases : List (Decls × Val × Data) :=
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [("x", .alias "T")], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"])), ("o", rf (m [("k", int 2)]) (ad 1 ["m"]))])], m [], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"])), ("o", rf (m [("j", int 2)]) (ad 1 ["m"]))])], m [], .map []),
-    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])],
+    ([], m [("b", .call .relate [m [("r", int 3)]]), ("a", m [])],
       .map [("b", .addr ⟨0, ["a"]⟩), ("a", .map [("p", j 1), ("r", j 4)])]),
-    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])],
+    ([], m [("b", .call .relate [m [("r", int 3)]]), ("a", m [])],
       .map [("b", .addr ⟨0, ["a"]⟩), ("a", .map [("p", j 1), ("r", j 3)])]),
-    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])],
+    ([], m [("b", .call .relate [m [("r", int 3)]]), ("a", m [])],
       .map [("b", .addr ⟨0, ["a"]⟩), ("a", .map [("p", j 1)])]),
-    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])], .map [("b", .addr ⟨0, ["nope"]⟩), ("a", .map [])]),
+    ([], m [("b", .call .relate [m [("r", int 3)]]), ("a", m [])], .map [("b", .addr ⟨0, ["nope"]⟩), ("a", .map [])]),
     ([], m [("b", .or [(0, rf (m [("r", int 3)]) (ad 0 ["a"])), (0, int 2)]), ("a", m [])],
       .map [("b", j 2), ("a", .map [("r", j 4)])]),
     ([], m [("b", .or [(0, rf (m [("r", int 3)]) (ad 0 ["a"])), (0, int 2)]), ("a", m [])],
@@ -3010,7 +3207,7 @@ theorem refer_verdict_exact : ∀ c ∈ referCases, ∀ (m : Mode) (v : Verdict)
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (referCases_checkable c hc).1 (referCases_checkable c hc).2 v
 
-/-- `rel` over each shape of value: one address, a list, a map, a map
+/-- `relate` over each shape of value: one address, a list, a map, a map
 and a list nested in each other, and none, an empty list and an empty
 map; its template met into each target, beside data that refuses it,
 and a template that refuses a target; a leaf that names nothing, a
@@ -3021,7 +3218,7 @@ relation with no value, required and optional, and one met with
 field; a relation in a body no reference reads; a relation's template
 making another relation's target, and one relation's leaf making its
 own other leaf's target, each beside data the flow refuses; a
-`refer` and a `rel` at one target; and a relation with no template,
+`relate` over a path and one over a list at one target; and a relation with no template,
 an empty list, a list of a number and a list of a hole for its
 template, beside data that writes a string, a number, a list of
 each, an empty list, and no value, which refuses all but the empty
@@ -3033,8 +3230,8 @@ def relCases : List (Decls × Val × Data) :=
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
   let lst (vs : List Val) : Val := .list vs none false
-  let rl (t : Val) (v : Val) : Val := .meet (.call .rel [t]) v
-  let rl0 (v : Val) : Val := .meet (.call .rel []) v
+  let rl (t : Val) (v : Val) : Val := .meet (.call .relate [t]) v
+  let rl0 (v : Val) : Val := .meet (.call .relate []) v
   let svc : Val := m [("kind", str "svc")]
   let chain : Val := m [("x", rl (m [("p", int 1)]) (lst [ad 0 ["h", "z"]])), ("h", m []),
     ("y", rl (m [("z", m [])]) (lst [ad 0 ["h"]]))]
@@ -3052,27 +3249,27 @@ def relCases : List (Decls × Val × Data) :=
     ([], m [("a", m []), ("s", m [("d", rl0 (lst [ad 0 ["a"], ad 0 ["nosuch"]]))])], .map []),
     ([], m [("a", m []), ("d", rl0 (lst [ad 0 ["a"], int 7]))], .map []),
     ([], m [("a", m []), ("d", rl0 (str "x"))], .map []),
-    ([], m [("a", m []), ("s", m [("d", .call .rel [])])], .map [("s", .map [("d", .list [.str "$.a"])])]),
-    ([], m [("a", m []), ("s", m [("d", .call .rel [])])], .map [("s", .map [("d", j 7)])]),
-    ([], m [("d", .call .rel [])], .map []),
-    ([], .map [("d", true, .call .rel [])] none false, .map []),
+    ([], m [("a", m []), ("s", m [("d", .call .relate [])])], .map [("s", .map [("d", .list [.str "$.a"])])]),
+    ([], m [("a", m []), ("s", m [("d", .call .relate [])])], .map [("s", .map [("d", j 7)])]),
+    ([], m [("d", .call .relate [])], .map []),
+    ([], .map [("d", true, .call .relate [])] none false, .map []),
     ([], m [("a", m []), ("d", rl0 (lst []))], .map []),
     ([], m [("a", m []), ("d", rl0 (m []))], .map []),
-    ([], m [("x", m []), ("s", .meet (m [("d", .call .rel [])]) (m [("d", lst [ad 0 ["x"]])]))], .map []),
-    ([], m [("x", m []), ("s", m [("d", .meet (.call .rel [m [("p", int 1)]]) (rl (m [("q", int 2)]) (lst [ad 0 ["x"]])))])],
+    ([], m [("x", m []), ("s", .meet (m [("d", .call .relate [])]) (m [("d", lst [ad 0 ["x"]])]))], .map []),
+    ([], m [("x", m []), ("s", m [("d", .meet (.call .relate [m [("p", int 1)]]) (rl (m [("q", int 2)]) (lst [ad 0 ["x"]])))])],
       .map [("x", .map [("p", j 1), ("q", j 3)])]),
     ([("L", rl (m [("k", int 1)]) (lst [ad 0 ["a"]]))], m [("a", m [])], .map [("a", .map [("k", j 2)])]),
     ([], chain, .map []),
     ([], chain, .map [("h", .map [("z", .map [("p", j 2)])])]),
     ([], own, .map []),
     ([], own, .map [("h", .map [("z", .map [("z", j 5)])])]),
-    ([], m [("a", m []), ("d", .meet (.call .rel []) .pathKind)], .map []),
-    ([], m [("a", m []), ("b", .meet (.call .refer [m [("p", int 1)]]) (ad 0 ["a"])),
+    ([], m [("a", m []), ("d", .meet (.call .relate []) .pathKind)], .map []),
+    ([], m [("a", m []), ("b", .meet (.call .relate [m [("p", int 1)]]) (ad 0 ["a"])),
       ("d", rl (m [("q", int 2)]) (lst [ad 0 ["a"]]))], .map [("a", .map [("p", j 1), ("q", j 2)])]),
     ([], m [("a", m []), ("d", rl0 (.lit (.bool true)))], .map [])] ++
   ([[], [lst []], [lst [int 1]], [lst [.hole]]].flatMap fun t =>
     [some (.str "x"), some (j 3), some (.list [j 1]), some (.list [.str "a"]), some (.list []), none].map
-      fun d => ([], m [("v", .call .rel t)], match d with | some x => .map [("v", x)] | none => .map [])) ++
+      fun d => ([], m [("v", .call .relate t)], match d with | some x => .map [("v", x)] | none => .map [])) ++
   [([], m [("later", ad 0 ["a"]), ("a", m []), ("s", rl (m [("k", int 1)]) (lst [.path [.key "later"]]))], .map []),
     ([], m [("later", ad 0 ["a"]), ("a", m []), ("s", rl (m [("k", int 1)]) (lst [.path [.key "later"]]))],
       .map [("a", .map [("k", j 2)])])]
@@ -3084,7 +3281,7 @@ theorem rel_verdict_exact : ∀ c ∈ relCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relCases_checkable c hc).1 (relCases_checkable c hc).2 v
 
-/-- A constraint met with `rel()` before its value meets the relation's
+/-- A constraint met with `relate()` before its value meets the relation's
 value as any meet does (decision 25 of the design note's §7), in either
 grouping: `path` refuses the list, as it does met with the list first,
 and `string` refuses it too; a size holds of the list, not of each leaf,
@@ -3101,8 +3298,8 @@ def relHeldCases : List (Decls × Val × Data) :=
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let ad (ks : List String) : Val := .addr ⟨0, ks⟩
-  let r0 : Val := .call .rel []
-  let rk : Val := .call .rel [m [("k", int 1)]]
+  let r0 : Val := .call .relate []
+  let rk : Val := .call .relate [m [("k", int 1)]]
   let la : Val := .list [ad ["a"]] none false
   let doc (v : Val) : Val := m [("a", m []), ("r", v)]
   [([], doc (.meet (.meet r0 .pathKind) la), .map []),
@@ -3130,17 +3327,22 @@ theorem rel_held_verdict_exact : ∀ c ∈ relHeldCases, ∀ (m : Mode) (v : Ver
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relHeldCases_checkable c hc).1 (relHeldCases_checkable c hc).2 v
 
-/-- Links read where they land: a `refer` in a `type()` that a path
+/-- Links read where they land: a `relate` in a `type()` that a path
 reference copies, beside a target the template admits, one it refuses,
-one that names nothing and data that refuses the template; a `refer` in
+one that names nothing and data that refuses the template; a `relate` in
 a spread's template, at a target that names nothing, and beside data
-the template's flow refuses and none; a `rel` in a `type()` that a path
+the template's flow refuses and none; a `relate` over a list in a `type()` that a path
 reference copies, at a target, one that names nothing and beside data
 that refuses its template; a path reference to a link and to a map
 holding one, and one to a map holding a link to nothing; a relative
 link in a spread's template, read from each member it lands at, beside
-data the flow refuses; and a list's spread holding a link that a path
-reference copies. -/
+data the flow refuses; a list's spread holding a link that a path
+reference copies; and a relative link a path reference copies, read from
+where the copy stands: at the root with no target there, with one, and
+with one its template refuses, a hidden body used beside a peer its
+template refuses, a type whose copy meets data at its own target, an
+address that climbs past the root where the copy stands, and a recursive
+name whose link's template is a disjunction with the name. -/
 def landCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -3151,19 +3353,21 @@ def landCases : List (Decls × Val × Data) :=
   let lst (vs : List Val) : Val := .list vs none false
   let p (ks : List String) : Val := .path (ks.map .key)
   let type (v : Val) : Val := .ride .type v []
-  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
   let k1 : Val := m [("k", int 1)]
   let K := type (m [("k", .integer)])
-  let T := type (m [("p", .call .refer [p ["K"]])])
+  let T := type (m [("p", .call .relate [p ["K"]])])
   let sp := ms [("s1", m []), ("s2", m [])] (m [("d", rf k1 (ad 0 ["a"]))])
-  let Srel (t : List Val) := type (.map [("dependsOn", true, .call .rel t)] none false)
+  let Srel (t : List Val) := type (.map [("dependsOn", true, .call .relate t)] none false)
   let jobs := ms [("a", m []), ("b", m [])] (m [("feeds", rf (m [("kind", str "job")]) (ad 2 ["b"]))])
+  let lnk := m [("target", m []), ("link", rf k1 (ad 1 ["target"]))]
+  let N := type (m [("N", m [("other", m []), ("next", rf k1 (ad 1 ["other"]))])])
   [([], m [("K", K), ("T", T), ("svc", k1), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
     ([], m [("K", K), ("T", T), ("svc", m [("k", str "no")]), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
     ([], m [("K", K), ("T", T), ("x", .meet (p ["T"]) (m [("p", ad 0 ["nosuch"])]))], .map []),
-    ([], m [("T", type (m [("p", .call .refer [k1])])), ("svc", m []), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))],
+    ([], m [("T", type (m [("p", .call .relate [k1])])), ("svc", m []), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))],
       .map [("svc", .map [("k", j 2)])]),
-    ([], m [("T", ms [("s1", m [])] (m [("d", .meet (.call .refer []) (ad 0 ["nosuch"]))]))], .map []),
+    ([], m [("T", ms [("s1", m [])] (m [("d", .meet (.call .relate []) (ad 0 ["nosuch"]))]))], .map []),
     ([], m [("a", m []), ("T", sp)], .map [("a", .map [("k", j 2)])]),
     ([], m [("a", m []), ("T", sp)], .map []),
     ([], m [("S", Srel []), ("a", m []), ("s", .meet (p ["S"]) (m [("dependsOn", lst [ad 0 ["a"]])]))], .map []),
@@ -3172,11 +3376,24 @@ def landCases : List (Decls × Val × Data) :=
       .map [("a", .map [("k", j 2)])]),
     ([], m [("a", m []), ("L", rf k1 (ad 0 ["a"])), ("x", p ["L"])], .map [("a", .map [("k", j 2)])]),
     ([], m [("a", m []), ("L", m [("d", rf k1 (ad 0 ["a"]))]), ("x", p ["L"])], .map []),
-    ([], m [("L", m [("d", .meet (.call .refer []) (ad 0 ["nosuch"]))]), ("x", p ["L"])], .map []),
+    ([], m [("L", m [("d", .meet (.call .relate []) (ad 0 ["nosuch"]))]), ("x", p ["L"])], .map []),
     ([], m [("jobs", jobs)], .map []),
     ([], m [("jobs", jobs)], .map [("jobs", .map [("b", .map [("kind", .str "svc")])])]),
     ([], m [("a", m []), ("l", .list [] (some (rf k1 (ad 0 ["a"]))) false), ("m", .meet (p ["l"]) (lst [ad 0 ["a"]]))],
-      .map [("a", .map [("k", j 2)])])]
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", lnk), ("copied", p ["a", "link"])], .map []),
+    ([], m [("target", m []), ("a", lnk), ("copied", p ["a", "link"])], .map []),
+    ([], m [("target", m [("k", int 2)]), ("a", lnk), ("copied", p ["a", "link"])], .map []),
+    ([], m [("d", .ride .hide (m [("next", rf k1 (ad 2 ["peer"]))]) []), ("peer", m []),
+      ("n", m [("peer", m [("k", int 2)]), ("x", p ["d"])])], .map []),
+    ([], m [("t", N), ("n", m [("x", p ["t", "N"])])],
+      .map [("n", .map [("x", .map [("other", .map [("k", j 2)])])])]),
+    ([], m [("t", N), ("n", m [("x", p ["t", "N"])])],
+      .map [("n", .map [("x", .map [("other", .map [("k", j 1)])])])]),
+    ([], m [("a", m [("b", m [("link", .meet (.call .relate []) (ad 2 ["x"]))]), ("x", m [])]),
+      ("c", p ["a", "b", "link"])], .map []),
+    ([("T", .map [("m", false, m []), ("n", true, rf (.or [(0, .alias "T"), (0, m [])]) (ad 1 ["m"]))] none false)],
+      m [("x", .meet (m []) (.alias "T"))], .map [])]
 
 theorem landCases_checkable : ∀ c ∈ landCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -3188,7 +3405,7 @@ theorem land_verdict_exact : ∀ c ∈ landCases, ∀ (m : Mode) (v : Verdict),
 /-- Links in a generator's template, read at each member of its output:
 `each` over a list, beside data the template's flow refuses and none,
 at a target that names nothing, and over an empty list, where no member
-reads it; `pack` the same; a `rel` in `each`'s template; a link that is
+reads it; `pack` the same; a `relate` in `each`'s template; a link that is
 the template itself; and `each` over a map. -/
 def genLinkCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -3198,10 +3415,10 @@ def genLinkCases : List (Decls × Val × Data) :=
   let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
   let lst (vs : List Val) : Val := .list vs none false
   let p (ks : List String) : Val := .path (ks.map .key)
-  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
   let k1 : Val := m [("k", int 1)]
   let a2 : Data := .map [("a", .map [("k", j 2)])]
-  let gone : Val := m [("r", .meet (.call .refer []) (ad 0 ["nosuch"]))]
+  let gone : Val := m [("r", .meet (.call .relate []) (ad 0 ["nosuch"]))]
   [([], m [("a", m []), ("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("r", rf k1 (ad 0 ["a"]))]])], a2),
     ([], m [("a", m []), ("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("r", rf k1 (ad 0 ["a"]))]])],
       .map []),
@@ -3212,7 +3429,7 @@ def genLinkCases : List (Decls × Val × Data) :=
     ([], m [("n", lst [str "x"]), ("p", .call .pack [p ["n"], gone])], .map []),
     ([], m [("n", lst []), ("p", .call .pack [p ["n"], gone])], .map []),
     ([], m [("a", m []), ("l", lst [int 1]),
-      ("e", .call .each [p ["l"], m [("d", .meet (.call .rel [k1]) (lst [ad 0 ["a"]]))]])], a2),
+      ("e", .call .each [p ["l"], m [("d", .meet (.call .relate [k1]) (lst [ad 0 ["a"]]))]])], a2),
     ([], m [("a", m []), ("l", lst [int 1]), ("e", .call .each [p ["l"], rf k1 (ad 0 ["a"])])], a2),
     ([], m [("a", m []), ("m", m [("x", int 1), ("y", int 2)]), ("e", .call .each [p ["m"], m [("r", rf k1 (ad 0 ["a"]))]])],
       a2)]
@@ -3242,7 +3459,7 @@ def linkTemplateCases : List (Decls × Val × Data) :=
   let ad (ks : List String) : Val := .addr ⟨0, ks⟩
   let lst (vs : List Val) : Val := .list vs none false
   let p (ks : List String) : Val := .path (ks.map .key)
-  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
   let k1 : Val := m [("k", int 1)]
   let ak (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("a", .map [("k", .integer n h)])]
   let av (x : Data) : Data := .map [("a", .map [("v", x)])]
@@ -3260,9 +3477,9 @@ def linkTemplateCases : List (Decls × Val × Data) :=
     m [("a", m []), ("m", m [("x", int 1)]), ("p", .call .pack [p ["m"], m [("r", rf (m [("v", .hole)]) (ad ["a"]))]])]
   let nested : Val :=
     m [("a", m []), ("l", lst [lst [k1]]), ("e", .call .each [p ["l"], .call .each [.hole, rf .hole (ad ["a"])]])]
-  let none0 : Val := m [("a", m []), ("e", .meet (.call .each [lst [], .call .refer [k1]]) (lst [ad ["a"]]))]
+  let none0 : Val := m [("a", m []), ("e", .meet (.call .each [lst [], .call .relate [k1]]) (lst [ad ["a"]]))]
   let fewer : Val :=
-    m [("a", m []), ("b", m []), ("e", .meet (.call .each [lst [int 1], .call .refer [k1]]) (lst [ad ["a"], ad ["b"]]))]
+    m [("a", m []), ("b", m []), ("e", .meet (.call .each [lst [int 1], .call .relate [k1]]) (lst [ad ["a"], ad ["b"]]))]
   let body : Decls := [("G", .call .each [lst [int 1], rf k1 (ad ["a"])])]
   let named : Val := m [("a", lst []), ("r", rf (.call .each [.alias "L", .hole]) (ad ["a"]))]
   [([], bound, ak 2), ([], bound, ak 1),
@@ -3297,7 +3514,7 @@ def linkLandCases : List (Decls × Val × Data) :=
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let rf (t : Val) (up : ℕ) (ks : List String) : Val := .meet (.call .refer [t]) (.addr ⟨up, ks⟩)
+  let rf (t : Val) (up : ℕ) (ks : List String) : Val := .meet (.call .relate [t]) (.addr ⟨up, ks⟩)
   [([], m [("x", m [("m", m [("k", int 2)]), ("n", rf (m [("v", rel 1 ["k"])]) 1 ["m"])])], .map []),
     ([], m [("x", m [("k", int 3), ("m", m [("k", int 2)]), ("n", rf (m [("v", rel 2 ["k"])]) 1 ["m"])])], .map []),
     ([], m [("x", m [("m", m [("m", m [])]), ("n", rf (m [("n", rf (m [("k", int 1)]) 1 ["m"])]) 1 ["m"])])],
@@ -3421,7 +3638,7 @@ def spreadCases : List (Decls × Val × Data) :=
   let built := m [("global", str "x"), ("T", ms [] (m [("h", p ["global"])])), ("Source", m [("a", m [])]),
     ("s", ms [("m", m [])] (m [("copy", .meet (p ["T"]) (p ["Source"]))]))]
   let linked (spread : Val) (t : Val) (rest : List (String × Val)) : Val :=
-    m (rest ++ [("s", ms [] spread), ("r", .meet (.call .refer [t]) (.addr ⟨0, ["s"]⟩))])
+    m (rest ++ [("s", ms [] spread), ("r", .meet (.call .relate [t]) (.addr ⟨0, ["s"]⟩))])
   let named := m [("a", m [("name", str "n")])]
   let inCopy := m [("T", ms [] h1), ("s", ms [("m", m [])] (m [("copy", p ["T"])]))]
   [([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x"), ("host", .str "x")])])]),
@@ -4338,7 +4555,7 @@ def filterKeepCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rf (t : Val) : Val := .meet (.call .refer [t]) (.addr ⟨0, ["a"]⟩)
+  let rf (t : Val) : Val := .meet (.call .relate [t]) (.addr ⟨0, ["a"]⟩)
   let pr : Val := .or [(1, int 1), (0, int 2)]
   let k1 : Val := m [("k", int 1)]
   [([], m [("b", .meet (.filter (m [("x", pr)]) .any) (m [("x", int 2)]))], .map [("b", .map [("x", j 2)])]),
@@ -5625,7 +5842,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
-    ("call", "call", "move"), ("call", "call", "copy"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "syntax", "@"), ("call", "call", "split"),
+    ("call", "call", "move"), ("call", "call", "copy"), ("call", "call", "relate"), ("call", "syntax", "@"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -5658,7 +5875,7 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("copy", .call .copy [.integer]), ("refer", .call .refer []), ("rel", .call .rel []),
+    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("copy", .call .copy [.integer]), ("relate", .call .relate []),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
@@ -7314,7 +7531,7 @@ theorem held_hole_verdict_exact : ∀ c ∈ heldHoleCases, ∀ (m : Mode) (v : V
 
 /-- A call that takes its argument as the value it is, over a list or a
 map that holds a hole, which the data once filled, for the `verdict`
-rows dr0 on: `super`, `pref`, `move`, `refer`, `rel`, the bounds and
+rows dr0 on: `super`, `pref`, `move`, `relate`, the bounds and
 `neq`, over a hole and over a call that waits on its own. The hole is
 one nothing binds, so each is an error of the schema whatever the data
 (ruling 34). -/
@@ -7331,7 +7548,7 @@ def readThroughCases : List (Val × Data) :=
   let l34 : Data := .list [.integer 3, .integer 4]
   [(.call .super [h1], x), (.call .super [h1], l1), (.call .super [hk], k1),
     (.call .pref [h1], x), (.call .pref [h1], l1), (.call .move [h1], x), (.call .move [h1], l1),
-    (.call .refer [h1], x), (.call .refer [h1], l1), (.call .rel [h1], x),
+    (.call .relate [h1], x), (.call .relate [h1], l1), (.call .relate [h1], x),
     (.call (.bnd .min) [h1], x), (.call (.bnd .min) [h1], l1), (.call (.bnd .max) [hk], k1),
     (.call (.bnd .above) [h1], l1), (.call (.bnd .below) [h1], x), (.call (.bnd .mulof) [h1], l1),
     (.call (.bnd .neq) [h1], l1), (.call (.bnd .neq) [lst [n 1, .hole]], .integer 3),
@@ -8501,11 +8718,18 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# constraint reads an address by its spelling, in rows ks0 on."
     IO.println "# Lists that hold a marked element follow in rows gl0 on, read as a document"
     IO.println "# reads them: the list holds no position for the element."
+    IO.println "# Numbers at so many significant digits follow in rows gs0 on:"
+    IO.println "# `Number.significant` (spec/Aontu/Written.lean), written as the gen() call"
+    IO.println "# both engines read, whose annotation is not yet a term of the definition."
+    IO.println "# Numbers at so many places, at both counts, and as strings follow in rows gw0"
+    IO.println "# on: `Number.rounded` and `Number.written`, in the same module."
     genRows "g" genVals
     varRows "i"
     genRows "k" addrVals
     genRows "ks" spellVals
     readGenRows "gl" listGenVals
+    significantRows "gs" significantCases
+    writtenRows "gw" writtenCases
     return 0
   | ["verdict"] =>
     IO.println "# Generated by `lake exe oracle verdict` (spec/Oracle.lean) from the definition"
@@ -8611,12 +8835,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# root with its calls made, follow in rows pc0 on, and move, a preference of"
     IO.println "# the value a path reads with its source hidden, in rows mv0 on. Paths into"
     IO.println "# what a call over a path makes, which resolve a round later, follow in rows"
-    IO.println "# rn0 on, and refer, a link that keeps its address, its template met into"
-    IO.println "# its target, in rows rf0 on. rel, a relation whose value holds a link at"
-    IO.println "# each leaf, follows in rows rl0 on, a constraint met with rel() before its"
+    IO.println "# rn0 on, and relate, a link that keeps its address, its template met into"
+    IO.println "# its target, in rows rf0 on. A relation whose value holds a link at"
+    IO.println "# each leaf follows in rows rl0 on, a constraint met with relate() before its"
     IO.println "# value, which meets the value as any meet does, in rows rh0 on, and links"
     IO.println "# read where they land, in a spread's template or copied by a path"
-    IO.println "# reference, in rows ld0 on, and in a generator's template, at each member"
+    IO.println "# reference, a relative address read where the copy stands, in rows ld0"
+    IO.println "# on, and in a generator's template, at each member"
     IO.println "# of its output, in rows lg0 on. Spreads whose templates read their member's"
     IO.println "# place, each read at each member there is, follow in rows sp0 on, and"
     IO.println "# sources loaded in place, each a file of test/spec/files the definition"
@@ -8735,6 +8960,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A match whose scrutinee the schema leaves open waits for the data (ruling 49),"
     IO.println "# in rows os0 on."
     pathRows "os" openSelectCases
+    IO.println "# One document in three orders follows in rows od0 on (ADR-081): a type and a"
+    IO.println "# subtype of it that name each other by path, the subtype written first, the"
+    IO.println "# type written first, and the use written above both, each against no data,"
+    IO.println "# data that keeps the type and data that breaks it. The definition reads the"
+    IO.println "# three orders alike (`order_verdicts_agree`)."
+    pathRows "od" orderCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

@@ -63,6 +63,9 @@ class AontuContext {
 
   probe: boolean = false
 
+  genat?: string[]
+  plain?: boolean
+
   // The provenance recorder (G7 phase 3), or undefined for an
   // uninstrumented run. Inherited by every descended and cloned
   // context through the prototype chain, so one run has one record.
@@ -88,8 +91,6 @@ class AontuContext {
   _pathidxNext: { n: number }
 
   _depth: { n: number }
-
-  _reldecls: Map<string, { acyclic?: boolean, inverses: Set<string> }>
 
   _fixroot: any
 
@@ -148,7 +149,6 @@ class AontuContext {
     this._pathTrie = new Map()
     this._pathidxNext = { n: 1 }  // 0 reserved for the root path
     this._depth = { n: 0 }
-    this._reldecls = new Map()
     this._pathidx = 0
 
     this.manifest = []

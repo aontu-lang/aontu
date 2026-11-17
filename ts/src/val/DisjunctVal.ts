@@ -15,6 +15,7 @@ import { AontuContext } from '../ctx'
 import { AontuError, descErr, makeNilErr } from '../err'
 import { exactJSON } from '../exactjson'
 import { ride, unite } from '../unify'
+import { sameRec } from '../rider'
 
 import {
   explainOpen,
@@ -93,12 +94,13 @@ class DisjunctVal extends JunctionVal {
     // The peer's annotations ride the result once, not each member, so a
     // disjunction met with itself is itself.
     const annotated = null != (peer as any).meta || null != (peer as any).deprecation ||
-      null != (peer as any).via
+      null != (peer as any).via || null != (peer as any).reldecl
     const member: any = annotated ? peer.clone(ctx, { path: peer.path }) : peer
     if (annotated) {
       member.meta = undefined
       member.deprecation = undefined
       member.via = undefined
+      member.reldecl = undefined
     }
 
     const savedErr = ctx.err
@@ -188,7 +190,7 @@ class DisjunctVal extends JunctionVal {
       // (No need for a fresh NilVal — any isNil value gets filtered.)
       for (let vI = 0; vI < oval.length; vI++) {
         for (let kI = vI + 1; kI < oval.length; kI++) {
-          if (oval[kI].same(oval[vI])) {
+          if (oval[kI].same(oval[vI]) && sameRec(oval[kI], oval[vI])) {
             oval[vI] = keepRiders(ctx, oval[vI], oval[kI])
             oval[kI] = TRIAL_NIL
             continue
@@ -197,7 +199,7 @@ class DisjunctVal extends JunctionVal {
           const a: any = oval[vI]
           const b: any = oval[kI]
           if (true === a.isPref && true === b.isPref
-            && prefInnerPeg(a).same(prefInnerPeg(b))) {
+            && prefInnerPeg(a).same(prefInnerPeg(b)) && sameRec(a, b)) {
             if ((a as PrefVal).rank <= (b as PrefVal).rank) {
               oval[vI] = keepRiders(ctx, a, b)
               oval[kI] = TRIAL_NIL
@@ -271,7 +273,9 @@ class DisjunctVal extends JunctionVal {
           atRank[pref.rank] = vI
         }
         else {
-          const folded = pref.unify(this.peg[at], ctx)
+          // Twins that differ in their output records do not fold into one.
+          const folded = sameRec(pref, this.peg[at]) ? pref.unify(this.peg[at], ctx) :
+            makeNilErr(ctx, 'pref_rank_clash', pref, this.peg[at], 'unify')
           if (folded.isNil) {
             return folded
           }
@@ -321,23 +325,10 @@ class DisjunctVal extends JunctionVal {
       const prefs = this.peg.filter((v: Val) => v instanceof PrefVal)
 
       if (0 === prefs.length && 1 < this.peg.length) {
-        const gctx = ctx.clone({ err: [], collect: true })
-        let firstOut: any
-        let allSame = true
-        for (let gI = 0; gI < this.peg.length && allSame; gI++) {
-          const gout = this.peg[gI].gen(gctx)
-          if (0 < gctx.err.length || undefined === gout) {
-            allSame = false
-          }
-          else if (0 === gI) {
-            firstOut = gout
-          }
-          else {
-            allSame = genShape(this.peg[gI], gout) === genShape(this.peg[0], firstOut)
-          }
-        }
-        if (allSame) {
-          return firstOut
+        const read = armsAlike(this.peg, ctx, true)
+        const alike = undefined === read || true === ctx.plain ? read : armsAlike(this.peg, ctx, false)
+        if (undefined !== alike) {
+          return alike.out
         }
       }
 
@@ -402,9 +393,30 @@ function keepRiders(ctx: AontuContext, keep: Val, drop: any, sends: boolean = tr
 
 
 function ridden(v: any): boolean {
-  return null != v.deprecation || null != v.meta || null != v.flows ||
+  return null != v.deprecation || null != v.meta || null != v.flows || null != v.reldecl ||
     (true === v.isBag && Object.values(v.peg).some(ridden)) ||
     (true === v.isPref && ridden(v.peg))
+}
+
+
+// Read plain first: values that differ stay apart though an option writes them alike.
+function armsAlike(arms: any[], ctx: AontuContext, plain: boolean): { out: any } | undefined {
+  const gctx: any = ctx.clone({ err: [], collect: true })
+  gctx.plain = plain
+  let first: any
+  for (let gI = 0; gI < arms.length; gI++) {
+    const gout = arms[gI].gen(gctx)
+    if (0 < gctx.err.length || undefined === gout) {
+      return undefined
+    }
+    if (0 === gI) {
+      first = gout
+    }
+    else if (genShape(arms[gI], gout) !== genShape(arms[0], first)) {
+      return undefined
+    }
+  }
+  return { out: first }
 }
 
 

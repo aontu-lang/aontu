@@ -1,7 +1,7 @@
 # bad/wrong-target.aontu --- the declared endpoint type, violated, where
 # the DATA does not repeat it.
 #
-# `rel($.aontu.System.Service)` on the hostedOn field says every hostedOn edge
+# `relate($.aontu.System.Service)` on the hostedOn field says every hostedOn edge
 # must land on a $.aontu.System.Service -- declared ONCE, at the field, and the
 # type FLOWS into each target (RELATIONS.0.md P2; the old root-level
 # `relations:` target declaration is gone with the magic key). The far
@@ -11,4 +11,4 @@
 @"../system.aontu"
 
 infra: bastion: { kind:host name:"bastion-eu1" }
-infra: runner: hostedOn: rel($.aontu.System.Service) & [path($.infra.bastion)]
+infra: runner: hostedOn: relate($.aontu.System.Service) & [path($.infra.bastion)]

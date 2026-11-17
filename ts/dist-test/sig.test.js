@@ -64,6 +64,29 @@ const SHARED = Path.join(__dirname, '..', '..', 'test', 'spec', 'signature.tsv')
         const builtin = [...lsp_1.BUILTIN_FUNCS].sort();
         (0, expect_1.expect)(declared).equal(builtin);
     });
+    (0, node_test_1.test)('canon-calls-are-declared-builtins', () => {
+        const declared = (0, sig_1.parseSigText)(sigdecl_1.SIGDECL);
+        const dir = Path.dirname(SHARED);
+        const undeclared = [];
+        let rows = 0;
+        for (const file of Fs.readdirSync(dir).filter((f) => f.endsWith('.tsv')).sort()) {
+            for (const line of Fs.readFileSync(Path.join(dir, file), 'utf8').split('\n')) {
+                const cols = line.split('\t');
+                if (line.startsWith('#') || ('canon' !== cols[1] && 'hcanon' !== cols[1])) {
+                    continue;
+                }
+                rows++;
+                const text = cols[3].replace(/"(?:[^"\\]|\\.)*"/g, '""');
+                for (const m of text.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\(/g)) {
+                    if (!(m[1] in declared)) {
+                        undeclared.push(file + ':' + cols[0] + ' writes ' + m[1] + '(');
+                    }
+                }
+            }
+        }
+        (0, expect_1.expect)(0 < rows).equal(true);
+        (0, expect_1.expect)(undeclared).equal([]);
+    });
     (0, node_test_1.test)('malformed-declarations-are-errors', () => {
         const bad = [
             '',

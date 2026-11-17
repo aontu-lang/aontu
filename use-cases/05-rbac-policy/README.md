@@ -78,9 +78,9 @@ than its value.
 | file | carries |
 |---|---|
 | `permissions.aontu` | the catalog: a `close()`d record shape per permission with a `risk` enum. Each key is the last segment of the permission's address |
-| `roles.aontu` | `Role`, a disjunction of two `close()`d shapes keyed by `privileged`; the `close()`d exhaustive registry; `unique()` + `refer()` grants; the same-layer `filter()`+`len()` registry invariant |
+| `roles.aontu` | `Role`, a disjunction of two `close()`d shapes keyed by `privileged`; the `close()`d exhaustive registry; `unique()` + `relate()` grants; the same-layer `filter()`+`len()` registry invariant |
 | `plans.aontu` | `Entitlement`, a disjunction of closed maps, one per plan |
-| `tenant.aontu` | the vet schema: `re()`/`neq()` slug, plain `plan` enum, `match()`-derived limits and tier, member records with a `refer()` role foreign key, the MFA implication as a disjunction of closed maps |
+| `tenant.aontu` | the vet schema: `re()`/`neq()` slug, plain `plan` enum, `match()`-derived limits and tier, member records with a `relate()` role foreign key, the MFA implication as a disjunction of closed maps |
 | `example.aontu` | a concrete tenant composed with the schema; evaluates to `expected/example.json` |
 | `audits/` | the tenant and its counting and domain invariants (`filter()`+`len()`, `len(max($.ref))`, `must()`) in one document |
 | `exhibits/` | the enum-with-default idiom in four spellings; ranked defaults; the registry invariant firing |
@@ -93,11 +93,11 @@ than its value.
 Quoted output below is trimmed of ANSI codes and machine-absolute path
 prefixes.
 
-- **Every grant is a checked address.** `refer()` on the grants list
+- **Every grant is a checked address.** `relate()` on the grants list
   spread and on a member's `role` makes each one a foreign key: a tree
   path such as `$.permissions.audit_read`, resolved against the
   catalog that declares it. An unknown role in a tenant candidate vets
-  `invalid` with a located `[aontu/refer_unresolved]`, and
+  `invalid` with a located `[aontu/rel_unresolved]`, and
   `proposals/extend-member-grants.aontu`, which adds a permission the
   catalog does not declare, is refused with exit 1 at the element the
   agent invented, `$.roles.member.grants.3`.
@@ -121,7 +121,7 @@ prefixes.
   `defaultMemberRole` is an enum with a default, in the repeated-branch
   spelling `*member | member | admin | owner`. The member record is
   written as two spreads: `close({role: string, invitedBy?: string})`
-  seals the record's keys, and a second spread puts `refer()` on
+  seals the record's keys, and a second spread puts `relate()` on
   `role`. "No MFA implies short sessions" is a disjunction of closed
   maps, `close({mfaRequired: true, …}) | close({mfaRequired: false,
   sessionTimeoutMinutes: … max(60)})`. A bare string stops at a hyphen
@@ -172,7 +172,7 @@ prefixes.
   `proposals/extend-member-grants.aontu` restates the three existing
   grants before adding one.
 - **Canon keeps the policy's meaning.** The grant addresses
-  (`path($.permissions.admin_all)`), `refer()`, and the
+  (`path($.permissions.admin_all)`), `relate()`, and the
   `*"member"|"member"|"admin"|"owner"` default all survive `--canon`,
   so the canon hash covers the policy itself, grants and defaults
   included.
@@ -214,13 +214,13 @@ documents diffed against the `expected/` goldens.
    catalog, the closed role registry and the concrete tenant, with
    `limits` and `supportTier` derived by `match()`.
 2. `--canon example.aontu` keeps `path($.permissions.admin_all)`, the
-   `*"member"|"member"|"admin"|"owner"` default, and `refer()`.
+   `*"member"|"member"|"admin"|"owner"` default, and `relate()`.
 3. `vet tenant.aontu data/tenant-good.aontu` is `verdict: valid`, exit 0,
    with no `pref_not_instance` warning.
 4. A free-plan tenant enabling SSO (`data/tenant-free-sso.aontu`) is
    `verdict: invalid`, exit 1, `[aontu/empty]` at `$.tenant.entitlement`.
 5. A member holding an undeclared role (`data/tenant-unknown-role.aontu`)
-   is refused with `[aontu/refer_unresolved]`, exit 1.
+   is refused with `[aontu/rel_unresolved]`, exit 1.
 6. A reserved slug (`data/tenant-bad-slug.aontu`) is refused with
    `[aontu/constraint]` and the `neq("admin", …)` exclusion in the
    expected form, exit 1.
@@ -232,11 +232,11 @@ documents diffed against the `expected/` goldens.
    refused, exit 1, with `disjunct_no_gen [incomplete]` reported at
    `$.tenant.plan`.
 10. `vet --format json` on the unknown-role candidate carries
-    `"code": "refer_unresolved"` and `"verdict": "invalid"`, exit 1.
+    `"code": "rel_unresolved"` and `"verdict": "invalid"`, exit 1.
 11. `proposals/add-superuser-role.aontu` is refused by the closed
     registry: `[aontu/closed]` at `$.roles.superuser`, exit 1.
 12. `proposals/extend-member-grants.aontu` (a permission the catalog
-    does not declare) is refused with `[aontu/refer_unresolved]` at
+    does not declare) is refused with `[aontu/rel_unresolved]` at
     `$.roles.member.grants.3`, exit 1.
 13. `proposals/member-wildcard.aontu` (the wildcard granted to an
     unprivileged role) is refused with `[aontu/constraint]` at

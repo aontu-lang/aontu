@@ -2,119 +2,36 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InverseFuncVal = exports.AcyclicFuncVal = exports.GraphAtomVal = void 0;
-exports.relDecls = relDecls;
 const type_1 = require("../type");
 const err_1 = require("../err");
+const rider_1 = require("../rider");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const FeatureVal_1 = require("./FeatureVal");
-const unify_1 = require("../unify");
-const utility_1 = require("../utility");
-function relDecls(ctx) {
-    return ctx._reldecls;
-}
+// A graph atom met with nothing. Met with a value it hands the value back,
+// and the meet's riders carry the declaration on, as they carry meta().
 class GraphAtomVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isGraphAtom = true;
         this.isGenable = true;
-        // AFTER rel() (45000): the atoms say nothing about the value.
+        // AFTER relate() (45000): the atoms say nothing about the value.
         this.cjo = 46000;
-        this.akind = spec.akind ?? 'acyclic';
-        this.invname = spec.invname;
-        this.held = spec.held;
-        this.dc = undefined === this.held || true === this.held.done
-            ? type_1.DONE : 0;
-    }
-    clone(ctx, spec) {
-        const out = super.clone(ctx, spec);
-        out.akind = this.akind;
-        out.invname = this.invname;
-        out.held = this.held;
-        out.dc = this.dc;
-        return out;
-    }
-    carry(ctx, held) {
-        const out = new GraphAtomVal({ akind: this.akind, invname: this.invname, held }, ctx);
-        (0, utility_1.propagateMarks)(this, out);
-        out.site = this.site;
-        out.path = this.path;
-        return out;
-    }
-    register(ctx) {
-        const seg = this.path[this.path.length - 1];
-        if ('string' !== typeof seg || !GRAPH_ATOM_NAME.test(seg)) {
-            return;
-        }
-        const decls = relDecls(ctx);
-        let d = decls.get(seg);
-        if (undefined === d) {
-            d = { inverses: new Set() };
-            decls.set(seg, d);
-        }
-        if ('acyclic' === this.akind) {
-            d.acyclic = true;
-        }
-        else if (undefined !== this.invname) {
-            d.inverses.add(this.invname);
-        }
+        this.reldecl = spec.reldecl;
+        this.dc = type_1.DONE;
     }
     unify(peer, ctx) {
-        const p = peer;
-        this.register(ctx);
-        // The self-drive: unite's tail calls unify(top) directly on any
-        // not-done result, and the held is what still has work to do.
-        // (A null/nil peer never arrives -- unite's ladder absorbs both.)
-        if (null == peer || true === p.isTop) {
-            if (undefined === this.held) {
-                return this;
-            }
-            if (true === this.held.done) {
-                // Doneness is monotone, so recording it in place is safe --
-                // and without it the bag walk keeps asking and generation
-                // refuses a finished value.
-                this.dc = type_1.DONE;
-                return this;
-            }
-            const held = (0, unify_1.unite)(ctx, this.held, undefined, 'atom-drive');
-            if (true === held.isNil) {
-                return held;
-            }
-            this.held = held;
-            if (true === held.done) {
-                this.dc = type_1.DONE;
-            }
-            return this;
+        // Atoms meet on a fresh value, since each may be written elsewhere.
+        if (true === peer.isGraphAtom) {
+            return this.clone(ctx);
         }
-        // The SAME declaration twice is one declaration; their helds
-        // merge.
-        if (true === p.isGraphAtom &&
-            p.akind === this.akind && p.invname === this.invname) {
-            const held = undefined === this.held ? p.held
-                : undefined === p.held ? this.held
-                    : (0, unify_1.unite)(ctx, this.held, p.held, 'atom-dup');
-            if (undefined !== held && true === held.isNil) {
-                return held;
-            }
-            return undefined === held ? this : this.carry(ctx, held);
-        }
-        // Anything else -- the rel, the container, a different atom -- is
-        // ABSORBED: the atom carries the value and the fold's pairwise
-        // walk merges across it.
-        const held = undefined === this.held ? peer
-            : (0, unify_1.unite)(ctx, this.held, peer, 'atom-held');
-        return true === held.isNil ? held : this.carry(ctx, held);
+        return true === peer.isTop ? this : peer;
     }
     get canon() {
-        const own = 'acyclic' === this.akind
-            ? 'acyclic()'
-            : 'inverse(' + JSON.stringify(this.invname) + ')';
-        return undefined === this.held ? own : this.held.canon + '&' + own;
+        return (0, rider_1.graphAtomsText)(this.reldecl);
     }
-    gen(ctx) {
-        // The atom is transparent at generation -- its verdict is global
-        // (relationVerdict), never a value at this field -- and a BARE
-        // atom is silent, exactly as an unmet rel() is.
-        return undefined === this.held ? undefined : this.held.gen(ctx);
+    gen(_ctx) {
+        // Silent, as an unmet relate() is: the verdict is the relation's.
+        return undefined;
     }
 }
 exports.GraphAtomVal = GraphAtomVal;
@@ -133,7 +50,7 @@ class AcyclicFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return 'acyclic';
     }
     resolve(ctx, _args) {
-        const out = new GraphAtomVal({ akind: 'acyclic' }, ctx);
+        const out = new GraphAtomVal({ reldecl: { acyclic: true, inverses: [] } }, ctx);
         out.site = this.site;
         out.path = this.path;
         return out;
@@ -159,7 +76,7 @@ class InverseFuncVal extends FuncBaseVal_1.FuncBaseVal {
             || !GRAPH_ATOM_NAME.test(a.peg)) {
             return (0, err_1.makeNilErr)(ctx, 'inverse_name', this, undefined, 'inverse');
         }
-        const out = new GraphAtomVal({ akind: 'inverse', invname: a.peg }, ctx);
+        const out = new GraphAtomVal({ reldecl: { acyclic: false, inverses: [a.peg] } }, ctx);
         out.site = this.site;
         out.path = this.path;
         return out;

@@ -22,8 +22,8 @@ jobs, both directions written out. The vocabulary goes in `spec.aontu`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape)
+    feeds?: relate($.spec.JobShape) & acyclic() & inverse(fedBy)
+    fedBy?: relate($.spec.JobShape)
   }
   JobShape: kind: job
 })

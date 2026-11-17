@@ -144,6 +144,7 @@ func trialCtx(ctx *Ctx) *Ctx {
 		trial = &t
 	}
 	trial.collect = true
+	trial.plain = true
 	return trial
 }
 
@@ -176,7 +177,11 @@ func towardMember(tw *towardData, key any) *towardData {
 	return nil
 }
 
-func genAt(child Val, ctx *Ctx, key any) (any, error) {
+func genAt(child Val, ctx *Ctx, key any, at []string) (any, error) {
+	if nil != ctx {
+		ctx.at = at
+		ctx.wroteNull = false
+	}
 	if nil == ctx || nil == ctx.toward {
 		return child.Gen(ctx)
 	}
@@ -287,7 +292,7 @@ func trialVerdict(ctx *Ctx, trial, value Val, own any, path []string) bool {
 }
 
 func generatedOf(v Val, src string) (any, bool) {
-	ctx := &Ctx{root: v, src: src, collect: true}
+	ctx := &Ctx{root: v, src: src, collect: true, plain: true}
 	out, err := v.Gen(ctx)
 	return out, nil == err && 0 == len(ctx.err)
 }

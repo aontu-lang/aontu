@@ -130,8 +130,15 @@ export function siteOf(v: any, role: string, url: string): VetSite {
     len: v.site.len,
     role: role as any,
     src: v.site.src,
-    value: v.canon,
+    value: shownText(v),
   }
+}
+
+
+function shownText(v: any): string {
+  return true === v.isPendingLink ||
+    (true === v.isConjunct && v.peg.some((t: any) => true === t.isPendingLink))
+    ? hcanon(v, true) : v.canon
 }
 
 
@@ -151,8 +158,8 @@ function record(
       siteOf(g, 'general', state.generalUrl),
       siteOf(s, 'specific', state.specificUrl),
     ],
-    expected: g.canon,
-    actual: s.canon,
+    expected: shownText(g),
+    actual: shownText(s),
   })
 }
 
@@ -395,7 +402,7 @@ export function subsumeNode(
   }
 
   if (unresolved(g) || unresolved(s)) {
-    if (hcanon(g) === hcanon(s)) {
+    if (hcanon(g, true) === hcanon(s, true)) {
       return 'yes'
     }
     record(state, 'sub_unresolved', path, g, s,
@@ -608,7 +615,7 @@ export function subsumeNode(
       (v: any, k: string) => v.peg[Number(k)]))
   }
 
-  if (true !== g?.isNil && true !== s?.isNil && hcanon(g) === hcanon(s)) {
+  if (true !== g?.isNil && true !== s?.isNil && hcanon(g, true) === hcanon(s, true)) {
     return 'yes'
   }
   record(state, 'sub_unresolved', path, g, s,
@@ -668,8 +675,8 @@ function subsumeRecursion(
 // Values of one hash form are one value (use-cases/BUGS.md 64), unless a
 // recursion inside names a definition its own document holds.
 function identical(g: any, s: any): boolean {
-  const h = hcanon(g)
-  return h === hcanon(s) && !/\$\.|%/.test(h)
+  const h = hcanon(g, true)
+  return h === hcanon(s, true) && !/\$\.|%/.test(h)
 }
 
 
@@ -816,7 +823,7 @@ function subsumeBag(
   const gcj = g.spread?.cj
   const scj = s.spread?.cj
   if (null != gcj || null != scj) {
-    const sameTemplate = null != gcj && null != scj && hcanon(gcj) === hcanon(scj)
+    const sameTemplate = null != gcj && null != scj && hcanon(gcj, true) === hcanon(scj, true)
     if (!sameTemplate &&
       (true === gcj?.isPathDependent || true === scj?.isPathDependent)) {
       record(state, 'sub_path_dependent_spread', path, gcj ?? g, scj ?? s,

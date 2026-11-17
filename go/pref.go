@@ -127,6 +127,9 @@ func (p *PrefVal) superior() Val { return top() }
 func (p *PrefVal) Canon() string { return "*" + CanonRiders(p.peg) }
 
 func (p *PrefVal) Gen(ctx *Ctx) (any, error) {
+	if nil != p.genrec {
+		return genHeld(ctx, p)
+	}
 	return p.peg.Gen(ctx)
 }
 

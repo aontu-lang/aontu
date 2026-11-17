@@ -44,15 +44,15 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **198** codes across
+There are seven classes, and the registry holds **203** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 58 | the text is not a document |
-| `conflict` | 63 | two values cannot both hold |
+| `conflict` | 67 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
-| `reference` | 36 | a name or path resolves to nothing |
+| `reference` | 37 | a name or path resolves to nothing |
 | `compat` | 14 | a change breaks an earlier version |
 | `budget` | 9 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 198 codes have hint text. `aontu explain --list`
+**Hint text.** All 203 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -229,8 +229,8 @@ twenty rows have no such section and carry no link.
 | `patch_assignment` | 0.53.0 | A `set` argument that is not `<path>=<value>`. ([`aontu model set`](reference-api.md#aontu-model-set)) |
 | `path_address` | 0.54.0 | `path` was given text that is not a tree address. ([First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp)) |
 | `pref_implicit_bag` | 0.53.0 | A preference mark written on a bare key rather than on a value. ([Preference / default `*`](reference-language.md#preference--default-)) |
-| `refer_address` | 0.53.0 | `refer()` was given something that is not a path value. ([Addresses](reference-language.md#addresses)) |
-| `rel_address` | 0.53.0 | A `rel()` field holds something other than path values. ([Declared relations](reference-language.md#declared-relations)) |
+| `refer_address` | 0.53.0 | The function `refer` was given something that is not a path value; `relate` took its place, and answers `rel_address`. |
+| `rel_address` | 0.53.0 | A `relate()` field holds something other than path values. ([Addresses](reference-language.md#addresses)) |
 | `render_path` | 0.58.0 | A unit path that is not relative, below the output directory, and distinct from every other unit's. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `render_profile` | 0.58.0 | A declaration needing a lowering, under a profile whose language has none. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `rep_pattern` | 0.57.0 | The pattern given to `rep()` or `split()` is outside the portable subset the host engines run. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
@@ -271,6 +271,10 @@ twenty rows have no such section and carry no link.
 | `func` | 0.51.0 | A function operation failed; the named function carries the detail. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `func:` | 0.51.0 | Dynamic-prefix family: a named function's own failure, the name appended (`func:upper`). |
 | `func_arg` | 0.55.0 | An argument does not fit the function's signature. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
+| `gen_conflict` | 0.77.0 | Two `gen()` annotations on one value whose records do not unify. ([Output options: `gen`](reference-language.md#output-options-gen)) |
+| `gen_custom` | 0.77.0 | A `custom` expression of a `gen()` record that gives no output for the value it is given. ([A custom expression](reference-language.md#a-custom-expression)) |
+| `gen_key_clash` | 0.77.0 | Two keys of a map that its `keys` option would write as one key. ([Map keys](reference-language.md#map-keys)) |
+| `gen_option` | 0.77.0 | A `gen()` record that the standard options of its value's type refuse. ([Output options: `gen`](reference-language.md#output-options-gen)) |
 | `inexact_divide` | 0.53.0 | An exact decimal operand given to `div`, `mod`, or `rem`; exact decimal division is not closed, so it is refused rather than rounded, while a `0d` biginteger divides. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `inexact_integer_sum` | 0.51.0 | An `integer` result outside the integral, int64, exactly representable range. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `invalid-arg` | 0.51.0 | An argument does not match the expected type or format. |
@@ -335,6 +339,7 @@ twenty rows have no such section and carry no link.
 
 | code | since | raised when |
 |---|---|---|
+| `gen_address` | 0.77.0 | A relative address that climbs past the root, asked for its absolute form by a `form` option. ([Addresses: `form`](reference-language.md#addresses-form)) |
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
 | `jsonschema_dialect` | 0.77.0 | The `$schema` of a JSON Schema resource names a dialect aontu does not read, and no document of the set is a meta-schema by that URI. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
@@ -348,8 +353,8 @@ twenty rows have no such section and carry no link.
 | `path_cycle` | 0.51.0 | A path reference closes a cycle. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |
 | `ref` | 0.51.0 | A reference could not be resolved to a value. ([References and paths](reference-language.md#references-and-paths)) |
 | `ref[` | 0.51.0 | Dynamic-prefix family: a reference failure carrying the address (`ref[$.x]`). ([References and paths](reference-language.md#references-and-paths)) |
-| `refer_unresolved` | 0.53.0 | A `refer()` address names no node in this evaluation. ([Existence is decided, not deferred](reference-language.md#existence-is-decided-not-deferred)) |
-| `rel_unresolved` | 0.53.0 | A `rel()` address names no node in this evaluation. ([Declared relations](reference-language.md#declared-relations)) |
+| `refer_unresolved` | 0.53.0 | A name that has to be a node of the document names none: an endpoint given to [`aontu reaches`](reference-api.md#aontu-reaches), or the root given to a tree view. |
+| `rel_unresolved` | 0.53.0 | A `relate()` address names no node in this evaluation. ([Existence is decided, not deferred](reference-language.md#existence-is-decided-not-deferred)) |
 | `render_unit` | 0.58.0 | The unit asked for is not in the instance. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `unknown_function` | 0.51.0 | A function name that resolves to no built-in. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `unknown_var` | 0.51.0 | A variable that has not been defined. ([Variables `$name`](reference-language.md#variables-name)) |

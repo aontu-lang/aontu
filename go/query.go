@@ -115,20 +115,24 @@ func queryProject(v Val, view string, depth int) string {
 	return s
 }
 
+// queryCall is a relation's call, which the canon view writes as canon does.
+func queryCall(v Val, view string) string {
+	if QueryCanon != view {
+		return ""
+	}
+	return relateText(v)
+}
+
 func queryProjectNode(v Val, view string, depth int) string {
+	text := func(t Val) string { return queryProject(t, view, depth-1) }
 	switch b := v.(type) {
 	case *MapVal:
 		var out strings.Builder
-		out.WriteByte('{')
-		if b.spread != nil {
-			out.WriteString("&:")
-			out.WriteString(queryProject(b.spread, view, depth-1))
-			if len(b.keys) > 0 {
-				out.WriteByte(',')
-			}
-		}
 		keys := append([]string(nil), b.keys...)
 		sort.Strings(keys)
+		out.WriteString(queryCall(b, view))
+		out.WriteByte('{')
+		out.WriteString(spreadText(b.spread, 0 < len(keys), text))
 		for i, k := range keys {
 			if i > 0 {
 				out.WriteByte(',')
@@ -144,14 +148,9 @@ func queryProjectNode(v Val, view string, depth int) string {
 		return out.String()
 	case *ListVal:
 		var out strings.Builder
+		out.WriteString(queryCall(b, view))
 		out.WriteByte('[')
-		if b.spread != nil {
-			out.WriteString("&:")
-			out.WriteString(queryProject(b.spread, view, depth-1))
-			if len(b.peg) > 0 {
-				out.WriteByte(',')
-			}
-		}
+		out.WriteString(spreadText(b.spread, 0 < len(b.peg), text))
 		for i, e := range b.peg {
 			if i > 0 {
 				out.WriteByte(',')
@@ -178,8 +177,7 @@ func queryProjectNode(v Val, view string, depth int) string {
 }
 
 func queryJunction(members []Val, sym, view string, depth int) string {
-	parts := make([]string, len(members))
-	for i, m := range members {
+	_, parts := spelled(members, func(m Val) string {
 		wrap := false
 		switch t := m.(type) {
 		case *ConjunctVal:
@@ -188,11 +186,10 @@ func queryJunction(members []Val, sym, view string, depth int) string {
 			wrap = len(t.peg) > 1
 		}
 		if wrap {
-			parts[i] = "(" + queryProject(m, view, depth) + ")"
-		} else {
-			parts[i] = queryProject(m, view, depth)
+			return "(" + queryProject(m, view, depth) + ")"
 		}
-	}
+		return queryProject(m, view, depth)
+	})
 	return strings.Join(parts, sym)
 }
 

@@ -242,6 +242,7 @@ describe('format-bundled-models', () => {
       Assert.deepEqual(report.findings, [], name + ' has lint findings')
     }
     Assert.deepEqual(AONTU_MODELS, [
+      'aontu:gen',
       'aontu:lang/markdown',
       'aontu:lang/text',
       'aontu:profile',

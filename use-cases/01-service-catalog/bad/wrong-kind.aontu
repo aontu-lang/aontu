@@ -1,4 +1,4 @@
-# bad/wrong-kind.aontu --- typed endpoints in miniature: refer(t)
+# bad/wrong-kind.aontu --- typed endpoints in miniature: relate(t)
 # unifies t INTO the target, so a database endpoint collides.
 # Deliberately self-contained -- the same typed refer on the full
 # model fails with [aontu/unify_cycle] (README, gap 8).
@@ -8,4 +8,4 @@ aontu: hide({})
 infra: paydb: kind: database
 
 app: ledger: kind: service
-app: ledger: dependsOn: [&: refer($.aontu.System.Service) path($.infra.paydb)]
+app: ledger: dependsOn: [&: relate($.aontu.System.Service) path($.infra.paydb)]

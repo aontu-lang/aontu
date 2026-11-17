@@ -123,6 +123,8 @@ rule now lives and where its record is in the history.
 | [ADR-077](#adr-077--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
 | [ADR-078](#adr-078--every-figure-draws-svg-from-a-layout-aontu-owns) | Every figure draws SVG, from a layout aontu owns | Accepted |
 | [ADR-079](#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range) | The npm package takes jostraca as a peer, at a range | Accepted |
+| [ADR-080](#adr-080--canon-writes-a-builtin-under-its-own-name) | Canon writes a builtin under its own name | Accepted |
+| [ADR-081](#adr-081--a-document-reads-alike-in-whatever-order-it-is-written) | A document reads alike in whatever order it is written | Accepted |
 
 ---
 
@@ -7008,3 +7010,186 @@ a fresh `npm install` with `ERESOLVE`, so #680 took it out.
 - Nothing gates the range itself. `ts/test/render-matrix.test.ts` and
   `go/cmd/aontu/render_matrix_test.go` hold the report and the bytes
   the two ports write.
+
+## ADR-080 — Canon writes a builtin under its own name
+
+**Date:** 2026-11-13
+**Status:** Accepted
+
+### Context
+
+Canon is what a reader is shown when they ask what a document means:
+`aontu -c`, the text under `aontu hash`, a value in an error, a leaf of
+`view doc`. For most builtins it wrote the call the source wrote. For
+the two link functions it did not. `rel()` over a list was written as a
+list whose template was `&:refer()`, a function the document never
+used, and over a map only the innermost map carried that template.
+Over one path, `rel()` and `refer()` alike were written as the bare
+`path(...)`, with no call at all.
+
+The reader's cost was the first one named: a canon showing `refer()`
+for a document that says `rel()` describes another document. The second
+cost was found the same day and is #758. The hash form is canon with
+three wrappers, so it lost the call too. A link and a path value that
+is only data had one hash, and the hash form of a document that fails
+`aontu relations` read back as one that passes, under the same hash.
+The pin's guarantee, that a false "unchanged" is impossible, rests on
+the hash form being semantically complete, and it was not.
+
+The owner ruled on 2026-11-13 that canon shows the function as the
+code has it and never an equivalent written with other functions. The
+same day `refer` was removed and `rel` renamed `relate`, a change to
+the language, which the definition under `spec/` and the CHANGELOG
+record
+([ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it)).
+This entry records the rule about canon, which every builtin's
+rendering follows from here on.
+
+### Decision
+
+1. **A builtin that is still a call once the document is evaluated is
+   written under its own name, with its arguments**, in canon and in
+   the hash form: a constraint, a mark, a rule, or a call waiting on a
+   value.
+2. **Canon never writes one builtin as another**, as a composition of
+   other builtins, or as a template or other syntax that would evaluate
+   to the same result. `relate()` over a list is `relate()&[...]`, not
+   a list whose template makes each element a link.
+3. **What the engine builds to carry out a call has no text of its
+   own.** A residual it leaves at each member, or a mark it leaves on
+   each value, is part of the call and is written as that call.
+4. **The call is written where the document wrote it**, at the field
+   and not at each value below it, so a canonical text read back is the
+   same value with the same links.
+5. **A call that evaluates to a value is written as the value.**
+   `upper("a")` is `"A"`. The star stays the one spelling of a
+   preference
+   ([ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure)),
+   whichever of `*v` and `pref(v)` the source wrote: the two are one
+   form, and canon has one text for one value.
+
+### Consequences
+
+- Canon and the hash form write `relate()` at the field it was written
+  on, with its template: `relate()&path($.b)`, `relate({"k":1})&[...]`.
+  The hash of every document that holds a link moves once.
+- The hash tells a link from a path value, and the hash form of a
+  document reads back to the same edges and the same `aontu relations`
+  verdict, which closes #758.
+- The graph is read from the marks canon writes: an edge's relation is
+  the key of the field canon writes `relate()` at. A copy of a link is
+  therefore a link named by where it lands, in both ports, which had
+  answered differently for a copy of a `rel()` link.
+- An audit of the builtins the same day found the link functions the
+  only ones written under another name. It also found `len(2)` written
+  `len(integer&min(2)&max(2))`: the name is `len`'s own, and the
+  argument is the range the call reads it as. The owner ruled on
+  2026-11-17 that it stays so: canon writes an argument in its normal
+  form, so two equal constraints written differently have one canon and
+  one hash.
+- Pinned by the `canon`, `hcanon` and `hash` rows of
+  `test/spec/hcanon.tsv` from `hcanon-relate-one-path` on, by
+  `canon-resolved` and `hcanon-link-writes-its-call` of
+  `test/spec/refer.tsv`,
+  `rel-in-list-element-canon` of `test/spec/rel.tsv`, `atom-canon` of
+  `test/spec/relation.tsv` and the rows from `query-relation-canon` on
+  in `test/spec/query.tsv`, each obtained from both engines agreeing, and by `canon-calls-are-declared-builtins` in
+  `ts/test/sig.test.ts` and `TestCanonCallsAreDeclaredBuiltins` in
+  `go/sig_test.go`, which hold every call the shared rows' canon writes
+  to the declared surface of `test/spec/signature.tsv`.
+
+## ADR-081 — A document reads alike in whatever order it is written
+
+**Date:** 2026-11-14
+**Status:** Accepted
+
+### Context
+
+The reference has always said that unification is order-independent:
+"`a & b` equals `b & a`". Four entries of this register lean on it in
+passing, each for its own atoms
+([ADR-008](#adr-008--constraints-are-named-not-spelled-with-operators),
+[ADR-033](#adr-033--a-grammar-is-a-string-and-parsing-is-a-function),
+[ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value),
+[ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union)).
+None recorded it as a decision, so nothing said what an order
+dependence in a port is, and nothing held the definition to it.
+
+Five were on record on 2026-11-14. A concrete value loses to a default
+by the order of its declarations (#431). A path value met with a string
+constraint answers by the order of the meets (#474). A relative path in
+a name's body or in a reference's copy reads by which of the two is
+written first (#504). A link's template that path references copy is
+read at a place that depends on source order (#536). Two definitions
+that name each other by path generate, are left unresolved or are
+refused as a cycle by which is written first and where the use stands
+(#778). The reference described the third as how both engines read.
+
+Order is the one thing an author changes without meaning to. A member
+is moved, a file is split in two, one include is written above another.
+`model set` appends an overlay because the reference says order
+doesn't matter. Each is sound only if it is true.
+
+The owner ruled on 2026-11-14 that an order dependence must never
+occur, and that the definition holds the rule as an invariant.
+
+### Decision
+
+1. **A document's meaning does not depend on the order it is written
+   in.** The members of a map, the statements at one path, the two
+   sides of `&`, the arms of `|`, the branches of `nof`, the ends of
+   `neq` and the declarations of a document may be written in any
+   order, at any depth. Every reading of the document is then the same:
+   what it admits, its verdict in each mode, what it generates, its
+   canon and its hash.
+2. **Where order is what a value says, it is no order of writing.** The
+   elements of a list and the arms of `match`, which takes the first
+   that admits, keep their order, and a generated map's keys are
+   sorted. None of these is an exception to the rule.
+3. **The definition states the rule**
+   ([ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it)),
+   in [`spec/Aontu/Reorder.lean`](spec/Aontu/Reorder.lean).
+   `Val.Reordered` relates two terms that are one value in two orders.
+   `Val.Reordered.judge` is the invariant: two such terms admit the
+   same data and refuse the same data. `judge_env_of_perm` is the same
+   for a document's declarations. `OrderIndependent` is the contract
+   every reading of a document is held to, a port's `vet` among them,
+   and `instance_orderIndependent` proves it of what a document admits.
+4. **An order dependence in a port is a defect.** It is never a
+   behaviour to document. It registers as any divergence from the
+   definition does
+   ([ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
+   the document in each order as rows of the definition's fragment, and
+   a row of [`spec/ledger.tsv`](spec/ledger.tsv) for each the ports do
+   not answer, with the ports as the side that moves.
+
+### Consequences
+
+- The invariant is proved for admission and not yet for the verdict.
+  The definition's own verdict reads a document through its normal
+  form, its paths and its links, and the proof that it meets
+  `OrderIndependent` is owed. Until then the oracle checks it by
+  evaluation: `order_verdicts_agree` in
+  [`spec/Oracle.lean`](spec/Oracle.lean) holds the document of #778 to
+  one verdict in three orders, and the families written with their
+  declarations first and again last (`cd` and `cdl`, `bc` and `bcl`,
+  `dj` and `djl` among them) hold others.
+- `Val.Reordered` does not reach beneath a branch of `nof`, a cover of
+  `rest` or an arm of `match`. Beneath a preference it asks that the
+  two parent types judge alike, since `Val.super` reads a meet by how
+  it nests and a preference admits what its value's parent admits.
+- #431, #474, #504, #536 and #778 are defects of record, and the ports
+  move. The rows `od0` to `od26` of `test/spec/def-path.tsv` are the
+  document of #778 in three orders, and fifteen of them are in the
+  ledger, whose bound rises from 374 to 389.
+- The passage of the reference that reports #504 stays, as the report
+  of a divergence with its issue. No page presents an order dependence
+  as the rule.
+- A tool that reorders a document, or appends to one as `model set`
+  does, may rely on the rule, and a defect that exposes is the
+  engine's.
+- Pinned by `Val.Reordered.judge`, `Val.Reordered.atKey`,
+  `judge_env_of_perm` and `instance_orderIndependent` in the axiom gate
+  of [`spec/Aontu/Axioms.lean`](spec/Aontu/Axioms.lean), by
+  `orderSchemas_reordered` and `order_verdicts_agree` in the oracle,
+  and by the `od` rows in both runners.

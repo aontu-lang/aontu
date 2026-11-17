@@ -58,7 +58,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 
 	// A rider still a call resolves first: met member by member it would
 	// write its record on each (the arm mirrors TypeScript's).
-	if f, ok := peer.(*FuncVal); ok && riderFuncs[f.name] && DONE != f.Dc() { //coverage:ignore unite drives a rider call before a disjunction meets it, where TypeScript's pass shortcut can leave it undriven
+	if f, ok := peer.(*FuncVal); ok && ridesCall(f.name) && DONE != f.Dc() { //coverage:ignore unite drives a rider call before a disjunction meets it, where TypeScript's pass shortcut can leave it undriven
 		peer = f.Unify(top(), ctx)
 	}
 	_, peerIsPref := peer.(*PrefVal)
@@ -66,12 +66,14 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	// The peer's annotations ride the result once, not each member, so a
 	// disjunction met with itself is itself.
 	member := peer
-	annotated := nil != peer.metaRec() || nil != peer.deprecRec() || nil != peer.viaRec()
+	annotated := nil != peer.metaRec() || nil != peer.deprecRec() || nil != peer.viaRec() ||
+		nil != peer.declRec()
 	if annotated {
 		if c := clonePath(peer, peer.vpath()); c != peer {
 			c.setMetaRec(nil)
 			c.setDeprecRec(nil)
 			c.setViaRec(nil)
+			c.setDeclRec(nil)
 			member = c
 		}
 	}
@@ -196,7 +198,7 @@ func (d *DisjunctVal) Gen(ctx *Ctx) (any, error) {
 		return ctx.toward.v, nil
 	}
 	if unresolved {
-		if out, same := d.genSame(ctx); same {
+		if out, same := d.genAlike(ctx); same {
 			return out, nil
 		}
 		return nil, residueErr(ctx, d, "disjunct_no_gen")
@@ -287,7 +289,13 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 			continue
 		}
 
-		folded := pref.Unify(d.peg[at], ctx)
+		// Twins that differ in their output records do not fold into one.
+		var folded Val
+		if sameRec(pref, d.peg[at]) {
+			folded = pref.Unify(d.peg[at], ctx)
+		} else {
+			folded = makeNilErr(ctx, "pref_rank_clash", pref, d.peg[at])
+		}
 		if folded.Nil() {
 			return folded
 		}
@@ -312,10 +320,20 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 	return nil
 }
 
+// genAlike reads the members plain first: values that differ stay apart,
+// though an output option could write them alike.
+func (d *DisjunctVal) genAlike(ctx *Ctx) (any, bool) {
+	out, same := d.genSame(ctx, true)
+	if !same || (nil != ctx && ctx.plain) {
+		return out, same
+	}
+	return d.genSame(ctx, false)
+}
+
 // genSame generates every member in isolation and answers the one
 // value they all produce, or same=false when any refuses, generates
 // nothing, or differs.
-func (d *DisjunctVal) genSame(ctx *Ctx) (any, bool) {
+func (d *DisjunctVal) genSame(ctx *Ctx, plain bool) (any, bool) {
 	var first any
 	for i, m := range d.peg {
 		gctx := &Ctx{}
@@ -326,6 +344,7 @@ func (d *DisjunctVal) genSame(ctx *Ctx) (any, bool) {
 		}
 		gctx.err = nil
 		gctx.collect = true
+		gctx.plain = plain
 		out, gerr := m.Gen(gctx)
 		if nil != gerr || 0 < len(gctx.err) || nil == out {
 			return nil, false
@@ -344,14 +363,14 @@ func dedup(vals []Val) []Val {
 	for _, v := range vals {
 		dup := false
 		for eI, e := range out {
-			if valSame(e, v) {
+			if valSame(e, v) && sameRec(e, v) {
 				dup = true
 				out[eI] = keepRiders(e, v, true)
 				break
 			}
 			ep, eok := e.(*PrefVal)
 			vp, vok := v.(*PrefVal)
-			if eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) {
+			if eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) && sameRec(e, v) {
 				dup = true
 				if vp.rank < ep.rank {
 					out[eI] = keepRiders(v, e, true)
@@ -409,7 +428,7 @@ func keepRiders(keep, drop Val, sends bool) Val {
 }
 
 func ridden(v Val) bool {
-	if nil != v.deprecRec() || nil != v.metaRec() || 0 < len(v.linkInfo().flows) {
+	if nil != v.deprecRec() || nil != v.metaRec() || 0 < len(v.linkInfo().flows) || nil != v.declRec() {
 		return true
 	}
 	switch n := v.(type) {

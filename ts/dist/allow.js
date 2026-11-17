@@ -5,6 +5,7 @@ exports.ALLOW_AT = void 0;
 exports.allow = allow;
 const aontu_1 = require("./aontu");
 const ConjunctVal_1 = require("./val/ConjunctVal");
+const genwrite_1 = require("./val/genwrite");
 const vet_1 = require("./vet");
 const query_1 = require("./query");
 const utility_1 = require("./utility");
@@ -41,7 +42,7 @@ function readEntries(list, by, ctx) {
     for (let i = 0; i < list.peg.length; i++) {
         const el = list.peg[i];
         const before = ctx.err.length;
-        const text = true === el.isString ? el.peg : el.gen(ctx);
+        const text = true === el.isString ? el.peg : (0, genwrite_1.genPlain)(el, ctx);
         if (before < ctx.err.length) {
             const err = ctx.err[before];
             return { entries, finding: (0, vet_1.engineFinding)(err, ctx, `${by}.${i}`) };

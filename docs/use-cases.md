@@ -28,7 +28,7 @@ the org chart and the runtime each hold facts about the same things.
 `deploy.aontu` says what each cluster *runs* (image, replicas, ports);
 and the deployment view references the catalog, so one evaluation
 merges them field by field and any contradiction between the views is a
-located error instead of a silent fork. The case also drives `refer()`
+located error instead of a silent fork. The case also drives `relate()`
 existence checks, declared relations, and change requests written as
 four-line overlay files. The same service, seen from both views:
 
@@ -144,7 +144,7 @@ the v3 deletion while keeping the finding visible at severity
 
 An authorization model for a multi-tenant SaaS, written as data the
 engine checks: a permission catalog, an exhaustive role registry,
-tenant plans, and agent-emitted candidates vetted against all of it. Every grant is a `refer()`-checked address, so a
+tenant plans, and agent-emitted candidates vetted against all of it. Every grant is a `relate()`-checked address, so a
 hallucinated permission is a located refusal, and the registry is
 `close()`d, so an invented role dies at review. The security rule "no
 role holds the wildcard unless flagged privileged" is structural: a
@@ -157,21 +157,21 @@ Role: type(
     rank: integer & min(0) & max(100)
     tenantOwner: boolean
     privileged: true
-    grants: unique() & [&: refer() & string]
+    grants: unique() & [&: relate() & string]
   })
   | close({
     desc: string
     rank: integer & min(0) & max(100)
     tenantOwner: false
     privileged: false
-    grants: unique() & [&: refer() & string & neq("$.permissions.admin_all")]
+    grants: unique() & [&: relate() & string & neq("$.permissions.admin_all")]
   })
 )
 ```
 
 The unprivileged branch excludes the wildcard from every grant with one
 `neq()`, so a proposal granting it to a collaborator role is refused. A
-grant is a **tree address**, which is what makes `refer()` a checked
+grant is a **tree address**, which is what makes `relate()` a checked
 foreign key against the permission catalog rather than a string
 comparison. The registry and its attack proposals:
 [`use-cases/05-rbac-policy/`](../use-cases/05-rbac-policy/).
@@ -366,11 +366,11 @@ answers the closure question directionally over the same edges. The
 declaration, from the case's `spec.aontu`:
 
 ```aontu
-feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
-fedBy?: rel($.spec.JobShape)
+feeds?: relate($.spec.JobShape) & acyclic() & inverse(fedBy)
+fedBy?: relate($.spec.JobShape)
 ```
 
-`rel(t)` makes the field's strings checked entity addresses and flows
+`relate(t)` makes the field's strings checked entity addresses and flows
 the shape into every target, `re()` rides onto every address, and the
 graph atoms are decided at generation, where every edge is known. The
 DAG, its refusals, and the append proposal:
@@ -561,14 +561,14 @@ goldens, and a check that both ports answer byte-identical files:
 
 A codebase's own module graph: twelve modules across four layers,
 where the architecture rule is that nothing may depend on a layer
-above it. The rule is a shape rather than a checking pass. `rel(t)`
+above it. The rule is a shape rather than a checking pass. `relate(t)`
 flows its target shape into every module an edge names, so a core
 module's `dependsOn` carries `layer: "core" | "util"` to the far end,
 and a module that says `layer: "feature"` cannot meet it. Each layer
 is one line of schema and one disjunction, from `spec.aontu`:
 
 ```aontu
-Core: $.spec.Mod & { layer:"core" dependsOn?:rel($.spec.CoreDep) }
+Core: $.spec.Mod & { layer:"core" dependsOn?:relate($.spec.CoreDep) }
 CoreDep: { kind:mod layer:"core"|"util" }
 ```
 

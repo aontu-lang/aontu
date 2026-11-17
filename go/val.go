@@ -86,10 +86,15 @@ type Val interface {
 	setDeprecRec(rec map[string][]string)
 	metaRec() map[string][]Val
 	setMetaRec(rec map[string][]Val)
+	genRec() Val
+	genOpts() map[string]any
+	setGenRec(rec Val, opts map[string]any)
 	viaRec() []string
 	setViaRec(via []string)
 	identRec() map[string][]Val
 	setIdentRec(rec map[string][]Val)
+	declRec() *declRecord
+	setDeclRec(d *declRecord)
 	readAddr() string
 	setReadAddr(addr string)
 	emitOrig() *emitOrigin
@@ -136,15 +141,18 @@ type base struct {
 	finner  Val
 	deprec  map[string][]string
 	meta    map[string][]Val
+	genrec  Val
+	genopts map[string]any
 	// vias: the aliases this value is a copy of, written back as $ref.
 	vias []string
 	// ident: a declaration's record (ADR-056, ADR-073), which no copy carries.
 	ident map[string][]Val
+	// decl: the graph atoms met here, which the relation checks read by key name.
+	decl    *declRecord
 	origin  string
 	emitted *emitOrigin
 	link    string
 	lk      linkInfo
-	relkey  string
 	spr     Val
 	pdep    int8
 }
@@ -225,10 +233,17 @@ func (b *base) deprecRec() map[string][]string       { return b.deprec }
 func (b *base) setDeprecRec(rec map[string][]string) { b.deprec = rec }
 func (b *base) metaRec() map[string][]Val            { return b.meta }
 func (b *base) setMetaRec(rec map[string][]Val)      { b.meta = rec }
+func (b *base) genRec() Val                          { return b.genrec }
+func (b *base) genOpts() map[string]any              { return b.genopts }
+func (b *base) setGenRec(rec Val, opts map[string]any) {
+	b.genrec, b.genopts = rec, opts
+}
 func (b *base) viaRec() []string                     { return b.vias }
 func (b *base) setViaRec(via []string)               { b.vias = via }
 func (b *base) identRec() map[string][]Val           { return b.ident }
 func (b *base) setIdentRec(rec map[string][]Val)     { b.ident = rec }
+func (b *base) declRec() *declRecord                 { return b.decl }
+func (b *base) setDeclRec(d *declRecord)             { b.decl = d }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }
@@ -236,7 +251,6 @@ func (b *base) emitOrig() *emitOrigin     { return b.emitted }
 func (b *base) setEmitOrig(o *emitOrigin) { b.emitted = o }
 
 func (b *base) linkAddr() string        { return b.link }
-func (b *base) relKey() string          { return b.relkey }
 func (b *base) setLinkAddr(addr string) { b.link = addr }
 func (b *base) linkInfo() linkInfo        { return b.lk }
 func (b *base) setLinkInfo(li linkInfo)   { b.lk = li }
@@ -266,10 +280,9 @@ func isPref(v Val) bool     { _, ok := v.(*PrefVal); return ok }
 func isRef(v Val) bool      { _, ok := v.(*RefVal); return ok }
 func isVar(v Val) bool      { _, ok := v.(*VarVal); return ok }
 func isFunc(v Val) bool     { _, ok := v.(*FuncVal); return ok }
-func isRefer(v Val) bool    { _, ok := v.(*ReferVal); return ok }
+func isPendingLink(v Val) bool { _, ok := v.(*PendingLinkVal); return ok }
 
-// TopVal is the unit of the lattice: unifying with TOP yields the
-// other operand. There is conceptually only one TOP.
+// TopVal is the unit of the lattice: unifying with it yields the other operand.
 type TopVal struct{ base }
 
 func newTop() *TopVal {
@@ -704,8 +717,13 @@ func probing(ctx *Ctx) bool {
 }
 
 func residueErr(ctx *Ctx, v Val, code string) error {
+	return residueErrAt(ctx, v, code, nil, v.vpath())
+}
+
+func residueErrAt(ctx *Ctx, v Val, code string, details map[string]string, path []string) error {
 	n := makeNilErr(ctx, code, v, nil)
-	n.path = cp(v.vpath())
+	n.details = details
+	n.path = cp(path)
 	if ctx != nil && ctx.collect {
 		return nil
 	}

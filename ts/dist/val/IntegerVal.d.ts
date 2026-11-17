@@ -4,7 +4,7 @@ import { ScalarVal } from './ScalarVal';
 declare class IntegerVal extends ScalarVal {
     isInteger: boolean;
     get canon(): string;
-    gen(_ctx?: AontuContext): number | bigint;
+    gen(ctx?: AontuContext): any;
     constructor(spec: ValSpec, ctx?: AontuContext);
     unify(peer: any, ctx: AontuContext): Val;
 }

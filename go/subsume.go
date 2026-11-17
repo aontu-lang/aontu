@@ -89,7 +89,7 @@ func subSiteOf(v Val, role, url, src string) VetSite {
 	// every value that has none.
 	site := VetSite{File: url, Row: -1, Col: -1, Len: -1, Role: role, Value: "nil"}
 	if nil != v {
-		site.Value = v.Canon()
+		site.Value = shownText(v)
 		site.Len = v.srclen()
 		site.Src = v.srctext()
 		if 0 <= v.pos() {
@@ -102,10 +102,10 @@ func subSiteOf(v Val, role, url, src string) VetSite {
 func (st *subState) record(code string, path []string, g, s Val, message string) {
 	gc, sc := "nil", "nil"
 	if nil != g {
-		gc = g.Canon()
+		gc = shownText(g)
 	}
 	if nil != s {
-		sc = s.Canon()
+		sc = shownText(s)
 	}
 	st.findings = append(st.findings, VetFinding{
 		Code:     code,
@@ -123,6 +123,22 @@ func (st *subState) record(code string, path []string, g, s Val, message string)
 }
 
 func strPtr(s string) *string { return &s }
+
+// shownText: canon leaves a relation's member template to the container;
+// a report that names the template alone writes its call.
+func shownText(v Val) string {
+	switch t := v.(type) {
+	case *PendingLinkVal:
+		return hcanonIdentity(v)
+	case *ConjunctVal:
+		for _, m := range t.peg {
+			if _, ok := m.(*PendingLinkVal); ok {
+				return hcanonIdentity(v)
+			}
+		}
+	}
+	return v.Canon()
+}
 
 // admission is the view of a value the profiles compare for the
 // admitted set: a PREFERENCE admits what its superior admits (the
@@ -518,7 +534,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	}
 
 	if subUnresolvedVal(g) || subUnresolvedVal(s) {
-		if nil != g && nil != s && Hcanon(g) == Hcanon(s) {
+		if nil != g && nil != s && hcanonIdentity(g) == hcanonIdentity(s) {
 			return subYes
 		}
 		st.record("sub_unresolved", path, g, s,
@@ -753,7 +769,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	}
 
 	if nil != g && nil != s && !g.Nil() && !s.Nil() &&
-		Hcanon(g) == Hcanon(s) {
+		hcanonIdentity(g) == hcanonIdentity(s) {
 		return subYes
 	}
 	st.record("sub_unresolved", path, g, s,
@@ -822,8 +838,8 @@ func subsumeRecursion(st *subState, path []string, g0, s0, g, s Val) string {
 // subIdentical: values of one hash form are one value (use-cases/BUGS.md
 // 64), unless a recursion inside names a definition its own document holds.
 func subIdentical(g, s Val) bool {
-	h := Hcanon(g)
-	return h == Hcanon(s) && !strings.Contains(h, "$.") && !strings.Contains(h, "%")
+	h := hcanonIdentity(g)
+	return h == hcanonIdentity(s) && !strings.Contains(h, "$.") && !strings.Contains(h, "%")
 }
 
 // subUnfold answers a recursion's definition in its own document, or the
@@ -1043,7 +1059,7 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 
 	if nil != g.spread || nil != s.spread {
 		sameTemplate := nil != g.spread && nil != s.spread &&
-			Hcanon(g.spread) == Hcanon(s.spread)
+			hcanonIdentity(g.spread) == hcanonIdentity(s.spread)
 		if !sameTemplate &&
 			((nil != g.spread && hasPathFunc(g.spread)) ||
 				(nil != s.spread && hasPathFunc(s.spread))) {

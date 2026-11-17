@@ -9,6 +9,7 @@ import { exactJSON } from './exactjson'
 import { anchorAt, engineFinding } from './vet'
 import type { VetFinding } from './vet'
 import { cmpCodePoint } from './keyorder'
+import { relateText } from './val/PathVal'
 import { Provenance } from './provenance'
 import type { WhyRecord } from './provenance'
 
@@ -111,12 +112,21 @@ function project(v: any, view: QueryView, depth: number): string {
 }
 
 
+// A bag's opening: the relation's call, which the canon view writes as
+// canon does, the bracket, and the template where it has a text.
+function bagOpen(
+  v: any, view: QueryView, depth: number, bracket: string, members: boolean
+): string {
+  const s = v.spread.cj ? project(v.spread.cj, view, depth - 1) : ''
+  return ('canon' === view ? relateText(v) : '') + bracket +
+    ('' === s ? '' : '&:' + s + (members ? ',' : ''))
+}
+
+
 function projectNode(v: any, view: QueryView, depth: number): string {
   if (true === v?.isMap) {
     const keys = Object.keys(v.peg).sort(cmpCodePoint)
-    return '{' +
-      (v.spread.cj ? '&:' + project(v.spread.cj, view, depth - 1) +
-        (0 < keys.length ? ',' : '') : '') +
+    return bagOpen(v, view, depth, '{', 0 < keys.length) +
       keys.map((k) =>
         JSON.stringify(k) +
         (v.optionalKeys.includes(k) ? '?' : '') +
@@ -126,9 +136,7 @@ function projectNode(v: any, view: QueryView, depth: number): string {
   }
   if (true === v?.isList) {
     const keys = Object.keys(v.peg)
-    return '[' +
-      (v.spread.cj ? '&:' + project(v.spread.cj, view, depth - 1) +
-        (0 < keys.length ? ',' : '') : '') +
+    return bagOpen(v, view, depth, '[', 0 < keys.length) +
       keys.map((k) => project(v.peg[k], view, depth - 1)).join(',') +
       ']'
   }
@@ -136,10 +144,11 @@ function projectNode(v: any, view: QueryView, depth: number): string {
     return '*' + project(v.peg, view, depth)
   }
   if (true === v?.isConjunct || true === v?.isDisjunct) {
-    return v.peg.map((m: any) =>
+    return v.peg.map((m: any): string =>
       true === m?.isJunction && 1 < m.peg.length
         ? '(' + project(m, view, depth) + ')'
         : project(m, view, depth))
+      .filter((s: string) => '' !== s)
       .join(true === v.isConjunct ? '&' : '|')
   }
 

@@ -40,12 +40,12 @@ tenant: {
   # exhibits/ and README).
   defaultMemberRole: *member | member | admin | owner
 
-  # Member records: closed shape in one spread, refer() in a second.
-  # refer() inside a close()d spread template never settles
+  # Member records: closed shape in one spread, relate() in a second.
+  # relate() inside a close()d spread template never settles
   # (mapval_no_gen) -- splitting the spreads is the workaround that
   # keeps both the typo protection and the role foreign-key check.
   members: { &: close({ role:path invitedBy?:string }) }
-  members: { &: { role:refer() } }
+  members: { &: { role:relate() } }
 
   # "No MFA implies short sessions" as a disjunction of closed maps.
   # The must() form of this rule is silently IGNORED under vet and

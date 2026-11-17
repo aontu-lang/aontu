@@ -10,6 +10,7 @@ const vet_1 = require("./vet");
 const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
 const err_1 = require("./err");
+const genwrite_1 = require("./val/genwrite");
 function findCycle(start, succ, done) {
     const stack = [];
     const onStack = new Set();
@@ -112,7 +113,7 @@ function relationFindings(decls, graph) {
     return findings;
 }
 function relationErrors(ctx, root) {
-    const decls = ctx._reldecls;
+    const decls = (0, graph_1.declsOf)(root);
     if (0 === decls.size) {
         return;
     }
@@ -121,12 +122,6 @@ function relationErrors(ctx, root) {
         let node = root;
         const at = f.at.slice(2).split('.');
         for (const seg of at) {
-            // Graph atoms hold the field's value -- possibly nested, one
-            // atom carrying another -- and the path steps through them
-            // exactly as the graph walk does.
-            while (true === node?.isGraphAtom) {
-                node = node.held;
-            }
             node = node?.peg?.[seg];
         }
         const nil = (0, err_1.makeNilErr)(ctx, f.code, node, undefined, 'relate', {
@@ -155,13 +150,13 @@ function relationCheck(src, opts) {
             errors: [(0, vet_1.failureFinding)(ctx, options.path, root)],
         };
     }
-    const decls = ctx._reldecls;
+    const decls = (0, graph_1.declsOf)(root);
     const counted = true === options.count ? { declared: decls.size } : {};
     if (0 === decls.size) {
         return { verdict: 'pass', findings: [], ...counted };
     }
     const gctx = ctx.clone({ err: [], collect: true });
-    root.gen(gctx);
+    (0, genwrite_1.genPlain)(root, gctx);
     if (0 < gctx.err.length) {
         return {
             verdict: 'error',

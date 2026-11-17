@@ -1,7 +1,6 @@
 import type { VetFinding } from './vet';
 import type { TrustOptions } from './type';
-import type { Graph } from './graph';
-import type { RelDecl } from './val/GraphAtomVal';
+import type { Graph, RelDecl } from './graph';
 export type RelationVerdict = 'pass' | 'fail' | 'error';
 export type RelationFinding = {
     code: string;

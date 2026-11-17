@@ -14,6 +14,7 @@ import { makeNilErr, AontuError } from '../err'
 import { ScalarVal } from './ScalarVal'
 import { Integer } from './ScalarKindVal'
 import { isIntegerKind, integerDigits } from './numkind'
+import { genWrite, genWrites } from './genwrite'
 
 import {
   explainOpen,
@@ -31,9 +32,10 @@ class IntegerVal extends ScalarVal {
   }
 
 
-  gen(_ctx?: AontuContext) {
+  gen(ctx?: AontuContext) {
     const peg = this.peg as number
-    return Number.isSafeInteger(peg) ? peg : BigInt(peg)
+    const out = Number.isSafeInteger(peg) ? peg : BigInt(peg)
+    return genWrites(ctx, this) ? genWrite(ctx, this, out) : out
   }
 
   constructor(

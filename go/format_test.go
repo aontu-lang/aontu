@@ -170,7 +170,7 @@ func TestFormatKeepsTheSpellingTheEngineRefuses(t *testing.T) {
 	if !formatSameByMeet("nil\n", "nil\n") || !strings.HasSuffix(formatMeetOf("nil\n"), "\nliteral_nil") {
 		t.Fatalf("nil root: %q", formatMeetOf("nil\n"))
 	}
-	rel := "a: { dependsOn: rel() & inverse(usedBy) & [path($.b)] }\nb: {}\n"
+	rel := "a: { dependsOn: relate() & inverse(usedBy) & [path($.b)] }\nb: {}\n"
 	if !strings.HasSuffix(formatMeetOf(rel), "\nrelation_inverse_missing") {
 		t.Fatalf("relation verdict: %q", formatMeetOf(rel))
 	}
@@ -323,12 +323,13 @@ func TestEveryCorpusDocumentFormatsToAFixedPoint(t *testing.T) {
 func TestBundledModelsAreFormatted(t *testing.T) {
 	a := New()
 	names := aontuModels
-	if 5 != len(names) ||
-		"aontu:lang/markdown" != names[0] ||
-		"aontu:lang/text" != names[1] ||
-		"aontu:profile" != names[2] ||
-		"aontu:system" != names[3] ||
-		"aontu:view" != names[4] {
+	if 6 != len(names) ||
+		"aontu:gen" != names[0] ||
+		"aontu:lang/markdown" != names[1] ||
+		"aontu:lang/text" != names[2] ||
+		"aontu:profile" != names[3] ||
+		"aontu:system" != names[4] ||
+		"aontu:view" != names[5] {
 		t.Fatalf("aontuModels: %v", names)
 	}
 	for _, name := range names {

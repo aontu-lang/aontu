@@ -130,8 +130,10 @@ func copyMarks(to, from Val) {
 	to.setMarkHide(from.markedHide())
 	to.setDeprecRec(from.deprecRec())
 	to.setMetaRec(from.metaRec())
+	to.setGenRec(from.genRec(), from.genOpts())
 	to.setViaRec(from.viaRec())
 	to.setIdentRec(from.identRec())
+	to.setDeclRec(from.declRec())
 	to.setLinkAddr(from.linkAddr())
 	to.setLinkInfo(from.linkInfo())
 	// THE RENDER RIDERS TRAVEL WITH THE CLONE (P7), for the reason the

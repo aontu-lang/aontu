@@ -46,7 +46,7 @@ the [Explanation](explanation.md).
 - [Text: `esc` `usc` `rep` `split`](#text-esc-usc-rep-split)
 - [Linking: the tree is the namespace](#linking-the-tree-is-the-namespace)
 - [First-class paths: `path(p?)`](#first-class-paths-pathp)
-- [Checked links: `refer(t?)`](#checked-links-refert)
+- [Checked links: `relate(t?)`](#checked-links-relatet)
   - [Declared relations](#declared-relations)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Annotations: `meta`](#annotations-meta)
@@ -183,6 +183,16 @@ each node carries a count of the values that landed there.
 This ordering is why unification is order-independent and idempotent:
 `a & b` equals `b & a`, and `a & a` equals `a`.
 
+Order independence is a rule of the whole document, and not of `&`
+alone. The members of a map, the statements at one path and the
+declarations of a document read alike in whatever order they are
+written. The definition states it in
+[`spec/Aontu/Reorder.lean`](../spec/Aontu/Reorder.lean): `Val.Reordered`
+relates two terms that are one value in two orders,
+`Val.Reordered.judge` proves that they admit and refuse the same data,
+and `OrderIndependent` is the contract every other reading of a document
+is held to.
+
 The definition states the order as `⊑` and the meet as its greatest lower bound in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean), and `admits_meet` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) is the guarantee on the computed meet: the term it computes admits a value exactly when both sides do.
 
 ## Scalars
@@ -261,7 +271,7 @@ The definition reads `string & empty()` as a term of its own, `anyString` in [`s
 ### The type of constraints: `constraint`
 
 `constraint` is the type of constraints (`min`, `max`, `above`,
-`below`, `neq`, `re`, `len`, `unique`, `must`, `empty`, `refer`, `rel`).
+`below`, `neq`, `re`, `len`, `unique`, `must`, `empty`, `relate`).
 It holds the constraints it meets and refuses a concrete value,
 whichever order the terms meet in:
 
@@ -885,7 +895,7 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 `pref({x:1})` produces. Pinned by the `pref-struct-*` rows in
 [`test/spec/pref.tsv`](../test/spec/pref.tsv).
 
-In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: refer({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing, and with `k: 1` on both sides it stands as `x` and `y` gains `z: 1`. A link in an arm of a disjunction sends where the output takes the arm, which [Checked links](#checked-links-refert) describes. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
+In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: relate({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing, and with `k: 1` on both sides it stands as `x` and `y` gains `z: 1`. A link in an arm of a disjunction sends where the output takes the arm, which [Checked links](#checked-links-relatet) describes. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
 `pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
 
@@ -1369,9 +1379,11 @@ The definition makes the selections once a document is read: `selectArm` and `re
 A bare `_` is a **hole**: the value a generator, an `apply` or a
 `filter` hands the template it binds. Inside the template of `each`,
 `pack` or `emit`, an `apply`'s template, or a `filter`'s condition, `_`
-is the value that instance is made from. Anywhere else nothing binds
-it, and the document is an error, `hole_unbound`, before anything is
-evaluated: `&` is a meet, and a meet never fills a hole.
+is the value that instance is made from. In the `custom` of a
+[`gen`](#a-custom-expression) record it is what the value writes.
+Anywhere else nothing binds it, and the document is an error,
+`hole_unbound`, before anything is evaluated: `&` is a meet, and a
+meet never fills a hole.
 
 ```aontu
 greeting: apply(hello, upper(_))
@@ -1780,9 +1792,8 @@ own place in the normal form of the name's bodies, round by round as it
 reads the schema's own tree, by `Decls.bodyRoots`, so a path there that
 reads through another path reads what both engines read. The place holds
 the templates its own links meet there (`Decls.ownLinked`), so `z: .m.k`
-beside `n: refer({k: 1}) & path(.m)` reads `1`, as in both engines.
-At a use of the name, both engines leave such a path naming nothing,
-which [#723](https://github.com/aontu-lang/aontu/issues/723) tracks. A
+beside `n: relate({k: 1}) & path(.m)` reads `1`, as in both engines,
+at the name's own place and at a use of it. A
 link whose target another link's template makes there is an `error` in
 the definition, which
 [#664](https://github.com/aontu-lang/aontu/issues/664) tracks. Only a
@@ -2605,7 +2616,7 @@ Example: `integer & above(0)`
 
 Require the edges of a declared relation to contain no cycle. See [declared relations](#declared-relations).
 
-Example: `rel() & acyclic()`
+Example: `relate() & acyclic()`
 
 ### `add(a: number, b: number) : number`
 
@@ -2743,6 +2754,12 @@ slots beneath it.
 
 Example: `fragment("head.ts", [slot("body")])`
 
+### `gen(spec: string|map) : annotation`
+
+Say how the value this meets is written where the document is generated. The record `spec` rides the value, and only generation reads it. A string is the record's `form`, and `custom` is an expression that writes the output. See [Output options](#output-options-gen).
+
+Example: `price: 3.14159 & gen({ significant:2 })` generates `3.1`; `link: path($.a.b) & gen("key")` generates `"b"`; `name: "ada" & gen({ custom:upper(_) })` generates `"ADA"`
+
 ### `greatest(d: map|list) : number`
 
 Return the greatest numeric member, preserving its kind. An empty collection is refused. See [aggregates](#aggregating-sum-least-greatest).
@@ -2772,7 +2789,7 @@ Example: `inject("routes", [line("app.use(r)")])`
 
 Require every edge of a declared relation to have a corresponding edge under the named inverse. See [declared relations](#declared-relations).
 
-Example: `rel() & inverse(usedBy)`
+Example: `relate() & inverse(usedBy)`
 
 ### `join(d: map|list, sep?: string) : string`
 
@@ -2960,17 +2977,11 @@ Constrain a string to match a pattern, written in ECMA-262's syntax under the `u
 
 Example: `string & re("^[a-z]+$")`
 
-### `refer(template t?: any) : constraint`
+### `relate(template t?: any) : constraint`
 
-Constrain a field to a **path value whose address resolves**; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert).
+Declare a field as a relation: its value is a path, or a list or a map of paths, and each is a **link whose address resolves**. `t`, if given, is unified into every target. The field keeps its addresses. See [Checked links](#checked-links-relatet) and [declared relations](#declared-relations).
 
-Example: `dependsOn: [&: refer($.aontu.System.Service), path($.services.auth)]`
-
-### `rel(template t?: any) : constraint`
-
-Declare a field as a relation and optionally constrain its targets. See [declared relations](#declared-relations).
-
-Example: `dependsOn: rel() & [path($.auth)]`
+Example: `dependsOn: relate($.aontu.System.Service) & [path($.services.auth)]`
 
 ### `rem(a: number, b: number) : number`
 
@@ -3851,7 +3862,7 @@ Write the model as `model.aontu`:
 <!-- test: file model.aontu -->
 ```aontu
 auth: { port:80 region: *"eu"|string }
-billing: dep: refer() & path(..auth)
+billing: dep: relate() & path(..auth)
 ```
 
 and mount it twice from `main.aontu`:
@@ -3902,7 +3913,7 @@ cap: path($.a.b)  # a capture: the path itself
 
 This is the one non-strict argument position in the language: every
 other call reads its argument's value, `path(p)` reads its spelling. The
-captured spelling is the address grammar `refer` reads (`$.a.b` from the
+captured spelling is the address grammar `relate` reads (`$.a.b` from the
 document root, `.b` from the sibling scope, one more leading dot per
 parent step) and a bare dotted argument is relative (`path(q.r)` captures
 `.q.r`).
@@ -3917,7 +3928,7 @@ which is what makes an address buildable:
 
 ```aontu
 names: { web: {} db: {} }
-accounts: pack($.names, { for:refer() & path("$.names." + key()) })
+accounts: pack($.names, { for:relate() & path("$.names." + key()) })
 ```
 
 ```json
@@ -3952,16 +3963,16 @@ precise by three rules:
    number tower's leaves refuse each other. Subsumption follows the
    meet: a prefix subsumes its extensions.
 2. **A path value is data.** `path($.nope)` generates `"$.nope"`:
-   existence is `refer`'s contract, not the value's, so a document may
-   address things outside this evaluation. `path(p) & refer()` is the
-   checked link: see [Checked links](#checked-links-refert).
+   existence is `relate`'s contract, not the value's, so a document may
+   address things outside this evaluation. `path(p) & relate()` is the
+   checked link: see [Checked links](#checked-links-relatet).
 3. **Generation and canon.** A path value generates as its address
    string; its canonical form is the call (`path($.a.b)`), which
    reparses to the same value: the call form is the literal syntax
    for this kind.
 
-The kind settles inside `type()` bodies, which a `refer` cannot
-(see [Checked links](#checked-links-refert)), so a vocabulary can
+The kind settles inside `type()` bodies, which a `relate` cannot
+(see [Checked links](#checked-links-relatet)), so a vocabulary can
 declare a path-valued field for the data to meet:
 
 ```aontu
@@ -4002,17 +4013,17 @@ tracks; a trial that refuses it they read as `invalid`.
 
 Pinned by [`test/spec/path.tsv`](../test/spec/path.tsv).
 
-## Checked links: `refer(t?)`
+## Checked links: `relate(t?)`
 
 A reference (`$.a.b`) resolves by *cloning* its target into place, so
 `dependsOn: [$.services.auth]` generates a full copy of the auth node
 where the author meant a name. A bare string generates the name and
-checks nothing. `refer` is the third option: the field keeps the
-address string, and the language checks it.
+checks nothing. `relate` is the third option: the field keeps its
+addresses, and the language checks them.
 
 ```aontu
 services: auth: { kind:service port:8080 }
-services: billing: dependsOn: [&: refer({ kind:service }) path($.services.auth)]
+services: billing: dependsOn: relate({ kind:service }) & [path($.services.auth)]
 ```
 
 ```json
@@ -4021,14 +4032,42 @@ services: billing: dependsOn: [&: refer({ kind:service }) path($.services.auth)]
    "billing": {"dependsOn": ["$.services.auth"]}}}
 ```
 
-The list spread applies `refer` to every element, so `dependsOn`
-generates a list of **addresses**, checked.
+`relate` is written on a field, and the field's value is one path
+value, a list of them, or a map of them nested to any depth. Each path
+is a **link**, so `dependsOn` generates a list of **addresses**,
+checked.
 
-`refer(t)` says three things about the string it constrains:
+`relate(t)` says three things about each path it covers:
 
 1. It must be a **tree address**.
 2. The address must **resolve** in this evaluation.
 3. If `t` is given, `t` is unified **into** the target.
+
+The field's key names the relation its links belong to. A link in a
+list, or under any key of a map, is an edge from the node holding the
+field, labelled with the field's key, which is what
+[declared relations](#declared-relations) check and what
+[`aontu reaches`](reference-api.md#aontu-reaches) and
+[`aontu view`](reference-api.md#aontu-view) read:
+
+```aontu
+a: {}
+c: {}
+b: uses: relate() & { primary:path($.a) backup:eu:path($.c) }
+```
+
+Both links are edges from `b` under `uses`. Written on a member in
+place of the field, `relate()` makes that member's own key the
+relation.
+
+Canon writes the call where the document wrote it,
+`relate()&path($.a)` for one address and `relate()&[path($.a)]` for a
+list, so a canonical text read back has the same links, and
+[`aontu hash`](reference-api.md#aontu-hash) tells a link from a path
+value that is only data. A link a reference copies to another field is
+a link there, written `relate()` in that field's canon and named by
+that field's key. A relative address in it names a node from that
+field, so canon read back links what the copy linked.
 
 ### Addresses
 
@@ -4051,9 +4090,9 @@ at, so the same file instantiated twice gives two self-contained
 instances.
 
 Only a [path value](#first-class-paths-pathp) can be an address: a bare
-string never is (`refer() & "$.a"` refuses (`refer_address`)) and
+string never is (`relate() & "$.a"` refuses (`rel_address`)) and
 `path("...")` is the one conversion. A second path peer refines the
-address by the prefix rule (`refer() & path($.a) & path($.a.b)` links to
+address by the prefix rule (`relate() & path($.a) & path($.a.b)` links to
 `$.a.b`), and a relative address that climbs off the top of the tree is
 refused outright: no later pass can grow a tree upwards.
 
@@ -4064,22 +4103,22 @@ bring a target, so the engine checks an address once it has evaluated
 the document, with every template in place. Within one evaluation the
 document-set is fixed, so existence *is* decidable: an address that
 names nothing in the evaluated document is a located error
-(`refer_unresolved`), not something to check later.
+(`rel_unresolved`), not something to check later.
 
 The links checked are the ones the output takes, so a link to nothing
 in an arm the output takes is an error, not a refusal of the arm.
-`x: (refer() & path($.gone)) | 1` is an `error`, since neither arm
+`x: (relate() & path($.gone)) | 1` is an `error`, since neither arm
 outranks the other and the output takes both, and
-`x: (refer() & path($.gone)) | *1` is `{"x": 1}`.
+`x: (relate() & path($.gone)) | *1` is `{"x": 1}`.
 
 ### Constraints flow through links
 
-`refer(t)` does not merely *test* the target against `t`; it unifies
+`relate(t)` does not merely *test* the target against `t`; it unifies
 `t` into it, at the position the address names:
 
 ```aontu
 a: p: 1
-b: refer({ r:3 }) & path($.a)
+b: relate({ r:3 }) & path($.a)
 ```
 
 ```json
@@ -4098,29 +4137,30 @@ with it, whichever the document writes first:
 ```aontu
 c: $.a
 a: {}
-b: refer({ k:1 }) & path($.a)
+b: relate({ k:1 }) & path($.a)
 ```
 
 ```json
 {"a": {"k": 1}, "b": "$.a", "c": {"k": 1}}
 ```
 
-Constraints written *alongside* a refer constrain the **link**, not the
-target: `refer() & string & re("auth$") & path($.services.auth)` checks the
+Constraints written *alongside* a `relate` constrain the **link**, not the
+target: `relate() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
 The template reads its relative paths where it lands, at the target,
 as a spread's template reads its own at each member and a copy reads
 its own where the copy stands. So
-`x: {m: {k: 2}, n: refer({v: .k}) & path(.m)}` gives `x.m` the member
+`x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}` gives `x.m` the member
 `v: 2`, and a link the template carries reads its relative address
-from where that template lands. Both engines still read such a path
-where the document writes the link, inside the template, where it names
+from where that template lands, as it does in both engines. A relative
+path the template holds, as `.k` is here, both engines still read where
+the document writes the link, inside the template, where it names
 nothing, so they leave the template waiting there, which
 [#661](https://github.com/aontu-lang/aontu/issues/661) tracks.
 
-In the definition, `refer(t)` reads as the path kind carrying its
+In the definition, `relate(t)` reads as the relation kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets each link's template, its marks cleared, at the target its
 address names from where the link stands, each relative path in the
@@ -4130,7 +4170,8 @@ whichever the document writes first. Since the template rides the value
 the link meets, the definition reads each link where it lands: where
 the document writes it, at each member a spread's template holds, at
 each member a generator makes, and wherever a path reference copies
-it, each place reading the relative address from where it stands. A
+it, each place reading the relative address from where it stands, as
+both engines do. A
 link whose own template holds `_` or a `key()` reads the member a
 generator makes it for, and a link in a generator inside a
 declaration's body sends too, as both engines read each. Where a target names nothing in
@@ -4144,8 +4185,8 @@ A link written in an arm of a disjunction, or in a preference's value,
 sends its template only where the output takes that arm. Among the
 arms the meet keeps, the rank rule takes the default where there is
 one, and every kept arm where there isn't. So
-`x: *{d: refer({z: 1}) & path($.y)} | {e: 1}` gives `y` the member
-`z: 1`, and `x: ({d: refer({z: 1}) & path($.y), k: 1} | {k: 2}) & {k: 2}`
+`x: *{d: relate({z: 1}) & path($.y)} | {e: 1}` gives `y` the member
+`z: 1`, and `x: ({d: relate({z: 1}) & path($.y), k: 1} | {k: 2}) & {k: 2}`
 gives it nothing, since `k: 2` refuses the arm. In the definition a
 link's template rides the value the link meets (`Val.link`), so it
 stands in an arm exactly where that value does, and the definition
@@ -4158,17 +4199,17 @@ link from each place that uses the body, which
 
 ### The argument is a template, not an address
 
-`refer(t)` takes the value the **target** must satisfy. The address
+`relate(t)` takes the value the **target** must satisfy. The address
 comes from the `path` beside it, never from the argument, so
-`refer(key())` does not mean "link to the node this key names". It means
+`relate(key())` does not mean "link to the node this key names". It means
 "the target must unify with whatever `key()` answers here", and `key()`
 answers with a *string*, so the link is constrained to a target that is
 that string. At the root of a document `key()` is `""`, which leaves
-`refer("")`: a link with no address, which cannot generate.
+`relate("")`: a link with no address, which cannot generate.
 
 ```
-link: refer(key())     → [aontu/mapval_no_gen] at $.link
-                         value was: refer("")
+link: relate(key())     → [aontu/mapval_no_gen] at $.link
+                         value was: relate("")
 ```
 
 **A key does not survive a reference.** `key()` is path-dependent (it
@@ -4186,7 +4227,7 @@ the same time:
 ```aontu
 services: { auth:port:8080 billing:port:9090 }
 names: [auth billing]
-links: pack($.names, { to:refer() & path("$.services." + key()) name:key() })
+links: pack($.names, { to:relate() & path("$.services." + key()) name:key() })
 ```
 
 ```json
@@ -4201,7 +4242,7 @@ same key as an ordinary string.
 
 ### The bundled vocabularies
 
-**Five vocabularies ship with the engine**, served from it rather than
+**Six vocabularies ship with the engine**, served from it rather than
 from disk, and **every one of them is named under `aontu:`**. That is
 the whole rule: a language-supplied schema has one spelling, and the
 scheme is what stops a file on disk from standing in front of it.
@@ -4213,8 +4254,9 @@ scheme is what stops a file on disk from standing in front of it.
 | `aontu:profile` | a language declared as data, which `template` and `fmt` read through `--profile` |
 | `aontu:lang/text` | the text profile |
 | `aontu:lang/markdown` | the markdown profile |
+| `aontu:gen` | the standard options of each type of value, which a [`gen()`](#output-options-gen) record is held to |
 
-The last three are described [after the system vocabulary](#the-aontu-models).
+The three profile models are described [after the system vocabulary](#the-aontu-models).
 
 ### The `aontu:` models
 
@@ -4291,7 +4333,7 @@ the set. Write this as `nope.aontu`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aontu
-[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
 ...
 $ echo $?
 1
@@ -4341,10 +4383,10 @@ one set of them ships with the engine. Write this as `system.aontu`:
 services: {
   auth: $.aontu.System.Service & {
     ports: http: protocol: http
-    dependedOnBy: rel() & [path($.services.billing)]
+    dependedOnBy: relate() & [path($.services.billing)]
   }
   billing: $.aontu.System.Service & {
-    dependsOn: rel($.aontu.System.Service) & inverse(dependedOnBy) & acyclic() & [
+    dependsOn: relate($.aontu.System.Service) & inverse(dependedOnBy) & acyclic() & [
       path($.services.auth)
     ]
   }
@@ -4474,13 +4516,13 @@ language knows these names.
 
 ### Declared relations
 
-A relation is declared AT ITS FIELD: `rel(t)` says the field's strings
+A relation is declared AT ITS FIELD: `relate(t)` says the field's values
 are tree addresses and flows `t` into every target, and the two
 GRAPH ATOMS declare the properties that hold over the whole edge set:
 
 ```aontu
-a: dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]
-b: usedBy: rel() & [path($.a)]
+a: dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]
+b: usedBy: relate() & [path($.a)]
 ```
 
 ```json
@@ -4494,16 +4536,16 @@ b: usedBy: rel() & [path($.a)]
   `a` under `<name>`, as an edge of that relation. The error names the
   exact missing entry. Writing the inverse **for** you is generation,
   not validation, and is not done here.
-- The `target` half of the old declaration is `rel(t)` itself: the
+- The `target` half of the old declaration is `relate(t)` itself: the
   type flows into each far end at the site, so a conflict or a hole is
   an ordinary located evaluation error.
 
-A constraint met with `rel()` meets the relation's value as any meet
-does, whichever is written first. So `rel() & path & [path($.a)]` is
+A constraint met with `relate()` meets the relation's value as any meet
+does, whichever is written first. So `relate() & path & [path($.a)]` is
 an `error`, as `path & [path($.a)]` is, and
-`rel() & len(min(2)) & [path($.a)]` refuses its one address. A
+`relate() & len(min(2)) & [path($.a)]` refuses its one address. A
 constraint on each address goes in the value's spread,
-`rel() & [&: re("sa$")]`, which holds each element, one another list
+`relate() & [&: re("sa$")]`, which holds each element, one another list
 brings as well as one it writes, and each such element is a link, so
 `t` flows into its target and `acyclic()` and `inverse()` read it as an
 edge. An alias in the spread stands for the value it names, so
@@ -4516,8 +4558,16 @@ edge unifies in, and an inverse that is present becomes absent when the
 far side is narrowed. The lattice guarantee is that more information
 never falsifies what has already been observed, so a constraint that
 could be true and then false is not one the lattice may hold. During
-unification the atoms only REGISTER the declaration (the predicate is
-the key they sit on) and ride the field's value; the verdict lands at
+unification the atoms only ride the field's value, as `meta()` does,
+and leave it unchanged: a path into the value, or a `+` over an
+address, reads what it would read without them. Canon writes them
+after the value, `acyclic()` first and then each `inverse()` in name
+order, and writes an atom given twice once. The relation checks read
+the declarations from the finished value, taking the predicate from
+the key where each atom meets the value, so an atom met with nothing
+declares as one met with a relation does, and one in an alternative
+the document refused, or below an unresolved disjunction, declares
+nothing. The verdict lands at
 GENERATION (where no more information can arrive) as a located
 `relation_cycle` or `relation_inverse_missing` at the offending edge,
 exactly as an unmet sizing atom refuses. `aontu relations <file>`
@@ -4525,18 +4575,18 @@ reports the same findings without generating, and the library exposes
 `relationCheck(src)`. The closure question (does `a` reach `b` at any
 remove?) is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
 
-In the definition, `rel(t)` reads as the relation kind, `relKind` in
+In the definition, `relate(t)` reads as the relation kind, `relKind` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): an address, or
 a list or a map of addresses nested to any depth, so a string, a number
 or `true` where an address must be is an `error`. Each leaf of the
 value is a link, which `Decls.withRefers` in
-[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads as it reads a
-`refer`, the leaf's address read from the relation's own position. The
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads, the leaf's
+address read from the relation's own position. The
 definition has no rule yet for `acyclic()` and `inverse(k)`, which
 `vet` doesn't check either
 ([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it, and rows from rh0 on to a constraint met with `rel()` and to a
+to it, and rows from rh0 on to a constraint met with `relate()` and to a
 spread over the value's addresses. Data writes no address, so whatever
 the template, a relation refuses data that writes a list of anything,
 the spelling `"$.a"` among them, and passes an empty list, in the rows
@@ -4849,6 +4899,605 @@ place, and `Decls.identMisplaced` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) makes it an
 `error`, as both engines answer. It reads the text, so it holds a
 declaration that no reference reads to that place too.
+
+## Output options: `gen`
+
+`gen(spec)` says how the value it meets is written where the document
+is generated. It is written as a term of a meet, beside the value or
+beside its type:
+
+```aontu
+price: float & gen({ significant:2 })
+price: 3.14159
+```
+
+```json
+{"price":3.1}
+```
+
+`spec` is one map of concrete data, the record. A string is the
+record's `form`, so `gen("key")` is `gen({ form:"key" })`. A record
+that is neither, or that holds anything but concrete data, refuses the
+call with `func_arg`. The call answers an `annotation`: `any` carrying
+the record. So the meet leaves the value as it is, and the record goes
+to the result of every meet, as a `meta()` record does. `gen(spec)`
+alone generates nothing, as a constraint alone generates nothing.
+
+### The record rides the value
+
+A reference copies the record, a spread applies it to each member, and
+a preference keeps it for the value that overrides it. A value computed
+from an annotated one is a new value and carries none:
+
+```aontu
+style: type({ money:gen({ significant:2 }) })
+price: $.style.money & 3.14159
+same: $.price
+more: add($.price, 1)
+text: "about " + $.price
+```
+
+```json
+{"more":4.14159,"price":3.1,"same":3.1,"text":"about 3.14159"}
+```
+
+Only generation reads the options. A reference, a call, `+`, a
+constraint, `vet`, and `subsume` all read the value.
+
+### Two annotations unify their records
+
+Two annotations on one value unify their records as maps, so the
+result is the same in whatever order they are written. Records that
+disagree refuse the meet with `gen_conflict`:
+
+<!-- test: scenario gen-records -->
+<!-- test: run -->
+```sh
+$ echo 'x: 1.5 & gen({ significant:2 }) & gen({ significant:3 })' | aontu
+[aontu/gen_conflict]: Cannot unify values at path $.x
+...
+$ echo $?
+1
+```
+
+This is where an output record differs from a `meta()` record, which
+meets as a union and never refuses. A record that says nothing is no
+record, so `gen({})` is `any`. A default written out is a statement:
+`gen({ significant:"all" })` and `gen({ significant:2 })` disagree.
+
+### The standard options
+
+Each type of value has a standard set of options. The sets are the
+bundled model [`aontu:gen`](#the-bundled-vocabularies):
+
+<!-- test: quote aontu/gen/gen.aontu -->
+```aontu
+aontu: Gen: type({
+  Number: close({
+    significant: *"all"|integer & min(1)
+    places: *"all"|integer & min(0) & max(4096)
+    as: *"number"|"string"
+    custom?: any
+  })
+  String: close({
+    case: *"verbatim"|"upper"|"lower"
+    empty: *"keep"|"omit"
+    custom?: any
+  })
+  Boolean: close({ as: *"boolean"|"number"|"string" custom?:any })
+  Null: close({ empty: *"keep"|"omit" custom?:any })
+  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" custom?:any })
+  Map: close({
+    keys: *"verbatim"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
+    empty: *"keep"|"omit"
+    custom?: any
+  })
+  List: close({ empty: *"keep"|"omit" custom?:any })
+})
+```
+
+| Type | Set | Options |
+|------|-----|---------|
+| `number`, `integer`, `float`, `biginteger`, `bigdecimal` | `Number` | [`significant`](#numbers-significant-and-places), [`places`](#numbers-significant-and-places), [`as`](#a-number-as-a-string) |
+| `string` | `String` | [`case`](#strings-case), [`empty`](#empty-values) |
+| `boolean` | `Boolean` | [`as`](#booleans-as) |
+| `null` | `Null` | [`empty`](#empty-values) |
+| `path` | `Path` | [`form`](#addresses-form) |
+| `map` | `Map` | [`keys`](#map-keys), [`empty`](#empty-values) |
+| `list` | `List` | [`empty`](#empty-values) |
+
+Every set also has [`custom`](#a-custom-expression), an expression
+that writes the output.
+
+Every other option has a default, and the default leaves the output as
+it is without the option. Leaving `custom` out is its default. A set is
+closed. A record must unify with the set
+of its value's type, and one that does not refuses the meet with
+`gen_option`, naming the type, its options, the record, and the option
+refused:
+
+<!-- test: run -->
+```sh
+$ echo 'name: "ada" & gen({ significant:2 })' | aontu
+[aontu/gen_option]: Cannot unify values at path $.name
+...
+  type:     string
+  options:  {"case":*"verbatim"|"upper"|"lower","custom"?:any,"empty":*"keep"|"omit"}
+  record:   {"significant":2}
+  refused:  significant
+...
+$ echo $?
+1
+```
+
+The type is known for a scalar, a scalar kind, a map, a list, and the
+kinds `map` and `list`. An annotation on anything else waits. The
+numeric kinds share `Number`, so a field typed `number` writes an
+integer and a float by one record. An annotation meets each arm of a
+disjunction, and an arm of a type that refuses the record drops, as it
+does under a constraint:
+
+```aontu
+x: (1.5|"a") & gen({ significant:1 })
+```
+
+```json
+{"x":2}
+```
+
+So an annotation admits the values of the types that take its options
+and no others. `vet` reads it so: against `x: gen({ significant:2 })`,
+the data `x: "ada"` is `invalid`.
+
+Only a path has an option named `form`, so the string given to `gen`
+writes a path. On a value of another type it is refused as any option
+the type does not have: `"ada" & gen("upper")` is the record
+`{ form:"upper" }` on a string, and a string's case is `case`.
+
+### Numbers: `significant` and `places`
+
+`significant: n` writes a number at no more than `n` significant
+digits, and `places: n` at no more than `n` digits after the point.
+The default of each, `"all"`, writes every digit. `places` takes a
+count from 0 to 4096, the most places a number in the language shows.
+
+The number rounded is the decimal the number shows: an integer's own
+digits, a bigdecimal's coefficient and scale, and for a float the
+shortest decimal that reads back as it, which is what generation
+prints. A tie goes to the even digit. The result stays in the number's
+own leaf: a float is the double nearest the rounded decimal, the exact
+leaves round exactly, and an integer is written digit for digit. Write
+the numbers as `round.aontu`:
+
+<!-- test: scenario gen-significant -->
+<!-- test: file round.aontu -->
+```aontu
+a: 3.14159 & gen({ significant:2 })
+b: 1234.5 & gen({ significant:2 })
+c: 0.25 & gen({ significant:1 })
+d: 0.35 & gen({ significant:1 })
+e: 0d1234.5 & gen({ significant:2 })
+f: 999999999999999104 & gen({ significant:15 })
+```
+
+<!-- test: run -->
+```sh
+$ aontu round.aontu
+{
+  "a": 3.1,
+  "b": 1200,
+  "c": 0.2,
+  "d": 0.4,
+  "e": 1200.0,
+  "f": 999999999999999000
+}
+```
+
+`c` and `d` are ties: `0.25` goes down to the even `2` and `0.35` up to
+the even `4`. `e` keeps the one place a bigdecimal always renders. `f`
+rounds to a number no double holds, and its digits are written as they
+are.
+
+A float whose rounded decimal is beyond the largest double is refused
+where it is generated, with `float_overflow`. Rounding to places
+cannot overflow.
+
+`places` rounds by the same rule. Write the numbers as `places.aontu`:
+
+<!-- test: file places.aontu -->
+```aontu
+a: 3.14159 & gen({ places:2 })
+b: 2.675 & gen({ places:2 })
+c: 24 & gen({ places:2 })
+d: -0.004 & gen({ places:2 })
+e: 0d24.456 & gen({ places:0 })
+f: 1.2451 & gen({ significant:4 places:2 })
+```
+
+<!-- test: run -->
+```sh
+$ aontu places.aontu
+{
+  "a": 3.14,
+  "b": 2.68,
+  "c": 24,
+  "d": 0,
+  "e": 24.0,
+  "f": 1.25
+}
+```
+
+`b` shows the digits `2.675`, a tie, and goes up to the even `8`. `c`
+is an integer, which shows no digit after the point and is unchanged.
+`d` rounds to zero, which is written with no sign. `e` keeps a
+bigdecimal's one place.
+
+`f` gives both options. A record that gives both rounds once, at
+whichever of the two positions keeps fewer digits. Rounding twice
+would write `1.24`: `1.2451` to four digits is `1.245`, a tie that the
+number itself never met.
+
+### A number as a string
+
+`as: "string"` writes a number as a JSON string that holds the
+characters the number would have been written with. With `places: n`
+the string is the rounded number in plain decimal notation with
+exactly `n` digits after the point, zeros added to make them. Write
+the numbers as `wire.aontu`:
+
+<!-- test: scenario gen-as-string -->
+<!-- test: file wire.aontu -->
+```aontu
+price: number & gen({ places:2 as:"string" })
+price: 24
+tax: 0.30000000000000004 & gen({ places:2 as:"string" })
+id: 0d123456789012345678901 & gen({ as:"string" })
+far: 1e21 & gen({ as:"string" })
+plain: 1e21 & gen({ places:0 as:"string" })
+```
+
+<!-- test: run -->
+```sh
+$ aontu wire.aontu
+{
+  "far": "1e+21",
+  "id": "123456789012345678901",
+  "plain": "1000000000000000000000",
+  "price": "24.00",
+  "tax": "0.30"
+}
+```
+
+`price` and `tax` are the fixed form that [money is carried
+in](how-to/carry-exact-money-over-json.md): no exponent, one spelling
+for each amount, and never `-0.00`. The digits are those of the rounded
+decimal, so `tax` shows no binary remainder. `id` reaches a reader that
+parses every JSON number as a double with all its digits.
+
+Only the string keeps a trailing zero. A number that either engine
+writes has none: `price` without `as` is written `24`.
+
+### Booleans: `as`
+
+`as: "number"` writes `true` as `1` and `false` as `0`, and
+`as: "string"` writes `"true"` and `"false"`.
+
+### Strings: `case`
+
+`case: "upper"` writes a string as [`upper`](#uppers-stringnumber-start-integerbiginteger-len-integerbiginteger--string)
+answers it, and `case: "lower"` as `lower` does. The document keeps the
+string as it was written, for every reference, pattern, and comparison.
+
+### Empty values
+
+`empty: "omit"` leaves an empty value out of the map or list that holds
+it. The empty values are `""`, `null`, a map that writes no member, and
+a list that writes no element. Write the record as `user.aontu`:
+
+<!-- test: scenario gen-empty -->
+<!-- test: file user.aontu -->
+```aontu
+user: name: "ada" & gen({ case:"upper" })
+user: active: true & gen({ as:"number" })
+user: nick: "" & gen({ empty:"omit" })
+user: tags: [] & gen({ empty:"omit" })
+user: note: null & gen({ empty:"omit" })
+user: prefs: { theme:null & gen({ empty:"omit" }) } & gen({ empty:"omit" })
+```
+
+<!-- test: run -->
+```sh
+$ aontu user.aontu
+{
+  "user": {
+    "active": 1,
+    "name": "ADA"
+  }
+}
+```
+
+Emptiness is judged on what is written. `prefs` holds one member, which
+is left out, so `prefs` writes no member and is left out too. A value
+that is not empty is written whatever the option says, and a list
+closes up over an element that is left out.
+
+An [optional key](#optional-keys-) already leaves out a value that
+generates an empty map or list. `empty: "omit"` says the same of a
+required key, and of `""` and `null`, which an optional key keeps.
+Nothing holds the root of a document, so a root that is left out
+generates nothing, as a hidden root does, and the command prints
+`null`.
+
+### Addresses: `form`
+
+A [`path`](#first-class-paths-pathp) is written as its text. `form` chooses the
+notation. A string given to `gen` is the form, so `gen("key")` is short
+for `gen({ form:"key" })`. Write the addresses as `links.aontu`:
+
+<!-- test: scenario gen-form -->
+<!-- test: file links.aontu -->
+```aontu
+fs: etc: {}
+fs: hosts: {
+  a: path(..etc)
+  b: path(..etc) & gen("absolute")
+  c: path(..etc) & gen("pointer")
+  d: path(..etc) & gen("key")
+  e: path(..etc) & gen({ form:"key" })
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu links.aontu
+{
+  "fs": {
+    "etc": {},
+    "hosts": {
+      "a": "..etc",
+      "b": "$.fs.etc",
+      "c": "/fs/etc",
+      "d": "etc",
+      "e": "etc"
+    }
+  }
+}
+```
+
+`"absolute"` writes the address from the root, `"pointer"` writes that
+address as a JSON Pointer (RFC 6901), and `"key"` writes its last
+segment, the form a foreign key takes. A pointer writes a key that
+holds `~` or `/` as `~0` or `~1`, as the standard does. The default, `"verbatim"`,
+writes the text the document wrote. A relative address is resolved
+from the place its value is generated at, by the rule
+[`relate()`](#checked-links-relatet) resolves one by, and a link's
+address is the one `relate()` resolved. So a reference that copies a
+relative address writes the absolute form of the copy's own place.
+
+A relative address that climbs past the root has no absolute form.
+`"absolute"` and `"pointer"` refuse it where it is generated:
+
+<!-- test: run -->
+```sh
+$ echo 'x: path(..b) & gen("absolute")' | aontu
+[aontu/gen_address]: Cannot resolve value at path $.x
+...
+  address:  ..b
+...
+$ echo $?
+1
+```
+
+### Map keys
+
+`keys: s` writes each key of a map as
+[`nom(key, s)`](#nomname-string-style-stringlist-acronyms-list--stringmap)
+answers it. The styles are `nom`'s: `camel`, `dot`, `kebab`, `pascal`,
+`path`, `snake`, `text`, `title`, and `upper`. Write the order as
+`order.aontu`:
+
+<!-- test: scenario gen-keys -->
+<!-- test: file order.aontu -->
+```aontu
+order: { orderId:7 shipTo:"Cork" lines: [unitPrice:2] } & gen({ keys:"snake" })
+```
+
+<!-- test: run -->
+```sh
+$ aontu order.aontu
+{
+  "order": {
+    "lines": [
+      {
+        "unitPrice": 2
+      }
+    ],
+    "order_id": 7,
+    "ship_to": "Cork"
+  }
+}
+```
+
+The style applies to the map's own keys. A map inside it, as in
+`lines`, is written by a record of its own. A key that holds no word,
+such as `_`, is written as it is. The members are written in the order
+of the keys that are written.
+
+Two keys that would be written as one key are refused where the map is
+generated:
+
+<!-- test: run -->
+```sh
+$ echo 'o: { a_b:1 aB:2 } & gen({ keys:"snake" })' | aontu
+[aontu/gen_key_clash]: Cannot resolve value at path $.o
+...
+  written as:  a_b
+  one:         aB
+  other:       a_b
+...
+$ echo $?
+1
+```
+
+### A custom expression
+
+`custom` holds an expression that writes the output. The hole
+[`_`](#the-placeholder-_) in it stands for what the value writes
+without it, and the output is what
+[`apply`](#applyv-any-template-f-any--any) makes of that. Write the
+values as `custom.aontu`:
+
+<!-- test: scenario gen-custom -->
+<!-- test: file custom.aontu -->
+```aontu
+fs: etc: {}
+fs: hosts: up: path(..etc) & gen({ form:"key" custom:"urn:node:" + _ })
+
+price: 24 & gen({ places:2 as:"string" custom:"EUR " + _ })
+tags: ["a" "b"] & gen({ custom:join(_, ",") })
+note: null & gen({ custom:"none" })
+link: path($.fs.etc) & gen({ form:"pointer" custom: { href:"#" + _ rel:"up" } })
+```
+
+<!-- test: run -->
+```sh
+$ aontu custom.aontu
+{
+  "fs": {
+    "etc": {},
+    "hosts": {
+      "up": "urn:node:etc"
+    }
+  },
+  "link": {
+    "href": "#/fs/etc",
+    "rel": "up"
+  },
+  "note": "none",
+  "price": "EUR 24.00",
+  "tags": "a,b"
+}
+```
+
+The record's other options are applied first, so the expression has
+what they write: `up` is given the address as its key, and `price` the
+number as its fixed string. A map or a list is given as what it
+writes, its members by their own records and its keys in their style,
+which is how `tags` joins its members. What the expression gives is
+generated, and that is the output: a string, a number, a map, or
+anything else a document generates. An expression that generates
+nothing writes nothing, and `empty` is judged last, on the output.
+
+What the expression is given is data, read as a document reads JSON.
+So a number arrives by the rule a literal is read by: a whole number
+is an integer where the integer leaf holds it and a biginteger where
+it does not, a bigdecimal stays exact, and any other number is a
+float. A float that writes no fraction, such as `2.0`, is the integer
+`2` to the expression.
+
+The expression stands alone. It reads the hole and nothing else of the
+document, so a reference in it names nothing, and `key()` is not the
+member's key. It is written in the `gen` call's own map: a hole in a
+map elsewhere is one nothing binds, so a record reached by reference
+can give only a `custom` with no hole. An expression that gives no
+output is refused where the value is written, and the report names the
+expression, what it was given, and what stopped it:
+
+<!-- test: run -->
+```sh
+$ echo 'x: "ada" & gen({ custom:$.prefix + _ })' | aontu
+[aontu/gen_custom]: Cannot resolve value at path $.x
+...
+  custom:      $.prefix+_
+  given:       "ada"
+  stopped by:  no_path
+...
+$ echo $?
+1
+```
+
+A document's own generation checks the output as it checks the
+document, so a relation the expression declares `acyclic()` that loops
+gives no output, stopped by `relation_cycle`.
+
+The expression is part of the record as it is written. Two records
+whose expressions differ are refused with `gen_conflict`, and canon
+writes it: `"ada"&gen({"custom":upper(_)})`.
+
+### What reads an option
+
+An option is read where the document is written, and nowhere else.
+Every reading that is not the output reads the value: a reference, a
+call, `+`, a constraint, a size, a fold, a containment, the test that
+every arm of a disjunction generates alike, `vet`, `subsume`, a view,
+and the JSON Schema export.
+
+```aontu
+m: { a:"" & gen({ empty:"omit" }) b:1 } & len(2)
+l: [1.26 & gen({ significant:2 }) 2.5] & contains(1.26)
+```
+
+```json
+{"l":[1.3,2.5],"m":{"b":1}}
+```
+
+`m` has two members for `len`, though one is left out of the output,
+and `l` contains `1.26`, though it is written `1.3`. Two values that
+differ are two values, though an option would write them alike, so
+`(1.26|1.27) & gen({ significant:2 })` is an unresolved disjunction.
+
+An option reads as its value too. A record that gives
+`significant:$.precision` reads the number `precision` holds, whatever
+record that number carries.
+
+`vet` reads the value too. So it does not report what only writing
+refuses: a key clash, an address with no absolute form, a rounding
+that overflows, or a custom expression that gives no output.
+
+### Canon, defaults and export
+
+Canon writes the record after the value it rides, as the last term of
+its meet whatever order the terms were written in:
+
+```
+3.14159&gen({"significant":2})
+float&min(0)&gen({"significant":2})
+gen({"significant":2})                               (on any)
+meta(3.14159&gen({"significant":2}),{"title":"t"})    (inside the other riders)
+*1.5&gen({"significant":1})|float&gen({"significant":1})
+{"a":1}&gen({"empty":"omit","keys":"snake"})
+path(.b)&gen({"form":"key"})                          (written gen("key"))
+```
+
+A disjunction holds no record of its own, so canon writes the record
+on each arm, as the fifth line shows. A string given to `gen` renders
+as its record, so the two spellings of one annotation have one canon. The hash form includes the
+record, so two documents that generate differently never hash alike.
+
+Two defaults of one rank that differ in their records are two
+defaults, and clash as `pref_rank_clash` whichever is written first.
+
+`aontu jsonschema` has no keyword for an output option and reports the
+annotation as a loss. `subsume` and `breaking` read an annotation as
+the value it rides. That is exact between two values of one type, and
+it overstates an annotation alone: `subsume` answers `subsumes` for
+`gen({ significant:2 })` over a string, which the meet refuses.
+
+The definition holds a number's options in
+[`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean). `Number.rounded`
+is the rounding: the decimal a number shows, `Number.digits`, rounded
+once by `roundHalfEven` in
+[`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean) at the position
+`Number.dropOf` gives, in the number's own leaf. `Number.rounded_isSome`
+holds that only a float has a rounding its leaf does not hold, and
+`Number.rounded_places_of_whole` that `places` leaves a whole number as
+it is. `Number.written` is the string, and `fixedText` its plain form.
+Rows gs0 and gw0 on of
+[`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
+them. The annotation itself is not yet a term of the definition, nor
+are the options of the other types, and
+[`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
+both engines to each other on every other rule in this section.
 
 ## Closed values: `close` / `open`
 
@@ -5402,6 +6051,10 @@ constraints, defaults, and open disjunctions. Rules:
   `canon` leaves out its own records, which its holder renders;
   `canonRiders(v)` (TS) / `CanonRiders(v)` (Go) renders them, as
   `aontu --canon` does for the document's root.
+- A `gen()` record renders after the value it rides, as the last term
+  of its meet, and inside the other riders:
+  `meta(1.5&gen({"significant":1}),{"title":"t"})`. See
+  [Output options](#output-options-gen).
 
 ## The formatted form
 
@@ -5529,7 +6182,7 @@ and `}` alone, which is the ordinary spelling of a constrained map:
 CatalogEntry: $.aontu.System.Service & {
   owner: %Owner
   tier: 1|2|3
-  dependsOn?: rel($.aontu.System.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
+  dependsOn?: relate($.aontu.System.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
 }
 ```
 

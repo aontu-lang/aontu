@@ -28,9 +28,9 @@ func viewFile(t *testing.T, src string) string {
 	return file
 }
 
-const viewDoc = `cli: {dependsOn: [&: refer(), path($.web), path($.db)]}
-web: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}
-db: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}
+const viewDoc = `cli: {dependsOn: [&: relate(), path($.web), path($.db)]}
+web: {dependsOn: [&: relate(), path($.db)], usedBy: [&: relate(), path($.cli)]}
+db: {dependsOn: [&: relate(), path($.disk)], usedBy: [&: relate(), path($.cli), path($.web)]}
 disk: {}
 `
 
@@ -173,9 +173,9 @@ func TestViewKindsAndTheFlagsAroundTheFigure(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "doc.aontu")
 	if err := os.WriteFile(file, []byte(
-		"cli: {layer: \"app\", dependsOn: [&: refer(), path($.web), path($.db)]}\n"+
-			"web: {layer: \"svc\", dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n"+
-			"db: {layer: \"data\", dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n"+
+		"cli: {layer: \"app\", dependsOn: [&: relate(), path($.web), path($.db)]}\n"+
+			"web: {layer: \"svc\", dependsOn: [&: relate(), path($.db)], usedBy: [&: relate(), path($.cli)]}\n"+
+			"db: {layer: \"data\", dependsOn: [&: relate(), path($.disk)], usedBy: [&: relate(), path($.cli), path($.web)]}\n"+
 			"disk: {layer: \"data\", dependsOn: []}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -211,8 +211,8 @@ func TestViewKindsAndTheFlagsAroundTheFigure(t *testing.T) {
 
 	hid := filepath.Join(dir, "hid.aontu")
 	if err := os.WriteFile(hid, []byte(
-		"a: hide({dependsOn: [&: refer(), path($.b)]})\n"+
-			"b: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n"), 0o600); err != nil {
+		"a: hide({dependsOn: [&: relate(), path($.b)]})\n"+
+			"b: {dependsOn: [&: relate(), path($.c)]}\nc: {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	stdout, errw, code = viewRun("tree", hid)
@@ -270,7 +270,7 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 		}
 		return file
 	}
-	write("model.aontu", "app: {layer: \"app\", dependsOn: [&: refer(), path($.core)]}\ncore: {layer: \"core\"}\n")
+	write("model.aontu", "app: {layer: \"app\", dependsOn: [&: relate(), path($.core)]}\ncore: {layer: \"core\"}\n")
 	file := write("views.aontu", "@\"./model.aontu\"\nviews: {\n"+
 		"  tree: {kind: tree, out: \"out/tree.txt\"}\n"+
 		"  bands: {kind: layer, groupBy: layer, out: \"out/bands.txt\"}\n}\n")
@@ -335,7 +335,7 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 
 	// A LOSSY set still writes -- the loss report says what it could not
 	// draw, and --strict is the gate on that.
-	lossy := write("lossy.aontu", "a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n"+
+	lossy := write("lossy.aontu", "a: hide({dependsOn: [&: relate(), path($.b)]})\nb: {}\n"+
 		"views: {t: {kind: tree, out: \"out/lossy.txt\"}}\n")
 	if _, errs, code = viewRun("--views", "$.views", lossy); 0 != code ||
 		!strings.Contains(errs, "t  hidden_contribution  1") {
@@ -542,7 +542,7 @@ func TestViewStyleAutoReadsStdout(t *testing.T) {
 	}
 }
 
-const viewTeams = `a: {team: x, dependsOn: [&: refer(), path($.b)]}
+const viewTeams = `a: {team: x, dependsOn: [&: relate(), path($.b)]}
 b: {team: y}
 views: {g: {kind: graph, splitBy: team, out: "g-{part}.mmd"}}
 `

@@ -8,7 +8,9 @@ import { AontuContext } from './ctx'
 import { DONE } from './type'
 
 import { makeNilErr } from './err'
-import { findAt } from './val/ReferFuncVal'
+import { findAt } from './val/RelateFuncVal'
+import { addressPath, linkAt, parseAddress } from './val/PathVal'
+import type { Address } from './val/PathVal'
 
 import { NilVal } from './val/NilVal'
 import { ConjunctVal } from './val/ConjunctVal'
@@ -17,7 +19,7 @@ import { MapVal } from './val/MapVal'
 import { keyTable } from './val/BagVal'
 import { waitsOnHole } from './val/PlaceVal'
 import { expandAliases } from './alias'
-import { riderText, rides, unionRecords, unionVia } from './rider'
+import { riderText, rides, unionDecls, unionRecords, unionVia } from './rider'
 
 import {
   Lang
@@ -32,6 +34,8 @@ import {
 import {
   top
 } from './val/top'
+
+import { genOn } from './genrec'
 
 
 const withDepth = (
@@ -67,20 +71,27 @@ function ride(out: any, a: any, b: any): void {
   if (null != out.identity || null != a?.identity || null != b?.identity) {
     out.identity = unionRecords([out.identity, a?.identity, b?.identity], (v: any) => v.canon)
   }
+  if (null != out.reldecl || null != a?.reldecl || null != b?.reldecl) {
+    out.reldecl = unionDecls([out.reldecl, a?.reldecl, b?.reldecl])
+  }
 }
 
 
 // The meet's riders go to its result, a top's on a fresh top where they
 // add to its own, since an operand top may be a value written elsewhere.
+// An output record is unified, not joined, so it can refuse the meet.
 function rideOn(ctx: AontuContext, out: any, a: any, b: any): any {
   if (!out.isTop) {
     ride(out, a, b)
-    return out
+    return genOn(ctx, out, a, b)
   }
   if (!rides(a) && !rides(b)) {
     return out
   }
-  const t = out.clone(ctx)
+  const t = genOn(ctx, out.clone(ctx), a, b)
+  if (t.isNil) {
+    return t
+  }
   ride(t, a, b)
   return riderText('', t) === riderText('', out) ? out : t
 }
@@ -109,12 +120,10 @@ function drives(v: any): boolean {
     || v.isVar
     || v.isFunc
     || v.isExpect
-    || v.isRefer
+    || v.isPendingLink
     // An op DRIVES while an operand has not decided (ADR-037).
     || (v.isOp && (waitsOnHole(v) || v.holdsStaged))
-    // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
-    // beside -- a container, a rel, a scalar -- and none of them know
-    // the atom; the atom knows to residuate.
+    // A graph atom DRIVES: no peer knows it, and it hands each back.
     || v.isGraphAtom
     // The recursive residual DRIVES for the same reason: its peer is the
     // concrete structure it expands against.
@@ -138,16 +147,18 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && (a as any).needsNonEmpty === (b as any).needsNonEmpty
             && (a as any).link === (b as any).link
             && (a as any).flows === (b as any).flows
+            && (a as any).relates === (b as any).relates
+            && (a as any).relroot === (b as any).relroot
             && !a.isNil && !b.isNil
             && !a.isMap && !a.isList
             && !a.isConjunct && !a.isDisjunct
             && !a.isRef && !a.isPref && !a.isFunc && !a.isExpect
             && !a.isTop && !b.isTop
-            && !a.isRefer
-            && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
+            && !a.isPendingLink
+            && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
           // The riders survive this fast path too: `deprecate(5) & 5`.
           ride(a, a, b)
-          return markOn(ctx, a, a, b)
+          return genOn(ctx, markOn(ctx, a, a, b), a, b)
         }
       }
     }
@@ -218,7 +229,8 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         unified = true
         why = 'a*'
       }
-      else if (drives(b)) {
+      // A graph atom answers from either side, even beside a driver.
+      else if (drives(b) && true !== a.isGraphAtom) {
         out = b.unify(a, te ? ctx.clone({ explain: ec(te, 'BW') }) : ctx)
         unified = true
         why = 'bv'
@@ -238,7 +250,9 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         && (a as any).needsNonEmpty === (b as any).needsNonEmpty
         && (a as any).link === (b as any).link
         && (a as any).flows === (b as any).flows
-        && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
+        && (a as any).relates === (b as any).relates
+        && (a as any).relroot === (b as any).relroot
+        && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
         out = update(a, b)
         why = 'up'
       }
@@ -339,9 +353,9 @@ function residuePaths(v: Val, max: number): string[] {
 }
 
 
-// A link the output takes, where it stands, and how to put a value in
-// its place.
-type LinkSite = { link: any, at: string[], put: (v: Val) => void }
+// A link the output takes, where it stands, where its address is read
+// from, a relation's for its leaf, and how to put a value in its place.
+type LinkSite = { link: any, at: string[], from: string[], put: (v: Val) => void }
 
 
 // The links a result holds where the output reads them: through maps,
@@ -351,16 +365,19 @@ type LinkSite = { link: any, at: string[], put: (v: Val) => void }
 // no position, so its links are its members'.
 function linksOf(root: Val): LinkSite[] {
   const out: LinkSite[] = []
-  const visit = (node: any, put: (v: Val) => void, at: string[]): void => {
+  const visit = (
+    node: any, put: (v: Val) => void, at: string[], under: string[] | undefined
+  ): void => {
     if (true === node.isPath) {
       if (undefined !== node.linkto) {
-        out.push({ link: node, at, put })
+        out.push({ link: node, at, from: true === node.relroot ? at : under ?? at, put })
       }
     }
     else if (true === node.isMap || true === node.isList) {
       const peg = node.peg
+      const below = true === node.relroot ? at : under
       for (const k of Object.keys(peg)) {
-        visit(peg[k], (v: Val) => { peg[k] = v }, [...at, k])
+        visit(peg[k], (v: Val) => { peg[k] = v }, [...at, k], below)
       }
     }
     else if (true === node.isDisjunct || true === node.isConjunct) {
@@ -370,19 +387,79 @@ function linksOf(root: Val): LinkSite[] {
       const rank = 0 === ranks.length ? undefined : Math.min(...ranks)
       arms.forEach((a: any, i: number) => {
         if (undefined === rank || (true === a.isPref && rank === a.rank)) {
-          visit(a, (v: Val) => { arms[i] = v }, at)
+          visit(a, (v: Val) => { arms[i] = v }, at, under)
         }
       })
     }
     else if (true === node.isPref) {
-      visit(node.peg, (v: Val) => { node.peg = v }, at)
-    }
-    else if (true === node.isGraphAtom && undefined !== node.held) {
-      visit(node.held, (v: Val) => { node.held = v }, at)
+      visit(node.peg, (v: Val) => { node.peg = v }, at, under)
     }
   }
-  visit(root, () => undefined, [])
+  visit(root, () => undefined, [], undefined)
   return out
+}
+
+
+// A link reads its address where it stands, so one a path reference
+// copied is made again from its own place, and names nothing where its
+// address climbs past the root. A template that is the recursive name
+// the link stands in waits for data, and is not sent on from the copy.
+function seatLinks(ctx: AontuContext, links: LinkSite[]): LinkSite[] {
+  return links.filter((site) => {
+    const link = site.link
+    const addr = parseAddress(link.peg) as Address
+    const to = addressPath(addr, site.from)
+    if (undefined !== to && to.join('\x00') === link.linkto.join('\x00')) {
+      return true
+    }
+    const made: any = linkAt(ctx, link.peg, site.from, undefined,
+      link.relates.filter((t: any) => true !== t.isRecurse), true === link.relroot)
+    if (undefined === made) {
+      const nil = makeNilErr(ctx, 'rel_unresolved', link, undefined,
+        'relate', { addr: link.peg })
+      nil.path = site.at
+      site.put(nil)
+      return false
+    }
+    const seated = Object.assign(Object.create(Object.getPrototypeOf(link)), link)
+    seated.link = made.link
+    seated.linkto = made.linkto
+    seated.flows = made.flows
+    seated.path = site.from
+    site.put(seated)
+    site.link = seated
+    return true
+  })
+}
+
+
+// A link with no `relate()` at or above it has one where it stands, as
+// a copy of one link out of a bag of them does, so canon writes the call.
+function rootLinks(root: Val): void {
+  const visit = (node: any, put: (v: Val) => void, under: boolean): void => {
+    if (true === node.isPath) {
+      if (undefined !== node.linkto && !under && true !== node.relroot) {
+        const rooted = Object.assign(Object.create(Object.getPrototypeOf(node)), node)
+        rooted.relroot = true
+        put(rooted)
+      }
+    }
+    else if (true === node.isMap || true === node.isList) {
+      const peg = node.peg
+      const below = under || true === node.relroot
+      for (const k of Object.keys(peg)) {
+        visit(peg[k], (v: Val) => { peg[k] = v }, below)
+      }
+    }
+    else if (true === node.isDisjunct || true === node.isConjunct) {
+      const arms: any[] = node.peg
+      arms.forEach((a: any, i: number) => visit(a, (v: Val) => { arms[i] = v }, under))
+    }
+    else if (true === node.isPref) {
+      visit(node.peg, (v: Val) => { node.peg = v }, under)
+    }
+  }
+  visit(root, () => undefined, false)
 }
 
 
@@ -457,8 +534,8 @@ function holdsLink(v: any, seen: Set<any> = new Set()): boolean {
     return false
   }
   seen.add(v)
-  if (true === v.isReferFunc || true === v.isRelFunc || true === v.isRefer
-    || true === v.isRel || undefined !== v.linkto) {
+  if (true === v.isRelateFunc || true === v.isPendingLink
+    || true === v.isRelate || undefined !== v.linkto) {
     return true
   }
   const peg = v.peg
@@ -570,7 +647,7 @@ class Unify {
           })
         }
 
-        links = linksOf(res)
+        links = seatLinks(uctx, linksOf(res))
         const flows = undefined === pristine ? [] : flowsOf(res, links)
         const ids = flows.map((f) => f.id).join('\n')
         if (ids === applied) {
@@ -599,12 +676,14 @@ class Unify {
       // A link the output takes names something the document holds.
       for (const { link, at, put } of links) {
         if (undefined === findAt(res, link.linkto)) {
-          const nil = makeNilErr(uctx, link.linkcode ?? 'refer_unresolved', link, undefined,
-            'refer', { addr: link.peg })
+          const nil = makeNilErr(uctx, 'rel_unresolved', link, undefined,
+            'relate', { addr: link.peg })
           nil.path = at
           put(nil)
         }
       }
+
+      rootLinks(res)
 
       // The settled tree's alias references canon as the values they
       // name (ts/src/alias.ts): attached here, once, after the last
@@ -620,13 +699,14 @@ class Unify {
 
 
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
-  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 12 */
+  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 13 */
 
 
 export {
   Unify,
   holdsLink,
   linksOf,
+  rootLinks,
   unite,
   meetTemplate,
   withDepth,

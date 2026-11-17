@@ -1,8 +1,8 @@
 # Shared include for refer-in-type-hang.aontu (use-case 10 gap 7,
 # claim C2, nontermination half).  The ONLY difference from a fast,
-# correct model is that refer() lives INSIDE the named Order type:
+# correct model is that relate() lives INSIDE the named Order type:
 # - swap customerId to `string & re("^cust-")` here             -> 0.2s, correct
-# - or keep that swap and put `customerId: refer()` on the bag
+# - or keep that swap and put `customerId: relate()` on the bag
 #   spread below (the 10/domain.aontu workaround)                 -> 0.2s, correct + checked
 schema: {
   OrderLine: type(close({
@@ -11,7 +11,7 @@ schema: {
   }))
   Order: type(close({
     id: string
-    customerId: refer() & path & re("^cust-")
+    customerId: relate() & path & re("^cust-")
     lines: [&: $.schema.OrderLine]
   }))
 }

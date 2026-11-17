@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check.sh --- drive the aontu CLI over the pipeline model and assert
 # every outcome of the field-declared relations (RELATIONS.0.md):
-# rel(t) + re() + acyclic() + inverse(n) once in the schema, plain
+# relate(t) + re() + acyclic() + inverse(n) once in the schema, plain
 # lists in the data, the verdict at generation, the report at the
 # verb. Runnable from any cwd.
 set -euo pipefail
@@ -70,14 +70,14 @@ has noinv out 'verdict: fail'
 has noinv out '$.pipeline.jobs.metrics does not list $.pipeline.jobs.transform under fedBy'
 ok "missing inverse: refused at generation, the exact entry named"
 
-# 6. The endpoint type is rel(t)'s flow: a feeds edge landing on a
+# 6. The endpoint type is relate(t)'s flow: a feeds edge landing on a
 # non-job is an ordinary located evaluation error, and the verb
 # answers error for a document that does not stand up.
 run wkeval 1 -- "$DIR/bad/wrong-kind.aontu"
 has wkeval err '[aontu/scalar_value]'
 run wk 4 -- relations "$DIR/bad/wrong-kind.aontu"
 has wk out 'verdict: error'
-ok "wrong kind: rel(t) flow refuses at evaluation, verb answers error"
+ok "wrong kind: relate(t) flow refuses at evaluation, verb answers error"
 
 # 7. A dangling address is decided inside the evaluation: it resolves
 # or the document refuses, there is no later.

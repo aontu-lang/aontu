@@ -23,6 +23,7 @@ const subsume_1 = require("./subsume");
 const query_1 = require("./query");
 const admit_1 = require("./admit");
 const admission_1 = require("./val/admission");
+const genwrite_1 = require("./val/genwrite");
 const keyorder_1 = require("./keyorder");
 const sourcemap_1 = require("./sourcemap");
 // The default cap, exported because the CLI applies it to the WHOLE
@@ -599,7 +600,7 @@ function vet(schemaSrc, dataSrc, opts) {
     const genCtx = aontu.ctx({ collect: true });
     genCtx.root = unified;
     genCtx.probe = null != options.at;
-    const generated = unified.gen(genCtx);
+    const generated = (0, genwrite_1.genPlain)(unified, genCtx);
     for (const err of genCtx.err) {
         materialise(err, genCtx);
         findings.push(pointed(findingOf(err, prov), err.path));
@@ -616,7 +617,7 @@ function vet(schemaSrc, dataSrc, opts) {
             materialise(err, ownCtx);
             findings.push(pointed(findingOf(err, prov), err.path));
         }
-        const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined;
+        const ownGen = 0 === ownCtx.err.length ? (0, genwrite_1.genPlain)(own, genOwn) : undefined;
         // Under --at the paths are the anchor's, as every other finding's are.
         const anchorPath = ctx.path ?? [];
         const towardCtx = genCtx.clone({ err: [], collect: true });

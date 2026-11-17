@@ -2564,6 +2564,34 @@ until the phase that encodes it lands.
    and a template that reads a path, which is undecided), and the
    package tests that meant an additive change close their maps.
 
+57. **A link with a relative address that a path reference copies.**
+   Raised 2026-11-16 by review of #791: both ports kept a copied link's
+   target where its original stands, so a copy whose own place holds
+   no such node still linked, and canon, which writes the address as
+   written, read back to a link that named nothing or another node.
+   The definition read the copy where it stands (ruling 26, ruling 50).
+   **Ruled 2026-11-16 (the project's owner): where the copy stands.**
+   A copied link reads its address from its own place, as every other
+   copy reads its relative paths, and a copy whose address names
+   nothing there is refused, `rel_unresolved`.
+   **Built 2026-11-16** in both ports: after each round, a link the
+   output takes is made again from where it stands when its address
+   names another node from there (`seatLinks`), a leaf of a relation
+   from the relation's field, and a template that is the recursive name
+   the link stands in is not sent on from the copy. Six ledger rows came
+   to agree, j114 to j116 (#723) and ll6 to ll8, a link a template
+   carries reading its address where the template lands. Rows from ld48
+   on of `test/spec/def-path.tsv`, 24 in all, eight cases in each mode,
+   each answered by both ports as the definition does.
+58. **What a relation's range does to its target.** Raised 2026-11-17
+   with #777: `relate(t)` meets `t` into each node a link names, so a
+   range writes into its target, and a target `t` cannot meet refuses
+   where it stands. **Ruled 2026-11-17 (the project's owner): the range
+   checks.** It checks its target, judged once the target has settled,
+   and writes nothing into it. **Not yet built**: the definition meets
+   the range into its targets (`Decls.withRefers`), as both ports do,
+   until #777 lands.
+
 ## 8. Risks
 
 | Risk | Mitigation |

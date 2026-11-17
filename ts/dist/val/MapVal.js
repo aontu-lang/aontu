@@ -18,6 +18,7 @@ const keyorder_1 = require("../keyorder");
 const rider_1 = require("../rider");
 const aliasname_1 = require("../aliasname");
 const provenance_1 = require("../provenance");
+const PathVal_1 = require("./PathVal");
 function spreadSnapKey(cj) {
     return cj.spelling + '~' + cj.site.url + '~' + cj.site.row + ':' + cj.site.col;
 }
@@ -124,8 +125,10 @@ class MapVal extends BagVal_1.BagVal {
         out.optionalKeys = [...this.optionalKeys];
         out.aliasKeys = [...this.aliasKeys];
         out.spread.cj = this.spread.cj;
+        out.relates = this.relates;
+        out.relroot = this.relroot;
         out.site = this.site;
-        if (true === peer?.isRel) {
+        if (true === peer?.isRelate) {
             return peer.unify(this, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'REL') }) : ctx);
         }
         if (peer instanceof MapVal) {
@@ -145,8 +148,10 @@ class MapVal extends BagVal_1.BagVal {
                 }
             }
             if (!exit) {
+                out.relates = (0, PathVal_1.joinRelates)(out.relates, peer.relates);
+                out.relroot = out.relroot || peer.relroot;
                 out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
-                    out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+                    (0, BagVal_1.templateKey)(out.spread.cj) === (0, BagVal_1.templateKey)(peer.spread.cj) ? out.spread.cj :
                         (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, (0, ConjunctVal_1.unmarkedTemplate)(out.spread.cj, ctx), (0, ConjunctVal_1.unmarkedTemplate)(peer.spread.cj, ctx), 'map-self'));
             }
         }
@@ -391,13 +396,13 @@ class MapVal extends BagVal_1.BagVal {
         let keys = Object.keys(this.peg)
             .filter(k => !this.aliasKeys.includes(k))
             .sort(keyorder_1.cmpCodePoint);
-        return '' +
+        const spread = this.spread.cj ? (0, utility_1.canonRiders)(this.spread.cj) : '';
+        return (0, PathVal_1.relateText)(this) +
             // this.errcanon() +
             // (this.mark.type ? '<type>' : '') +
             // (this.id + '=') +
             '{' +
-            (this.spread.cj ? '&:' + (0, utility_1.canonRiders)(this.spread.cj) +
-                (0 < keys.length ? ',' : '') : '') +
+            ('' === spread ? '' : '&:' + spread + (0 < keys.length ? ',' : '')) +
             keys
                 .map(k => [
                 JSON.stringify(k) +

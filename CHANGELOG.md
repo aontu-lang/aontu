@@ -8,6 +8,271 @@ each change affects.
 
 ## Unreleased
 
+### `gen(spec)` says how a value is written
+
+Both engines, a bundled model and shared rows. An addition to the
+language.
+
+- **`gen(spec: string|map) : annotation` is a new builtin.** It is
+  written as a term of a meet, `float & gen({ significant:2 })`, and its
+  record rides the value it meets, through meets, reference copies and
+  spreads. A string is the record's `form`, so `gen("key")` is
+  `gen({ form:"key" })`, and canon writes the record.
+- **Each type of value has a standard set of options**, each with a
+  default that leaves the output as it is, published as the new bundled
+  model `aontu:gen`. A record must unify with the set of its value's
+  type, and one that does not refuses the meet with the new code
+  `gen_option`. So an annotation admits the values of the types that
+  take its options, and an arm of a disjunction that does not take
+  them drops.
+
+  | Type | Options |
+  |------|---------|
+  | `number`, `integer`, `float`, `biginteger`, `bigdecimal` | `significant`, `places`, `as` |
+  | `string` | `case`, `empty` |
+  | `boolean` | `as` |
+  | `null` | `empty` |
+  | `path` | `form` |
+  | `map` | `keys`, `empty` |
+  | `list` | `empty` |
+
+- **`significant: n` and `places: n` round a number** to `n`
+  significant digits, or to `n` digits after the point: the decimal the
+  number shows, a tie to the even digit, in the number's own leaf.
+  `3.14159 & gen({ significant:2 })` generates `3.1`, and `2.675` at
+  two places generates `2.68`. A record that gives both rounds once.
+  Each engine rounds the digits itself, since JavaScript and Go break a
+  tie differently.
+- **`as: "string"` writes a number as a JSON string**, and with
+  `places: n` as plain decimal notation with exactly `n` digits after
+  the point: `24 & gen({ places:2 as:"string" })` generates `"24.00"`,
+  the fixed-scale form money crosses JSON in. A boolean takes
+  `as: "number"`, which writes `1` and `0`, and `as: "string"`.
+- **`case` writes a string** as `upper()` or `lower()` answers it.
+- **`empty: "omit"` leaves an empty value out** of the map or list that
+  holds it: `""`, `null`, a map that writes no member, and a list that
+  writes no element. An optional key already did this for an empty map
+  or list.
+- **`form` chooses how an address is written**: `"absolute"` from the
+  root, `"pointer"` as a JSON Pointer, and `"key"` as its last segment,
+  so `path($.a.b) & gen("key")` generates `"b"`. The default of `form`,
+  and of `case` and `keys`, is `"verbatim"`.
+  A relative address is resolved from the place its value is generated
+  at. One that climbs above the root is refused with the new code
+  `gen_address`. A pointer writes a key that holds `~` or `/` as `~0`
+  or `~1`, as RFC 6901 does.
+- **`keys` writes a map's keys in a naming style**, each as `nom()`
+  answers it: `{ orderId:7 } & gen({ keys:"snake" })` generates
+  `{"order_id":7}`. Two keys that would be written as one key are
+  refused with the new code `gen_key_clash`.
+- **`custom` is an expression that writes the output**, in every
+  type's set. The hole `_` in it stands for what the value writes
+  without it, so the record's other options are applied first, and the
+  output is what `apply()` makes of that:
+  `path($.fs.etc) & gen({ form:"key" custom:"urn:node:" + _ })`
+  generates `"urn:node:etc"`, and
+  `["a" "b"] & gen({ custom:join(_, ",") })` generates `"a,b"`. The
+  expression stands alone and reads nothing else of the document. One
+  that gives no output is refused with the new code `gen_custom`, and
+  its output is held to the checks a document's own generation runs,
+  so a relation it declares `acyclic()` that loops gives none.
+- **An option is read where the document is written and nowhere
+  else.** A reference, a call, `+`, a constraint, a size, a fold, a
+  containment, the test that every arm of a disjunction generates
+  alike, `vet`, a view and the JSON Schema export all read the value.
+  So `vet` does not report what only writing refuses. An option is read
+  as a value too: `significant:$.precision` reads the number
+  `precision` holds, whatever record that number is written with.
+- **Two annotations on one value unify their records.** Records that
+  disagree refuse the meet with the new code `gen_conflict`, where two
+  `meta()` records are kept side by side.
+- **Canon and the hash form write the annotation** after the value it
+  rides, as the last term of its meet:
+  `3.14159&gen({"significant":2})`. A document's hash moves when an
+  annotation does.
+- **`annotation` is a new result word** of the call surface, in
+  `test/spec/signature.tsv`. It is not a kind a document can write.
+- `aontu jsonschema` reports an annotation as a loss, `gen`.
+- **The definition holds a number's options**, `Number.rounded` and
+  `Number.written` in the new module `spec/Aontu/Written.lean`, with
+  `Number.rounded_isSome`, that only a float has a rounding its leaf
+  does not hold. The oracle writes 123 rows from it, `gs0` and `gw0`
+  on of `test/spec/def-gen.tsv`, and both engines answer each as the
+  definition does. The annotation itself, and the options of the other
+  types, are not yet terms of the definition.
+- Two guides use the options: [Carry exact money over
+  JSON](docs/how-to/carry-exact-money-over-json.md) writes the wire
+  string from the value, and [Model a file
+  system](docs/how-to/model-a-file-system.md) writes each parent as a
+  key.
+- Pinned by `test/spec/annotation-gen.tsv`, 595 rows that both engines
+  answer alike. The design note is `sketch/GEN.0.md`.
+
+### A how-to guide models a microservices architecture
+
+Documentation only.
+
+- **[Model a microservices
+  architecture](docs/how-to/model-a-microservices-architecture.md)** is
+  a new guide: services and the stores they own as two tables, with the
+  dependencies encoded as relations. `needs` is
+  `relate($.type.Callable) & acyclic()`, so a dependency names a
+  declared service on the core tier and calls never loop, and `owns`
+  and `owner` are each other's `inverse()`, so a store has one owner.
+  The guide asks what a service can reach with `aontu reaches`, draws
+  the tree and the layers with `aontu view`, and writes the
+  dependencies as names with `gen("key")`. Every transcript on the page
+  is executed.
+
+### A how-to guide models a file system
+
+Documentation only.
+
+- **[Model a file system](docs/how-to/model-a-file-system.md)** is a new
+  guide: a base type `Node`, two subtypes `Folder` and `File`, and a
+  `parent` relation whose target must be a `Folder`, written
+  `relate($.type.Folder) & acyclic()`. Every transcript on the page is
+  executed. The model reads only with the subtypes written above the
+  base type, which the page reports with its issue (#778).
+
+### A document reads alike in whatever order it is written
+
+The definition, shared rows and the register. No engine changes.
+
+- **Order independence is a recorded rule** (ADR-081). The members of a
+  map, the statements at one path, the sides of `&`, the arms of `|` and
+  a document's declarations may be written in any order, and an order
+  dependence in a port is a defect.
+- **The definition states it**, in `spec/Aontu/Reorder.lean`.
+  `Val.Reordered.judge` proves that two terms which are one value in two
+  orders admit and refuse the same data, `judge_env_of_perm` proves the
+  same of declarations, and `OrderIndependent` is the contract a verdict
+  is held to. The proof for the verdict itself is owed.
+- **Twenty-seven rows hold the ports to it**, `od0` to `od26` of
+  `test/spec/def-path.tsv`: one document in three orders, which the
+  definition reads alike. Both ports answer three ways (#778), so
+  fifteen of the rows are in `spec/ledger.tsv`, its bound raised by
+  fifteen.
+
+### A graph atom leaves the value as it is (#816, #750)
+
+Both engines and shared rows. A fix, with changes a document can see in
+its canon, its hash and its relation verdicts.
+
+- **`acyclic()` and `inverse(k)` ride the value they meet**, as
+  `meta()` and `deprecate()` do, where before they held it. A path into
+  a relation an atom governs names what it names without the atom
+  (#816): beside `r: relate() & acyclic() & {a: path($.p)}`,
+  `relate() & path($.r.a)` is a link to `$.r.a`, where it was
+  `rel_unresolved`, and `$.r.a` reads `path($.p)`, where it was
+  `no_path`. `+` reads an address an atom governs (#750): beside
+  `p: relate() & acyclic() & path($.a)`, `.p + "/n"` is `"$.a/n"`, where
+  it generated nothing. JSON Schema export writes such a relation as
+  the list or map it is, where it admitted anything.
+- **Canon writes the atoms after the value in one order**: `acyclic()`
+  first, then each `inverse()` in name order, and an atom written twice
+  once. Canon had written them in the order they were met, so one
+  relation could have several canons and hashes: `inverse(b) &
+  inverse(a)` had one, `inverse(a) & inverse(b)` another, and
+  `inverse(a) & inverse(b) & inverse(a)` a third, an order dependence
+  ADR-081 rules out. Each relation now has one. A document written in
+  that order keeps its canon and hash; one written in another order, or
+  with an atom repeated, takes them, so a pin taken from it moves. A
+  disjunction an atom rides is written in parentheses,
+  `(1|2)&acyclic()`, where canon had written `1|2&acyclic()`, which
+  reads back as an atom on one arm.
+- **The declarations are read from the finished value**, by the key
+  each atom is met at. An atom met with nothing, as in
+  `rules: {next: acyclic()}`, declares as one met with a relation does;
+  before, it declared only once something met it, so writing it twice
+  declared and writing it once did not. One in an alternative the
+  document refused declares nothing, where before it declared, and one
+  below an unresolved disjunction declares nothing, as a link there is
+  no edge.
+- Pinned by seventeen rows from `atom-relation-member-is-a-link-target`
+  to `undecided-alternative-declares-nothing` in
+  `test/spec/relation.tsv`, and nine from
+  `hcanon-graph-atoms-one-order` to
+  `hcanon-graph-atom-beside-a-disjunction` in `test/spec/hcanon.tsv`.
+
+### `relate` is the one link function: `refer` is removed and `rel` renamed
+
+Both engines, the definition, and shared rows. A breaking change to the
+language.
+
+- **`refer(t?)` is removed and `rel(t?)` is `relate(t?)`.** `relate` is
+  written on a field whose value is one path, a list of paths, or a map
+  of paths nested to any depth. Each path is a checked link, and `t`
+  flows into every target. A document that calls `refer` or `rel` is
+  refused as `unknown_function`. To migrate, write `relate` wherever
+  either was written: on one path the two made the same link.
+- **Canon and the hash form write `relate()` where the document wrote
+  it** (ADR-080): `relate()&path($.b)`, `relate({"k":1})&[path($.b)]`.
+  They had written a `rel()` over a list as a list whose template was
+  `&:refer()`, and a link over one path as the bare `path(...)`. So the
+  hash now tells a link from a path value that is only data, and the
+  hash form reads back to the same edges and the same `aontu relations`
+  verdict (#758). The hash of every document that holds a link moves.
+- **`aontu model get` writes a relation as canon does.** Its canon view
+  is `aontu --canon` at the root again, and its types view gives a
+  relation's shape, `[path]`, where it had printed `[&:refer(),path]`.
+  Six rows from `query-relation-canon` on in `test/spec/query.tsv`.
+- **`subsume` and `breaking` name a relation's template by its call.** A
+  finding at a member that a relation's template governs writes the
+  template as `relate()`, or `relate(t)`, with whatever the template
+  holds beside it, in its expected value and at its general site. Two
+  relations whose templates differ are never read as one value. Go's
+  site for a link or a relation's template gives its source text and
+  length, as TypeScript's does, where Go had given an empty text and
+  `-1`. Six rows from `relation-member-template-writes-its-call` on in
+  `test/spec/subsume.tsv`.
+- **An edge's relation is the key of the field `relate()` is written
+  on**, read from the marks canon writes. A link a reference copies to
+  another field is a link there, named by that field's key. The engines
+  had answered differently for a copy of a `rel()` link. A link copied
+  out of a list or a map of links is a link where it lands.
+- **A link a reference copies reads a relative address where the copy
+  stands**, as the definition reads it, where both engines had kept the
+  original's target. So each use of a type links within itself, a copy
+  whose address names nothing where it stands is refused with
+  `rel_unresolved`, and canon read back links what the copy linked. A
+  link a template carries reads its address where the template lands.
+  Six rows of `spec/ledger.tsv` came to agree with the definition and
+  left it: `j114` to `j116` (#723) and `ll6` to `ll8`. New: 24 rows
+  from `ld48` on in `test/spec/def-path.tsv`, which the oracle writes,
+  five from `rel-copy-relative-names-nothing-beside-the-copy` on in
+  `test/spec/rel.tsv`, and four in `test/spec/graph.tsv`, from
+  `edge-relative-copy-of-a-type` and `edge-of-a-canon-relative-copy`
+  on. `edge-relative-per-instance` moved: the copy's edge ends in the
+  copy.
+- **`relate()` works in a spread's template**, as `refer()` did and
+  `rel()` did not (#745): `{ &: { parent: relate() } }` links each
+  member's one address. It also meets a kind another template wrote
+  before it.
+- **A link refined by a longer path keeps its edge and its template**
+  (#753): `relate({ r: 3 }) & path($.a)` beside `path($.a.x)` is a link
+  to `$.a.x`, and `r: 3` lands there, whichever path is written first.
+- **A link's refusals are `rel_address` and `rel_unresolved`**, worded
+  `Cannot relate value`. `refer_address` is retired and stays
+  registered. `refer_unresolved` stays the code `aontu reaches` and a
+  tree view answer for a name that is no node of the document.
+- In the definition `Fn.refer` is gone and `Fn.rel` is `Fn.relate`,
+  read as the relation kind (`relKind`). `callTerm_checkableA` lost the
+  two cases of the removed function, no theorem was given up, and the
+  oracle writes the rows it wrote, with the call renamed.
+- Rows that wrote either call write `relate`. Thirty-five expectations
+  moved: the two codes, the wording, canon, and one column.
+  Two rows of `test/spec/refer.tsv` are renamed for what they now pin:
+  `address-not-a-map` is `address-not-a-map-member`, since a map is a
+  bag of addresses, and `hcanon-link-is-a-path` is
+  `hcanon-link-writes-its-call`. New: twelve rows from
+  `hcanon-relate-one-path` on in `test/spec/hcanon.tsv`, five from
+  `edge-of-a-canon-link` on in `test/spec/graph.tsv`, and fifteen from
+  `rel-one-address-in-a-map-spread` on in `test/spec/rel.tsv`.
+- `canon-calls-are-declared-builtins` in `ts/test/sig.test.ts`, and its
+  Go twin, hold every call the shared rows' canon writes to
+  `test/spec/signature.tsv`.
+
 ### The definition reads module imports
 
 The definition only; neither engine changes.

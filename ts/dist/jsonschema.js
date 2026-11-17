@@ -7,6 +7,7 @@ const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const BagVal_1 = require("./val/BagVal");
 const Decimal_1 = require("./val/Decimal");
+const genwrite_1 = require("./val/genwrite");
 const numkind_1 = require("./val/numkind");
 const numcmp_1 = require("./val/numcmp");
 const ConstraintVal_1 = require("./val/ConstraintVal");
@@ -63,6 +64,8 @@ function loseLeafKind(ctx, path, name, t) {
             'which this kind refuses');
     }
 }
+const GEN_LOST = 'JSON Schema says what a value is and not how it is written, ' +
+    'so the schema leaves the annotation out';
 function loseExactKind(ctx, path, leaf, t) {
     lose(ctx, path, leaf, 'JSON Schema has no type for one leaf of a number: the schema says "' + t +
         '", which admits the other leaves too, where this kind refuses them');
@@ -765,6 +768,9 @@ function kindResidue(v) {
         { kind, con } : undefined;
 }
 function fromValInner(ctx, path, v) {
+    if (null != v.genrec) {
+        lose(ctx, path, 'gen', GEN_LOST);
+    }
     if (true === v.isPref) {
         // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
         // so `const: x` would refuse what the model admits.
@@ -893,7 +899,7 @@ function residueName(v) {
 function generated(v) {
     const a0 = scratch();
     const ctx = a0.ctx({ collect: true });
-    const out = v.gen(ctx);
+    const out = (0, genwrite_1.genPlain)(v, ctx);
     return 0 === ctx.err.length ? exactJson(out) : undefined;
 }
 // The keywords each JSON type's instances answer to; any other instance
