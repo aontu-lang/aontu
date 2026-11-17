@@ -1057,3 +1057,12 @@ PR #791 is open from another session: `relate` replaces `refer` and `rel`, plus 
 ```text
 continue
 ```
+
+## 2026-11-17 02:02:47 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#807, second half: what is a bound over a disjunction with a written-nil arm, such as `min(nil | 1)`? The definition keeps `nil | 1` as a choice (at a key it means "absent or 1"), and a choice is no bound's argument, so it's an error. Both engines drop the arm that holds no value and read `min(1)`, so `{"v": 1}` is valid. A bound's argument has no key to leave out, and `x: nil | 1` with no data already fills `1`.
+→ It stays a choice
+```

@@ -7032,11 +7032,12 @@ there is `min(2)`:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
-  let ns := match b, args.map fun a => (normaliseD ds a).unride with
-    | .neq, [.list (x :: xs) _ _] => (x :: xs).map fun e => (normaliseD ds e).unride
-    | _, ns => ns
+  let ws := match b, args.map fun a => (normaliseD ds a).unride with
+    | .neq, [.list (x :: xs) _ _] => (x :: xs).map (normaliseD ds)
+    | _, _ => args.map (normaliseD ds)
+  let ns := ws.map Val.unride
   if ns.any Val.isChoice then .refused else
-  if ns.any Val.noEnd then .made .nothing else
+  if ws.any Val.isVoid || ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
 ```
@@ -7051,7 +7052,12 @@ among them, and an empty list, name no end.
 A boolean, `null`, a container, a kind, a bound, a pattern or a meet
 names no end, and neither do a number and a string together under
 `neq`, so a bound over one is outside its domain and admits nothing,
-however its argument is written, as both engines answer. A choice
+however its argument is written, as both engines answer. Nor does a
+written `nil`, so `min(nil)` and `neq(nil, 2)` refuse `1`, as
+`len(nil)` does (rows `nl132` on of `test/spec/def-path.tsv`). `bndOf`
+reads that before the riders come off, since without its rider a
+written `nil` is the `nil` a conflict makes, which names nothing yet:
+a bound over `1 & 2` waits, and is an error. A choice
 still to make, a disjunction or a
 preference, is no argument at all: the bound is refused, and the
 document is an error whatever the bound meets, as a size that holds

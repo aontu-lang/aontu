@@ -3865,7 +3865,10 @@ required and optional, met with a value, and the preferred arm of a
 disjunction, which drops. A bound over it beside a choice is still an
 error, as a choice is no bound's argument, written alone or in a list;
 a trial over it refuses what it meets, beside a choice, and under a
-bound or a size in its argument. -/
+bound or a size in its argument. A bound over it alone admits nothing,
+as one over an argument outside its domain does: each bound, `neq`
+beside a number and over a list, met with a value, and met with a kind,
+where the meet is dead; and a bound over a conflict, still an error. -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
@@ -3918,7 +3921,16 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], m [("v", .contains .any (bnd .min [.meet nl (int 1)]))], dm [("v", .list [j 1])]),
     ([], m [("v", .contains .any (.len (.meet nl (int 1))))], dm [("v", .list [j 1])]),
     ([], m [("v", .must (bnd .min [.meet nl (int 1)]) "m")], dm [("v", j 1)]),
-    ([], m [("v", .must (.len (.meet nl (int 1))) "m")], dm [("v", j 1)])]
+    ([], m [("v", .must (.len (.meet nl (int 1))) "m")], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [nl])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [nl])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [nl, int 2])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [.list [nl, int 2] none false])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.meet nl (int 1)])], dm [("v", j 1)]),
+    ([], m [("v", bnd .above [nl])], dm [("v", j 1)]),
+    ([], m [("v", bnd .mulof [nl])], dm [("v", j 1)]),
+    ([], m [("v", .meet .integer (bnd .below [nl]))], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.meet (int 1) (int 2)])], dm [("v", j 1)])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
