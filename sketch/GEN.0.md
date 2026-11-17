@@ -1132,8 +1132,8 @@ put to them, and one against it:
 13. **Every type's notation option is named `form`**, against the
     recommendation: `case`, `keys` and `as` are renamed, so the string
     shorthand reaches every type, `"ada" & gen("upper")` and
-    `7 & gen("string")`. **Not yet built**: the model `aontu:gen`, both
-    ports, the rows and the reference move together, as one change.
+    `7 & gen("string")`. **Not yet built** (#825): the model `aontu:gen`,
+    both ports, the rows and the reference move together, as one change.
 14. **`custom` is given what the value writes without it**, read as
     data (D-20).
 15. **`custom` stands alone**: it reads nothing else in the document
