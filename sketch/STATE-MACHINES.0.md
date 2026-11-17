@@ -1,84 +1,71 @@
-# State machines: design note
+# State machines from general primitives: design note
 
-Status: PROPOSED (2026-11-17). Nothing here is built. §3 records what
-holds today, each claim run on both engines; §6 proposes the design;
-§9 is the plan; §10 lists the decisions the owner is asked for.
+Status: PROPOSED, second draft (2026-11-17). Nothing here is built. The
+first draft of the same day proposed a `machine(spec)` declaration with
+its own vocabulary of initial and final states, patterns and
+obligations; the owner found it too specific. This draft proposes
+instead a rule and a handful of primitives that are not about state
+machines at all, and builds the state-machine vocabulary from them as a
+bundled model. §3 records what holds today, each claim run on both
+engines; §6 proposes the design; §9 is the plan; §10 lists the
+decisions the owner is asked for.
 Date: 2026-11-17
 
 A lifecycle is already writable in aontu: each state a member of a map,
 each transition a link, each event a key. What a team then asks of it
 is what the formal-methods literature has asked of state machines for
-forty years: that every state is reachable, that no state is a trap,
-that some states never follow others, that a guarded transition
-preserves what its target state requires, and that a new version keeps
-every path the old one had. aontu answers some of these today, as
-§3 shows, and the rest not at all. This note proposes a declaration
-that states a machine once, the checks that read it, and the order to
-build them in.
-
-```aontu
-lifecycle: machine({ over: "next", initial: "draft", final: ["delivered", "cancelled"],
-                     never: [{ from: "shipped", to: "draft" }] })
-lifecycle: {
-  draft:     { next: relate() & { place: path($.lifecycle.placed), cancel: path($.lifecycle.cancelled) } }
-  placed:    { holds: { paidAt: string },
-               next: relate() & { ship: path($.lifecycle.shipped), cancel: path($.lifecycle.cancelled) },
-               when: { ship: { paidAt: string, trackingNo: string } } }
-  shipped:   { holds: { paidAt: string, trackingNo: string },
-               next: relate() & { deliver: path($.lifecycle.delivered) } }
-  delivered: {}
-  cancelled: {}
-}
-orders: { &: stateof($.lifecycle, "status") }
-```
+decades: that every state is reachable, that no state is a trap, that
+some states never follow others, that a guarded transition preserves
+what its target requires, and that a recorded run took legal steps.
+Each of those questions is a question about a graph, about a choice
+among values that data supplies, or about one schema implying another.
+None is about state machines as such, so none needs a state-machine
+word in the language.
 
 ## 1. The problem
 
 Three questions came first, each answered by running both engines:
 whether aontu can express state machines, what of them it can check,
-and how that compares with the established ways to validate one. The
-answers, in short:
+and how that compares with the established ways to validate one.
 
-- **What works** is the structure: a transition that names no state is
-  `rel_unresolved`, two targets for one event are `scalar_value`, a
-  loop under `acyclic()` is `relation_cycle`, and `aontu reaches` and
+- **What works** is the structure. A transition that names no state is
+  `rel_unresolved`, two targets for one event are `scalar_value`, a loop
+  under `acyclic()` is `relation_cycle`. `aontu reaches` and
   `aontu view state` read the graph. Records, changes and commands can
-  be held to the machine one snapshot at a time. `subsume` and
-  `breaking` prove a little for all data.
-- **What breaks** is a set of defects the work found and filed: §11.
-  Several sit in the relation machinery this note extends.
-- **What is absent** is every property over the graph as a whole other
-  than acyclicity, every property over paths, transitions that carry
-  data, and any way out to the tools that check the rest.
+  be held to the machine one snapshot at a time. The `subsume` and
+  `breaking` verbs prove a little for all data.
+- **What is missing** has four shapes. The graph a document declares
+  can be checked for cycles and inverses and nothing else, and can't be
+  read as a value at all. A choice among values can't be built from
+  data: a disjunction is written out by hand. A value can't be read by a
+  key the document computes, though a link can be made to one. And one
+  schema implying another can be asked of the command line, never
+  stated in a document.
 
-The established methods, for reference:
-
-| Method | What it proves | Tools |
-|---|---|---|
-| Graph analysis | transitions name states, one initial state, determinism, completeness, reachability, no trap states, minimal and equivalent forms | automata algorithms |
-| Model checking | safety, liveness and ordering over every run, with a counterexample | SPIN, NuSMV/nuXmv, TLA+ (TLC, Apalache), UPPAAL, PRISM, mCRL2 |
-| Proof | invariants each transition preserves; refinement | Event-B/Rodin, TLAPS, Isabelle, Coq, Lean, Dafny |
-| Refinement and equivalence | trace inclusion, bisimulation | FDR, mCRL2, CADP |
-| Bounded search | counterexamples up to a size | Alloy |
-| Testing | transition cover, runtime monitors | W-method, `@xstate/graph` |
-
-Of these, aontu can reasonably own the first row, the patterns of the
-second that are plain reachability over a finite graph, and the proof
-obligations of the third that subsumption decides. The rest belongs to
-the tools, and aontu's part is to hand them a faithful model.
+A primitive that filled one of those gaps for state machines alone
+would be the first draft again. Each of the gaps is met as often in a
+dependency graph, an organisation chart, a registry of allowed values or
+an API's compatibility promise, and the primitives below are for all of
+them.
 
 ## 2. What was asked
 
-The owner, 2026-11-17: "File issues for findings; prepare a plan to
-support state machines more effectively". It followed three questions:
-"Can aontu express state machines?", the request to file what that
-found, and "Are there well established ways to formally validate state
-machines? Can aontu do this? What is missing?"
+The owner, 2026-11-17, in order:
+
+- "File issues for findings; prepare a plan to support state machines
+  more effectively", which the first draft answered.
+- "The problem with this proposal is that is it is too specific. What
+  language primitives, new or extended, could enable state machine
+  representations and validation", which a reply in the session
+  answered with the primitives of §6.
+- "Rewrite the note", which this draft is.
 
 ## 3. What holds today
 
 Run on both engines at 0.76.0, on #791 (`relate`) and on `main` at
 5b548f6 (`rel`), with one answer from both in every row.
+
+**The machine and its checks.**
 
 | Check | How it is written | A bad input gives |
 |---|---|---|
@@ -88,268 +75,347 @@ Run on both engines at 0.76.0, on #791 (`relate`) and on `main` at
 | One state reaches another | `aontu reaches A B --relation next` | `unreachable`, or the shortest path |
 | A diagram | `aontu view state --root '$.lifecycle.draft'` | Mermaid, text, SVG |
 | A record's status is a state | `state: hide(relate() & path("$.lifecycle." + .status))` | `rel_unresolved` under `vet` |
-| A record holds what its state needs | a disjunction keyed on `status` | `incomplete` or `invalid` under `vet` |
-| A change's event leaves its start state | `legal: hide(relate() & path("$.lifecycle." + .before + ".next." + .event))` | `rel_unresolved` |
+| A record holds what its state needs | a disjunction keyed on `status`, written by hand | `incomplete` or `invalid` under `vet` |
 | A change lands where it says | `pick(pick(pick([$.lifecycle], .before), next), .event) & [path(…)]` | `scalar_value`, or `pick_key` |
-| A guard on a command | `match(.event, "ship", { paidAt: string }, {}) & .order` | refused at the missing field |
 | A transition preserves an invariant | `aontu subsume shipped.aontu placed-ship.aontu` | `compat_required_added`, `compat_narrowed`; `undecided` for `must`, `when` and patterns |
 | Two guards never both hold | meet them | refused where exclusive; the overlap as residue |
 | A new version keeps every transition | `aontu breaking --against v1.aontu --mode forward v2.aontu` | `breaking` at a dropped or retargeted transition |
 
-Four things in that table are workarounds, and each is a reason for a
-decision below:
+**The general pieces the design composes with.** Each also checked on
+both engines:
 
-- `acyclic()` on each state's own `next` hides that map's members from
-  every link and path (#816), so the property is declared once on an
-  empty relation of the same name.
-- The diagram labels every edge `next`, the relation's name, because an
-  edge's label is its relation. One relation per event labels the
-  events but checks cycles per event, so a loop through two events
-  passes.
-- The lookup of a transition's target is `pick([m], k)`, which is
-  `[m[k]]`, because a path can't be computed. It needs absolute
-  addresses: a copied link reads a relative one where the copy stands
-  (ruling 55).
-- The per-state rule is a hand-written disjunction, because a `match`
-  that reads the record it is met into never settles (#818).
+| Piece | Written | Does |
+|---|---|---|
+| A spread over the states | `lifecycle: { &: { name: key() }, … }` | gives each state its own key |
+| "None of these" | `xs & contains(path($.c), 0)` | refuses a list that holds `path($.c)` |
+| "All of these" | `xs & [&: min(2)]` | holds every element to the template |
+| A map's keys as data | `pick(pack($.m, { k: key() }), k)` | `["a", "b"]` |
+| A transition as text | `pick(pack($.lifecycle.placed.next, { l: key() + " -> " + _ }), l)` | `["cancel -> $.lifecycle.cancelled", …]` |
+| A counterexample in a refusal | `[path($.a), path($.b)] & len(0)` | refused, and the report prints the list |
+
+`key()` inside an `each` template reads where the output lands, not the
+source member's key, which is why the keys go through `pack`.
 
 ## 4. The boundary this design keeps
 
-**Option E of G4.** Identity and referential integrity are monotone and
-live in the lattice; global graph properties are not, and "must not be
-lattice citizens: they are declared as ordinary data under a blessed
-vocabulary and checked by a post-unification pass". `acyclic()` is that
-pass today: it registers a declaration during unification, adds nothing
-to the value, and is judged over the finished edge set by generation
-and by `aontu relations`. Every check this note proposes is judged the
-same way, by the same pass. None is a lattice constraint.
+**Option E of G4.** Global graph properties "must not be lattice
+citizens: they are declared as ordinary data under a blessed vocabulary
+and checked by a post-unification pass". The design keeps that and
+generalises the pass: a value that reads the finished graph is computed
+after unification, in a stage of its own, and never feeds back into
+what it read (D-1). No primitive here is unified into the lattice
+before the stage it reads has settled.
 
 **G4's non-goal on temporal properties.** G4 rules out "temporal or
 behavioural relation properties ('eventually consistent')" as
-inexpressible in a value lattice. The path patterns of D-4 are not
-properties of a running system: they are reachability over the finite
-graph a finished document declares, the question `reaches` already
-answers one pair at a time. They sit in the pass G4 assigns graph
-properties to. Whether that reading stands is Q1.
+inexpressible in a value lattice. The graph reads of D-2 are not
+properties of a running system. They are reachability over the finite
+graph a finished document declares, which `aontu reaches` already
+answers one pair at a time. Whether that reading stands is Q1.
 
-**ADR-001.** Each phase lands in both ports with shared rows whose
-expectations come from both engines agreeing. **ADR-002.** Every line
-is covered. **ADR-003.** The exporter of D-9 writes only what aontu
-defines and reports what it drops; it hands no aontu value to a host to
-interpret. **ADR-081** (on #791). A finding and its counterexample do
-not depend on the order a document is written in.
+**The ADRs.** ADR-001: each phase lands in both ports with shared rows
+whose expectations come from both engines agreeing. ADR-002: every line
+is covered. ADR-003: aontu defines what each primitive means; nothing
+is handed to a host to interpret. ADR-081, on #791: a read's result,
+and the order of any list it returns, does not depend on the order a
+document is written in.
 
 ## 5. The design in brief
 
-A machine is a declaration on the map that holds its states. It names
-the relation whose edges are the transitions, the initial states, and
-the final ones. The relation stays what it is today: one `relate()` map
-per state, its keys the events. From the declaration the engine knows
-the state set, which the edge set alone does not (a state with no
-transitions is in no edge), and it judges:
+One rule and eight primitives:
 
-1. the structure: every transition stays inside the machine, every
-   state is reachable from an initial one, every state can still reach
-   a final one, and a final state has no transitions (D-3);
-2. the path patterns a document opts into: one state never followed by
-   another, one state always passed before another (D-4);
-3. with data, what each transition owes: a guarded transition from a
-   state lands a record its target accepts, and two guards on one event
-   never both hold (D-7).
+| | Primitive | New or extended | Kind |
+|---|---|---|---|
+| S | stratified reads | extends the staging `filter`, `match` and `pack` have | rule |
+| P1 | `reach(r, from, avoid?)`, `step(r, from)`, `route(r, from, to, avoid?)` | new; the algorithm of `aontu reaches` | graph read |
+| P2 | `edges(r)` | new | graph read |
+| P3 | edges that carry data | extends `relate()` | relation |
+| P4 | `oneof(d)` | new | settled read |
+| P5 | `get(m, k…)` | extends references to computed segments | reference |
+| P6 | `implies(a, b)` | new; the `subsume` verb as a check | check |
+| P7 | `here(n?)`, `pairs(l)` | new | positional; settled read |
+| P8 | `keys(m)` | sugar for `pick(pack(m, { k: key() }), k)` | settled read |
 
-The diagram reads the declaration and labels each edge with its event
-(D-5). A record is held to its state's shape by a disjunction the
-machine builds (D-6). A version is held to the last one by `breaking`
-(D-8). The model goes out as SCXML for the tools that check the rest
-(D-9).
+From them a document states its own checks as ordinary constraints, and
+the state-machine vocabulary is a bundled model, `aontu:machine`,
+written in aontu with those primitives (D-10). A team that wants a
+different notion of "final" changes a model, not an engine.
+
+The order lifecycle's checks, in the proposed syntax:
+
+```aontu
+final: [path($.lifecycle.delivered), path($.lifecycle.cancelled)]
+
+lifecycle: &: {
+  reachable: reach(next, $.lifecycle.draft) & contains(here())   # every state reachable
+  canFinish: reach(next, here()) & contains(oneof($.final))      # no trap state
+}
+
+never:   route(next, $.lifecycle.shipped, $.lifecycle.draft) & len(0)
+through: route(next, $.lifecycle.draft, $.lifecycle.shipped, [$.lifecycle.placed]) & len(0)
+
+orders:  &: oneof(each(keys($.lifecycle), { status: _ } & maybe(get($.lifecycle, _, "holds"))))
+
+kept:    edges(next) & [&: { ok: implies(get(.from, "holds") & .attrs.guard, get(.to, "holds")) }]
+```
+
+`never` and `through`, when they fail, print the offending route, since
+the refusal prints the value it refused (§3). `orders` reads the
+machine and never the record it is met into, so it needs no ruling on
+#818; a lookup by the record's own `status` would.
+
+| Line | Established property |
+|---|---|
+| `reachable` | every state reachable from the initial state (CTL EF, asked of each state) |
+| `canFinish` | no trap: AG EF final |
+| `never` | absence after a state (Dwyer et al.); AG(shipped → AG ¬draft) |
+| `through` | precedence: every path to `shipped` passes `placed`; ¬E[¬placed U shipped] |
+| `orders` | each record conforms to its state's invariant |
+| `kept` | Event-B invariant preservation, one obligation per transition |
 
 ## 6. Decisions (proposed)
 
-### D-1. A machine is `machine(spec)`, a declaration on the map of states
+### D-1. Rule S: stratified reads
 
-`machine(spec: map) : constraint`, met with the map whose members are
-the states. `spec` holds `over`, the relation's name, `initial`, a
-state's key or a list of them, and `final`, a list (empty where the
-machine has no final state). It registers the declaration as
-`acyclic()` registers its own and adds nothing to the value it meets.
+`filter`, `match`, `pack` and `each` already "wait for the model to
+settle before they answer", and the definition reads them once a
+document is read (`resolveD` and `selectArm` in
+`spec/Aontu/Verdict.lean`). Rule S makes that staging a rule with a
+name, and gives it the stages the new reads need:
 
-It is a declaration on the container, so it depends on #816: a graph
-atom on a container hides the container's members today, and a machine
-declaration that did the same would hide every state. #816 closes
-first.
+1. **The lattice**: unification, references, links.
+2. **Settled bag reads**: `filter`, `match`, `pack`, `each`, `pick`, the
+   folds, and P4, P5 where a key is computed, P7's `pairs`, P8.
+3. **Graph reads**: P1 and P2, over the edge set of the finished stage 2.
+4. **Checks**: the trials judged at generation, the graph atoms, P6.
 
-**Alternative.** Separate atoms beside `acyclic()`: `rooted(p)`,
-`noTraps()`, `finals(…)`. Each would need the state set, which only the
-container knows, so each would be written on the container anyway, and
-three atoms would be three places to keep consistent. Q2.
+A read takes its input from the stages below it and gives its result
+to the stages above it or to the output. A read whose result would
+change what it read is refused: a link made from a `reach`, or a
+member whose existence a `filter` over its own map decides. That
+refusal, `stage_cycle`, is the answer #818 asks for: the definition
+already answers `error` where a `match` is met into the record whose
+field it reads. Stratified Datalog is the precedent: negation and
+aggregation are safe over a lower stratum, and a program that needs
+them over its own is refused.
 
-### D-2. States, transitions and events
+The rule is coarse by default, a whole value, and can be made finer
+where a read's field is decided without the read's result: `status`
+in `order: { status: "placed" } & get(…, .status, …)` is. Which of the
+two the ports implement is Q2.
 
-A state is a member of the declaring map. A transition is an edge of
-the relation `over` whose source is a state; its target must be a state
-of the same machine. The event is the edge's member key under the
-relation (`ship` in `next: relate() & { ship: path(…) }`), read from the
-edge's position `at`, where `graphOf` already records it. A relation
-written as a single path or a list has no events, and its edges are
-labelled by the relation's name, as now.
+### D-2. Graph reads: `reach`, `step`, `route`
 
-A relation's name governs every relation of that name, but a machine
-reads only the edges whose source is one of its states, so two
-machines can share `next`.
+Over the edges of relation `r`, the field name every `relate()` of that
+name shares:
 
-### D-3. The structural checks
+- `reach(r, from, avoid?)`: the nodes reachable from `from`, an address
+  or a list of them, by zero or more edges, passing no node of `avoid`.
+  A list of addresses in code-point order.
+- `step(r, from)`: the nodes one edge away.
+- `route(r, from, to, avoid?)`: a shortest path from `from` to `to`, as
+  a list of addresses, first in code-point order among the shortest; an
+  empty list where there is none. It is the path `aontu reaches` prints.
 
-| Check | Code | Detail |
-|---|---|---|
-| a named initial or final state is a member | `machine_state` | the name, and the members |
-| a transition's target is a state of the machine | `machine_outside` | the edge and its target |
-| every state is reachable from an initial state | `machine_unreachable` | the state |
-| every state can reach a final state | `machine_trap` | the state, and the states it is trapped among |
-| a final state has no transition | `machine_final_exit` | the edge |
+A node is an address the graph names, as `reaches` reads it: a link
+into part of a node reaches that node. `reach` includes `from`, where
+the verb asks for one or more edges; `route(r, a, a)` is `[a]`. Q3.
 
-Each is sited at the edge or the state it names, judged after
-unification, reported by `aontu relations` and refused by generation, as
-`relation_cycle` is. A machine with no final state skips the trap check
-and says so in the report. "Can always still finish", AG EF final in
-CTL, is the trap check, asked of every state. Strict termination, AF
-final, is the trap check together with `acyclic()` on the relation,
-which stays as it is: with no cycle, every run ends in a state with no
-transition, and with no trap, that state is final.
+With `contains`, `len` and a spread, these give the CTL properties that
+matter to a lifecycle: EF (`contains`), AG over the reachable set (a
+spread), E[¬a U b] (`avoid`), and AG EF (a spread of `reach` over every
+state). AF and EG need cycles in a subgraph; `acyclic()` and the trap
+check together give AF where final states have no exits, and nothing
+here gives EG. They are left until a model needs them.
 
-### D-4. Path patterns
+### D-3. `edges(r)`: the edge set as data
 
-After Dwyer, Avrunin and Corbett's specification patterns (ICSE 1999),
-which catalogue the properties practitioners write, the two that are
-plain reachability:
+`edges(r)` is a list of `{ from, to, label, at }`, and `attrs` where
+P3 gives it, in the order of `at`. `from`, `to` and `at` are addresses;
+`label` is the member key under the relation (the event) or, for a
+relation written as one path, the relation's name. It is the edge set
+`graphOf` already builds (`ts/src/graph.ts`, `go/graph.go`), with the
+label read from `at`.
 
-| Pattern | Written | Means | Code | Counterexample |
-|---|---|---|---|---|
-| absence after | `never: [{ from: "shipped", to: "draft" }]` | once in `from`, `to` is never reached | `machine_never` | the shortest path from `from` to `to` |
-| precedence | `through: [{ to: "shipped", via: "placed" }]` | every path from an initial state to `to` passes `via` | `machine_bypass` | the shortest path that avoids `via` |
+It is what a check iterates (D-7's obligations), what a template
+iterates to write SCXML or TLA+ (D-12), and what the state figure
+labels its edges from (D-11).
 
-A state in a pattern is a key, or a list of keys. A counterexample is
-chosen as `reaches` chooses its path: shortest, then first in code-point
-order, so both ports print the same bytes. A general CTL is left out:
-it is cheap to decide on an explicit graph, linear in the graph and the
-formula, but a second language is a large surface for two patterns'
-worth of use. Q3.
+### D-4. Edges that carry data
 
-### D-5. The diagram reads the machine
-
-`aontu view state` takes the initial and final states from a machine
-declaration when one names the relation, so `--root` is not needed. An
-edge of a map relation is labelled with its event; `--events relation`
-draws today's labels. This lands first and alone (phase 1), because it
-needs no declaration: the event is already in `at`. Whether the event
-becomes the default, which moves every golden that draws a map
-relation, is Q4.
-
-### D-6. A state's shape, and the records that are in it
-
-A state may hold `holds`, a schema a record in that state satisfies.
-`stateof(m, k)` is the disjunction, over the states of the machine at
-`m`, of `{ <k>: "<state>" } & <holds>`:
+`relate()` rewrites every leaf path of its map into a link, and refuses
+or waits at a leaf that is no path, so an edge can't carry a guard
+today. Extended: a member may be a record, one field of which is the
+link, `relate(t, { at: "to" })`, and the rest of which is the edge's
+data, reported in `edges(r)` as `attrs`:
 
 ```aontu
-orders: { &: stateof($.lifecycle, "status") }
-```
-
-is the disjunction §3 writes by hand, built from the machine, so a
-state added to the machine is a status the records may take. It reads
-the machine, never the record it is met into, so it does not meet
-#818. The alternative, a lookup by the record's own status, waits on
-#818's ruling. Q5.
-
-### D-7. Transitions with data
-
-Beside `next`, a state may hold `when`, a guard per event, and `set`, a
-map per event of the fields the transition writes:
-
-```aontu
-placed: {
-  holds: { paidAt: string }
-  next: relate() & { ship: path($.lifecycle.shipped) }
-  when: { ship: { trackingNo: string } }
-  set:  { ship: { shippedAt: string } }
+next: relate(any, { at: "to" }) & {
+  ship: { to: path($.lifecycle.shipped), guard: { trackingNo: string } }
 }
 ```
 
-They sit beside `next`, not in it, so `relate()` keeps rewriting paths
-alone. The machine generates two obligations per transition and
-discharges each with the subsumption query:
+The same is a dependency with its version range, a network link with
+its port, a weighted edge. Whether the link field is named in the call
+or by convention is Q5.
 
-- **preservation**: `holds(from)`, met with `when`, with the keys of
-  `set` replaced by `set`'s, is subsumed by `holds(to)`. Refuted is
-  `machine_invariant`, with the witness `subsume` gives.
-- **exclusion**, where one event has two guarded transitions from one
-  state: the meet of `holds(from)` and both guards is empty. Where it
-  stands, `machine_overlap`, with the meet as the overlap.
+### D-5. `oneof(d)`: a choice from data
 
-An obligation `subsume` leaves `undecided` is reported as undecided,
-never as a pass, with its `sub_*` reason. These are the Event-B
-obligations for invariant preservation, restricted to what subsumption
-decides. Q6.
+The disjunction of the members of a list or the values of a map:
+`oneof(["a", "b"])` is `"a" | "b"`. `nof` takes its branches written
+out; `oneof` takes them from data, so it is a settled read (stage 2).
+`oneof([])` is `nil`. With it, `status: oneof(keys($.lifecycle))` is a
+status that names a state, and a union of the states' shapes is
+`oneof(each(keys($.lifecycle), { status: _ } & maybe(get($.lifecycle, _, "holds"))))`,
+a state with no `holds` admitting any record with its status.
+It is the allowed values of a registry, the tenants a policy names, the
+regions a deployment may take.
 
-### D-8. Evolution
+### D-6. `get(m, k…)`: a read by computed key
 
-`aontu breaking --against v1.aontu --mode forward v2.aontu` already
-refuses a dropped or retargeted transition and passes an added one.
-Backward mode is `undecided` at a dropped transition until #819 closes.
-With a machine declaration, the initial and final states and the
-patterns are part of what is compared, so a version that drops a
-`never` is breaking. Equivalence up to renaming states is left out.
+The member of `m` at the keys `k…`, each a string or an index, the read
+side of the `path("$." + …)` a link already computes. `m` is a map or
+a list, or an address, which reads the node it names, so
+`get(.from, "holds")` over an edge reads the source state's shape. `get($.lifecycle,
+.from, "next", .event)` is a transition's target; a missing key is
+refused as `get_key`, as `pick` refuses with `pick_key`, and
+`maybe(get(…))` reads an absent one as absent. Today's
+`pick([m], k)`, which is `[m[k]]`, is the workaround it replaces. Once
+its keys are concrete it is an ordinary reference, which is why it is
+in stage 1 where its keys come from the lattice and in stage 2 where a
+read computes them.
 
-### D-9. Export
+### D-7. `implies(a, b)`: subsumption as a check
 
-`aontu view state --as scxml` writes the W3C SCXML document: one
-`<state>` or `<final>` per state, a `<transition event target>` per
-edge, the `initial` attribute. A guard is written as `cond` only where
-aontu can write it exactly; anything else is dropped and counted by the
-view's loss report, as `hidden_contribution` is now. SCXML is a W3C
-standard, and runtimes such as Qt SCXML and Apache Commons SCXML
-execute it. A TLA+ emitter, for concurrency and the properties D-4
-leaves out, is Q7.
+`a` implies `b` where every instance of `a` is an instance of `b`: the
+`subsume` verb's question, with `b` general and `a` specific, asked in
+the document and judged in stage 4. Three answers, as the verb gives:
+it holds; it is refuted, refused as `implies_refuted` with the verb's
+witness; or it is undecided, with the verb's `sub_*` reason. Where the
+third lands is Q4.
 
-### D-10. The definition
+It states in a document what today needs the command line: a transition
+keeps its target's invariant (§5, `kept`), two guards are exclusive
+(`implies(g1 & g2, nil)`), a schema's version 2 admits what version 1
+did, a role's permissions imply another's. #819 is the gap it inherits
+first.
 
-The definition holds no relation verdict today; `test/spec/relation.tsv`
-holds them. A machine could be defined in a `spec/Aontu/Graph.lean`:
-the edge set of a reading restricted to a machine, reachability, the
-trap set, dominance, and theorems that a finding's counterexample is a
-path of the graph, with oracle rows. Without it, `spec/README.md`
-records that rows hold the machine. Q8.
+### D-8. `here(n?)` and `pairs(l)`
+
+- `here(n?)` is the address of the node `n` levels above where it
+  stands, as `key(n)` is its key; `here()` in a spread over states is
+  the state's address. Positional, stage 1.
+- `pairs(l)` is the list of `{ from: lᵢ, to: lᵢ₊₁ }`, empty below two
+  members. Stage 2. A recorded history is legal where
+  `pairs(trail) & [&: { ok: step(next, .from) & contains(.to) }]`; the
+  same shape checks timestamps that rise, versions that chain, a
+  migration's order.
+
+### D-9. `keys(m)`
+
+`keys(m)` is `pick(pack(m, { k: key() }), k)`, which works today. It
+earns a name because every check over a map's members needs it; it adds
+no semantics.
+
+### D-10. The machine vocabulary is a bundled model
+
+`aontu:machine` is written in aontu with the primitives, as
+`aontu:gen` holds the output options. A sketch of its shape, not its
+text:
+
+```aontu
+aontu: machine: hide({
+  Machine: {
+    of: path              # the map of states
+    over: string          # the relation whose edges are the transitions
+    initial: [...path]
+    final: [...path]
+    checks: {
+      unreachable: …      # each state of .of not in reach(.over, .initial)
+      traps:       …      # each state whose reach holds none of .final
+      finalExits:  …      # edges(.over) from a final state
+    }
+  }
+})
+
+orders_machine: $.aontu.machine.Machine & {
+  of: path($.lifecycle), over: "next"
+  initial: [path($.lifecycle.draft)]
+  final: [path($.lifecycle.delivered), path($.lifecycle.cancelled)]
+}
+```
+
+A violation is an ordinary refusal sited in the user's document,
+because each check is a constraint over the user's own graph. The
+model is the place for the patterns of the first draft (absence after,
+precedence) and for the per-state union; the language holds none of
+them.
+
+### D-11. The figure reads the edge labels
+
+`aontu view state` labels each edge with its `label` from D-3, the event,
+where it labels it with the relation's name today; `--events relation`
+draws today's labels. It needs nothing else from this note and can land
+first. Whether the event becomes the default, which moves every golden
+that draws a map relation, is Q7.
+
+### D-12. Export is a template
+
+An SCXML or TLA+ document is text written from `edges(r)` and the map of
+states, which `emit`, `each` and the templates already write. A bundled
+template beside `aontu:machine` writes SCXML; there is no exporter in
+the engine. What a template can't write exactly, a guard outside the
+subset it knows, it leaves out and says so in the text it writes.
+
+### D-13. The definition
+
+Rule S belongs in the definition, since it decides which documents are
+refused: the stages, the read relation between them, and a theorem that
+a document rule S admits has one reading. The graph reads can be
+defined over the edge set of a reading in a `spec/Aontu/Graph.lean`,
+with theorems that `route` returns a path of the graph and that
+`reach` is closed under `step`, and oracle rows. The definition holds
+no relation verdict today; `test/spec/relation.tsv` does. Q10.
 
 ## 7. Errors
 
-Each appended to `test/spec/errcodes.tsv`, class `conflict`, with a hint
-in both ports, in the change that introduces it:
+Proposed, each appended to `test/spec/errcodes.tsv` with a hint in both
+ports in the change that introduces it:
 
-`machine_state`, `machine_outside`, `machine_unreachable`,
-`machine_trap`, `machine_final_exit`, `machine_never`, `machine_bypass`,
-`machine_invariant`, `machine_overlap`.
+| Code | Class | Raised by |
+|---|---|---|
+| `stage_cycle` | reference | a read whose result feeds what it read (D-1) |
+| `graph_relation` | reference | a relation name no `relate()` declares (P1, P2) |
+| `get_key` | conflict | a key `get` finds no member at (D-6) |
+| `implies_refuted` | conflict | an implication refuted, with the witness (D-7) |
 
-`machine_spec` refuses a `spec` that is not a map of the known keys, as
-`gen_option` refuses a record.
+The checks a model writes need no code of their own: a failed
+`contains`, `len` or trial is refused with the code it has today, and
+the model's `must` messages say what was meant.
 
 ## 8. What must hold
 
-- **Parity.** The declaration in `ts/src/val/GraphAtomVal.ts` and
-  `go/graphatom.go` (or a value of its own in each), the checks in
-  `ts/src/relation.ts` and `go/relation.go`, the events in
-  `ts/src/graph.ts` and `go/graph.go`, the figure in `ts/src/view.ts`
-  and `go/view.go`, the obligations through `ts/src/subsume.ts` and
-  `go/subsume.go`. Each answer pinned by a shared row from both engines
-  agreeing.
-- **Rows.** `test/spec/machine.tsv` for the checks, beside
-  `test/spec/relation.tsv`; `test/spec/view.tsv` for the figure; the
-  code rows.
-- **One report.** `vet` reports what generation refuses; #491 is where
-  it does not today, and closes before D-3 lands, or `vet` passes a
-  machine generation refuses.
-- **Determinism.** Findings sorted by `at`, counterexamples chosen by
-  length then code point, states and events by code point.
-- **Cost.** Reachability, the trap set (strongly connected components)
-  and dominance are linear or near it in the edge set.
+- **Parity.** Rule S in both evaluators; the graph reads beside
+  `ts/src/reach.ts` and `go/reach.go`, reading `graphOf`; `relate()`'s
+  record members in `ts/src/val/RelateFuncVal.ts` and its Go twin;
+  `implies` over `ts/src/subsume.ts` and `go/subsume.go`. Each answer
+  pinned by a shared row from both engines agreeing.
+- **Rows.** A row file per stage of the plan: `test/spec/stage.tsv`,
+  `test/spec/graph-read.tsv`, and the existing `relation.tsv`,
+  `view.tsv`, `subsume.tsv`, `signature.tsv` and `errcodes.tsv` where a
+  phase touches them.
+- **Determinism.** Every list a read returns is in code-point order, or
+  in `at` order for edges; a route is the first shortest in code-point
+  order, as the verb's is.
+- **Order independence.** A read's result does not depend on the order
+  the document is written in (ADR-081, on #791).
+- **One report.** `vet` reports what generation refuses (#491 is where
+  it doesn't today).
+- **Cost.** `reach`, `step` and `route` are linear in the edge set;
+  a check that asks `reach` of every state is quadratic, which a
+  lifecycle never notices and a registry of many thousand nodes might.
+  A read may be cached per stage, since its input does not change once
+  the stage below it has settled.
 - **Coverage.** 100 % in both ports, every exclusion justified.
 
 ## 9. Plan
@@ -359,85 +425,78 @@ documentation, and its row in the progress register if Q9 opens this
 as a gap document.
 
 0. **Blockers.** Close #816 (a graph atom hides its container's
-   members) and #815 (a cycle's reported edge), both in the code D-3
-   extends; #817 (a check under `hide()` never runs), since a machine's
-   checks are often written hidden; #491 (`vet` and relation
-   verdicts); #819 (subsumption of a relation's members). Rule on #818
-   and #777. On #791, before it merges: a pending link's `canon` is
-   `''`, so a report that prints a relation's member template alone
-   prints nothing (`subsume`'s `expected:` and its general site).
-1. **Event labels** (D-5, first half). The figure labels a map
-   relation's edge by its event; `--events`. `test/spec/view.tsv`; the
-   reference's `state` paragraph and its transcripts.
-2. **The declaration and the structure** (D-1 to D-3, the rest of
-   D-5). `machine(spec)`; the five checks; `relations` and generation
-   report them; the figure reads the machine. `test/spec/machine.tsv`;
-   six codes; the language reference's "Declared relations" grows a
-   section, the API reference's `relations` its findings.
-3. **Path patterns** (D-4). `never` and `through`, with
-   counterexamples. Rows; two codes; reference.
-4. **States and records** (D-6). `holds`; `stateof`; its signature in
-   `test/spec/signature.tsv`. Rows; reference.
-5. **Transitions with data** (D-7). `when` and `set`; the two
-   obligations through `subsume`; the report lists each with its
-   verdict. Rows; two codes; reference.
-6. **Evolution** (D-8). Rows for `breaking` over machines in both
-   modes; a how-to section on gating a lifecycle change.
-7. **Export** (D-9). The SCXML profile; its loss codes. Rows in
-   `test/spec/view.tsv`; reference.
-8. **The definition** (D-10), if Q8 rules for it.
-9. **The guide.** `docs/how-to/model-a-state-machine.md`, after phase
-   3, its every transcript run by the docs gate, beside the file-system
-   and microservices guides.
+   members) and #817 (a check under `hide()` never runs), since the
+   checks above are often written hidden; #815 (a cycle's reported
+   edge); #491 (`vet` and relation verdicts); #748 (a trial hides its
+   container's members). On #791, before it merges: a pending link's
+   `canon` is `''`, so a report that prints a relation's member template
+   alone prints nothing.
+1. **Rule S** (D-1, D-13). The stages in the definition, with
+   `stage_cycle`; the ports' existing staged reads moved onto it;
+   #818's documents refused as the definition refuses them.
+2. **Graph reads** (D-2, D-3). `reach`, `step`, `route`, `edges`;
+   `graph_relation`. The signature lines in `test/spec/signature.tsv`.
+3. **Choice and lookup** (D-5, D-6, D-9). `oneof`, `get`, `keys`;
+   `get_key`.
+4. **Implication** (D-7), after #819. `implies`; `implies_refuted`.
+5. **Edges that carry data** (D-4), and the figure's labels (D-11).
+6. **Position and sequence** (D-8). `here`, `pairs`.
+7. **The bundled model** (D-10). `aontu:machine`, its use rows, and
+   `docs/how-to/model-a-state-machine.md`, every transcript run by the
+   docs gate, beside the file-system and microservices guides.
+8. **The export template** (D-12), if Q8 asks for it.
 
-Phases 1 and 2 are independent of each other once phase 0's #816 has
-closed; 3 needs 2; 4 and 5 need 2; 6 needs #819; 7 needs 1 and 2.
+Phase 1 comes first because every later read is defined by its stage.
+Phases 2 and 3 are independent of each other; 4 needs #819; 5 and 6
+need nothing but 1; 7 needs 2, 3 and 6.
 
 Out of scope: running a machine, composing machines, nested states,
-parallel regions, history, timing, probability, and equivalence up to
-renaming. These are for the tools D-9 exports to.
+parallel regions, history states, timing, probability, equivalence up
+to renaming, and CTL as a language. A model can be written to TLA+ by
+D-12's template where a team needs those.
 
 ## 10. Decisions for the owner
 
 Each with a recommendation.
 
-- **Q1.** Do the path patterns of D-4, reachability over the finished
-  graph judged in the post-unification pass, fall inside G4's option E
-  and outside its non-goal on temporal properties? Recommended: yes,
-  and G4's boundary text says so.
-- **Q2.** One `machine(spec)` declaration, or separate atoms?
-  Recommended: one declaration.
-- **Q3.** Two patterns, or a CTL subset? Recommended: the two patterns;
-  revisit when a third is asked for.
-- **Q4.** Does a map relation's edge default to its event label in
-  `view state`? Recommended: yes, with `--events relation` for the old
-  labels; the goldens move once.
-- **Q5.** A record's shape from a generated disjunction, `stateof`, or
-  a lookup by its own status? Recommended: `stateof`, which needs no
-  ruling on #818.
-- **Q6.** Do transitions carry data at all? Recommended: yes, beside
-  `next` as D-7 has it, after phases 2 and 3 have shipped.
-- **Q7.** Export: SCXML, TLA+, both or neither? Recommended: SCXML
-  first.
-- **Q8.** A machine in the definition, or rows alone? Recommended: the
-  definition, as `Graph.lean`, since the relation verdicts have none
-  and a machine adds more of them.
+- **Q1.** Do the graph reads, judged after unification, fall inside
+  G4's option E and outside its non-goal on temporal properties?
+  Recommended: yes, and G4's boundary text says so.
+- **Q2.** Rule S at the grain of a value, or of a field? Recommended:
+  a value first, as the definition refuses #818 today; a field where a
+  model shows the need.
+- **Q3.** Does `reach` include its start? Recommended: yes, unlike the
+  verb, so that "every state is reachable" includes the initial one.
+- **Q4.** Where does an undecided `implies` land: `incomplete`, a class
+  of its own, or refused? Recommended: `incomplete`, with its `sub_*`
+  reason, so a gate fails on it and `--partial` doesn't.
+- **Q5.** Which field of a record member is the link: named in the call,
+  or a convention? Recommended: named in the call.
+- **Q6.** The names: `reach`, `step`, `route`, `edges`, `oneof`, `get`,
+  `implies`, `here`, `pairs`, `keys`.
+- **Q7.** Does the state figure label by event by default?
+  Recommended: yes; the goldens move once.
+- **Q8.** Is `aontu:machine` bundled, with its SCXML template, or only
+  a how-to guide? Recommended: bundled, as `aontu:gen` is.
 - **Q9.** A design note, or gap document G13 with register rows?
-  Recommended: G13 once Q1 to Q3 are ruled, since the plan is several
-  phases long.
+  Recommended: G13 once Q1 and Q2 are ruled.
+- **Q10.** Rule S and the graph reads in the definition? Recommended:
+  rule S yes, since it decides what is refused; the graph reads once
+  phase 2 has rows.
 
 ## 11. Issues this note depends on
 
 | Issue | What it blocks |
 |---|---|
-| #815 | the edge a cycle finding names; D-3's sites are chosen in the same code |
-| #816 | a declaration on the map of states (D-1) |
-| #817 | any machine check written under `hide()` |
-| #818 | the lookup alternative of D-6 |
-| #819 | backward `breaking` over a machine (D-8) |
+| #816 | reads through a relation that carries `acyclic()` or `inverse()` |
+| #817 | any check written under `hide()` |
+| #818 | the ruling rule S gives |
+| #819 | `implies` over relations, and backward `breaking` over a machine |
+| #815 | the edge a cycle finding names |
 | #491 | `vet` reporting what generation refuses |
-| #748 | sizes and trials beside a relation's members |
-| #691 | a spread over states that reads what it supplies |
+| #748 | sizes and trials beside a container's members |
+| #661, #754 | relative paths in a template, which the model's checks use |
+| #691 | a spread that reads what it supplies |
 | #750 | `+` over an address a graph atom governs |
 | #777 | whether a relation's range checks or writes its target |
-| #457, #327 | the text and site of a refusal inside a call, which the checks' reports reuse |
+| #457, #327 | the text and site of a refusal inside a call, which every check reports through |
