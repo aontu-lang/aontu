@@ -27,6 +27,7 @@ import { cacheSeenDir, moduleDir } from '../dist/mod'
 
 
 const SERVICE = 'name: string\nport: *8080 | integer\n'
+const closedOf = (src: string) => 'close({\n' + src + '})\n'
 const KEY_PEM = generateKeyPairSync('ed25519').privateKey
   .export({ format: 'pem', type: 'pkcs8' }) as string
 const OTHER_PEM = generateKeyPairSync('ed25519').privateKey
@@ -304,8 +305,8 @@ describe('pkg-net', () => {
   test('get-raises-add-refuses-remove-drops', async () => {
     const w = world()
     const http = dirHttp(w.repo)
-    await publish(w, publisher(w, 'service', '1.4.2', SERVICE))
-    await publish(w, publisher(w, 'service', '1.4.3', SERVICE + 'tier?: string\n'))
+    await publish(w, publisher(w, 'service', '1.4.2', closedOf(SERVICE)))
+    await publish(w, publisher(w, 'service', '1.4.3', closedOf(SERVICE + 'tier?: string\n')))
     const app = consumer(w, '"corp.example/service": {v: "1.4.2"}')
     Assert.equal((await run(w, http, 'sync', [app])).code, 0)
 
@@ -398,12 +399,12 @@ describe('pkg-net', () => {
   test('outdated-lists-what-moves-and-what-was-retracted', async () => {
     const w = world()
     const http = dirHttp(w.repo)
-    Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'))).code, 0)
-    Assert.equal((await publish(w, publisher(w, 'common', '1.1.0', 'x: 1\ny?: integer\n'))).code, 0)
-    const one = await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n',
+    Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\nlimits: close({})\n'))).code, 0)
+    Assert.equal((await publish(w, publisher(w, 'common', '1.1.0', 'x: 1\nlimits: close({y?: integer})\n'))).code, 0)
+    const one = await publish(w, await publisherWith(w, 'service', '1.0.0', closedOf('@"corp.example/common"\nname: string\n'),
       '"corp.example/common": {v: "1.0.0"}'))
     Assert.equal(one.code, 0, one.out)
-    const two = await publish(w, await publisherWith(w, 'service', '1.1.0', '@"corp.example/common"\nname: string\n',
+    const two = await publish(w, await publisherWith(w, 'service', '1.1.0', closedOf('@"corp.example/common"\nname: string\n'),
       '"corp.example/common": {v: "1.1.0"}', 'retract: ["1.0.0"]\n'))
     Assert.equal(two.code, 0, two.out)
     const app = consumer(w, '"corp.example/service": {v: "1.0.0"}')
@@ -419,7 +420,7 @@ describe('pkg-net', () => {
     Fs.rmSync(Path.join(w.repo, 'advisory', 'corp.example', 'common.aontu'))
     const noAdvisory = await run(w, http, 'pkg', ['outdated', app])
     Assert.equal(noAdvisory.code, 1, noAdvisory.out)
-    await publish(w, publisher(w, 'common', '1.2.0', 'x: 1\ny?: integer\n'))
+    await publish(w, publisher(w, 'common', '1.2.0', 'x: 1\nlimits: close({y?: integer})\n'))
     const heldGet = await run(w, http, 'get', ['corp.example/service', consumer(w, '')])
     Assert.match(heldGet.out, /refused: cooldown_pending: corp.example\/service 1.1.0 is inside the cooldown/)
 
@@ -450,7 +451,7 @@ describe('pkg-net', () => {
     // manifest retracts, in version order rather than manifest order.
     await publish(w, publisher(w, 'extra', '1.0.0', 'e?: integer\n'))
     const three = await publish(w, await publisherWith(w, 'service', '1.2.0',
-      '@"corp.example/common"\n@"corp.example/extra"\nname: string\n',
+      closedOf('@"corp.example/common"\n@"corp.example/extra"\nname: string\n'),
       '"corp.example/common": {v: "1.1.0"}, "corp.example/extra": {v: "1.0.0"}',
       'retract: ["1.0.0", "1.1.0"]\n'))
     Assert.equal(three.code, 0, three.out)
@@ -470,9 +471,9 @@ describe('pkg-net', () => {
     const w = world()
     const http = dirHttp(w.repo)
     await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'))
-    await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n',
+    await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\nopts: close({})\n',
       '"corp.example/common": {v: "1.0.0"}'))
-    const two = await publish(w, await publisherWith(w, 'service', '2.0.0', '@"corp.example/common"\nname: string\nport?: integer\n',
+    const two = await publish(w, await publisherWith(w, 'service', '2.0.0', '@"corp.example/common"\nname: string\nopts: close({port?: integer})\n',
       '"corp.example/common": {v: "1.0.0"}'))
     Assert.equal(two.code, 0, two.out)
 
@@ -894,7 +895,7 @@ describe('pkg-net', () => {
     const w = world()
     const http = dirHttp(w.repo)
     { const r = await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n')); Assert.equal(r.code, 0, r.out + r.err) }
-    const svc = await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n',
+    const svc = await publisherWith(w, 'service', '1.0.0', closedOf('@"corp.example/common"\nname: string\n'),
       '"corp.example/common": {v: "1.0.0"}')
     { const r = await publish(w, svc); Assert.equal(r.code, 0, r.out + r.err) }
     const clean = () => Fs.rmSync(Path.join(w.cache, 'aontu'), { recursive: true, force: true })
@@ -979,7 +980,7 @@ describe('pkg-net', () => {
     const app = consumer(w, '"corp.example/service": {v: "1.0.0"}')
     { const r = await run(w, http, 'sync', [app]); Assert.equal(r.code, 0, r.out + r.err) }
     const svc2 = await publisherWith(w, 'service', '1.1.0',
-      '@"corp.example/common"\n@"corp.example/extra"\nname: string\n',
+      closedOf('@"corp.example/common"\n@"corp.example/extra"\nname: string\n'),
       '"corp.example/common": {v: "1.0.0"}, "corp.example/extra": {v: "1.0.0"}')
     { const r = await publish(w, svc2); Assert.equal(r.code, 0, r.out + r.err) }
     backdate(w, 'service')
@@ -1126,16 +1127,16 @@ describe('pkg-net', () => {
   test('publish-gates-and-refusals', async () => {
     const w = world()
     const http = dirHttp(w.repo)
-    Assert.equal((await publish(w, publisher(w, 'service', '1.4.2', SERVICE))).code, 0)
+    Assert.equal((await publish(w, publisher(w, 'service', '1.4.2', closedOf(SERVICE)))).code, 0)
 
-    const breaking = await publish(w, publisher(w, 'service', '1.5.0', SERVICE + 'owner: string\n'))
+    const breaking = await publish(w, publisher(w, 'service', '1.5.0', closedOf(SERVICE + 'owner: string\n')))
     Assert.equal(breaking.code, 1)
     Assert.match(breaking.out, /^verdict: breaking\n/)
     Assert.match(breaking.out, /against: corp.example\/service 1.4.2/)
     Assert.match(breaking.out, /\$.owner: the general value requires this key/)
     Assert.ok(!Fs.existsSync(Path.join(at(w, 'service'), '1.5.0.manifest')))
 
-    const compat = await publish(w, publisher(w, 'service', '1.5.0', SERVICE + 'owner?: string\n'))
+    const compat = await publish(w, publisher(w, 'service', '1.5.0', closedOf(SERVICE + 'owner?: string\n')))
     Assert.equal(compat.code, 0, compat.out)
 
     const again = await publish(w, publisher(w, 'service', '1.5.0', SERVICE))
@@ -1635,9 +1636,9 @@ describe('pkg-net', () => {
   test('outdated-walks-the-whole-closure-that-moves', async () => {
     const w = world()
     const http = dirHttp(w.repo)
-    Assert.equal((await publish(w, publisher(w, 'base', '1.0.0', 'x: 1\n'))).code, 0)
-    Assert.equal((await publish(w, publisher(w, 'base', '1.1.0', 'x: 1\ny?: integer\n'))).code, 0)
-    Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'))).code, 0)
+    Assert.equal((await publish(w, publisher(w, 'base', '1.0.0', 'x: 1\nlimits: close({})\n'))).code, 0)
+    Assert.equal((await publish(w, publisher(w, 'base', '1.1.0', 'x: 1\nlimits: close({y?: integer})\n'))).code, 0)
+    Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\nlimits: close({})\n'))).code, 0)
     const c2 = await publish(w, await publisherWith(w, 'common', '1.2.0', '@"corp.example/base"\nx: 1\n',
       '"corp.example/base": {v: "1.1.0"}'))
     Assert.equal(c2.code, 0, c2.out)

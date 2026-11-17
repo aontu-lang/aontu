@@ -24,6 +24,10 @@ import (
 
 const netService = "name: string\nport: *8080 | integer\n"
 
+func closedOf(src string) string {
+	return "close({\n" + src + "})\n"
+}
+
 func newKeyPEM(t *testing.T) string {
 	t.Helper()
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
@@ -366,8 +370,8 @@ func TestPkgSyncReplacesAVendorTreeAtAnotherVersion(t *testing.T) {
 
 func TestPkgGetRaisesAddRefusesRemoveDrops(t *testing.T) {
 	w := newNetWorld(t)
-	w.mustPublish(w.publisher("service", "1.4.2", netService, ""))
-	w.mustPublish(w.publisher("service", "1.4.3", netService+"tier?: string\n", ""))
+	w.mustPublish(w.publisher("service", "1.4.2", closedOf(netService), ""))
+	w.mustPublish(w.publisher("service", "1.4.3", closedOf(netService+"tier?: string\n"), ""))
 	app := w.consumer("\"corp.example/service\": {v: \"1.4.2\"}", "")
 	if r := w.sync(app, false); "ok" != r.Verdict {
 		t.Fatalf("sync: %+v", r)
@@ -478,11 +482,11 @@ func TestPkgCooldownHoldsTheNewestBack(t *testing.T) {
 
 func TestPkgOutdatedListsMovesAndRetractions(t *testing.T) {
 	w := newNetWorld(t)
-	w.mustPublish(w.publisher("common", "1.0.0", "x: 1\n", ""))
-	w.mustPublish(w.publisher("common", "1.1.0", "x: 1\ny?: integer\n", ""))
-	w.mustPublish(w.publisherWith("service", "1.0.0", "@\"corp.example/common\"\nname: string\n",
+	w.mustPublish(w.publisher("common", "1.0.0", "x: 1\nlimits: close({})\n", ""))
+	w.mustPublish(w.publisher("common", "1.1.0", "x: 1\nlimits: close({y?: integer})\n", ""))
+	w.mustPublish(w.publisherWith("service", "1.0.0", closedOf("@\"corp.example/common\"\nname: string\n"),
 		"\"corp.example/common\": {v: \"1.0.0\"}", ""))
-	w.mustPublish(w.publisherWith("service", "1.1.0", "@\"corp.example/common\"\nname: string\n",
+	w.mustPublish(w.publisherWith("service", "1.1.0", closedOf("@\"corp.example/common\"\nname: string\n"),
 		"\"corp.example/common\": {v: \"1.1.0\"}", "retract: [\"1.0.0\"]\n"))
 	app := w.consumer("\"corp.example/service\": {v: \"1.0.0\"}", "")
 	r := w.sync(app, false)
@@ -498,7 +502,7 @@ func TestPkgOutdatedListsMovesAndRetractions(t *testing.T) {
 	if noAdvisory := PkgOutdated(app, w.opts, w.http, SyncArgs{}); "outdated" != noAdvisory.Verdict {
 		t.Fatalf("no advisory: %+v", noAdvisory)
 	}
-	w.mustPublish(w.publisher("common", "1.2.0", "x: 1\ny?: integer\n", ""))
+	w.mustPublish(w.publisher("common", "1.2.0", "x: 1\nlimits: close({y?: integer})\n", ""))
 	heldGet, _ := w.get(w.consumer("", ""), "corp.example/service", "get")
 	refusedWith(t, heldGet.Refusal, "cooldown_pending", `corp.example/service 1.1.0 is inside the cooldown`)
 
@@ -529,7 +533,7 @@ func TestPkgOutdatedListsMovesAndRetractions(t *testing.T) {
 	// A newest version that retracts others and depends on something the
 	// consumer never locked.
 	w.mustPublish(w.publisher("extra", "1.0.0", "e?: integer\n", ""))
-	w.mustPublish(w.publisherWith("service", "1.2.0", "@\"corp.example/common\"\n@\"corp.example/extra\"\nname: string\n",
+	w.mustPublish(w.publisherWith("service", "1.2.0", closedOf("@\"corp.example/common\"\n@\"corp.example/extra\"\nname: string\n"),
 		"\"corp.example/common\": {v: \"1.1.0\"}, \"corp.example/extra\": {v: \"1.0.0\"}", "retract: [\"1.0.0\", \"1.1.0\"]\n"))
 	w.backdate("service")
 	again := PkgOutdated(app, w.opts, w.http, SyncArgs{})
@@ -550,9 +554,9 @@ func TestPkgOutdatedListsMovesAndRetractions(t *testing.T) {
 func TestPkgClosureDepsFirstAndAlias(t *testing.T) {
 	w := newNetWorld(t)
 	w.mustPublish(w.publisher("common", "1.0.0", "x: 1\n", ""))
-	w.mustPublish(w.publisherWith("service", "1.0.0", "@\"corp.example/common\"\nname: string\n",
+	w.mustPublish(w.publisherWith("service", "1.0.0", "@\"corp.example/common\"\nname: string\nopts: close({})\n",
 		"\"corp.example/common\": {v: \"1.0.0\"}", ""))
-	w.mustPublish(w.publisherWith("service", "2.0.0", "@\"corp.example/common\"\nname: string\nport?: integer\n",
+	w.mustPublish(w.publisherWith("service", "2.0.0", "@\"corp.example/common\"\nname: string\nopts: close({port?: integer})\n",
 		"\"corp.example/common\": {v: \"1.0.0\"}", ""))
 	app := w.consumer("\"corp.example/service\": {v: \"2.0.0\"}, \"alias:legacy\": {pkg: \"corp.example/service\", v: \"1.0.0\"}", "")
 	write(t, filepath.Join(app, "main.aontu"), "a: @\"corp.example/service\"\nb: @\"alias:legacy\"\na: name: \"x\"\nb: name: \"y\"\n")
@@ -1208,14 +1212,14 @@ func (a *answerHTTP) Post(url string, parts PublishParts, token string) HTTPResp
 
 func TestPkgPublishGatesAndRefusals(t *testing.T) {
 	w := newNetWorld(t)
-	w.mustPublish(w.publisher("service", "1.4.2", netService, ""))
+	w.mustPublish(w.publisher("service", "1.4.2", closedOf(netService), ""))
 
-	breaking := w.publish(w.publisher("service", "1.5.0", netService+"owner: string\n", ""))
+	breaking := w.publish(w.publisher("service", "1.5.0", closedOf(netService+"owner: string\n"), ""))
 	if "breaking" != breaking.Verdict || "corp.example/service 1.4.2" != breaking.Against || 0 == len(breaking.Findings) ||
 		exists(filepath.Join(w.at("service"), "1.5.0.manifest")) {
 		t.Fatalf("breaking: %+v", breaking)
 	}
-	w.mustPublish(w.publisher("service", "1.5.0", netService+"owner?: string\n", ""))
+	w.mustPublish(w.publisher("service", "1.5.0", closedOf(netService+"owner?: string\n"), ""))
 	refusedWith(t, w.publish(w.publisher("service", "1.5.0", netService, "")).Refusal, "version_exists", `1.5.0 was published before`)
 	explicit := PkgPublish(w.publisher("service", "1.6.0", netService, ""), w.opts, w.http,
 		PublishArgs{Yes: true, Key: w.key, To: w.repo, Against: filepath.Join(w.dir, "service-1.4.2")})
@@ -1700,9 +1704,9 @@ func TestTheTransportReadsToTheCap(t *testing.T) {
 
 func TestOutdatedWalksTheWholeClosureThatMoves(t *testing.T) {
 	w := newNetWorld(t)
-	w.mustPublish(w.publisher("base", "1.0.0", "x: 1\n", ""))
-	w.mustPublish(w.publisher("base", "1.1.0", "x: 1\ny?: integer\n", ""))
-	w.mustPublish(w.publisher("common", "1.0.0", "x: 1\n", ""))
+	w.mustPublish(w.publisher("base", "1.0.0", "x: 1\nlimits: close({})\n", ""))
+	w.mustPublish(w.publisher("base", "1.1.0", "x: 1\nlimits: close({y?: integer})\n", ""))
+	w.mustPublish(w.publisher("common", "1.0.0", "x: 1\nlimits: close({})\n", ""))
 	w.mustPublish(w.publisherWith("common", "1.2.0", "@\"corp.example/base\"\nx: 1\n", "\"corp.example/base\": {v: \"1.1.0\"}", ""))
 	w.mustPublish(w.publisherWith("service", "1.0.0", "@\"corp.example/common\"\nname: string\n", "\"corp.example/common\": {v: \"1.0.0\"}", ""))
 	// The later service names common through an alias too, as a

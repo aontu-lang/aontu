@@ -887,9 +887,15 @@ function withCache(dir, fn) {
         Assert.equal(code, 1);
         Assert.equal(report.verdict, 'breaking');
         Assert.equal(report.findings[0].path, '$.region');
-        // And a compatible change passes the same gate.
-        const widened = publishable('1.2.0', MODULE + 'owner?: string\n');
-        const ok = manifestOf(widened, prior);
+        // An optional key is breaking on an open map, which admitted any
+        // value under it, and compatible on a closed one.
+        const open = manifestOf(publishable('1.2.0', MODULE + 'owner?: string\n'), prior);
+        Assert.equal(open.code, 1);
+        Assert.equal(open.report.verdict, 'breaking');
+        Assert.deepEqual(open.report.findings.map((f) => f.path), ['$.owner']);
+        const closed = publishable('1.0.0', 'close({\n' + MODULE + '})\n');
+        const widened = publishable('1.2.0', 'close({\n' + MODULE + 'owner?: string\n})\n');
+        const ok = manifestOf(widened, closed);
         Assert.equal(ok.code, 0);
         Assert.equal(ok.report.verdict, 'ok');
         Assert.deepEqual(ok.report.findings, []);
@@ -919,8 +925,8 @@ function withCache(dir, fn) {
         const element = manifestOf(publishable('1.1.0', 'svc: { port: 8080, tags: ["a", string] }\nsecret: hide(1)\n'), nested);
         Assert.deepEqual(element.report.findings.map((f) => [f.code, f.path]), [['compat_undetermined', '$.svc.tags.1']]);
         Assert.equal(element.report.findings[0].sites.length, 2);
-        const dropped = manifestOf(publishable('1.1.0', 'svc: { port: 8080, tags: ["a", "b"], extra?: 1 }\n' +
-            'secret: hide(1)\nother?: 2\n'), publishable('1.0.0', 'svc: { port: 8080, tags: ["a", "b"] }\nsecret: hide(1)\nother?: 2\n'));
+        const dropped = manifestOf(publishable('1.1.0', 'svc: close({ port: 8080, tags: ["a", "b"], extra?: 1 })\n' +
+            'secret: hide(1)\nother?: 2\n'), publishable('1.0.0', 'svc: close({ port: 8080, tags: ["a", "b"] })\nsecret: hide(1)\nother?: 2\n'));
         Assert.equal(dropped.report.verdict, 'ok');
         const lost = manifestOf(publishable('1.1.0', 'svc: { tags: ["a", "b"] }\nsecret: hide(1)\n'), nested);
         const lostKey = lost.report.findings.find((f) => 'compat_undetermined' === f.code);

@@ -367,9 +367,9 @@ export function subsumeNode(
   const sMark = (state.sRec ?? s)?.mark
   if ('gen' === state.profile && true !== state.distributing &&
     (!!gMark?.type !== !!sMark?.type || !!gMark?.hide !== !!sMark?.hide)) {
+    const shown = (m: any) => `{"type":${!!m?.type},"hide":${!!m?.hide}}`
     record(state, 'compat_marks_changed', path, g, s,
-      'marks differ: general ' + JSON.stringify(gMark) +
-      ', specific ' + JSON.stringify(sMark))
+      'marks differ: general ' + shown(gMark) + ', specific ' + shown(sMark))
     return 'no'
   }
 
@@ -766,6 +766,13 @@ function subsumeBag(
     const has = sKeys.includes(k)
     const optional = gOptional.includes(k)
     if (!has) {
+      // An open specific side admits a value at the key, its template's
+      // or any, which the general side's optional key must admit.
+      if (optional && true !== s.closed) {
+        worse(true === s.spread?.cj?.isPathDependent ?
+          unsettledSpread(state, [...path, k], gChild, s.spread.cj) :
+          subsumeNode(state, [...path, k], gChild, s.spread?.cj ?? topLike()))
+      }
       if (optional) {
         continue
       }
@@ -835,6 +842,13 @@ function subsumeBag(
   }
 
   return out
+}
+
+
+function unsettledSpread(state: SubState, path: string[], g: any, scj: any): Tri {
+  record(state, 'sub_path_dependent_spread', path, g, scj,
+    'a path-dependent spread template cannot be compared structurally')
+  return 'undecided'
 }
 
 

@@ -32,9 +32,11 @@ and its entry, `service/service.aontu`:
 
 <!-- test: file service/service.aontu -->
 ```aontu
-name: string
-port: *8080|integer
+close({ name:string port: *8080|integer })
 ```
+
+`close` seals the map, so a later version can add an optional key
+without refusing a document this one admitted ([the gate](#the-gate)).
 
 A publish is signed. The key is an Ed25519 private key in PKCS#8 PEM,
 and `aontu pkg keygen` mints one, once, printing the signer id that a
@@ -60,10 +62,10 @@ names a directory to publish into instead of the write path:
 $ aontu publish --key key.pem --to repo service
 verdict: dry-run
 corp.example/schemas/service 1.4.2 public
-archive: sha256:5d49e7fc029c69773a2e08695a2e92ea3b3a0cbeea51dd97fa645aea8aefdd27 (2 files, 359 bytes)
-module: corp.example/schemas/service service.aontu aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
+archive: sha256:80ab1d808ceee699efc36c9a2639bb0e18787e183075c4c9635a7470e566042f (2 files, 369 bytes)
+module: corp.example/schemas/service service.aontu aon1-QQG5zoiySgCRdN-IkwTlRaJ_9OVqr4m423bU13dIEYw
 file: pkg.aontu sha256:a52b2c388005efca0601cd6a115a80a8b1b067874c1f138edfe1c3c7c7ba8b41 108
-file: service.aontu sha256:36851584bea3d7109995deae363852734aca001c9e494b8868d736c5c49e7275 33
+file: service.aontu sha256:8ea18c9eeea68fa5467afdc834bf5d5087b8445a8d74969661c9a6c3e1569dca 43
 ...
 dry run: nothing sent (add --yes)
 ```
@@ -107,12 +109,11 @@ whose `service-1.4.3/service.aontu` adds an optional key:
 
 <!-- test: file service-1.4.3/service.aontu -->
 ```aontu
-name: string
-port: *8080|integer
-owner?: string
+close({ name:string port: *8080|integer owner?:string })
 ```
 
-is compatible, and the report names what it was gated against:
+is compatible, since the sealed 1.4.2 admitted no `owner` at all, and
+the report names what it was gated against:
 
 <!-- test: run -->
 ```sh
@@ -138,9 +139,7 @@ whose `service-1.5.0/service.aontu` makes that key required:
 
 <!-- test: file service-1.5.0/service.aontu -->
 ```aontu
-name: string
-port: *8080|integer
-owner: string
+close({ name:string port: *8080|integer owner:string })
 ```
 
 is refused, with the key it refuses on, and nothing is written:
@@ -192,7 +191,7 @@ repo: trust: "corp.example/*": { signer:"ed25519:…" inclusion:none }
 $ aontu sync
 verdict: ok
 fetched: corp.example/schemas/service 1.4.2
-corp.example/schemas/service 1.4.2 aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
+corp.example/schemas/service 1.4.2 aon1-QQG5zoiySgCRdN-IkwTlRaJ_9OVqr4m423bU13dIEYw
 ```
 
 `aontu get corp.example/schemas/service@1.4.3` raises the dependency

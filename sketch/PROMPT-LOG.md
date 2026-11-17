@@ -1075,3 +1075,12 @@ The answers to the agent's questions, each question followed by the option chose
 Correction to ruling 55 (#807): I described the definition wrongly. It does NOT keep `nil | 1` as a choice: its normal form drops the written-nil arm, as it drops a dead arm, leaving a one-arm disjunction `(1)`. `bndOf` then refuses any disjunction, even that one-arm leftover, so `min(nil | 1)` is an error, and so is `min(1 | (1 & 2))`, which holds no nil at all. A size reads the leftover as its arm (decision 16: `len(1 | (1 & 2))` is `len(1)`), so `len(nil | 1)` is valid. Both engines read the leftover as its arm for bounds and sizes alike (`min(nil | 1)` is `min(1)`, valid against 1). Which should hold?
 → Leftover arm is the argument (Recommended)
 ```
+
+## 2026-11-17 12:01:37 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#377: fixing `subsume` so it follows the definition (`map_le`) means an optional key added to an OPEN map is breaking: a package's next minor that adds `owner?: string` at its open top level would be refused by `breaking` and the publish gate, because a document with `owner: 5` was valid before and isn't after. It retires 14 ledger rows, but 8 package tests in each engine assert that such an addition is a compatible minor release. Which should hold?
+→ Sound everywhere (Recommended)
+```
