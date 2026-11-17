@@ -1350,3 +1350,9 @@ File the issues
 ```text
 Are there well established ways to formally validate state machines? Can aontu do this? What is missing?
 ```
+
+## 2026-11-17 00:29:00 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+File issues for findings; prepare a plan to support state machines more effectively
+```
