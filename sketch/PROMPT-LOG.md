@@ -1338,3 +1338,9 @@ Can aontu support domain driven design? What can it express and what can it not 
 ```text
 Can aontu express state machines?
 ```
+
+## 2026-11-17 00:05:56 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+File the issues
+```
