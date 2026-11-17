@@ -1344,3 +1344,9 @@ Can aontu express state machines?
 ```text
 File the issues
 ```
+
+## 2026-11-17 00:21:36 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Are there well established ways to formally validate state machines? Can aontu do this? What is missing?
+```
