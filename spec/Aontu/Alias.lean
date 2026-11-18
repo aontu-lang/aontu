@@ -2203,52 +2203,20 @@ theorem Val.checkableA_unident {v : Val} (h : v.CheckableA) : v.unident.Checkabl
   | case3 v h1 h2 => rw [Val.unident.eq_3 v h1 h2]; exact h
 
 theorem mem_unmarkFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ unmarkFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.unmark := by
-  induction fs with
-  | nil => simp [unmarkFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [unmarkFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ unmarkFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.unmark :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_unmarkItems {items : List Val} {w : Val} :
-    w ∈ unmarkItems items ↔ ∃ v, v ∈ items ∧ w = v.unmark := by
-  induction items with
-  | nil => simp [unmarkItems]
-  | cons v vs ih =>
-    simp only [unmarkItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨v', hm, rfl⟩)
-      · exact ⟨v, Or.inl rfl, rfl⟩
-      · exact ⟨v', Or.inr hm, rfl⟩
-    · rintro ⟨v', rfl | hm, rfl⟩
-      · exact Or.inl rfl
-      · exact Or.inr ⟨v', hm, rfl⟩
+    w ∈ unmarkItems items ↔ ∃ v, v ∈ items ∧ w = v.unmark :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem unmarkSpread_eq {spread : Option Val} {t : Val} :
-    unmarkSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.unmark := by
-  cases spread <;> simp [unmarkSpread, eq_comm]
+    unmarkSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.unmark :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_unmarkArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ unmarkArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.unmark := by
-  induction arms with
-  | nil => simp [unmarkArms]
-  | cons p arms ih =>
-    obtain ⟨r', a'⟩ := p
-    simp only [unmarkArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ unmarkArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.unmark :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 theorem mem_unmarkPairs {ps : List (Val × Val)} {p r : Val} :
     (p, r) ∈ unmarkPairs ps ↔ ∃ p' r', (p', r') ∈ ps ∧ p = p'.unmark ∧ r = r'.unmark := by
@@ -2370,33 +2338,15 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
 
 theorem mem_unsealFields :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-      (k, o, w) ∈ unsealFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.unseal
-  | [], _, _, _, h => nomatch h
-  | (k', o', v') :: fs, k, o, w, h => by
-    simp only [unsealFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := mem_unsealFields h
-      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+      (k, o, w) ∈ unsealFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.unseal :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
-theorem mem_unsealItems : ∀ {vs : List Val} {w : Val}, w ∈ unsealItems vs → ∃ v, v ∈ vs ∧ w = v.unseal
-  | [], _, h => nomatch h
-  | v :: vs, w, h => by
-    simp only [unsealItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_unsealItems h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+theorem mem_unsealItems : ∀ {vs : List Val} {w : Val}, w ∈ unsealItems vs → ∃ v, v ∈ vs ∧ w = v.unseal :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem mem_unsealArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
-    (r, x) ∈ unsealArms arms → ∃ a, (r, a) ∈ arms ∧ x = a.unseal
-  | [], _, _, h => nomatch h
-  | (r', a) :: arms, r, x, h => by
-    simp only [unsealArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a, List.mem_cons_self, rfl⟩
-    · obtain ⟨b, hb, rfl⟩ := mem_unsealArms h
-      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+    (r, x) ∈ unsealArms arms → ∃ a, (r, a) ∈ arms ∧ x = a.unseal :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 /-- Unsealing a term the checker can read gives a term it can read. -/
 theorem Val.CheckableA.unseal {v : Val} (h : v.CheckableA) : v.unseal.CheckableA := by
@@ -2784,18 +2734,8 @@ theorem foldl_meet_checkableA : ∀ (us : List Val) {acc : Val}, acc.CheckableA 
       fun w hw => hu w (List.mem_cons_of_mem _ hw)
 
 theorem mem_superItems {items : List Val} {w : Val} :
-    w ∈ superItems items ↔ ∃ v, v ∈ items ∧ w = v.super := by
-  induction items with
-  | nil => simp [superItems]
-  | cons v vs ih =>
-    simp only [superItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ superItems items ↔ ∃ v, v ∈ items ∧ w = v.super :=
+  mem_mapItems rfl fun _ _ => rfl
 
 /-- The parent type of a term the checker can read is one it can read. -/
 theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA := by

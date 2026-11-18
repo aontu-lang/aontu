@@ -3209,56 +3209,20 @@ def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
 /-! ## Paths read as names keep a term checkable -/
 
 theorem mem_ptaFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ ptaFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.pathsToAliases := by
-  induction fs with
-  | nil => simp [ptaFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [ptaFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ ptaFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.pathsToAliases :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_ptaPairs {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ ptaPairs ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.pathsToAliases ∧ r = r₀.pathsToAliases := by
-  induction ps with
-  | nil => simp [ptaPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [ptaPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ ptaPairs ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.pathsToAliases ∧ r = r₀.pathsToAliases :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem mem_ptaItems {items : List Val} {w : Val} :
-    w ∈ ptaItems items ↔ ∃ v, v ∈ items ∧ w = v.pathsToAliases := by
-  induction items with
-  | nil => simp [ptaItems]
-  | cons v vs ih =>
-    simp only [ptaItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ ptaItems items ↔ ∃ v, v ∈ items ∧ w = v.pathsToAliases :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem ptaSpread_eq {spread : Option Val} {t : Val} :
-    ptaSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.pathsToAliases := by
-  cases spread with
-  | none => simp [ptaSpread]
-  | some s =>
-    simp only [ptaSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    ptaSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.pathsToAliases :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_ptaCovers {cs : List Cover} {c' : Cover} :
     c' ∈ ptaCovers cs ↔ ∃ c, c ∈ cs ∧ c' = (ptaSpread c.1, ptaSpread c.2.1, ptaSpread c.2.2) := by
@@ -3276,19 +3240,8 @@ theorem mem_ptaCovers {cs : List Cover} {c' : Cover} :
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_ptaArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ ptaArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.pathsToAliases := by
-  induction arms with
-  | nil => simp [ptaArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [ptaArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ ptaArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.pathsToAliases :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read, its paths read as names, is one it can read. -/
 theorem ptaCall_checkableA {f : Fn} {args : List Val}
@@ -3404,18 +3357,8 @@ theorem mem_plElems {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val
       exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
 
 theorem mem_plItems {pos : List Seg} {items : List Val} {w : Val} :
-    w ∈ plItems pos items ↔ ∃ v, v ∈ items ∧ w = v.placed pos := by
-  induction items with
-  | nil => simp [plItems]
-  | cons v vs ih =>
-    simp only [plItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ plItems pos items ↔ ∃ v, v ∈ items ∧ w = v.placed pos :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mem_plArgs {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
     w ∈ plArgs pos f args → ∃ v, v ∈ args ∧ ((∃ q, w = v.placed q) ∨ w = v)
@@ -3430,27 +3373,12 @@ theorem mem_plArgs {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
         exact ⟨u, List.mem_cons_of_mem _ hu, hw⟩
 
 theorem mem_plPairs {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ plPairs pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.placed pos ∧ r = r₀.placed pos := by
-  induction ps with
-  | nil => simp [plPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [plPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ plPairs pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.placed pos ∧ r = r₀.placed pos :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem plSpread_eq {pos : List Seg} {spread : Option Val} {t : Val} :
-    plSpread pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.placed pos := by
-  cases spread with
-  | none => simp [plSpread]
-  | some s =>
-    simp only [plSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    plSpread pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.placed pos :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_plCovers {pos : List Seg} {cs : List Cover} {c' : Cover} :
     c' ∈ plCovers pos cs ↔ ∃ c, c ∈ cs ∧ c' = (plSpread pos c.1, plSpread pos c.2.1, plSpread pos c.2.2) := by
@@ -3468,19 +3396,8 @@ theorem mem_plCovers {pos : List Seg} {cs : List Cover} {c' : Cover} :
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_plArms {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ plArms pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.placed pos := by
-  induction arms with
-  | nil => simp [plArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [plArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ plArms pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.placed pos :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read, its relative paths placed, is one it
 can read. -/
@@ -3585,56 +3502,20 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
   | _ => intro pos; simp only [Val.placed]; constructor
 
 theorem mem_mlFields {ld : String → Option Val} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ mlFields ld fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.mapLoads ld := by
-  induction fs with
-  | nil => simp [mlFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [mlFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ mlFields ld fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.mapLoads ld :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_mlPairs {ld : String → Option Val} {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ mlPairs ld ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.mapLoads ld ∧ r = r₀.mapLoads ld := by
-  induction ps with
-  | nil => simp [mlPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [mlPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ mlPairs ld ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.mapLoads ld ∧ r = r₀.mapLoads ld :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem mem_mlItems {ld : String → Option Val} {items : List Val} {w : Val} :
-    w ∈ mlItems ld items ↔ ∃ v, v ∈ items ∧ w = v.mapLoads ld := by
-  induction items with
-  | nil => simp [mlItems]
-  | cons v vs ih =>
-    simp only [mlItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ mlItems ld items ↔ ∃ v, v ∈ items ∧ w = v.mapLoads ld :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mlSpread_eq {ld : String → Option Val} {spread : Option Val} {t : Val} :
-    mlSpread ld spread = some t ↔ ∃ s, spread = some s ∧ t = s.mapLoads ld := by
-  cases spread with
-  | none => simp [mlSpread]
-  | some s =>
-    simp only [mlSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    mlSpread ld spread = some t ↔ ∃ s, spread = some s ∧ t = s.mapLoads ld :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_mlCovers {ld : String → Option Val} {cs : List Cover} {c' : Cover} :
     c' ∈ mlCovers ld cs ↔ ∃ c, c ∈ cs ∧ c' = (mlSpread ld c.1, mlSpread ld c.2.1, mlSpread ld c.2.2) := by
@@ -3652,19 +3533,8 @@ theorem mem_mlCovers {ld : String → Option Val} {cs : List Cover} {c' : Cover}
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_mlArms {ld : String → Option Val} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ mlArms ld arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.mapLoads ld := by
-  induction arms with
-  | nil => simp [mlArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [mlArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ mlArms ld arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.mapLoads ld :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read, its paths read as names, is one it can read. -/
 theorem mapLoads_checkableA {ld : String → Option Val} (hk : ∀ p w, ld p = some w → w.CheckableA)
@@ -3874,18 +3744,8 @@ theorem mem_auElems {rs : List Seg → String → Bool} {rt : List Seg → Bool}
       exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
 
 theorem mem_auItems {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {items : List Val} {w : Val} :
-    w ∈ auItems rs rt dl pos items ↔ ∃ v, v ∈ items ∧ w = v.atUses rs rt dl pos := by
-  induction items with
-  | nil => simp [auItems]
-  | cons v vs ih =>
-    simp only [auItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ auItems rs rt dl pos items ↔ ∃ v, v ∈ items ∧ w = v.atUses rs rt dl pos :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mem_auArgs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
     w ∈ auArgs rs rt dl pos f args → ∃ v, v ∈ args ∧ (w = v.atUses rs rt dl pos ∨ w = v)
@@ -3900,27 +3760,12 @@ theorem mem_auArgs {rs : List Seg → String → Bool} {rt : List Seg → Bool} 
         exact ⟨u, List.mem_cons_of_mem _ hu, hw⟩
 
 theorem mem_auPairs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ auPairs rs rt dl pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.atUses rs rt dl pos ∧ r = r₀.atUses rs rt dl pos := by
-  induction ps with
-  | nil => simp [auPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [auPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ auPairs rs rt dl pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.atUses rs rt dl pos ∧ r = r₀.atUses rs rt dl pos :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem auSpread_eq {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {spread : Option Val} {t : Val} :
-    auSpread rs rt dl pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.atUses rs rt dl pos := by
-  cases spread with
-  | none => simp [auSpread]
-  | some s =>
-    simp only [auSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    auSpread rs rt dl pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.atUses rs rt dl pos :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_auCovers {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {cs : List Cover} {c' : Cover} :
     c' ∈ auCovers rs rt dl pos cs ↔ ∃ c, c ∈ cs ∧ c' = (auSpread rs rt dl pos c.1, auSpread rs rt dl pos c.2.1, auSpread rs rt dl pos c.2.2) := by
@@ -3938,19 +3783,8 @@ theorem mem_auCovers {rs : List Seg → String → Bool} {rt : List Seg → Bool
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_auArms {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ auArms rs rt dl pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.atUses rs rt dl pos := by
-  induction arms with
-  | nil => simp [auArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [auArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ auArms rs rt dl pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.atUses rs rt dl pos :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 theorem atUses_checkableA {rs : List Seg → String → Bool} {dl : List Seg → Option Val}
     (hdl : ∀ p w, dl p = some w → w.CheckableA) {v : Val} (h : v.CheckableA) :
@@ -4098,32 +3932,11 @@ theorem ntSpread_checkableA {spread : Option Val} (hs : ∀ s, spread = some s �
     · exact hs t rfl
 
 theorem mem_ntFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ ntFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.neutral := by
-  induction fs with
-  | nil => simp [ntFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [ntFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ ntFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.neutral :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
-theorem mem_ntItems {items : List Val} {w : Val} : w ∈ ntItems items ↔ ∃ v, v ∈ items ∧ w = v.neutral := by
-  induction items with
-  | nil => simp [ntItems]
-  | cons v vs ih =>
-    simp only [ntItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+theorem mem_ntItems {items : List Val} {w : Val} : w ∈ ntItems items ↔ ∃ v, v ∈ items ∧ w = v.neutral :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem relAny_checkableA {v : Val} (h : v.CheckableA) : (relAny v).CheckableA := by
   unfold relAny
@@ -4138,26 +3951,11 @@ theorem relWhole_checkableA {v : Val} (h : v.CheckableA) : (relWhole v).Checkabl
   · exact .any
 
 theorem mem_rbFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ rbFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.relBlank := by
-  induction fs with
-  | nil => simp [rbFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [rbFields, List.mem_cons, Prod.mk.injEq]
-    rintro (⟨rfl, rfl, rfl⟩ | hm)
-    · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := ih hm
-      exact ⟨v, Or.inr hv, rfl⟩
+    (k, o, w) ∈ rbFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.relBlank :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
-theorem mem_rbItems {items : List Val} {w : Val} : w ∈ rbItems items → ∃ v, v ∈ items ∧ w = v.relBlank := by
-  induction items with
-  | nil => simp [rbItems]
-  | cons v vs ih =>
-    simp only [rbItems, List.mem_cons]
-    rintro (rfl | hm)
-    · exact ⟨v, Or.inl rfl, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := ih hm
-      exact ⟨u, Or.inr hu, rfl⟩
+theorem mem_rbItems {items : List Val} {w : Val} : w ∈ rbItems items → ∃ v, v ∈ items ∧ w = v.relBlank :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem relBlank_checkableA {v : Val} (h : v.CheckableA) : v.relBlank.CheckableA := by
   induction h with
@@ -4202,15 +4000,8 @@ theorem mem_rpFields {fs : List (String × Bool × Val)} {k : String} {o : Bool}
       obtain ⟨v, hv, rfl⟩ := ih hm
       exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
 
-theorem mem_rpItems {items : List Val} {w : Val} : w ∈ rpItems items → ∃ v, v ∈ items ∧ w = v.relPart := by
-  induction items with
-  | nil => simp [rpItems]
-  | cons v vs ih =>
-    simp only [rpItems, List.mem_cons]
-    rintro (rfl | hm)
-    · exact ⟨v, Or.inl rfl, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := ih hm
-      exact ⟨u, Or.inr hu, rfl⟩
+theorem mem_rpItems {items : List Val} {w : Val} : w ∈ rpItems items → ∃ v, v ∈ items ∧ w = v.relPart :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem relPart_checkableA {v : Val} (h : v.CheckableA) : v.relPart.CheckableA := by
   induction h with

@@ -490,4 +490,78 @@ def keyUpAt (pos : List Step) (n : ℤ) : Val :=
 /-- A position one step down, where there is one. -/
 def stepped (here : Option (List Step)) (s : Step) : Option (List Step) := here.map (· ++ [s])
 
+/-! ## Helpers that rewrite each value
+
+A traversal over `Val` keeps a helper for each list it recurses through,
+so that its recursion stays structural. A helper that rewrites each
+value by one function `f` is `List.map` in effect, and these lemmas say
+what its members are once, from the helper's two equations. -/
+
+section
+variable {f : Val → Val}
+
+theorem mem_mapItems {g : List Val → List Val} (h0 : g [] = [])
+    (h1 : ∀ v vs, g (v :: vs) = f v :: g vs) {w : Val} :
+    ∀ {vs : List Val}, w ∈ g vs ↔ ∃ v, v ∈ vs ∧ w = f v
+  | [] => by rw [h0]; exact ⟨nofun, fun ⟨_, h, _⟩ => nomatch h⟩
+  | v :: vs => by
+    rw [h1, List.mem_cons, mem_mapItems h0 h1]
+    exact ⟨fun | .inl h => ⟨v, List.mem_cons_self, h⟩
+               | .inr ⟨u, hu, h⟩ => ⟨u, List.mem_cons_of_mem _ hu, h⟩,
+      fun ⟨u, hu, h⟩ => (List.mem_cons.mp hu).elim (fun e => .inl (e ▸ h)) fun hu => .inr ⟨u, hu, h⟩⟩
+
+theorem mem_mapFields {g : List (String × Bool × Val) → List (String × Bool × Val)} (h0 : g [] = [])
+    (h1 : ∀ k o v fs, g ((k, o, v) :: fs) = (k, o, f v) :: g fs) {k : String} {o : Bool} {w : Val} :
+    ∀ {fs : List (String × Bool × Val)}, (k, o, w) ∈ g fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = f v
+  | [] => by rw [h0]; exact ⟨nofun, fun ⟨_, h, _⟩ => nomatch h⟩
+  | (k', o', v') :: fs => by
+    rw [h1, List.mem_cons, mem_mapFields h0 h1]
+    constructor
+    · rintro (h | ⟨u, hu, rfl⟩)
+      · cases h; exact ⟨v', List.mem_cons_self, rfl⟩
+      · exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+    · rintro ⟨u, hu, rfl⟩
+      rcases List.mem_cons.mp hu with h | hu
+      · cases h; exact .inl rfl
+      · exact .inr ⟨u, hu, rfl⟩
+
+theorem mem_mapArms {g : List (ℕ × Val) → List (ℕ × Val)} (h0 : g [] = [])
+    (h1 : ∀ r a arms, g ((r, a) :: arms) = (r, f a) :: g arms) {r : ℕ} {b : Val} :
+    ∀ {arms : List (ℕ × Val)}, (r, b) ∈ g arms ↔ ∃ a, (r, a) ∈ arms ∧ b = f a
+  | [] => by rw [h0]; exact ⟨nofun, fun ⟨_, h, _⟩ => nomatch h⟩
+  | (r', a') :: arms => by
+    rw [h1, List.mem_cons, mem_mapArms h0 h1]
+    constructor
+    · rintro (h | ⟨u, hu, rfl⟩)
+      · cases h; exact ⟨a', List.mem_cons_self, rfl⟩
+      · exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+    · rintro ⟨u, hu, rfl⟩
+      rcases List.mem_cons.mp hu with h | hu
+      · cases h; exact .inl rfl
+      · exact .inr ⟨u, hu, rfl⟩
+
+theorem mem_mapPairs {g : List (Val × Val) → List (Val × Val)} (h0 : g [] = [])
+    (h1 : ∀ p r ps, g ((p, r) :: ps) = (f p, f r) :: g ps) {p r : Val} :
+    ∀ {ps : List (Val × Val)}, (p, r) ∈ g ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = f p₀ ∧ r = f r₀
+  | [] => by rw [h0]; exact ⟨nofun, fun ⟨_, _, h, _⟩ => nomatch h⟩
+  | (p', r') :: ps => by
+    rw [h1, List.mem_cons, mem_mapPairs h0 h1]
+    constructor
+    · rintro (h | ⟨p₀, r₀, hm, rfl, rfl⟩)
+      · cases h; exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
+      · exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+    · rintro ⟨p₀, r₀, hm, rfl, rfl⟩
+      rcases List.mem_cons.mp hm with h | hm
+      · cases h; exact .inl rfl
+      · exact .inr ⟨p₀, r₀, hm, rfl, rfl⟩
+
+theorem mapSpread_eq {g : Option Val → Option Val} (h0 : g none = none)
+    (h1 : ∀ s, g (some s) = some (f s)) {spread : Option Val} {t : Val} :
+    g spread = some t ↔ ∃ s, spread = some s ∧ t = f s := by
+  cases spread with
+  | none => rw [h0]; exact ⟨nofun, fun ⟨_, h, _⟩ => nomatch h⟩
+  | some s => rw [h1]; exact ⟨fun h => ⟨s, rfl, (Option.some.inj h).symm⟩, fun ⟨_, h, e⟩ => by cases h; rw [e]⟩
+
+end
+
 end Aontu

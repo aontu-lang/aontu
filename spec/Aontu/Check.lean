@@ -1689,34 +1689,12 @@ theorem admits_leaf_kind (y : Number) : Admits env root y.leaf.kind (.num y) := 
   | bigdecimal _ => exact .bigdecimal
 
 theorem mem_superFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ superFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.super := by
-  induction fs with
-  | nil => simp [superFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [superFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ superFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.super :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_superArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ superArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.super := by
-  induction arms with
-  | nil => simp [superArms]
-  | cons p arms ih =>
-    obtain ⟨r', a'⟩ := p
-    simp only [superArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ superArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.super :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 theorem superItems_length (items : List Val) : (superItems items).length = items.length := by
   induction items with
@@ -1736,8 +1714,8 @@ theorem superSpread_none {spread : Option Val} : superSpread spread = none ↔ s
   cases spread <;> simp [superSpread]
 
 theorem superSpread_eq {spread : Option Val} {t : Val} :
-    superSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.super := by
-  cases spread <;> simp [superSpread, eq_comm]
+    superSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.super :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem checkSuperFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List (String × Data)}
     (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →

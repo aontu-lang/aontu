@@ -191,37 +191,16 @@ theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : 
       · exact .inr ⟨o'', v, hm', hc⟩
 
 theorem visibleSpread_eq {spread : Option Val} {t : Val} :
-    visibleSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible := by
-  cases spread <;> simp [visibleSpread, eq_comm]
+    visibleSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_visibleItems {items : List Val} {w : Val} :
-    w ∈ visibleItems items ↔ ∃ v, v ∈ items ∧ w = v.visible := by
-  induction items with
-  | nil => simp [visibleItems]
-  | cons v vs ih =>
-    simp only [visibleItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨v', hm, rfl⟩)
-      · exact ⟨v, Or.inl rfl, rfl⟩
-      · exact ⟨v', Or.inr hm, rfl⟩
-    · rintro ⟨v', rfl | hm, rfl⟩
-      · exact Or.inl rfl
-      · exact Or.inr ⟨v', hm, rfl⟩
+    w ∈ visibleItems items ↔ ∃ v, v ∈ items ∧ w = v.visible :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mem_visibleArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ visibleArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.visible := by
-  induction arms with
-  | nil => simp [visibleArms]
-  | cons p arms ih =>
-    obtain ⟨r', a'⟩ := p
-    simp only [visibleArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ visibleArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.visible :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read has a visible part it can read. -/
 theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.CheckableA := by

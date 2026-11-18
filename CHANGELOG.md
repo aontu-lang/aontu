@@ -39,6 +39,12 @@ every row the oracle prints is byte for byte what it printed before.
   data, and `vetA_iff_of`, `vetA_iff_reads`, `vetP_iff_reads`,
   `Decls.readsAB` and `Decls.readsPB` are gone. The oracle's cases ask
   `Decls.readsPD`.
+- **A helper that rewrites each value is read once.** Fifty-one
+  membership lemmas, `mem_untriedFields` and its kin, were each an
+  induction of their own over a helper that is `List.map` in effect;
+  each is now one line from the helper's two equations, through
+  `mem_mapFields`, `mem_mapItems`, `mem_mapArms`, `mem_mapPairs` and
+  `mapSpread_eq` in `spec/Aontu/Syntax.lean`.
 - **One tactic, `judge_rebuild`, rebuilds a judgement rule by rule.**
   `judge_root` and `judge_of_follows` each wrote out the same 114
   alternatives.

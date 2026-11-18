@@ -2124,14 +2124,8 @@ def filledCovers : List Cover → List Cover
 end
 
 
-theorem mem_filledItems : ∀ {vs : List Val} {w : Val}, w ∈ filledItems vs → ∃ v, v ∈ vs ∧ w = v.filled
-  | [], _, h => nomatch h
-  | v :: vs, w, h => by
-    simp only [filledItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_filledItems h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+theorem mem_filledItems : ∀ {vs : List Val} {w : Val}, w ∈ filledItems vs → ∃ v, v ∈ vs ∧ w = v.filled :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem mem_filledHead : ∀ {vs : List Val} {w : Val}, w ∈ filledHead vs → w ∈ vs ∨ ∃ v, v ∈ vs ∧ w = v.filled
   | [], _, h => nomatch h
@@ -2142,14 +2136,8 @@ theorem mem_filledHead : ∀ {vs : List Val} {w : Val}, w ∈ filledHead vs → 
     · exact .inl (List.mem_cons_of_mem _ h)
 
 theorem mem_filledFields : ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-    (k, o, w) ∈ filledFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.filled
-  | [], _, _, _, h => nomatch h
-  | (k', o', v') :: fs, k, o, w, h => by
-    simp only [filledFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_filledFields h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+    (k, o, w) ∈ filledFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.filled :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
 theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = some t → ∃ s, sp = some s ∧ t = s.filled
   | none, _, h => nomatch h
@@ -2163,24 +2151,12 @@ theorem tmplSpread_some : ∀ {sp : Option Val} {t : Val}, tmplSpread sp = some 
     exact ⟨s, rfl, h.symm⟩
 
 theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
-    (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled
-  | [], _, _, h => nomatch h
-  | (r', a') :: arms, r, b, h => by
-    simp only [filledArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a', List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_filledArms h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+    (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 theorem mem_filledPairs : ∀ {arms : List (Val × Val)} {p r : Val},
-    (p, r) ∈ filledPairs arms → ∃ p₀ r₀, (p₀, r₀) ∈ arms ∧ p = p₀.filled ∧ r = r₀.filled
-  | [], _, _, h => nomatch h
-  | (p', r') :: arms, p, r, h => by
-    simp only [filledPairs, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
-    · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_filledPairs h
-      exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+    (p, r) ∈ filledPairs arms → ∃ p₀ r₀, (p₀, r₀) ∈ arms ∧ p = p₀.filled ∧ r = r₀.filled :=
+  Iff.mp (mem_mapPairs rfl fun _ _ _ => rfl)
 
 theorem mem_filledCovers : ∀ {cs : List Cover} {c : Cover}, c ∈ filledCovers cs →
     ∃ c₀, c₀ ∈ cs ∧ c = (filledSpread c₀.1, filledSpread c₀.2.1, filledSpread c₀.2.2)
@@ -2432,14 +2408,8 @@ theorem mem_resolveElems {ds : Decls} {b : Option Val} {here : Option (List Step
       exact ⟨v, List.mem_cons_of_mem _ hv, i', rfl⟩
 
 theorem mem_resolveItems {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {vs : List Val} {w : Val},
-    w ∈ resolveItems ds b here vs → ∃ v, v ∈ vs ∧ w = resolveD ds b here v
-  | [], _, h => nomatch h
-  | v' :: vs, w, h => by
-    simp only [resolveItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := mem_resolveItems h
-      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+    w ∈ resolveItems ds b here vs → ∃ v, v ∈ vs ∧ w = resolveD ds b here v :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem resolveSpread_some {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {sp : Option Val} {w : Val},
     resolveSpread ds b here sp = some w → ∃ s, sp = some s ∧ w = resolveD ds b here s
@@ -2448,25 +2418,13 @@ theorem resolveSpread_some {ds : Decls} {b : Option Val} {here : Option (List St
 
 theorem mem_resolveArms {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
-    (r, w) ∈ resolveArms ds b here arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds b here a
-  | [], _, _, h => nomatch h
-  | (r', a') :: arms, r, w, h => by
-    simp only [resolveArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a', List.mem_cons_self, rfl⟩
-    · obtain ⟨a, ha, rfl⟩ := mem_resolveArms h
-      exact ⟨a, List.mem_cons_of_mem _ ha, rfl⟩
+    (r, w) ∈ resolveArms ds b here arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds b here a :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 theorem mem_resolvePairs {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {ps : List (Val × Val)} {p r : Val},
-    (p, r) ∈ resolvePairs ds b here ps → ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = resolveD ds b here p₀ ∧ r = resolveD ds b here r₀
-  | [], _, _, h => nomatch h
-  | (p', r') :: ps, p, r, h => by
-    simp only [resolvePairs, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
-    · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_resolvePairs h
-      exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+    (p, r) ∈ resolvePairs ds b here ps → ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = resolveD ds b here p₀ ∧ r = resolveD ds b here r₀ :=
+  Iff.mp (mem_mapPairs rfl fun _ _ _ => rfl)
 
 theorem mem_resolveCovers {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {cs : List Cover} {c : Cover},
     c ∈ resolveCovers ds b here cs → ∃ c₀, c₀ ∈ cs ∧ c.1 = resolveSpread ds b here c₀.1 ∧
@@ -3336,23 +3294,11 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
 /-- A call's term is one the checker can read where its arguments are. -/
 theorem mem_preferFields :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-      (k, o, w) ∈ preferFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.prefer
-  | [], _, _, _, h => nomatch h
-  | (k', o', v') :: fs, k, o, w, h => by
-    simp only [preferFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := mem_preferFields h
-      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+      (k, o, w) ∈ preferFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.prefer :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
-theorem mem_preferItems : ∀ {vs : List Val} {w : Val}, w ∈ preferItems vs → ∃ v, v ∈ vs ∧ w = v.prefer
-  | [], _, h => nomatch h
-  | v :: vs, w, h => by
-    simp only [preferItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_preferItems h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+theorem mem_preferItems : ∀ {vs : List Val} {w : Val}, w ∈ preferItems vs → ∃ v, v ∈ vs ∧ w = v.prefer :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem mem_preferArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
     (r, x) ∈ preferArms arms → ∃ r' a, (r', a) ∈ arms ∧ (x = a ∨ x = a.prefer)
@@ -3485,14 +3431,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
 
 theorem mem_fillTopArms {ds : Decls} {w : Val} :
     ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
-      (r, x) ∈ fillTopArms ds w arms → ∃ a, (r, a) ∈ arms ∧ x = fillTop ds w a
-  | [], _, _, h => nomatch h
-  | (r', a) :: arms, r, x, h => by
-    simp only [fillTopArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a, List.mem_cons_self, rfl⟩
-    · obtain ⟨b, hb, rfl⟩ := mem_fillTopArms h
-      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+      (r, x) ∈ fillTopArms ds w arms → ∃ a, (r, a) ∈ arms ∧ x = fillTop ds w a :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 /-- The top of `maybe`'s argument with its missing references read as a
 term the checker can read is a term it can read. -/
@@ -4614,52 +4554,20 @@ def untriedArms : List (ℕ × Val) → List (ℕ × Val)
 end
 
 theorem mem_untriedFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ untriedFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.untried := by
-  induction fs with
-  | nil => simp [untriedFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [untriedFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ untriedFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.untried :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_untriedItems {items : List Val} {w : Val} :
-    w ∈ untriedItems items ↔ ∃ v, v ∈ items ∧ w = v.untried := by
-  induction items with
-  | nil => simp [untriedItems]
-  | cons v vs ih =>
-    simp only [untriedItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨v', hm, rfl⟩)
-      · exact ⟨v, Or.inl rfl, rfl⟩
-      · exact ⟨v', Or.inr hm, rfl⟩
-    · rintro ⟨v', rfl | hm, rfl⟩
-      · exact Or.inl rfl
-      · exact Or.inr ⟨v', hm, rfl⟩
+    w ∈ untriedItems items ↔ ∃ v, v ∈ items ∧ w = v.untried :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem untriedSpread_eq {spread : Option Val} {t : Val} :
-    untriedSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.untried := by
-  cases spread <;> simp [untriedSpread, eq_comm]
+    untriedSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.untried :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_untriedArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ untriedArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.untried := by
-  induction arms with
-  | nil => simp [untriedArms]
-  | cons p arms ih =>
-    obtain ⟨r', a'⟩ := p
-    simp only [untriedArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ untriedArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.untried :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read stays one with its trials unread. -/
 theorem onLeaves_checkableA {v : Val} (h : v.CheckableA) : v.onLeaves.CheckableA := by
