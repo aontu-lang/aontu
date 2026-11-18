@@ -45,6 +45,10 @@ every row the oracle prints is byte for byte what it printed before.
   each is now one line from the helper's two equations, through
   `mem_mapFields`, `mem_mapItems`, `mem_mapArms`, `mem_mapPairs` and
   `mapSpread_eq` in `spec/Aontu/Syntax.lean`.
+- **`judge_unique` reads each kind and bound once.** Its twenty kind
+  rules and sixteen bound rules each had an alternative of their own,
+  the same three lines over a different name; they share six now, and
+  the proof is a hundred lines shorter.
 - **One tactic, `judge_rebuild`, rebuilds a judgement rule by rule.**
   `judge_root` and `judge_of_follows` each wrote out the same 114
   alternatives.

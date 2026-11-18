@@ -582,72 +582,28 @@ refuses it. A judgement that holds is therefore the judgement. -/
 theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     (h : Judge env root b v j) : ∀ {b' : Bool}, Judge env root b' v j → b = b' := by
   induction h with
-  | integer => intro b' h'; cases h' with
-    | integer => rfl
-    | integerNot hn => exact absurd rfl (hn _)
-  | integerNot hn => intro b' h'; cases h' with
-    | integer => exact absurd rfl (hn _)
-    | integerNot _ => rfl
-  | float => intro b' h'; cases h' with
-    | float => rfl
-    | floatNot hn => exact absurd rfl (hn _)
-  | floatNot hn => intro b' h'; cases h' with
-    | float => exact absurd rfl (hn _)
-    | floatNot _ => rfl
-  | biginteger => intro b' h'; cases h' with
-    | biginteger => rfl
-    | bigintegerNot hn => exact absurd rfl (hn _)
-  | bigintegerNot hn => intro b' h'; cases h' with
-    | biginteger => exact absurd rfl (hn _)
-    | bigintegerNot _ => rfl
-  | bigdecimal => intro b' h'; cases h' with
-    | bigdecimal => rfl
-    | bigdecimalNot hn => exact absurd rfl (hn _)
-  | bigdecimalNot hn => intro b' h'; cases h' with
-    | bigdecimal => exact absurd rfl (hn _)
-    | bigdecimalNot _ => rfl
-  | number => intro b' h'; cases h' with
-    | number => rfl
-    | numberNot hn => exact absurd rfl (hn _)
-  | numberNot hn => intro b' h'; cases h' with
-    | number => exact absurd rfl (hn _)
-    | numberNot _ => rfl
+  | integer | float | biginteger | bigdecimal | number | anyString | boolean | mapKind | listKind | pathKind =>
+    intro b' h'; cases h' <;> first | rfl | (rename_i hn; exact absurd rfl (hn _))
+  | integerNot hn | floatNot hn | bigintegerNot hn | bigdecimalNot hn | numberNot hn | anyStringNot hn | booleanNot hn | mapKindNot hn | listKindNot hn | pathKindNot hn =>
+    intro b' h'; cases h' <;> first | rfl | exact absurd rfl (hn _)
+  | min h | max h | above h | beneath h =>
+    intro b' h'; cases h' <;> first | rfl | (rename_i hn _ _; exact absurd h (hn _ _ rfl rfl))
+  | minStr h | maxStr h | aboveStr h | beneathStr h =>
+    intro b' h'; cases h' <;> first | rfl | (rename_i _ hn _; exact absurd h (hn _ _ rfl rfl))
+  | minAddr h | maxAddr h | aboveAddr h | beneathAddr h =>
+    intro b' h'; cases h' <;> first | rfl | (rename_i _ _ hn; exact absurd h (hn _ _ rfl rfl))
+  | minNot hn hs ha | maxNot hn hs ha | aboveNot hn hs ha | beneathNot hn hs ha =>
+    intro b' h'; cases h' <;> first
+      | rfl
+      | (rename_i h; exact absurd h (hn _ _ rfl rfl))
+      | (rename_i h; exact absurd h (hs _ _ rfl rfl))
+      | (rename_i h; exact absurd h (ha _ _ rfl rfl))
   | string hs => intro b' h'; cases h' with
     | string _ => rfl
     | stringNot hn => exact absurd (hn _ rfl) hs
   | stringNot hn => intro b' h'; cases h' with
     | string hs => exact absurd (hn _ rfl) hs
     | stringNot _ => rfl
-  | anyString => intro b' h'; cases h' with
-    | anyString => rfl
-    | anyStringNot hn => exact absurd rfl (hn _)
-  | anyStringNot hn => intro b' h'; cases h' with
-    | anyString => exact absurd rfl (hn _)
-    | anyStringNot _ => rfl
-  | boolean => intro b' h'; cases h' with
-    | boolean => rfl
-    | booleanNot hn => exact absurd rfl (hn _)
-  | booleanNot hn => intro b' h'; cases h' with
-    | boolean => exact absurd rfl (hn _)
-    | booleanNot _ => rfl
-  | mapKind => intro b' h'; cases h' with
-    | mapKind => rfl
-    | mapKindNot hn => exact absurd rfl (hn _)
-  | mapKindNot hn => intro b' h'; cases h' with
-    | mapKind => exact absurd rfl (hn _)
-    | mapKindNot _ => rfl
-  | listKind => intro b' h'; cases h' with
-    | listKind => rfl
-    | listKindNot hn => exact absurd rfl (hn _)
-  | listKindNot hn => intro b' h'; cases h' with
-    | listKind => exact absurd rfl (hn _)
-    | listKindNot _ => rfl
-  | pathKind => intro b' h'; cases h' with
-    | pathKind => rfl
-    | pathKindNot hn => exact absurd rfl (hn _)
-  | pathKindNot hn => intro b' h'; cases h' with
-    | pathKind => exact absurd rfl (hn _)
-    | pathKindNot _ => rfl
   | num => intro b' h'; cases h' with
     | num => rfl
     | litNot hn => exact absurd rfl hn
@@ -669,62 +625,6 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | addrNot hn => intro b' h'; cases h' with
     | addr h => exact absurd h (hn _ rfl)
     | addrNot _ => rfl
-  | min h => intro b' h'; cases h' with
-    | min _ => rfl
-    | minNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
-  | minStr h => intro b' h'; cases h' with
-    | minStr _ => rfl
-    | minNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
-  | minAddr h => intro b' h'; cases h' with
-    | minAddr _ => rfl
-    | minNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
-  | minNot hn hs ha => intro b' h'; cases h' with
-    | min h => exact absurd h (hn _ _ rfl rfl)
-    | minStr h => exact absurd h (hs _ _ rfl rfl)
-    | minAddr h => exact absurd h (ha _ _ rfl rfl)
-    | minNot _ _ _ => rfl
-  | max h => intro b' h'; cases h' with
-    | max _ => rfl
-    | maxNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
-  | maxStr h => intro b' h'; cases h' with
-    | maxStr _ => rfl
-    | maxNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
-  | maxAddr h => intro b' h'; cases h' with
-    | maxAddr _ => rfl
-    | maxNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
-  | maxNot hn hs ha => intro b' h'; cases h' with
-    | max h => exact absurd h (hn _ _ rfl rfl)
-    | maxStr h => exact absurd h (hs _ _ rfl rfl)
-    | maxAddr h => exact absurd h (ha _ _ rfl rfl)
-    | maxNot _ _ _ => rfl
-  | above h => intro b' h'; cases h' with
-    | above _ => rfl
-    | aboveNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
-  | aboveStr h => intro b' h'; cases h' with
-    | aboveStr _ => rfl
-    | aboveNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
-  | aboveAddr h => intro b' h'; cases h' with
-    | aboveAddr _ => rfl
-    | aboveNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
-  | aboveNot hn hs ha => intro b' h'; cases h' with
-    | above h => exact absurd h (hn _ _ rfl rfl)
-    | aboveStr h => exact absurd h (hs _ _ rfl rfl)
-    | aboveAddr h => exact absurd h (ha _ _ rfl rfl)
-    | aboveNot _ _ _ => rfl
-  | beneath h => intro b' h'; cases h' with
-    | beneath _ => rfl
-    | beneathNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
-  | beneathStr h => intro b' h'; cases h' with
-    | beneathStr _ => rfl
-    | beneathNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
-  | beneathAddr h => intro b' h'; cases h' with
-    | beneathAddr _ => rfl
-    | beneathNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
-  | beneathNot hn hs ha => intro b' h'; cases h' with
-    | beneath h => exact absurd h (hn _ _ rfl rfl)
-    | beneathStr h => exact absurd h (hs _ _ rfl rfl)
-    | beneathAddr h => exact absurd h (ha _ _ rfl rfl)
-    | beneathNot _ _ _ => rfl
   | neq h => intro b' h'; cases h' with
     | neq _ => rfl
     | neqNot hn _ =>
