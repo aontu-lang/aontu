@@ -1453,3 +1453,9 @@ explain the next sptes
 ```text
 Git pull the latest version and review the lean spec for redundancy, duplication or over complexity, refactoring as needed.
 ```
+
+## 2026-11-18 15:34:57 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+review all of the outstanding github issues and categorise them
+```
