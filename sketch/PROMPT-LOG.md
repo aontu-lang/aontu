@@ -824,6 +824,7 @@ Report status
 
 ```text
 go ahead
+```
 ## 2026-11-10 10:10:06 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -1068,6 +1069,8 @@ again, refer and rel seem redundant - what is the difference
 
 ```text
 post an issue for the defect; introduce an ADR: canons of builtin functions must show the function name as seen in the code, and not replace it with equivalent expressions of other functions, as this is highly confusing to the reader; remove refer and rename rel to relate
+```
+
 ## 2026-11-12 13:32:16 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 ```text
@@ -1223,6 +1226,7 @@ show me the markdown doc here
 
 ```text
 prepare a pr; recap our refinements to relations in this session
+```
 ## 2026-11-13 16:09:14 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -1257,6 +1261,7 @@ report on current status and progress - how much is left?
 
 ```text
 resolve merge conflicts
+```
 ## 2026-11-16 11:44:24 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 ```text
@@ -1415,6 +1420,7 @@ is the pr ready to merge?
 
 ```text
 file the form rename as an issue; resolve the conflicts and review items
+```
 ## 2026-11-17 02:02:47 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
