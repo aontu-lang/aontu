@@ -45,6 +45,11 @@ every row the oracle prints is byte for byte what it printed before.
   each is now one line from the helper's two equations, through
   `mem_mapFields`, `mem_mapItems`, `mem_mapArms`, `mem_mapPairs` and
   `mapSpread_eq` in `spec/Aontu/Syntax.lean`.
+- **The oracle's cases share their helpers.** The 36 helpers its case
+  lists each wrote for themselves, `int`, `str`, `m` and their kin, are
+  written once in `Case`, and 604 copies are gone. One `verdictLines`
+  prints a case's rows in the three modes, where four printers each
+  wrote them out.
 - **`judge_unique` reads each kind and bound once.** Its twenty kind
   rules and sixteen bound rules each had an alternative of their own,
   the same three lines over a different name; they share six now, and
