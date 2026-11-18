@@ -94,17 +94,12 @@ def isSelect : Val → Bool
   | .select _ _ _ => true
   | _ => false
 
-/-- Whether a term is a choice, a disjunction or a lone preference: the
-seal stops at one, and a directive beside one reaches each of its arms
-(`Val.folds`). -/
-def Val.choosesArm : Val → Bool
-  | .or _ | .pref _ _ => true
-  | _ => false
-
 /-- What the seal adds to some conjuncts, within `f` levels: for a
 selection among them, the selection of the restrictions of its results,
 each met with the other conjuncts; and nothing at a level where a
-conjunct is held open or is a choice. -/
+conjunct is held open or is a choice, a disjunction or a lone preference
+(`Val.isNode`): the seal stops at one, and a directive beside one reaches
+each of its arms (`Val.folds`). -/
 def restrictF : ℕ → List Val → Val
   | 0, _ => .any
   | f + 1, vs =>
@@ -115,7 +110,7 @@ def restrictF : ℕ → List Val → Val
       .select s (arms.map fun a => (a.1, restrictF f (a.2 :: others)))
         (d.map fun x => restrictF f (x :: others))
     | _ =>
-      if cs.any Val.heldOpen || cs.any Val.choosesArm then .any
+      if cs.any Val.heldOpen || cs.any Val.isNode then .any
       else if cs.any isMapLit then
         .map ((declaredKeys cs).map fun k => (k, true, restrictF f (valuesAt k cs))) none true
       else if cs.any isListLit then
@@ -1952,17 +1947,6 @@ theorem Val.unchosen_unguardedRefs : ∀ {v : Val} {n : String}, n ∈ v.unchose
   | .format _, _, h | .filter _ _, _, h | .map _ _ _, _, h | .list _ _ _, _, h => by
     simpa only [Val.unchosen] using h
 
-theorem foldl_meet_unguardedRefs : ∀ (vs : List Val) (acc : Val) {n : String},
-    n ∈ (vs.foldl Val.meet acc).unguardedRefs → n ∈ acc.unguardedRefs ∨ ∃ v ∈ vs, n ∈ v.unguardedRefs
-  | [], acc, n, h => .inl h
-  | v :: vs, acc, n, h => by
-    rcases foldl_meet_unguardedRefs vs (.meet acc v) h with h | ⟨w, hw, h⟩
-    · simp only [Val.unguardedRefs, List.mem_append] at h
-      rcases h with h | h
-      · exact .inl h
-      · exact .inr ⟨v, List.mem_cons_self, h⟩
-    · exact .inr ⟨w, List.mem_cons_of_mem _ hw, h⟩
-
 theorem foldPlace_unguardedRefs {rd : Val → Val}
     (hrd : ∀ x {n : String}, n ∈ (rd x).unguardedRefs → n ∈ x.unguardedRefs) {all : List Val}
     {n : String} (h : n ∈ (foldPlace rd all).unguardedRefs) : ∃ u ∈ all, n ∈ u.unguardedRefs := by
@@ -1977,7 +1961,7 @@ theorem foldPlace_unguardedRefs {rd : Val → Val}
   · obtain ⟨c, hc, hr⟩ := choicesMet_reach hp hn
     obtain ⟨u, hu, hc⟩ := List.mem_flatMap.mp hc
     exact ⟨u, hu, Val.placeChoices_reach hc hr⟩
-  · rcases foldl_meet_unguardedRefs _ _ hn with hn | ⟨w, hw, hn⟩
+  · rcases Decls.unguardedRefs_foldl_meet _ _ hn with hn | ⟨w, hw, hn⟩
     · simp [Val.unguardedRefs] at hn
     · obtain ⟨u, hu, rfl⟩ := List.mem_map.mp hw
       exact ⟨u, hu, Val.unchosen_unguardedRefs hn⟩
@@ -2219,52 +2203,20 @@ theorem Val.checkableA_unident {v : Val} (h : v.CheckableA) : v.unident.Checkabl
   | case3 v h1 h2 => rw [Val.unident.eq_3 v h1 h2]; exact h
 
 theorem mem_unmarkFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ unmarkFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.unmark := by
-  induction fs with
-  | nil => simp [unmarkFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [unmarkFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ unmarkFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.unmark :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_unmarkItems {items : List Val} {w : Val} :
-    w ∈ unmarkItems items ↔ ∃ v, v ∈ items ∧ w = v.unmark := by
-  induction items with
-  | nil => simp [unmarkItems]
-  | cons v vs ih =>
-    simp only [unmarkItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨v', hm, rfl⟩)
-      · exact ⟨v, Or.inl rfl, rfl⟩
-      · exact ⟨v', Or.inr hm, rfl⟩
-    · rintro ⟨v', rfl | hm, rfl⟩
-      · exact Or.inl rfl
-      · exact Or.inr ⟨v', hm, rfl⟩
+    w ∈ unmarkItems items ↔ ∃ v, v ∈ items ∧ w = v.unmark :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem unmarkSpread_eq {spread : Option Val} {t : Val} :
-    unmarkSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.unmark := by
-  cases spread <;> simp [unmarkSpread, eq_comm]
+    unmarkSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.unmark :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_unmarkArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ unmarkArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.unmark := by
-  induction arms with
-  | nil => simp [unmarkArms]
-  | cons p arms ih =>
-    obtain ⟨r', a'⟩ := p
-    simp only [unmarkArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ unmarkArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.unmark :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 theorem mem_unmarkPairs {ps : List (Val × Val)} {p r : Val} :
     (p, r) ∈ unmarkPairs ps ↔ ∃ p' r', (p', r') ∈ ps ∧ p = p'.unmark ∧ r = r'.unmark := by
@@ -2386,33 +2338,15 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
 
 theorem mem_unsealFields :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-      (k, o, w) ∈ unsealFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.unseal
-  | [], _, _, _, h => nomatch h
-  | (k', o', v') :: fs, k, o, w, h => by
-    simp only [unsealFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := mem_unsealFields h
-      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+      (k, o, w) ∈ unsealFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.unseal :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
-theorem mem_unsealItems : ∀ {vs : List Val} {w : Val}, w ∈ unsealItems vs → ∃ v, v ∈ vs ∧ w = v.unseal
-  | [], _, h => nomatch h
-  | v :: vs, w, h => by
-    simp only [unsealItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_unsealItems h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+theorem mem_unsealItems : ∀ {vs : List Val} {w : Val}, w ∈ unsealItems vs → ∃ v, v ∈ vs ∧ w = v.unseal :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem mem_unsealArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
-    (r, x) ∈ unsealArms arms → ∃ a, (r, a) ∈ arms ∧ x = a.unseal
-  | [], _, _, h => nomatch h
-  | (r', a) :: arms, r, x, h => by
-    simp only [unsealArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a, List.mem_cons_self, rfl⟩
-    · obtain ⟨b, hb, rfl⟩ := mem_unsealArms h
-      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+    (r, x) ∈ unsealArms arms → ∃ a, (r, a) ∈ arms ∧ x = a.unseal :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 /-- Unsealing a term the checker can read gives a term it can read. -/
 theorem Val.CheckableA.unseal {v : Val} (h : v.CheckableA) : v.unseal.CheckableA := by
@@ -2800,18 +2734,8 @@ theorem foldl_meet_checkableA : ∀ (us : List Val) {acc : Val}, acc.CheckableA 
       fun w hw => hu w (List.mem_cons_of_mem _ hw)
 
 theorem mem_superItems {items : List Val} {w : Val} :
-    w ∈ superItems items ↔ ∃ v, v ∈ items ∧ w = v.super := by
-  induction items with
-  | nil => simp [superItems]
-  | cons v vs ih =>
-    simp only [superItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ superItems items ↔ ∃ v, v ∈ items ∧ w = v.super :=
+  mem_mapItems rfl fun _ _ => rfl
 
 /-- The parent type of a term the checker can read is one it can read. -/
 theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA := by
@@ -3686,21 +3610,10 @@ The meet builds its answer from the pieces of its sides and the bodies
 it unfolds, so the normal form of a term the checker can read is one it
 can read: what `vet` has to decide can be decided. -/
 
-theorem Kind.val_checkableA (k : Kind) : k.val.CheckableA := by
-  cases k <;> constructor
-
 theorem Kind.meet_checkableA (ka kb : Kind) : (ka.meet kb).CheckableA := by
   cases ka <;> cases kb <;> first
     | exact .nil | exact .integer | exact .float | exact .biginteger | exact .bigdecimal
     | exact .number | exact .string | exact .anyString | exact .boolean | exact .pathKind
-
-theorem litMeet_checkableA (s : Scalar) {b : Val} (hb : b.CheckableA) : (litMeet s b).CheckableA := by
-  unfold litMeet
-  split
-  · split
-    · exact .lit
-    · exact .nil
-  · exact .meet .lit hb
 
 theorem aliasMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
     (aliasMeet a b).CheckableA := by

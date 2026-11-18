@@ -313,7 +313,7 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.admits_of_le
 
-/-- info: 'Aontu.map_le' depends on axioms: [propext] -/
+/-- info: 'Aontu.map_le' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.map_le
 

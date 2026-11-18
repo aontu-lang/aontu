@@ -1600,14 +1600,6 @@ def landStep (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg
   | .path q => ([], [(S, q ++ i.2)])
   | _ => landLeaf i.1 i.2
 
-/-- What the schema `S` writes at a path, read from the items within `n`
-steps (`landStep`), so that a cycle of references reads to the end of
-the budget and no further. -/
-def landing (S : Val) : ℕ → List (Val × List Seg) → List Val
-  | 0, _ => []
-  | _, [] => []
-  | n + 1, i :: rest => (landStep S i).1 ++ landing S n ((landStep S i).2 ++ rest)
-
 /-- One step of `landStep`, a name stepped into through each of its
 bodies too, as a copy stands where its use does. -/
 def Decls.landStepD (ds : Decls) (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg) :=
@@ -1616,7 +1608,8 @@ def Decls.landStepD (ds : Decls) (S : Val) (i : Val × List Seg) : List Val × L
   | _ => landStep S i
 
 /-- What the schema `S` writes at a path, a name's bodies read where the
-name stands (`Decls.landStepD`), within `n` steps. -/
+name stands (`Decls.landStepD`), within `n` steps, so that a cycle of
+references reads to the end of the budget and no further. -/
 def Decls.landingD (ds : Decls) (S : Val) : ℕ → List (Val × List Seg) → List Val
   | 0, _ => []
   | _, [] => []
@@ -1878,7 +1871,7 @@ mutual
 /-- The term with each spread whose template reads its member's place
 left to admit any value (`ntSpread`), through maps by key, lists by
 index, meets, riders and a generator's template, whose relative paths
-it reads as `any` (`Val.relBlank`), where `landing` reads one: the
+it reads as `any` (`Val.relBlank`), where `Decls.landingD` reads one: the
 schema each member's instance is met into. -/
 def Val.neutral : Val → Val
   | .map fs spread closed => .map (ntFields fs) (ntSpread spread) closed
@@ -3050,24 +3043,6 @@ theorem landStep_checkableA {S : Val} (hS : S.CheckableA) {i : Val × List Seg}
     rw [hj]; exact hS
   next => exact landLeaf_checkableA hi i.2
 
-/-- What the schema writes at a path, where the schema is a term the
-checker can read, is too. -/
-theorem landing_checkableA {S : Val} (hS : S.CheckableA) :
-    ∀ (n : ℕ) (items : List (Val × List Seg)), (∀ i, i ∈ items → i.1.CheckableA) →
-      ∀ u, u ∈ landing S n items → u.CheckableA
-  | 0, _, _, _, h => by simp [landing] at h
-  | _ + 1, [], _, _, h => by simp [landing] at h
-  | n + 1, i :: rest, hi, u, h => by
-    have hs := landStep_checkableA hS (hi i List.mem_cons_self)
-    simp only [landing, List.mem_append] at h
-    rcases h with h | h
-    · exact hs.1 u h
-    · refine landing_checkableA hS n _ (fun j hj => ?_) u h
-      rw [List.mem_append] at hj
-      rcases hj with hj | hj
-      · exact hs.2 j hj
-      · exact hi j (List.mem_cons_of_mem _ hj)
-
 /-- One step of reading what the document writes at a place leaves
 terms the checker can read, where the schema and the bodies are such
 terms. -/
@@ -3234,56 +3209,20 @@ def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
 /-! ## Paths read as names keep a term checkable -/
 
 theorem mem_ptaFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ ptaFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.pathsToAliases := by
-  induction fs with
-  | nil => simp [ptaFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [ptaFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ ptaFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.pathsToAliases :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_ptaPairs {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ ptaPairs ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.pathsToAliases ∧ r = r₀.pathsToAliases := by
-  induction ps with
-  | nil => simp [ptaPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [ptaPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ ptaPairs ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.pathsToAliases ∧ r = r₀.pathsToAliases :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem mem_ptaItems {items : List Val} {w : Val} :
-    w ∈ ptaItems items ↔ ∃ v, v ∈ items ∧ w = v.pathsToAliases := by
-  induction items with
-  | nil => simp [ptaItems]
-  | cons v vs ih =>
-    simp only [ptaItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ ptaItems items ↔ ∃ v, v ∈ items ∧ w = v.pathsToAliases :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem ptaSpread_eq {spread : Option Val} {t : Val} :
-    ptaSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.pathsToAliases := by
-  cases spread with
-  | none => simp [ptaSpread]
-  | some s =>
-    simp only [ptaSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    ptaSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.pathsToAliases :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_ptaCovers {cs : List Cover} {c' : Cover} :
     c' ∈ ptaCovers cs ↔ ∃ c, c ∈ cs ∧ c' = (ptaSpread c.1, ptaSpread c.2.1, ptaSpread c.2.2) := by
@@ -3301,19 +3240,8 @@ theorem mem_ptaCovers {cs : List Cover} {c' : Cover} :
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_ptaArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ ptaArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.pathsToAliases := by
-  induction arms with
-  | nil => simp [ptaArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [ptaArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ ptaArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.pathsToAliases :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read, its paths read as names, is one it can read. -/
 theorem ptaCall_checkableA {f : Fn} {args : List Val}
@@ -3429,18 +3357,8 @@ theorem mem_plElems {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val
       exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
 
 theorem mem_plItems {pos : List Seg} {items : List Val} {w : Val} :
-    w ∈ plItems pos items ↔ ∃ v, v ∈ items ∧ w = v.placed pos := by
-  induction items with
-  | nil => simp [plItems]
-  | cons v vs ih =>
-    simp only [plItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ plItems pos items ↔ ∃ v, v ∈ items ∧ w = v.placed pos :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mem_plArgs {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
     w ∈ plArgs pos f args → ∃ v, v ∈ args ∧ ((∃ q, w = v.placed q) ∨ w = v)
@@ -3455,27 +3373,12 @@ theorem mem_plArgs {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
         exact ⟨u, List.mem_cons_of_mem _ hu, hw⟩
 
 theorem mem_plPairs {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ plPairs pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.placed pos ∧ r = r₀.placed pos := by
-  induction ps with
-  | nil => simp [plPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [plPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ plPairs pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.placed pos ∧ r = r₀.placed pos :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem plSpread_eq {pos : List Seg} {spread : Option Val} {t : Val} :
-    plSpread pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.placed pos := by
-  cases spread with
-  | none => simp [plSpread]
-  | some s =>
-    simp only [plSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    plSpread pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.placed pos :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_plCovers {pos : List Seg} {cs : List Cover} {c' : Cover} :
     c' ∈ plCovers pos cs ↔ ∃ c, c ∈ cs ∧ c' = (plSpread pos c.1, plSpread pos c.2.1, plSpread pos c.2.2) := by
@@ -3493,19 +3396,8 @@ theorem mem_plCovers {pos : List Seg} {cs : List Cover} {c' : Cover} :
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_plArms {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ plArms pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.placed pos := by
-  induction arms with
-  | nil => simp [plArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [plArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ plArms pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.placed pos :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read, its relative paths placed, is one it
 can read. -/
@@ -3610,56 +3502,20 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
   | _ => intro pos; simp only [Val.placed]; constructor
 
 theorem mem_mlFields {ld : String → Option Val} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ mlFields ld fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.mapLoads ld := by
-  induction fs with
-  | nil => simp [mlFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [mlFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ mlFields ld fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.mapLoads ld :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_mlPairs {ld : String → Option Val} {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ mlPairs ld ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.mapLoads ld ∧ r = r₀.mapLoads ld := by
-  induction ps with
-  | nil => simp [mlPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [mlPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ mlPairs ld ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.mapLoads ld ∧ r = r₀.mapLoads ld :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem mem_mlItems {ld : String → Option Val} {items : List Val} {w : Val} :
-    w ∈ mlItems ld items ↔ ∃ v, v ∈ items ∧ w = v.mapLoads ld := by
-  induction items with
-  | nil => simp [mlItems]
-  | cons v vs ih =>
-    simp only [mlItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ mlItems ld items ↔ ∃ v, v ∈ items ∧ w = v.mapLoads ld :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mlSpread_eq {ld : String → Option Val} {spread : Option Val} {t : Val} :
-    mlSpread ld spread = some t ↔ ∃ s, spread = some s ∧ t = s.mapLoads ld := by
-  cases spread with
-  | none => simp [mlSpread]
-  | some s =>
-    simp only [mlSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    mlSpread ld spread = some t ↔ ∃ s, spread = some s ∧ t = s.mapLoads ld :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_mlCovers {ld : String → Option Val} {cs : List Cover} {c' : Cover} :
     c' ∈ mlCovers ld cs ↔ ∃ c, c ∈ cs ∧ c' = (mlSpread ld c.1, mlSpread ld c.2.1, mlSpread ld c.2.2) := by
@@ -3677,19 +3533,8 @@ theorem mem_mlCovers {ld : String → Option Val} {cs : List Cover} {c' : Cover}
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_mlArms {ld : String → Option Val} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ mlArms ld arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.mapLoads ld := by
-  induction arms with
-  | nil => simp [mlArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [mlArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ mlArms ld arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.mapLoads ld :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read, its paths read as names, is one it can read. -/
 theorem mapLoads_checkableA {ld : String → Option Val} (hk : ∀ p w, ld p = some w → w.CheckableA)
@@ -3899,18 +3744,8 @@ theorem mem_auElems {rs : List Seg → String → Bool} {rt : List Seg → Bool}
       exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
 
 theorem mem_auItems {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {items : List Val} {w : Val} :
-    w ∈ auItems rs rt dl pos items ↔ ∃ v, v ∈ items ∧ w = v.atUses rs rt dl pos := by
-  induction items with
-  | nil => simp [auItems]
-  | cons v vs ih =>
-    simp only [auItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+    w ∈ auItems rs rt dl pos items ↔ ∃ v, v ∈ items ∧ w = v.atUses rs rt dl pos :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mem_auArgs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
     w ∈ auArgs rs rt dl pos f args → ∃ v, v ∈ args ∧ (w = v.atUses rs rt dl pos ∨ w = v)
@@ -3925,27 +3760,12 @@ theorem mem_auArgs {rs : List Seg → String → Bool} {rt : List Seg → Bool} 
         exact ⟨u, List.mem_cons_of_mem _ hu, hw⟩
 
 theorem mem_auPairs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
-    (p, r) ∈ auPairs rs rt dl pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.atUses rs rt dl pos ∧ r = r₀.atUses rs rt dl pos := by
-  induction ps with
-  | nil => simp [auPairs]
-  | cons q ps ih =>
-    obtain ⟨p', r'⟩ := q
-    simp only [auPairs, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
-      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
-      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
-    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+    (p, r) ∈ auPairs rs rt dl pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.atUses rs rt dl pos ∧ r = r₀.atUses rs rt dl pos :=
+  mem_mapPairs rfl fun _ _ _ => rfl
 
 theorem auSpread_eq {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {spread : Option Val} {t : Val} :
-    auSpread rs rt dl pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.atUses rs rt dl pos := by
-  cases spread with
-  | none => simp [auSpread]
-  | some s =>
-    simp only [auSpread, Option.some.injEq]
-    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+    auSpread rs rt dl pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.atUses rs rt dl pos :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_auCovers {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {cs : List Cover} {c' : Cover} :
     c' ∈ auCovers rs rt dl pos cs ↔ ∃ c, c ∈ cs ∧ c' = (auSpread rs rt dl pos c.1, auSpread rs rt dl pos c.2.1, auSpread rs rt dl pos c.2.2) := by
@@ -3963,19 +3783,8 @@ theorem mem_auCovers {rs : List Seg → String → Bool} {rt : List Seg → Bool
       · exact .inr ⟨d, hd, rfl⟩
 
 theorem mem_auArms {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ auArms rs rt dl pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.atUses rs rt dl pos := by
-  induction arms with
-  | nil => simp [auArms]
-  | cons q qs ih =>
-    obtain ⟨r', a'⟩ := q
-    simp only [auArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ auArms rs rt dl pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.atUses rs rt dl pos :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 theorem atUses_checkableA {rs : List Seg → String → Bool} {dl : List Seg → Option Val}
     (hdl : ∀ p w, dl p = some w → w.CheckableA) {v : Val} (h : v.CheckableA) :
@@ -4123,32 +3932,11 @@ theorem ntSpread_checkableA {spread : Option Val} (hs : ∀ s, spread = some s �
     · exact hs t rfl
 
 theorem mem_ntFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ ntFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.neutral := by
-  induction fs with
-  | nil => simp [ntFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [ntFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ ntFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.neutral :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
-theorem mem_ntItems {items : List Val} {w : Val} : w ∈ ntItems items ↔ ∃ v, v ∈ items ∧ w = v.neutral := by
-  induction items with
-  | nil => simp [ntItems]
-  | cons v vs ih =>
-    simp only [ntItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨u, hu, rfl⟩)
-      · exact ⟨v, .inl rfl, rfl⟩
-      · exact ⟨u, .inr hu, rfl⟩
-    · rintro ⟨u, rfl | hu, rfl⟩
-      · exact .inl rfl
-      · exact .inr ⟨u, hu, rfl⟩
+theorem mem_ntItems {items : List Val} {w : Val} : w ∈ ntItems items ↔ ∃ v, v ∈ items ∧ w = v.neutral :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem relAny_checkableA {v : Val} (h : v.CheckableA) : (relAny v).CheckableA := by
   unfold relAny
@@ -4163,26 +3951,11 @@ theorem relWhole_checkableA {v : Val} (h : v.CheckableA) : (relWhole v).Checkabl
   · exact .any
 
 theorem mem_rbFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ rbFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.relBlank := by
-  induction fs with
-  | nil => simp [rbFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [rbFields, List.mem_cons, Prod.mk.injEq]
-    rintro (⟨rfl, rfl, rfl⟩ | hm)
-    · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := ih hm
-      exact ⟨v, Or.inr hv, rfl⟩
+    (k, o, w) ∈ rbFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.relBlank :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
-theorem mem_rbItems {items : List Val} {w : Val} : w ∈ rbItems items → ∃ v, v ∈ items ∧ w = v.relBlank := by
-  induction items with
-  | nil => simp [rbItems]
-  | cons v vs ih =>
-    simp only [rbItems, List.mem_cons]
-    rintro (rfl | hm)
-    · exact ⟨v, Or.inl rfl, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := ih hm
-      exact ⟨u, Or.inr hu, rfl⟩
+theorem mem_rbItems {items : List Val} {w : Val} : w ∈ rbItems items → ∃ v, v ∈ items ∧ w = v.relBlank :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem relBlank_checkableA {v : Val} (h : v.CheckableA) : v.relBlank.CheckableA := by
   induction h with
@@ -4227,15 +4000,8 @@ theorem mem_rpFields {fs : List (String × Bool × Val)} {k : String} {o : Bool}
       obtain ⟨v, hv, rfl⟩ := ih hm
       exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
 
-theorem mem_rpItems {items : List Val} {w : Val} : w ∈ rpItems items → ∃ v, v ∈ items ∧ w = v.relPart := by
-  induction items with
-  | nil => simp [rpItems]
-  | cons v vs ih =>
-    simp only [rpItems, List.mem_cons]
-    rintro (rfl | hm)
-    · exact ⟨v, Or.inl rfl, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := ih hm
-      exact ⟨u, Or.inr hu, rfl⟩
+theorem mem_rpItems {items : List Val} {w : Val} : w ∈ rpItems items → ∃ v, v ∈ items ∧ w = v.relPart :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem relPart_checkableA {v : Val} (h : v.CheckableA) : v.relPart.CheckableA := by
   induction h with
@@ -5813,36 +5579,6 @@ theorem Decls.prepared_bodies_checkableA {ds : Decls} {S : Val} {rl r : Decls �
     (hS : S.CheckableA) : ∀ d, d ∈ (ds.prepared S rl r oj).1 → d.2.CheckableA :=
   (Decls.prepared_readable hrl hr hb hS).2
 
-/-- `vetA` computes `VetA` wherever the checker can read the two
-documents the verdict hands `vet`, the schema's reading and the data's,
-each with its bodies, as it can a document whose `filter` reads its
-source to the members it keeps. -/
-theorem vetA_iff_of {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
-    (hbS : ∀ d, d ∈ (ds.withPathsS S).1 → d.2.CheckableA)
-    (hRS : ((ds.withPathsS S).1.readR (ds.withPathsS S).2).CheckableA)
-    (hbP : ∀ d, d ∈ (ds'.withPaths S' j).1 → d.2.CheckableA)
-    (hRP : ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).CheckableA) (v : Verdict) :
-    vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
-  have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS hRS
-  have hvP := vet_iff (m := m) (ds := (ds'.withPaths S' j).1) (S := (ds'.withPaths S' j).2) (j := j) hbP hRP
-  unfold vetA
-  by_cases hr : ds.resolvesB S = true
-  · rw [if_pos hr]
-    have hR := Decls.resolvesB_iff.mp hr
-    by_cases he : vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error
-    · rw [if_pos he]
-      have hE := (hvS .error).mp he
-      cases v <;> simp only [VetA, hR, hE, not_true_eq_false, false_and, and_false, or_true,
-        reduceCtorEq]
-    · rw [if_neg he]
-      have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he ((hvS .error).mpr h)
-      cases hp : vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j <;> cases v <;>
-        simp only [VetA, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
-          or_true, or_false, and_false, and_true, reduceCtorEq]
-  · rw [if_neg hr]
-    have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
-    cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
-
 /-- `vetA` computes `VetA` wherever the checker can read the document
 it hands `vet` with the data's paths read as names, whatever the
 schema's own reading holds, since the `error` class reads only the
@@ -5872,30 +5608,16 @@ theorem vetA_iff_data {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
     have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
     cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
 
-/-- `vetA` computes `VetA` on every document whose bodies and schema
-read no pattern and no format. -/
-theorem vetA_iff {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (hb' : ∀ d, d ∈ ds' → d.2.CheckableA) (hS' : S'.CheckableA) (v : Verdict) :
+/-- `vetA` computes `VetA` on every document whose reading with the data
+has bodies and a schema that read no pattern and no format. The
+schema's own reading decides only the `error` class, which `vet`
+computes on any document (`vet_error_iff`). -/
+theorem vetA_iff {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
+    (hb' : ∀ d, d ∈ ds' → d.2.CheckableA) (hS' : S'.CheckableA) (v : Verdict) :
     vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v :=
-  have hbS := Decls.callsMade_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S) hb
-    (Decls.roundsS_checkableA hb hS).1 (Decls.roundsS_checkableA hb hS).2)
   have hbP := Decls.callsMade_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb'
     (Decls.roundsD_checkableA (j := j) hb' hS').1 (Decls.roundsD_checkableA (j := j) hb' hS').2)
-  vetA_iff_of hbS (readR_checkableA hbS (pathsToAliases_checkableA hS)) hbP
-    (readR_checkableA hbP (pathsToAliases_checkableA hS')) v
-
-/-- Whether the checker can read the two documents `vetA` hands `vet`,
-each with its bodies, computed. -/
-def Decls.readsAB (ds : Decls) (S : Val) (ds' : Decls) (S' : Val) (j : Data) : Bool :=
-  (ds.withPathsS S).1.all (·.2.checkableAB) && ((ds.withPathsS S).1.readR (ds.withPathsS S).2).checkableAB &&
-    (ds'.withPaths S' j).1.all (·.2.checkableAB) && ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).checkableAB
-
-theorem vetA_iff_reads {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (h : ds.readsAB S ds' S' j = true)
-    (v : Verdict) : vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
-  simp only [Decls.readsAB, Bool.and_eq_true, List.all_eq_true] at h
-  obtain ⟨⟨⟨hbS, hRS⟩, hbP⟩, hRP⟩ := h
-  exact vetA_iff_of (fun d hd => (Val.checkableAB_iff _).mp (hbS d hd)) ((Val.checkableAB_iff _).mp hRS)
-    (fun d hd => (Val.checkableAB_iff _).mp (hbP d hd)) ((Val.checkableAB_iff _).mp hRP) v
+  vetA_iff_data hbP (readR_checkableA hbP (pathsToAliases_checkableA hS')) v
 
 /-- Whether the checker can read the document `vetA` hands `vet` with
 the data's paths read as names, with its bodies, computed. -/
@@ -5913,8 +5635,6 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS)
-    (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
     (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
     (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
 
@@ -5928,22 +5648,6 @@ theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     exact eq_comm
   · rw [if_neg hl, if_neg hl]
     exact vetL_iff (Decls.loaded_bodies_checkableA hb) (Decls.loaded_checkableA hb hS) v
-
-/-- Whether a document leaves no load unmade and the checker can read
-the two documents its verdict hands `vet`, computed: what a document
-whose `filter` the checker can't read before the reading needs. -/
-def Decls.readsPB (ds : Decls) (S : Val) (j : Data) : Bool :=
-  !ds.loadsLeft S && ((ds.loaded S).1.preparedS (ds.loaded S).2).1.readsAB
-    ((ds.loaded S).1.preparedS (ds.loaded S).2).2 ((ds.loaded S).1.preparedD (ds.loaded S).2 j).1
-    ((ds.loaded S).1.preparedD (ds.loaded S).2 j).2 j
-
-/-- `vetP` computes `VetP` on every document `Decls.readsPB` reads. -/
-theorem vetP_iff_reads {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : ds.readsPB S j = true)
-    (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
-  simp only [Decls.readsPB, Bool.and_eq_true, Bool.not_eq_true'] at h
-  unfold vetP VetP
-  rw [if_neg (by simp [h.1]), if_neg (by simp [h.1])]
-  exact vetA_iff_reads h.2 v
 
 /-- Whether a document leaves no load unmade and the checker can read
 the document its verdict hands `vet` with the data's paths read as

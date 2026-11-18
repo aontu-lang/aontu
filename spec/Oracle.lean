@@ -248,6 +248,54 @@ end Aontu
 
 open Aontu
 
+/-! ## The cases' helpers
+
+Each case list writes its values with these; a list that needs a
+variant binds its own, which stands over the shared one. -/
+
+namespace Case
+
+def int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+def j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+def m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+def str (s : String) : Val := .lit (.str s)
+def lst (xs : List Val) : Val := .list xs none false
+def p (ks : List String) : Val := .path (ks.map .key)
+def rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+def dm (fs : List (String × Data)) : Data := .map fs
+abbrev mp := m
+def c (f : Fn) (args : List Val) : Val := .call f args
+def js (s : String) : Data := .str s
+abbrev l := lst
+def type (v : Val) : Val := .ride .type v []
+def jl (xs : List Data) : Data := .list xs
+def hide (v : Val) : Val := .ride .hide v []
+abbrev jm := dm
+def n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := int k h
+def mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+abbrev s := str
+def nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+abbrev dl := jl
+def x (v : Val) : Val := .map [("x", false, v)] none false
+def fx (s : String) : String := "__FIXTURES__/" ++ s
+def nd (ks : List String) : Val := .path (.node :: ks.map .key)
+def key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
+def up : Val := .call .upper [.hole]
+def rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
+def ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+def ld (s : String) : Val := .call .load [.lit (.str s)]
+def bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+abbrev ls := lst
+def cl (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
+def k (n : ℤ) : Val := .keyUp n
+def tmpl (t : Val) : Val := .map [] (some t) false
+def ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
+abbrev ds := js
+
+end Case
+
+open Case
+
 /-! ## What evaluation singles out -/
 
 /-- The values of the `gen` fragment: literals, kinds, preferences and
@@ -262,9 +310,6 @@ either is written on. No value here splits the ports
 (#348) or writes a `nil` under an optional key, where the engines
 answer `error` and the definition drops the key. -/
 def genVals : List Val :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
   [int 1, .pref 1 (int 1), .pref 1 .integer, .integer, .any, .pref 1 (.lit .null),
     .or [(0, int 1), (0, int 2)], .or [(1, int 1), (0, int 2)], .or [(0, int 1), (1, int 2)],
     .or [(1, int 1), (1, int 2)], .or [(1, int 1), (2, int 2)], .or [(2, int 1), (1, int 2)],
@@ -350,10 +395,6 @@ reads with no position for it, before, between and after the others,
 inside a list and beside a seal, met with a list, and a disjunction of
 marked arms beside one whose other arm is dead. -/
 def listGenVals : List Val :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
-  let lst (xs : List Val) : Val := .list xs none false
   [lst [int 1, hide (int 2), int 3], lst [hide (int 1), int 2], lst [type .integer, .lit (.str "a")],
     lst [type (int 1), hide (int 2)], lst [lst [hide (int 1)], int 2], .list [hide (int 1), int 2] none true,
     .meet (lst [hide (int 1)]) (lst [int 2]), .meet (lst [hide (int 1), int 2]) (lst [hide (int 3), int 2]),
@@ -508,12 +549,8 @@ preference clash the engines find only once the data meets it. The
 last case is the sealed list met with a spread (#346), which the
 ledger carries. -/
 def vetCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
   let max (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .max (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let xy : Val := .or [(0, key "x" false (int 1)), (0, key "y" false (int 2))]
   [(.meet (min 5) (max 3), j 1), (key "x" false (.meet (int 1) (int 2)), .map [("x", j 1)]),
     (.integer, .str "a"), (.integer, j 1), (key "x" false .integer, .map []),
@@ -585,11 +622,7 @@ at the meet, while a literal short of its size waits; a literal whose
 member generates nothing yet, which waits, a nested container, which
 counts, a clashing arm, which drops, and a clashing optional member. -/
 def lenCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
-  let ls (xs : List Val) : Val := .list xs none false
   let xy : Val := mp [("x", false, int 1), ("y", false, int 2)]
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
   let dxyz : Data := .map [("x", j 1), ("y", j 2), ("z", j 3)]
@@ -696,10 +729,6 @@ a meet, and on the value at `v` itself. A disjunction of marked arms
 carries no mark, one whose other arms are dead carries its live arm's,
 and a refusal at generation reads a marked member. -/
 def markCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
   let a (v : Val) : Val := mp [("a", false, v)]
   let da (x : Data) : Data := .map [("a", x)]
@@ -752,12 +781,6 @@ position, beside one whose other arm is dead, which carries its live
 arm's; and a `key()` after a marked element, which reads the index its
 element takes. -/
 def markListCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
-  let lst (xs : List Val) : Val := .list xs none false
-  let dl (xs : List Data) : Data := .list xs
   let h1 : Val := lst [hide (int 1), int 2]
   let mid : Val := lst [int 1, hide (int 2), int 3]
   let both : Val := .or [(0, hide (int 1)), (0, hide (int 2))]
@@ -802,10 +825,7 @@ where the default is dead and another arm admits it, where every arm
 admits it, and a disjunction with no default, which singles out
 nothing. -/
 def armCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
-  let ls (xs : List Val) : Val := .list xs none false
   let b1 : Val := mp [("b", false, int 1)]
   let b1c2 : Val := mp [("b", false, int 1), ("c", false, int 2)]
   let pick : Val := .or [(1, b1), (0, mp [])]
@@ -835,8 +855,6 @@ same arm under a key and at a position of a list; and a lone
 preference, which keeps its parent type, so `*{b: 1}` admits
 `{b: 2}`. -/
 def prefArmCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
   let b1 : Val := mp [("b", false, int 1)]
   let z : Val := .lit (.str "z")
@@ -869,9 +887,6 @@ disjunction's default met with a preference whose default it refuses;
 and a higher-rank map whose member the data must write, as its
 constraint holds. -/
 def rankFoldCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let x (v : Val) : Val := .map [("x", false, v)] none false
   let mp (k : String) (v : Val) : Val := .map [(k, false, v)] none false
   let none : Data := .map []
   [(x (.meet (.pref 1 (int 1)) (.pref 1 .integer)), none),
@@ -906,6 +921,28 @@ theorem rank_fold_verdict_exact : ∀ c ∈ rankFoldCases, ∀ (m : Mode) (v : V
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (rankFoldCases_checkable c hc)) v
 
+/-- The three modes a verdict row is printed in, with the options each
+row writes. -/
+def verdictModes : List (Mode × String) :=
+  [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
+    (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")]
+
+/-- A case's verdict rows, one in each mode, numbered from `i`, and the
+number the next case takes. -/
+def verdictLines (tag : String) (i : ℕ) (src dsrc : String) (verdict : Mode → Verdict) : IO ℕ := do
+  let mut i := i
+  for (m, opts) in verdictModes do
+    IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
+      ++ verdictName (verdict m) ++ "\"" ++ opts ++ "}")
+    i := i + 1
+  return i
+
+/-- A case's declarations, one to a line: `%name = body`. -/
+def declLines (ds : Decls) : IO (List String) :=
+  ds.mapM fun d => do
+    let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
+    pure ("%" ++ d.1 ++ " = " ++ bsrc)
+
 /-- The `verdict` rows: each case in the default mode, without the fill
 and under `--partial`, with the one class `vet` gives. -/
 def verdictRows (tag : String) (cases : List (Val × Data) := vetCases) : IO Unit := do
@@ -914,11 +951,7 @@ def verdictRows (tag : String) (cases : List (Val × Data) := vetCases) : IO Uni
     let some ssrc := c.1.cell | throw (IO.userError "a schema of the fragment has no text")
     let some dsrc := c.2.cell | throw (IO.userError "a document of the fragment has no text")
     let (S, D) := vetDoc c
-    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
-        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
-      IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ ssrc ++ "\tv: " ++ dsrc ++ "\t{\"verdict\":\""
-        ++ verdictName (vet m [] S D) ++ "\"" ++ opts ++ "}")
-      i := i + 1
+    i ← verdictLines tag i ("v: " ++ ssrc) ("v: " ++ dsrc) fun m => vet m [] S D
 
 /-- The cases of the `alias` fragment: declarations, a schema and a
 document, the last two under the key `v`: names that are not recursive,
@@ -946,13 +979,8 @@ while the name itself reads what its body fixes, so `%U & 2` is an
 error beside `%U = _ & 1`; and a waiting `key(n)` is any string, so
 `key(1) & 1` is an error and `key(1) & ""` stands. -/
 def aliasCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let p : Val := .alias "p"
-  let up : Val := .call .upper [.hole]
   let x12 : Val := .meet (int 1) (int 2)
   [([("p", .meet .integer (min 1))], p, j 5), ([("p", .meet .integer (min 1))], p, j 0),
     ([("p", .meet .integer (min 1))], p, .str "a"),
@@ -1130,10 +1158,7 @@ reference reads without it; and an `ident()` anywhere else, an error,
 inside another, inside a `meta()`, in a recursive body, or in a body no
 reference reads. A rider on a kind keeps the kind's parent. -/
 def riderCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let note (k s : String) : Record := [(k, .str s)]
-  let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
   let pick : Val := .or [(1, int 1), (0, .integer)]
   let named : Decls := [("T", .ride .ident .integer (note "id" "https://example.com/t"))]
   let parent : Val := .pref 1 (.meet (.ride .metadata .integer []) (.min (.num (.integer (.of 3)))))
@@ -1161,10 +1186,6 @@ the body hides its reader asks for, and a mark written at the place of
 the reference stays, through a name, a nested name, a recursive name,
 a meet, a rider, a spread and a selection. -/
 def markAliasCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let T : Val := .alias "T"
   [([("T", hide (mp [("x", .integer)]))], T, .map [("x", j 1), ("y", j 2)]),
@@ -1200,12 +1221,7 @@ at a kind, `any`, a disjunction, a preference and a list's spread, and
 at a disjunction met with a map, a mark inside a body seals nothing,
 and a recursive name, which both ports read unsealed, takes none. -/
 def sealCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
   let T : Val := .alias "T"
   let x : Val := mp [("x", .integer)]
   let y : Val := mp [("y", .integer)]
@@ -1279,12 +1295,8 @@ there; the seal a reference puts on a `type()` value's copy, lifted by
 `open()` written around the reference, at every depth, and stopped by
 `open()` written in the definition, at its top and at a member. -/
 def openCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let op (v : Val) : Val := .ride .opened v []
-  let type (v : Val) : Val := .ride .type v []
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let cl (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
   let T : Val := .alias "T"
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
   let dyz : Data := .map [("x", .map [("y", j 1), ("z", j 2)])]
@@ -1331,15 +1343,10 @@ member the data adds, a list's element the same, two templates at one
 place read together, and a member's directive reading the template
 beside it. -/
 def directiveCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let bopen : Val := .ride .lifts .any []
   let bclose : Val := .ride .seals .any []
   let op (v : Val) : Val := .ride .opened v []
-  let type (v : Val) : Val := .ride .type v []
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let cl (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
-  let ls (xs : List Val) : Val := .list xs none false
   let T : Val := .alias "T"
   let dx : Data := .map [("x", j 1)]
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
@@ -1474,19 +1481,12 @@ document, in the three modes, with the one class `vet` gives. -/
 def aliasRows (tag : String) (cases : List (Decls × Val × Data) := aliasCases) : IO Unit := do
   let mut i := 0
   for c in cases do
-    let mut lines : List String := []
-    for d in c.1 do
-      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
-      lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+    let lines ← declLines c.1
     let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
     let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ ["v: " ++ ssrc])
     let (S, D) := aliasDoc c
-    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
-        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
-      IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\tv: " ++ dsrc ++ "\t{\"verdict\":\""
-        ++ verdictName (vet m c.1 S D) ++ "\"" ++ opts ++ "}")
-      i := i + 1
+    i ← verdictLines tag i src ("v: " ++ dsrc) fun m => vet m c.1 S D
 
 /-! ## The seventh fragment: paths -/
 
@@ -1498,14 +1498,9 @@ preference's value among them, and what it names keeps them. A path in
 a preference's own value reads its target as any path does, beside data
 that supplies nothing, as `vet` meets every schema with its data (#643). -/
 def pathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let pa : Val := .path [.key "a"]
   let pb : Val := .path [.key "b"]
-  let p (ks : List String) : Val := .path (ks.map .key)
   let step (o : Bool) : Val := m [("schema", m [("Step", mo [("label", false, .string), ("then", o, p ["schema", "Step"])])]), ("doc", p ["schema", "Step"])]
   let hidden : Val := m [("a", .or [(1, m [("b", .ride .hide (int 1) []), ("c", int 2)]), (0, int 5)])]
   [([], m [("a", int 1), ("b", pa)], .map [("a", j 1), ("b", j 1)]),
@@ -1598,10 +1593,6 @@ nothing (decision 14 of the design note's §7): into a `meta()` from
 outside it, to a member under a `deprecate()`, by index into a rider's
 list, and from inside a rider's value to a member beside it. -/
 def riderPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let annotated (v : Val) : Val := .ride .metadata v []
   [([], m [("a", annotated (m [("x", int 1)])), ("b", p ["a", "x"])], .map [("a", .map [("x", j 1)]), ("b", j 1)]),
     ([], m [("a", annotated (m [("x", int 1)])), ("b", p ["a", "x"])], .map [("a", .map [("x", j 1)]), ("b", j 2)]),
@@ -1628,12 +1619,6 @@ copies whole, a name read at each place it stands, and a selection, a
 call and a generator that compute with the key, which the root a path
 reads keeps as written. -/
 def keyPathCases : List (Decls × Val × Data) :=
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let k (n : ℤ) : Val := .keyUp n
   let sel := m [("a", .select (str "b") [(k 1, .lit (.num (.integer ⟨1, by decide⟩)))]
     (some (.lit (.num (.integer ⟨2, by decide⟩))))), ("b", m [("c", p ["a"])])]
   let plus := m [("a", .call .plus [str "q", k 1]), ("b", m [("c", p ["a"])])]
@@ -1680,10 +1665,6 @@ relative path read there at each use too. Both ports read these alike in
 either order, so the rows hold them with each declaration written before
 the schema and again after it. -/
 def aliasPlaceCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   [([("T", m [("v", rel 2 ["x"])])], m [("a", m [("x", int 2), ("b", .alias "T")])], .map []),
     ([("T", m [("v", .meet (rel 2 ["x"]) (int 1))])], m [("x", int 2), ("a", m [("x", int 1), ("b", .alias "T")])],
       .map []),
@@ -1706,10 +1687,6 @@ read at a use of the name (#664); and a path the schema writes to a
 body member a body's own path names too, which names nothing as well,
 since no path the schema writes starts at a body's own place (#721). -/
 def bodyPlaceCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let xy : Val := m [("x", int 1), ("y", rel 1 ["x"])]
   let chain (y : Val) : Val := m [("x", .path [.key "a"]), ("y", y)]
   let ak : Val := m [("a", m [("k", int 1)])]
@@ -1751,8 +1728,6 @@ whose target is the body's own member, read where the name is used and
 where it's only declared, beside data that agrees and data that
 refuses (#663). -/
 def recursiveCallCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let tB (n : Val) : Val := m [("m", m []), ("n", n)]
   let tO (n : Val) : Val := .map [("m", false, m []), ("n", false, n), ("o", true, .alias "T")] none false
   let tP (fs : List (String × Val)) : Val :=
@@ -1785,8 +1760,6 @@ makes there (#664): the body read where it's only declared, each pass
 over its place reading the place the last one made, and two templates
 that conflict once the chain lands. -/
 def bodyChainCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let rf (t : Val) (ks : List String) : Val := .meet (.call .relate [t]) (.addr ⟨1, ks⟩)
   [([("T", m [("m", m []), ("n", rf (m [("q", m [])]) ["m"]), ("o", rf (m [("k", int 1)]) ["m", "q"]),
       ("z", .path [.up 1, .key "m", .key "q", .key "k"])])], m [], .map []),
@@ -1798,9 +1771,6 @@ used where the path reads it, as both ports make the call wherever the
 body stands: a `copy`, an `upper` and a `+`, and a `copy` one unfolding
 down, each beside data that agrees and data that refuses. -/
 def bodyCallPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let tO (n : Val) : Val := .map [("n", false, n), ("o", true, .alias "T")] none false
   let xT (x : Val) (p : List String) : Val := m [("x", .meet x (.alias "T")), ("y", .path (p.map .key))]
   let cp : Decls := [("T", tO (.call .copy [m [("k", int 1)]]))]
@@ -1823,7 +1793,6 @@ it, as it keeps one with no link, so the schema generates nothing
 there, where both ports expand it for the link; and the use with data
 at it, which both read alike. -/
 def loneLinkCases : List (Decls × Val × Data) :=
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let tR : Val := m [("m", m []), ("n", .meet (.call .relate [.alias "T"]) (.addr ⟨1, ["m"]⟩))]
   [([("T", tR)], m [("x", .alias "T")], .map []),
     ([("T", tR)], m [("x", .alias "T")], .map [("x", .map [])]),
@@ -1839,11 +1808,6 @@ relative path in a call, and a body's, read at the body's own place
 (`bodyCallPathCases`); and a recursive name used alone whose body links
 to its own member (`loneLinkCases`). -/
 def relPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let sib := m [("z", m [("x", m [("a", int 62)]), ("y", rel 1 ["x", "a"])])]
   [([], sib, .map [("z", .map [("y", j 62)])]),
     ([], sib, .map [("z", .map [("y", j 61)])]),
@@ -1874,8 +1838,6 @@ as both ports make it wherever the body stands (#403): a `match` over a
 path to the body's own member, and a `filter` over a literal and over
 such a path. -/
 def recursiveSelectCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let tP (fs : List (String × Val)) : Val :=
     .map ((fs.map fun f => (f.1, false, f.2)) ++ [("o", true, .alias "T")]) none false
   let rel (k : String) : Val := .path [.up 1, .key k]
@@ -1888,13 +1850,13 @@ def recursiveSelectCases : List (Decls × Val × Data) :=
 set_option maxRecDepth 16384 in
 set_option maxHeartbeats 2000000 in
 /-- The checker can't read a selection before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem recursiveSelectCases_reads : ∀ c ∈ recursiveSelectCases, c.1.readsPB c.2.1 c.2.2 = true := by
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem recursiveSelectCases_reads : ∀ c ∈ recursiveSelectCases, c.1.readsPD c.2.1 c.2.2 = true := by
   decide +kernel
 
 theorem recursiveSelect_verdict_exact : ∀ c ∈ recursiveSelectCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (recursiveSelectCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (recursiveSelectCases_reads c hc) v
 
 /-- A use of a name whose body writes a relative path reads the path
 where the use stands (ruling 26): a climb out of the body at a use whose
@@ -1904,10 +1866,6 @@ the copy of the use. Both ports' `vet` reads these at each use in either
 order, so the rows hold them with each declaration written before the
 schema and again after it. -/
 def copyDestCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let tv : Decls := [("T", m [("v", rel 2 ["x"])])]
   let one := m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])]
   let two := m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")]), ("c", m [("x", int 3), ("d", .alias "T")])]
@@ -1931,10 +1889,7 @@ theorem copy_dest_verdict_exact : ∀ c ∈ copyDestCases, ∀ (m : Mode) (v : V
 that name each other by path, with the subtype written first, with the
 type written first, and with the use written above both. -/
 def orderSchemas : List Val :=
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
   let s (x : String) : Val := .lit (.str x)
-  let p (ks : List String) : Val := .path (ks.map .key)
   let n : Val := mo [("k", false, .or [(0, s "d"), (0, s "f")]), ("up", true, p ["s", "D"])]
   let d : Val := .meet (p ["s", "N"]) (m [("k", s "d")])
   let use : Val := .meet (p ["s", "N"]) (m [("k", s "d")])
@@ -2038,11 +1993,6 @@ target that holds a spread whose template climbs out of it, read at the
 copy's own members, in both orders, but for data that reads the target's
 own value with the target first, on which the ports split (#696). -/
 def refCopyCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let a := ("a", m [("x", int 2), ("b", m [("v", rel 2 ["x"])])])
   let c := ("c", m [("x", int 3), ("d", p ["a", "b"])])
   let e := ("e", m [("x", int 4), ("f", p ["a", "b"])])
@@ -2102,10 +2052,6 @@ with `%U = {w: ..x}`, whose use at `%T.u` reads `%T.x`, which a body
 written without an `x` doesn't hold, written after `%U` and before it,
 and which one written with an `x` does. -/
 def bodyCopyCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let a := ("a", m [("x", int 2), ("b", m [("v", rel 2 ["x"])])])
   let c := ("c", m [("x", int 3), ("d", .alias "T")])
   let tr : Decls := [("T", .path [.key "a", .key "b"])]
@@ -2132,11 +2078,6 @@ of the body to read `a.x` where the use stands; and `%H` declared twice,
 its template in one body and its member in the other, which the
 template reads too. -/
 def nameTemplateCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let str (s : String) : Val := .lit (.str s)
   let tmpl (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some t) false
   let url := m [("url", rel 1 ["name"])]
   let h (fs : List (String × Val)) : Decls := [("H", tmpl fs url)]
@@ -2170,10 +2111,6 @@ the document, in the body of a name a result uses, and in a selection
 that is a name's body, read where the name is used. A generator's
 template there waits on TypeScript, which reads it a step deeper (#698). -/
 def selectTemplateCases : List (Decls × Val × Data) :=
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let tmpl (t : Val) : Val := .map [] (some t) false
   let url := tmpl (m [("url", rel 1 ["name"])])
   let sel (s : String) (r₁ r₂ : Val) : Val := .select (str s) [(str "m", r₁), (str "n", r₂)] none
   let dflt : Val := .select (str "z") [(str "m", .lit .null)] (some url)
@@ -2220,13 +2157,6 @@ arm's own member, a path to a member the other disjunction's arm
 supplies, a third conjunct between them, paths in both disjunctions'
 arms, and a name whose body is such a meet. -/
 def disjunctionPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let tmpl (t : Val) : Val := .map [] (some t) false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let or2 (a b : Val) : Val := .or [(0, a), (0, b)]
   let named := m [("a", m [("name", str "x"), ("url", rel 1 ["name"])])]
   let url := tmpl (m [("url", rel 1 ["name"])])
@@ -2358,13 +2288,6 @@ value, which the parent arm lifts as the value reads before any data, its
 paths read so: a preference over a disjunction, a preference inside a
 preference, and a path that reads a kind the data narrows. -/
 def lonePrefPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let tmpl (t : Val) : Val := .map [] (some t) false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let ab := m [("a", int 1), ("b", rel 1 ["a"])]
   let abc := m [("a", int 1), ("b", rel 1 ["a"]), ("c", rel 1 ["b"])]
   let kb := m [("a", .integer), ("b", rel 1 ["a"])]
@@ -2427,11 +2350,7 @@ a value the parent arm refuses where its path reads the parent type of
 what the other prefers, a path to nothing, and two with no path, which
 read as written. -/
 def lonePrefCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let rel (ks : List String) : Val := .path (.up 1 :: ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let p (v : Val) : Val := .pref 1 v
   let x (v : Val) : Val := m [("x", v)]
   let dx (d : Data) : Data := dm [("x", d)]
@@ -2491,10 +2410,6 @@ the call's own level and beneath it, after the copy's seals are lifted,
 an `open()` there too, beside a term the place holds, through a copy of
 a copy, and beside a disjunction in the argument. -/
 def directivePathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let cl (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let bopen : Val := .ride .lifts .any []
   let bclose : Val := .ride .seals .any []
   let pa : Val := .path [.key "a"]
@@ -2538,12 +2453,6 @@ missing path met with a literal, an arm it kills and a conflict inside
 the argument, a missing path that stands under a call, and a template
 that is absence. -/
 def maybeCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let mb (v : Val) : Val := .call .maybe [v]
   let gone : Val := mb (p ["gone"])
   [([], m [("b", gone)], .map []),
@@ -2601,13 +2510,7 @@ middle, beside a marked element, twice and alone; a `maybe` whose path
 names something, which holds its position; and a link after an element
 that's absence or marked, which lands at the index its element takes. -/
 def absentListCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let gone : Val := .call .maybe [p ["gone"]]
-  let hide (v : Val) : Val := .ride .hide v []
   let first : Val := lst [gone, .lit (.str "a"), int 2]
   let named : Val := m [("a", lst [.call .maybe [p ["b"]], int 2]), ("b", int 1)]
   [([], m [("a", first)], .map [("a", .list [.str "a", j 2])]),
@@ -2644,13 +2547,7 @@ with a preference; and over a list and a map that hold a call waiting on
 its own hole, which each member preferred reads as `pref` of that call
 (#604), the call's other arguments left as written. -/
 def prefCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let pf (v : Val) : Val := .call .pref [v]
-  let up : Val := .call .upper [.hole]
   let up2 : Val := .call .upper [.hole, int 0, int 1]
   let rp : Val := .call .rep [.hole, .lit (.str "a"), .lit (.str "b")]
   [([], m [("b", pf (int 1))], .map []),
@@ -2725,11 +2622,7 @@ hidden value met with absence, and one preferred in a disjunction; and,
 beside them, a path to the typed map, which a copy would open (decision
 27 of the design note's §7). -/
 def copyCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let sm (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let cp (v : Val) : Val := .call .copy [v]
   let ab : Data := .map [("v", .map [("a", j 1), ("b", j 2)])]
   let sib : List (String × Val) := [("a", .path [.up 1, .key "b"]), ("b", int 1)]
@@ -2776,11 +2669,6 @@ theorem copy_verdict_exact : ∀ c ∈ copyCases, ∀ (m : Mode) (v : Verdict),
 made: a preference's map, a name's spellings, two lists added and a
 selection's result, beside data that agrees and data that refuses. -/
 def callPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let pfx : Val := .call .pref [m [("x", int 1)]]
   let nm : Val := .call .nom [.lit (.str "ab_cd")]
   let sum : Val := .call .plus [lst [int 1], lst [int 2]]
@@ -2809,11 +2697,6 @@ that holds a written hole beside a path to one, against data that
 writes the hole and data that writes nothing. The hole is one nothing
 binds, so each is an error of the schema whatever the data. -/
 def dataPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let x21 : Data := .list [j 2, j 1]
   let dA : Val := m [("v", .call .sum [p ["x"]]), ("x", lst [.hole, int 1])]
   let dB : Val := m [("v", .call .sum [lst [p ["h"], int 1]]), ("h", .hole)]
@@ -2844,11 +2727,6 @@ an arm of a disjunction the data passes by; in a body, in the arm a
 selection takes, in one it passes by and in a template with no member;
 and of a value a call reads, `add`, `sum` and `+`. -/
 def moveCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let mv (v : Val) : Val := .call .move [v]
   let sel (s : Val) (k : String) : Val := .select s [(int 1, mv (p [k]))] (some (int 2))
   [([], m [("a", int 1), ("b", mv (p ["a"]))], .map []),
@@ -2894,32 +2772,24 @@ theorem move_verdict_exact : ∀ c ∈ moveCases, ∀ (m : Mode) (v : Verdict),
 /-- `move` of a value a selection reads as its scrutinee, and of one a
 `filter` reads as its source, each beside data the made value admits. -/
 def moveReadCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mv (k : String) : Val := .call .move [.path [.key k]]
   [([], m [("a", int 1), ("b", .select (mv "a") [(int 1, str "x")] (some (str "y")))], .map [("b", .str "x")]),
     ([], m [("a", .list [int 1, int 2] none false), ("b", .filter (mv "a") (.min (.num (.integer (.of 2)))))],
       .map [("b", .list [j 2])])]
 
 /-- The checker can't read a selection over a call or a `filter` before
-the reading makes it, so each case's readings are read whole
-(`Decls.readsPB`). -/
-theorem moveReadCases_reads : ∀ c ∈ moveReadCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+the reading makes it, so each case's reading with the data is read
+whole (`Decls.readsPD`). -/
+theorem moveReadCases_reads : ∀ c ∈ moveReadCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem moveRead_verdict_exact : ∀ c ∈ moveReadCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (moveReadCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (moveReadCases_reads c hc) v
 
 /-- `move` of a list's element and of a member inside one: the element
 stays at its position in what the schema admits, as both ports read it,
 and the member is hidden in the element it stands in. -/
 def moveListCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mv (ks : List String) : Val := .call .move [.path (ks.map .key)]
   let two := m [("a", lst [int 1, int 2]), ("b", mv ["a", "0"])]
   let inner := m [("a", lst [m [("c", int 1), ("d", int 2)]]), ("b", mv ["a", "0", "c"])]
@@ -2952,12 +2822,7 @@ fold reads, or of the instances a mark around the whole template
 leaves out. A preference in such a copy is the copy's own, so the
 value it copies keeps its hidden member, which the copy shows. -/
 def roundCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (t : String) : Val := .lit (.str t)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let p (ks : List String) : Val := .path (ks.map .key)
   let nm (v : Val) : Val := .call .nom [v]
   let one : List (String × Val) := [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b", "camel"])]
   let two : List (String × Val) := one ++ [("d", nm (p ["c"])), ("e", p ["d", "snake"])]
@@ -3051,17 +2916,10 @@ or a standing template that refuses it is no clash (#637); and the same
 link in a lone preference's own value, which its peer refuses, so the
 preference stands as its parent type, which holds no link (#641). -/
 def referCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
-  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
   let rf0 (a : Val) : Val := .meet (.call .relate []) a
   let a1 : Val := m [("p", int 1)]
   let r3 : Val := rf (m [("r", int 3)]) (ad 0 ["a"])
   let svc (t : Val) : Val := m [("s", m [("auth", m [("k", int 1)]), ("billing", m [("dep", rf t (ad 2 ["auth"]))])])]
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let k1 : Val := m [("k", int 1)]
   let x2 : Val := rf (m [("p", int 1)]) (ad 0 ["h", "z"])
   let y2 : Val := rf (m [("z", m [])]) (ad 0 ["h"])
@@ -3224,11 +3082,6 @@ template, beside data that writes a string, a number, a list of
 each, an empty list, and no value, which refuses all but the empty
 list and the absent value. -/
 def relCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
   let lst (vs : List Val) : Val := .list vs none false
   let rl (t : Val) (v : Val) : Val := .meet (.call .relate [t]) v
   let rl0 (v : Val) : Val := .meet (.call .relate []) v
@@ -3293,10 +3146,6 @@ into a target only that list names, in a list and in a map, where the
 data refuses it or admits it, a target that names nothing is an error,
 and an address as the spread holds each leaf under it. -/
 def relHeldCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let ad (ks : List String) : Val := .addr ⟨0, ks⟩
   let r0 : Val := .call .relate []
   let rk : Val := .call .relate [m [("k", int 1)]]
@@ -3344,16 +3193,7 @@ template refuses, a type whose copy meets data at its own target, an
 address that climbs past the root where the copy stands, and a recursive
 name whose link's template is a disjunction with the name. -/
 def landCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
   let lst (vs : List Val) : Val := .list vs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let type (v : Val) : Val := .ride .type v []
-  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
   let k1 : Val := m [("k", int 1)]
   let K := type (m [("k", .integer)])
   let T := type (m [("p", .call .relate [p ["K"]])])
@@ -3408,14 +3248,7 @@ at a target that names nothing, and over an empty list, where no member
 reads it; `pack` the same; a `relate` in `each`'s template; a link that is
 the template itself; and `each` over a map. -/
 def genLinkCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
   let lst (vs : List Val) : Val := .list vs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
   let k1 : Val := m [("k", int 1)]
   let a2 : Data := .map [("a", .map [("k", j 2)])]
   let gone : Val := m [("r", .meet (.call .relate []) (ad 0 ["nosuch"]))]
@@ -3452,14 +3285,8 @@ output meets, whose template lands only at its own; a generator in a
 body no reference reads; and a generator over a name in a link's
 template, which reads the name's body. -/
 def linkTemplateCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let ad (ks : List String) : Val := .addr ⟨0, ks⟩
   let lst (vs : List Val) : Val := .list vs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rf (t : Val) (a : Val) : Val := .meet (.call .relate [t]) a
   let k1 : Val := m [("k", int 1)]
   let ak (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("a", .map [("k", .integer n h)])]
   let av (x : Data) : Data := .map [("a", .map [("v", x)])]
@@ -3510,10 +3337,6 @@ the template carries, its address and its own template read where that
 link lands, a climb past the top, and data that conflicts with what the
 template sends. -/
 def linkLandCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let rf (t : Val) (up : ℕ) (ks : List String) : Val := .meet (.call .relate [t]) (.addr ⟨up, ks⟩)
   [([], m [("x", m [("m", m [("k", int 2)]), ("n", rf (m [("v", rel 1 ["k"])]) 1 ["m"])])], .map []),
     ([], m [("x", m [("k", int 3), ("m", m [("k", int 2)]), ("n", rf (m [("v", rel 2 ["k"])]) 1 ["m"])])], .map []),
@@ -3542,9 +3365,6 @@ data; a level the schema writes, with data that agrees and data that
 refuses; and a climb out of the body, which reads the parent of the
 level it stands at. -/
 def recursiveCopyCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let tB (k : String) (v : Val) : Decls :=
     [("T", .map [("x", false, .integer), (k, false, v), ("b", true, .alias "T")] none false)]
   let ty := tB "y" (.path [.up 1, .key "x"])
@@ -3582,9 +3402,6 @@ takes; with a default, the same and a scrutinee the default takes. The
 schema's own reading leaves the selection unmade, so each case's
 reading with the data is read whole (`Decls.readsPD`). -/
 def openSelectCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let sel (d : Option Val) : Val :=
     .select (.path [.up 1, .key "kind"]) [(.lit (.str "a"), int 1), (.lit (.str "b"), int 2)] d
   let doc (d : Option Val) : Val := m [("x", m [("kind", .string), ("v", sel d)])]
@@ -3619,15 +3436,7 @@ template a path reference copies, read at the copy's members; a spread
 inside a template, at a member the template writes and at one the data
 supplies; and a spread met with a map. -/
 def spreadCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
   let ls (xs : List Val) (s : Val) : Val := .list xs (some s) false
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let host := m [("host", rel 1 ["name"])]
   let h1 := m [("h", rel 1 ["name"])]
   let nested := m [("w", ms [] (m [("h", rel 3 ["name"])]))]
@@ -3717,15 +3526,6 @@ before it; a path in a source loaded at the root and in one loaded
 under a key; a spread in a source met with a map; a JSON list met with
 a map at the root; and the extension supplied. -/
 def loadCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let ld (s : String) : Val := .call .load [.lit (.str s)]
-  let fx (s : String) : String := "__FIXTURES__/" ++ s
   let files : Decls :=
     [("@" ++ fx "foo.aontu", m [("f", int 11)]),
       ("@" ++ fx "car.aontu", m [("color", str "silver"), ("doors", int 4)]),
@@ -3786,13 +3586,6 @@ source whose name loads a source from its own directory; and a source
 whose name names nothing, which only a document that loads it is an
 error for. -/
 def scopeCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let ld (s : String) : Val := .call .load [.lit (.str s)]
-  let fx (s : String) : String := "__FIXTURES__/" ++ s
   let files : Decls :=
     Decls.ofSource (fx "alias_declares_u.aontu") [("u", int 7)] (m [("y", int 1)]) ++
     Decls.ofSource (fx "alias_uses_t.aontu") [] (m [("x", .alias "t")]) ++
@@ -3836,13 +3629,6 @@ unexported name under a rider at the top, an error; and every name of a source
 that publishes one it doesn't declare, an error, beside the source
 loaded alone. -/
 def takeCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let ld (s : String) : Val := .call .load [.lit (.str s)]
-  let fx (s : String) : String := "__FIXTURES__/" ++ s
   let take (s : String) (names : List String) : Val := .call .load (.lit (.str (fx s)) :: names.map str)
   let files : Decls :=
     Decls.ofSource (fx "alias_exports.aontu") [("uint8", int 255), ("secret", str "shh")]
@@ -3891,12 +3677,6 @@ and refuses, and none; unused; a name taken under another; and a name
 the source doesn't publish, an error whether or not the body is used,
 as every declaration is read. -/
 def bodyTakeCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let fx (s : String) : String := "__FIXTURES__/" ++ s
   let take (s : String) (names : List String) : Val := .call .load (.lit (.str (fx s)) :: names.map str)
   let files : Decls :=
     Decls.ofSource (fx "alias_exports.aontu") [("uint8", int 255), ("secret", str "shh")]
@@ -3930,13 +3710,6 @@ nothing, a module never fetched, a pin or a lock that disagrees, a
 package that moved, the program supplies no source, so the document is
 an error, as it is for a module that imports itself. -/
 def moduleCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let ld (s : String) : Val := .call .load [.lit (.str s)]
-  let fx (s : String) : String := "__FIXTURES__/" ++ s
   let pref (v : Val) : Val := .or [(1, v), (0, .integer)]
   let svc (port : Val) : Val := m [("name", .string), ("port", pref port)]
   let sv := "corp.example/schemas/service"
@@ -3995,12 +3768,6 @@ theorem module_verdict_exact : ∀ c ∈ moduleCases, ∀ (m : Mode) (v : Verdic
 names, and a body that reads the node and the root, beside data that
 agrees and data that refuses. -/
 def emitPathCases : List (Decls × Val × Data) :=
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
-  let dm (fs : List (String × Data)) : Data := .map fs
   let rule (mt : Val) (b : List Val) : Val := m [("match", mt), ("body", l b)]
   let sel := l [m [("k", str "sqs"), ("p", str "x")], m [("k", str "http"), ("u", str "/y")]]
   let table := l [rule (m [("k", str "sqs")]) [.call .plus [str "L:", nd ["p"]]],
@@ -4021,12 +3788,6 @@ theorem emitPath_verdict_exact : ∀ c ∈ emitPathCases, ∀ (m : Mode) (v : Ve
 /-- The transformer `emit` over the members a `filter` keeps, beside
 data that agrees and data that refuses. -/
 def emitFilterCases : List (Decls × Val × Data) :=
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
-  let dm (fs : List (String × Data)) : Data := .map fs
   let sel := l [m [("k", str "sqs"), ("p", str "x")], m [("k", str "http"), ("u", str "/y")]]
   let o := .call .emit [.filter (p ["s"]) (m [("k", str "sqs")]),
     m [("match", m [("k", .string)]), ("body", l [nd ["p"]])]]
@@ -4034,12 +3795,12 @@ def emitFilterCases : List (Decls × Val × Data) :=
     ([], m [("s", sel), ("o", o)], dm [("o", .list [.str "y"])])]
 
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem emitFilterCases_reads : ∀ c ∈ emitFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem emitFilterCases_reads : ∀ c ∈ emitFilterCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem emitFilter_verdict_exact : ∀ c ∈ emitFilterCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (emitFilterCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (emitFilterCases_reads c hc) v
 
 /-- Generators whose templates read their member's place through a
 relative path, each read at each member of the generator's output:
@@ -4048,15 +3809,7 @@ what the path reads, a path that names nothing, an empty source, a path
 that climbs out of the instance, `key(1)` beside a path, a path inside
 a call, a spread inside the template, and a generator inside another. -/
 def genTemplateCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let ms (fs : List (String × Val)) (sp : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some sp) false
-  let l (xs : List Val) : Val := .list xs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let each (d t : Val) : Val := .call .each [d, t]
   let pack (d t : Val) : Val := .call .pack [d, t]
   let named := m [("n", .hole), ("u", rel 1 ["n"])]
@@ -4097,16 +3850,8 @@ each over no data, over data the template takes, over data whose
 written member it refuses, and over a member the data adds, which the
 spread reads as it reads a written one. -/
 def spreadGenCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let ms (fs : List (String × Val)) (sp : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some sp) false
-  let l (xs : List Val) : Val := .list xs none false
   let rel (n : ℕ) (k : String) : Val := .path [.up n, .key k]
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let dl (xs : List Data) : Data := .list xs
-  let ds (s : String) : Data := .str s
   let doc (g : Val) : Val := m [("d", l [int 1, int 2]), ("x", g)]
   let each (t : Val) : Val := .call .each [.path [.key "d"], t]
   let named := each (m [("h", ms [("p", m [("name", str "x")])] (m [("name", .string), ("url", rel 1 "name")]))])
@@ -4166,13 +3911,7 @@ preferred; and `nil | nil`, which leaves none, is still an error.
 Last, a bound, a size or a trial over it that no data meets: absent at
 an optional key, and waiting at a required one. -/
 def writtenNilCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let nl := Val.void
-  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
   let ch := Val.or [(0, int 1), (0, int 2)]
   [([], mo [("x", true, nl)], dm []),
     ([], mo [("x", true, nl)], dm [("x", j 1)]),
@@ -4258,15 +3997,6 @@ member overrides, a list and a call, on either side of the meet, in
 path in the template, over an empty source, and a member the bound
 refuses, an error. -/
 def holeMeetCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let ds (s : String) : Data := .str s
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let dl (xs : List Data) : Data := .list xs
   let each (d t : Val) : Val := .call .each [d, t]
   let pack (d t : Val) : Val := .call .pack [d, t]
   let bnd (t : Val) : Val := .meet .hole t
@@ -4318,16 +4048,6 @@ piece before it in the output, the top, from inside a map and a member
 deeper, inside a call, a member the data writes, and a member the
 instance lacks, an error. -/
 def emitGenCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let ds (s : String) : Data := .str s
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let dl (xs : List Data) : Data := .list xs
   let each (d t : Val) : Val := .call .each [d, t]
   let em (s : Val) (b : List Val) : Val := .call .emit [s, m [("match", .any), ("body", l b)]]
   let x (v : Val) : Val := m [("x", v)]
@@ -4374,14 +4094,6 @@ def emitGenCases : List (Decls × Val × Data) :=
 that keeps some members, and one whose relative path stays inside the
 member it tries and names nothing, refusing each. -/
 def emitGenFilterCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
-  let dl (xs : List Data) : Data := .list xs
   let em (s : Val) (b : List Val) : Val := .call .emit [s, m [("match", .any), ("body", l b)]]
   let x (v : Val) : Val := m [("x", v)]
   let dx (d : Data) : Data := dm [("x", d)]
@@ -4399,13 +4111,13 @@ theorem emitGen_verdict_exact : ∀ c ∈ emitGenCases, ∀ (m : Mode) (v : Verd
   fun c hc _ v => vetP_iff (emitGenCases_checkable c hc).1 (emitGenCases_checkable c hc).2 v
 
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem emitGenFilterCases_reads : ∀ c ∈ emitGenFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem emitGenFilterCases_reads : ∀ c ∈ emitGenFilterCases, c.1.readsPD c.2.1 c.2.2 = true := by
   decide +kernel
 
 theorem emitGenFilter_verdict_exact : ∀ c ∈ emitGenFilterCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (emitGenFilterCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (emitGenFilterCases_reads c hc) v
 
 /-- A named table, `%W = emit(_, t)`, whose body holds a generator whose
 template reads its member's place through a relative path: the path read
@@ -4413,16 +4125,7 @@ where each instance lands, as an unnamed table's is, over one node and
 two, in two places, through `pack`, after a piece of the body's own, and
 the data each refuses, and none. -/
 def namedGenCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
   let rel (n : ℕ) (k : String) : Val := .path [.up n, .key k]
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
-  let jm (fs : List (String × Data)) : Data := .map fs
   let rule (b : List Val) : Val := mp [("match", .number), ("body", lst b)]
   let named (b : List Val) : Decls := [("W", c .emit [.hole, rule b])]
   let use (s : List Val) : Val := c .emit [lst s, .alias "W"]
@@ -4456,15 +4159,7 @@ where it lands, as one with no key does: `key(0)` and `key(1)`, `each`
 and `pack`, a table written in place and a named one, two nodes, a path
 from outside into the output, the data each refuses, and none. -/
 def keyRelCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
   let rel (n : ℕ) (k : String) : Val := .path [.up n, .key k]
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
-  let jm (fs : List (String × Data)) : Data := .map fs
   let rule (b : List Val) : Val := mp [("match", .number), ("body", lst b)]
   let genk := c .each [lst [int 1, int 2], mp [("k", .keyUp 0), ("a", int 1), ("b", rel 1 "a")]]
   let gk1 := c .each [lst [int 1, int 2], mp [("k", .keyUp 1), ("b", rel 1 "k")]]
@@ -4506,13 +4201,6 @@ one past the top and a name that name nothing, each of which refuses
 every member rather than making the document an error, as both ports
 read them, and a path the data supplies. -/
 def filterCondCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let f (c : Val) := m [("a", m [("lim", int 2), ("l", l [int 1, int 2, int 3]), ("f", .filter (rel 1 ["l"]) c)])]
   let out (xs : List Data) : Data := dm [("a", dm [("f", .list xs)])]
   let ns := l [m [("n", int 1), ("m", int 1)], m [("n", int 2), ("m", int 3)]]
@@ -4539,12 +4227,12 @@ def filterCondCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem filterCondCases_reads : ∀ c ∈ filterCondCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem filterCondCases_reads : ∀ c ∈ filterCondCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem filterCond_verdict_exact : ∀ c ∈ filterCondCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (filterCondCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (filterCondCases_reads c hc) v
 
 /-- What a made `filter` holds: each child its condition admits as the
 child itself, so a preference it keeps admits the arm a later meet or
@@ -4552,9 +4240,6 @@ the data picks, and a link it keeps sends its template, where a child
 the condition refuses sends none, beside data that agrees and data that
 refuses. -/
 def filterKeepCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let rf (t : Val) : Val := .meet (.call .relate [t]) (.addr ⟨0, ["a"]⟩)
   let pr : Val := .or [(1, int 1), (0, int 2)]
   let k1 : Val := m [("k", int 1)]
@@ -4568,12 +4253,12 @@ def filterKeepCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem filterKeepCases_reads : ∀ c ∈ filterKeepCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem filterKeepCases_reads : ∀ c ∈ filterKeepCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem filterKeep_verdict_exact : ∀ c ∈ filterKeepCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (filterKeepCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (filterKeepCases_reads c hc) v
 
 /-- Ruling 51: a `filter` tries each child as the term it is, so a child
 that generates nothing, a kind, a bound or a disjunction, is kept where
@@ -4584,11 +4269,6 @@ child's own term. A preference is kept where every arm is taken, a
 nested map where its members are, and a condition's optional member the
 child leaves out asks for nothing. -/
 def filterTermCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let str (s : String) : Val := .lit (.str s)
   let b (f : Val) : Val := m [("b", f)]
   let xi : Val := m [("x", .integer)]
   let ki : Val := m [("k", .integer)]
@@ -4612,12 +4292,12 @@ def filterTermCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem filterTermCases_reads : ∀ c ∈ filterTermCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem filterTermCases_reads : ∀ c ∈ filterTermCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem filterTerm_verdict_exact : ∀ c ∈ filterTermCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (filterTermCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (filterTermCases_reads c hc) v
 
 /-- Ruling 38: a meet carries the marks of both its sides, `any`'s
 included, so `hide(any)` or `type(any)` met with a value marks it,
@@ -4629,12 +4309,6 @@ element marked through a meet
 holds no position, where a marked element of a list that meets another
 holds none to meet (ruling 18). -/
 def markMeetCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let xy : Val := m [("x", int 1), ("y", int 2)]
   let da (x : Data) : Data := .map [("a", x)]
   [([], m [("a", .meet xy (m [("x", hide .any)]))], da (.map [("y", j 2)])),
@@ -4658,11 +4332,11 @@ def markMeetCases : List (Decls × Val × Data) :=
     ([], m [("a", .meet (l [int 1, int 2]) (l [hide .any]))], da (.list [j 2]))]
 
 set_option maxRecDepth 16384 in
-theorem markMeetCases_reads : ∀ c ∈ markMeetCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+theorem markMeetCases_reads : ∀ c ∈ markMeetCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem markMeet_verdict_exact : ∀ c ∈ markMeetCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (markMeetCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (markMeetCases_reads c hc) v
 
 /-- A spread's template copied to each member without the marks written
 around it (ruling 39): `hide()` and `type()` around a scalar, a kind, a
@@ -4672,14 +4346,8 @@ field of the template and one on an arm of a disjunction belong to that
 field and that arm, and stay. Each member is left out of the data, so
 that `--no-fill` tells a member the data must give from a marked one. -/
 def spreadMarkCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
   let sp (t : Val) : Val := .map [] (some t) false
   let lsp (t : Val) : Val := .list [] (some t) false
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let x (v : Val) : Val := m [("x", v)]
   let dx (d : Data) : Data := .map [("x", d)]
   let a1 : Val := m [("a", int 1)]
@@ -4708,11 +4376,11 @@ def spreadMarkCases : List (Decls × Val × Data) :=
     ([], x (.meet (sp (.ride .metadata (int 1) [])) a1), dx (.map []))]
 
 set_option maxRecDepth 16384 in
-theorem spreadMarkCases_reads : ∀ c ∈ spreadMarkCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+theorem spreadMarkCases_reads : ∀ c ∈ spreadMarkCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem spreadMark_verdict_exact : ∀ c ∈ spreadMarkCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (spreadMarkCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (spreadMarkCases_reads c hc) v
 
 /-- Bounds written over terms: `min`, `max`, `above` and `below` over a
 path to a number and to a string, the empty string among them, over a
@@ -4735,15 +4403,6 @@ no size, a rider and a meet with `any` read through. Last, a choice a
 dead arm settles to one arm, which is that arm, as a size's is (ruling
 55): either way round, through a path, and in `neq`'s list. -/
 def boundArgCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let p (ks : List String) : Val := .path (ks.map .key)
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let t (x : Data) : Data := dm [("t", x)]
   let lo (v : Val) (b : Bnd := .min) : Val := m [("lo", v), ("t", bnd b [p ["lo"]])]
   [([], lo (int 2), t (j 5)),
@@ -4823,13 +4482,6 @@ boolean, `null` or a map, and a `neq` over a number and a string, each
 refused, which refuses every member rather than making the document an
 error. -/
 def boundFilterCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let f (c : Val) := m [("a", m [("lim", int 2), ("l", l [int 1, int 2, int 3]), ("f", .filter (rel 1 ["l"]) c)])]
   let out (xs : List Data) : Data := dm [("a", dm [("f", .list xs)])]
   let g (lim c : Val) := m [("a", m [("lim", lim), ("l", l [int 1]), ("f", .filter (rel 1 ["l"]) c)])]
@@ -4844,24 +4496,18 @@ def boundFilterCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem boundFilterCases_reads : ∀ c ∈ boundFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem boundFilterCases_reads : ∀ c ∈ boundFilterCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem boundFilter_verdict_exact : ∀ c ∈ boundFilterCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (boundFilterCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (boundFilterCases_reads c hc) v
 
 /-- Bounds over a relative path in a generator's template, each read
 where its instance lands: `min` over a path into the member, in an
 `each` and a `pack` whose instances each have a target of their own,
 one admitting and one refusing, and over an ancestor's member. -/
 def boundEachCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let l (xs : List Val) : Val := .list xs none false
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
-  let dm (fs : List (String × Data)) : Data := .map fs
   let lv (lim v : Val) : Val := m [("lim", lim), ("v", v)]
   let tmpl := Val.meet .hole (m [("v", bnd .min [rel 1 ["lim"]])])
   [([], m [("o", .call .each [l [lv (int 1) (int 1), lv (int 2) (int 2)], tmpl])], dm []),
@@ -4893,10 +4539,7 @@ def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (
     IO Unit := do
   let mut i := 0
   for c in cases do
-    let mut lines : List String := []
-    for d in c.1.filter fun d => !sourceName d.1 && !scopedDecl d.1 do
-      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
-      lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+    let mut lines ← declLines (c.1.filter fun d => !sourceName d.1 && !scopedDecl d.1)
     -- A destructure at the top is a statement of its own, so it takes a
     -- line of its own, and the rest of the schema the line after.
     let takes := c.2.1.conjuncts.filter Val.isTake
@@ -4911,11 +4554,7 @@ def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (
         | throw (IO.userError "a schema of the fragment has no text")
       body := [match s, rest.length with | .map _ _ _, 1 => (ssrc.drop 1).dropRight 1 | _, _ => ssrc]
     let src := "\\n".intercalate (if declsLast then body ++ lines else lines ++ body)
-    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
-        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
-      IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
-        ++ verdictName (vetP m c.1 c.2.1 c.2.2) ++ "\"" ++ opts ++ "}")
-      i := i + 1
+    i ← verdictLines tag i src dsrc fun m => vetP m c.1 c.2.1 c.2.2
 
 /-! ## The eighth fragment: trials -/
 
@@ -4936,13 +4575,8 @@ and with covers of each field, over maps, lists and scalars, beside a
 map, a literal, a default and a disjunction, in a spread, and through a
 name. -/
 def trialCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
   let max (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .max (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let a (v : Val) : Val := m [("a", v)]
   let da (x : Data) : Data := .map [("a", x)]
   let nof (n : Val) (cs : List Val) : Val := .nof n cs
@@ -5206,11 +4840,7 @@ a list, and nested; and `filter` over a list and a map,
 with a kind, a bound and a conflict as the condition, over an empty
 container and over a scalar, and beside a literal. -/
 def selectCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let sel (s : Val) (arms : List (Val × Val)) (d : Option Val := none) : Val := .select s arms d
   let flt (s c : Val) : Val := .filter s c
   let z (v : Val) : Val := m [("z", v)]
@@ -5272,11 +4902,7 @@ refuses, the default, no arm and no default, a pattern over the key's
 length, two such spreads met, a spread under a rider, and a spread
 beside a member the schema declares, whose value the selection meets. -/
 def keyCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let str (s : String) : Val := .lit (.str s)
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
-  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let on (arms : List (Val × Val)) (d : Option Val) : Val := .select .key arms d
   let spm (fs : List (String × Bool × Val)) (s : Val) : Val := .map fs (some s) false
   let spl (xs : List Val) (s : Val) : Val := .list xs (some s) false
@@ -5328,8 +4954,6 @@ dead one doesn't make an error; and a size and the counts of `nof` and
 nothing, beside `nil` met with `1`, a `filter` over `nil` and a
 selection on it, which are errors (#525). -/
 def eagerCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let c12 : Val := .meet (int 1) (int 2)
   let mu : Val := .must c12 "m"
   let mt : Val := .select c12 [(int 1, int 3)] none
@@ -5378,8 +5002,6 @@ matches, beside a count that admits it and one that refuses it, against
 data and met with the schema's own literal, and a member that doesn't
 match (#534's review). -/
 def meetNameCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
   let a : Decls := [("A", .map [("next", true, .alias "A")] none false)]
   let t (v : Val) : Val := .map [("t", false, v)] none false
   let d1 : Data := .map [("t", .list [.map []])]
@@ -5408,8 +5030,6 @@ disjunction, and over an arm of `null` (#635); and `contains` over a
 preference arm its member refuses, beside an arm that adds a member,
 which admits nothing, since the arm has no parent type (#637). -/
 def armTrialCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
   let a (v : Val) : Val := mp [("a", false, v)]
   let da (x : Data) : Data := .map [("a", x)]
@@ -5445,18 +5065,11 @@ def trialRows (tag : String) (cases : List (Decls × Val × Data) := trialCases 
     IO Unit := do
   let mut i := 0
   for c in cases do
-    let mut lines : List String := []
-    for d in c.1 do
-      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
-      lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+    let lines ← declLines c.1
     let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
     let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
-    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
-        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
-      IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
-        ++ verdictName (vet m c.1 c.2.1 c.2.2) ++ "\"" ++ opts ++ "}")
-      i := i + 1
+    i ← verdictLines tag i src dsrc fun m => vet m c.1 c.2.1 c.2.2
 
 /-! ## The ninth fragment: the order -/
 
@@ -5549,8 +5162,6 @@ def defaultVals : List Val :=
     .list [d1] none false, .list [.number] none false, .list [.lit (.num one)] none false]
 
 def markVals : List Val :=
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let mx (v : Val) : Val := .map [("x", false, v)] none false
   let d1 : Val := .or [(1, .lit (.num one)), (0, .number)]
   [.integer, hide .integer, type .integer, mx .integer, mx (hide .integer), mx (type .integer),
@@ -5716,7 +5327,6 @@ through each other and their unfolding, a name recursive through itself,
 and a list of cells with a sealed empty map as its end, beside a cell
 with any tail. -/
 def docCases : List (Decls × Val) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let node (n next : Val) : Val := .map [("n", false, n), ("next", true, next)] none false
   let T : Decls := [("T", node .integer (.alias "T"))]
   let p : Decls := [("p", .meet .integer (.min (.num one)))]
@@ -5738,7 +5348,6 @@ def docCases : List (Decls × Val) :=
 
 /-- The instances that may tell two documents apart, each put under `v`. -/
 def docInstances : List Data :=
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let node (n : Data) (rest : List (String × Data)) : Data := .map (("n", n) :: rest)
   [node (j 1) [], node (j 1) [("next", node (j 2) [])],
     node (j 1) [("next", node (j 2) [("next", node (j 3) [])])],
@@ -5780,10 +5389,7 @@ theorem subsume_doc_rows_exact : ∀ g ∈ docCases, ∀ s ∈ docCases, ∀ j �
 /-- A document's text: its declarations, one to a line, and its term under
 `v`. -/
 def docSrc (c : Decls × Val) : IO String := do
-  let mut lines : List String := []
-  for d in c.1 do
-    let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
-    lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+  let lines ← declLines c.1
   let some tsrc := c.2.cell | throw (IO.userError "a term of the fragment has no text")
   pure ("\\n".intercalate (lines ++ ["v: " ++ tsrc]))
 
@@ -5992,8 +5598,6 @@ whose condition holds the hole follows in `filterCases`, and `split`
 at a pattern in `patternCases`. -/
 
 def callCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let flt (n : ℤ) (d : ℕ) : Val := match Float.nearest n d with
     | some x => .lit (.num (.float x))
     | none => .nil
@@ -6004,14 +5608,7 @@ def callCases : List (Val × Data) :=
   let jbig (n : ℤ) : Data := .num (.biginteger ⟨n⟩)
   let dec (c e : ℤ) : Val := .lit (.num (.bigdecimal (BigDecimal.normal c e)))
   let jdec (c e : ℤ) : Data := .num (.bigdecimal (BigDecimal.normal c e))
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let lst (xs : List Val) : Val := .list xs none false
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
   let p (a b : Val) : Val := .call .plus [a, b]
-  let jm (fs : List (String × Data)) : Data := .map fs
   let kv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Val := mp [("k", int k h), ("v", str s)]
   let jkv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Data := jm [("k", j k h), ("v", js s)]
   let node (cmp : String) (props : List (String × Data)) (kids : List Data) : Data :=
@@ -6633,9 +6230,6 @@ string. The patterns are fixed text, with groups, or outside the
 subset, and none splits the empty text (#447). Neither call waits, so
 each reads to a term the checker can read, and `vet` is `Vet` on it. -/
 def patternSplits : List (Val × String × Data) :=
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
   [(str "a1b1c", "1", jl [js "a", js "b", js "c"]), (str "a1b1c", "1", jl [js "a1b1c"]),
     (str "1a1", "1", jl [js "", js "a", js ""]), (str "a11b", "1", jl [js "a", js "", js "b"]),
     (str "aaa", "aa", jl [js "", js "a"]), (str "ab", "", jl [js "a", js "b"]),
@@ -6761,7 +6355,6 @@ whatever host converts the case. -/
 def filterSources : List (Data × Val × Data) :=
   let s (t : String) : Data := .str t
   let n (i : ℤ) (h : IntegerLeaf i := by decide) : Data := .integer i h
-  let up : Val := .call .upper [.hole]
   let twice : Val := .call .mul [.hole, .lit (.num (.integer ⟨2, by decide⟩))]
   [(.list [s "A", s "b"], up, .list [s "A"]), (.list [s "A", s "b"], up, .list []),
     (.list [s "A", s "b"], .meet .hole up, .list [s "A"]),
@@ -6785,7 +6378,7 @@ theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c)
   obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
   have hj := filterSources_generate _ hm
   have hw := Data.term_filled _ (filterSources_wf _ hm)
-  have hn := Val.unride_checkableA (normaliseD_checkableA (ds := []) (fun _ h => nomatch h)
+  have hn := Val.checkableA_unride (normaliseD_checkableA (ds := []) (fun _ h => nomatch h)
     (resolveD_checkableA (ds := []) (fun _ h => nomatch h) (Data.term_checkableA j) (b := none)
       (here := stepped (some []) (.seg (.key "v"))) (fun _ h => nomatch h)))
   refine readR_call_checkableA (.inr ⟨_, _, rfl⟩)
@@ -6802,7 +6395,6 @@ is decided whole. -/
 def filterEachCases : List (Val × Data) :=
   let int (i : ℤ) (h : IntegerLeaf i := by decide) : Val := .lit (.num (.integer ⟨i, h⟩))
   let j (i : ℤ) (h : IntegerLeaf i := by decide) : Data := .integer i h
-  let lst (xs : List Val) : Val := .list xs none false
   [(.call .each [lst [lst [int 0, int 1], lst [int 2]], .filter .hole (.call .mul [.hole, int 2])],
       .list [.list [j 0], .list []])]
 
@@ -6824,12 +6416,7 @@ an empty map or list (decision 19 of the design note's §7), so `sum`
 adds the others and `each` and `join` skip it. An optional member whose
 value generates more stays. -/
 def optionalCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let c (f : Fn) (args : List Val) : Val := .call f args
   let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
   [(c .sum [mp [("a", true, mp []), ("b", false, int 2)]], j 2),
     (c .sum [mp [("a", true, lst []), ("b", false, int 2)]], j 2),
     (c .sum [mp [("a", true, .or [(1, lst []), (0, lst [int 1])]), ("b", false, int 2)]], j 2),
@@ -6854,7 +6441,6 @@ group the pattern lacks, a `$0`, a lone `$` or a `$` before a letter is
 an error over a text with no match too, the empty text among them, and
 one that names only what the pattern has leaves such a text as it is. -/
 def repSubCases : List (Val × Data) :=
-  let str (s : String) : Val := .lit (.str s)
   let rep (t p r : String) : Val := .call .rep [str t, str p, str r]
   [(rep "abc" "x" "$9", .str "abc"), (rep "abc" "x" "$", .str "abc"),
     (rep "abc" "x" "x$", .str "abc"), (rep "abc" "x" "$x", .str "abc"),
@@ -6874,12 +6460,6 @@ theorem repSub_verdict_exact : ∀ c ∈ repSubCases, ∀ (m : Mode) (v : Verdic
 or a mark, as both ports read them (#435); a lone preference stays
 neither, and so does `null`, which is no absent projector. -/
 def projectorCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
   let rd (v : Val) : Val := .ride .metadata v []
   [(c .pick [lst [mp [("a", int 1)]], rd (str "a")], .list [j 1]),
     (c .pick [lst [lst [int 9, int 8]], rd (int 1)], .list [j 8]),
@@ -6905,11 +6485,6 @@ optional sign and by nothing else, so a space, a point, an exponent or
 a hexadecimal prefix names none, and `""` names no key in `pick`, as
 both ports read them (#437). -/
 def indexCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
   let ab : Val := lst [lst [int 1, int 2]]
   [(c .pick [ab, str "+1"], .list [j 2]), (c .pick [ab, str " 0"], .list [j 1]),
     (c .pick [ab, str "0 "], .list [j 1]), (c .pick [ab, str "1.0"], .list [j 2]),
@@ -6929,8 +6504,6 @@ theorem index_verdict_exact : ∀ c ∈ indexCases, ∀ (m : Mode) (v : Verdict)
 /-- A range in `translate`'s `to` through the surrogate block writes
 U+FFFD for each surrogate it names, as both ports write it (#442). -/
 def surrogateCases : List (Val × Data) :=
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let str (s : String) : Val := .lit (.str s)
   [(c .translate [str "b", str "a-b", str "\uD7FF-\uE000"], .str "\uFFFD"),
     (c .translate [str "abc", str "a-c", str "\uD7FF-\uE000"], .str "\uD7FF\uFFFD\uFFFD"),
     (c .translate [str "z", str "a-z", str "\uD7FF-\uE000"], .str "\uFFFD")]
@@ -6950,14 +6523,6 @@ its instances met;
 a list holding anything but a string, and data that is no bag. No
 template holds `key()`, which waits on `key()` at any position. -/
 def packCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jm (fs : List (String × Data)) : Data := .map fs
   [(c .pack [lst [str "a", str "b"], mp [("x", .hole)]], jm [("a", jm [("x", js "a")]), ("b", jm [("x", js "b")])]),
     (c .pack [mp [("p", int 1), ("q", int 2)], .meet .hole .integer], jm [("p", j 1), ("q", j 2)]),
     (c .pack [mp [("p", int 1), ("q", int 2)], .hole], jm [("p", j 1), ("q", j 2)]),
@@ -6995,18 +6560,13 @@ wouldn't. A hole that nothing binds is an error of the schema whatever
 the data, so each is an error; beside them stand a key declared twice
 and a `+` whose right list holds a `key()`, which hold no hole. -/
 def holeFillVetCases : List (Val × Data) :=
-  let s (t : String) : Val := .lit (.str t)
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let up (v : Val) : Val := .call .upper [v]
   let la : Val := .list [s "a"] none false
   let px : Val := .map [("x", false, n 1)] none false
   let x (v : Val) : Val × Data := (.map [("x", false, v)] none false, .map [])
-  let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
   let yes : Val := .lit (.bool true)
   let sel (arms : List (Val × Val)) (d : Val) : Val := .select yes arms (some d)
-  let hide (v : Val) : Val := .ride .hide v []
-  let type (v : Val) : Val := .ride .type v []
   let spm (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun (k, v) => (k, false, v)) (some t) false
   let spl (xs : List Val) (t : Val) : Val := .list xs (some t) false
   let add1 (v : Val) : Val := .call .add [v, n 1]
@@ -7207,11 +6767,8 @@ generator's data, in a disjunction's arm and a lone preference, and a
 call over a container whose argument is the hole. The data never binds
 a hole, so each is an error whatever the data. -/
 def dataFillCases : List (Val × Data) :=
-  let s (t : String) : Val := .lit (.str t)
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let up (v : Val) : Val := .call .upper [v]
   let add1 (v : Val) : Val := .call .add [v, n 1]
-  let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
   let spm (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun (k, v) => (k, false, v)) (some t) false
   [(up .hole, .str "a"), (up .hole, .str "A"), (up .hole, .integer 1), (up .hole, .map [("a", .integer 1)]),
@@ -7290,11 +6847,7 @@ the schema wherever it stands (ruling 34); and an error where no arm
 stands, where the call stands alone, or where a preference clash is
 between the arms the disjunction is read with, as both ports answer. -/
 def illArmCases : List (Val × Data) :=
-  let s (t : String) : Val := .lit (.str t)
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
-  let up (v : Val) : Val := .call .upper [v]
   let add1 (v : Val) : Val := .call .add [v, n 1]
-  let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
   [(.or [(0, add1 (s "x")), (0, s "x")], .str "x"), (add1 (s "x"), .str "x"),
     (.or [(0, add1 (s "x")), (0, add1 (s "y"))], .str "x"),
@@ -7321,12 +6874,9 @@ that filled its own hole, in maps' and lists' members and a spread's
 template, in a disjunction's arm and beside a literal. Each holds a hole
 that nothing binds, so each is an error of the schema (ruling 34). -/
 def groupCases : List (Val × Data) :=
-  let s (t : String) : Val := .lit (.str t)
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let up (v : Val) : Val := .call .upper [v]
   let lo (v : Val) : Val := .call .lower [v]
   let g : Val := .meet (up .hole) .hole
-  let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
   [(.meet g (s "x"), .str "X"), (.meet (s "x") g, .str "X"), (.meet g .hole, .str "A"),
     (.meet (.meet .hole .hole) (up .hole), .str "a"), (.meet (up .hole) (.meet .hole .hole), .str "a"),
@@ -7387,8 +6937,6 @@ data and a member the document writes. A spread binds no hole and no
 generator binds one in a spread's template, so each is an error of the
 schema whatever its members. -/
 def spreadTmplCases : List (Val × Data) :=
-  let s (t : String) : Val := .lit (.str t)
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let up (v : Val) : Val := .call .upper [v]
   let lo (v : Val) : Val := .call .lower [v]
   let add1 (v : Val) : Val := .call .add [v, n 1]
@@ -7484,9 +7032,6 @@ optional member, under `pref` and as a disjunction's arm. The hole is
 one nothing binds, so each is an error of the schema whatever the data
 (ruling 34). -/
 def heldHoleCases : List (Val × Data) :=
-  let s (t : String) : Val := .lit (.str t)
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
-  let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
   let h1 : Val := lst [.hole]
   let hs : Val := .call .sum [lst [.hole, n 1]]
@@ -7536,14 +7081,11 @@ rows dr0 on: `super`, `pref`, `move`, `relate`, the bounds and
 one nothing binds, so each is an error of the schema whatever the data
 (ruling 34). -/
 def readThroughCases : List (Val × Data) :=
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
-  let lst (xs : List Val) : Val := .list xs none false
   let h1 : Val := lst [.hole]
   let hk : Val := .map [("k", false, .hole)] none false
   let x : Data := .str "x"
   let l1 : Data := .list [.integer 1]
   let k1 : Data := .map [("k", .integer 1)]
-  let up : Val := .call .upper [.hole]
   let l3 : Data := .list [.integer 3]
   let l34 : Data := .list [.integer 3, .integer 4]
   [(.call .super [h1], x), (.call .super [h1], l1), (.call .super [hk], k1),
@@ -7604,17 +7146,6 @@ selection that is no bag, and a reference the node doesn't answer, a
 step up, a position past the end and one in a part the reading drops
 among them, but one in a spread, which the ports leave unbound. -/
 def emitCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
-  let jm (fs : List (String × Data)) : Data := .map fs
-  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
-  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
   let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
   let k1 : Val := mp [("k", int 1)]
   [(c .emit [lst [k1], rule k1 [str "a"]], jl [js "a"]),
@@ -7744,15 +7275,6 @@ reference into the node; an `emit` in a generator's template, read
 where its instance lands; and a marked piece, which takes no position,
 as a list holds none for it. -/
 def emitKeyCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
-  let jm (fs : List (String × Data)) : Data := .map fs
-  let k (n : ℤ) : Val := .keyUp n
   let rule (b : List Val) : Val := mp [("match", .any), ("body", lst b)]
   let nested : Val := c .emit [lst [int 1], rule [str "a", c .emit [lst [int 5, int 6], rule [k 0]]]]
   let two : Val := c .emit [lst [int 1, int 2], rule [str "a", k 0]]
@@ -7800,13 +7322,6 @@ holds a `key(n)`, read where its piece lands, and one that takes no
 node, which is an error; and `emit(_, t)` alone, whose hole nothing
 binds, and one whose template lacks its body, both errors. -/
 def emitTableCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
   let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
   let held (t : Val) : Val := c .emit [.hole, t]
   let two : Val := lst [int 1, int 2]
@@ -7835,14 +7350,6 @@ makes, against data it refuses, and named alone, where nothing binds its
 hole, an error; and a name for a template, whose body's `key(n)` reads
 where its piece lands. -/
 def emitNameCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
-  let jm (fs : List (String × Data)) : Data := .map fs
   let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
   let w : Decls := [("W", c .emit [.hole, rule .number [str "n"]])]
   [(w, c .emit [lst [int 1, int 2], .alias "W"], jl [js "n", js "n"]),
@@ -7869,13 +7376,6 @@ expansion has left: down a tree of one child and of two, with a
 selection, and one that walks into itself without descending, which
 spends the turns and is an error. -/
 def emitRecCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
   let nd (k : String) : Val := .path [.node, .key k]
   let pl (a b : Val) : Val := c .plus [a, b]
   let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
@@ -7918,15 +7418,6 @@ map, an `esc` that names no convention or is no string, a `n` written
 twice, and a value with no text, a map, a list, `null`, a kind, or a
 field the node lacks. -/
 def emitReplaceCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
-  let jm (fs : List (String × Data)) : Data := .map fs
   let nd (k : String) : Val := .path [.node, .key k]
   let em (s t : Val) : Val := c .emit [s, t]
   let rp (m : Val) (r : List (String × Val)) (b : List Val) : Val :=
@@ -8017,12 +7508,6 @@ theorem emit_replace_verdict_exact : ∀ c ∈ emitReplaceCases, ∀ (m : Mode) 
 and one that names itself, walking a tree with a replacement at each
 level. -/
 def emitReplaceNameCases : List (Decls × Val × Data) :=
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jl (xs : List Data) : Data := .list xs
   let nd (k : String) : Val := .path [.node, .key k]
   let held (t : Val) : Val := c .emit [.hole, t]
   let rp (m : Val) (r : List (String × Val)) (b : List Val) : Val :=
@@ -8053,12 +7538,7 @@ position, `apply` in a generator's template, whose head the generator
 binds, a list and a map as `v`, and `apply` with one argument, an
 error. -/
 def applyCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let ap (v f : Val) : Val := .call .apply [v, f]
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let jl (xs : List Data) : Data := .list xs
   [(ap (int 1) (.call .add [.hole, int 1]), j 2),
     (ap (int 1) (.call .add [.hole, int 1]), j 3),
     (ap (.lit (.str "hello")) (.call .upper [.hole]), .str "HELLO"),
@@ -8087,11 +7567,6 @@ stands, as the paths read it: a sibling read from a literal, a sibling
 the hole fills, beside data that writes it and data that refuses it, and
 a path that climbs out of the instance. -/
 def applyPathCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let dm (fs : List (String × Data)) : Data := .map fs
   let ap (v f : Val) : Val := .call .apply [v, f]
   [([], m [("v", ap (int 1) (m [("k", rel 1 ["z"]), ("z", int 4)]))], dm [("v", dm [("k", j 4), ("z", j 4)])]),
     ([], m [("v", ap (int 1) (m [("k", rel 1 ["z"]), ("z", .hole)]))], dm [("v", dm [("k", j 1), ("z", j 1)])]),
@@ -8112,16 +7587,6 @@ key or index and the levels above the call, through nested generators;
 at a spread's own position, the key the spread reads and the levels
 above it. -/
 def keyUpCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let c (f : Fn) (args : List Val) : Val := .call f args
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
-  let jm (fs : List (String × Data)) : Data := .map fs
-  let jl (xs : List Data) : Data := .list xs
-  let k (n : ℤ) : Val := .keyUp n
   [(k 0, js "v"), (k 0, js "x"), (k 1, js ""), (k 2, js ""), (k (-1), js ""),
     (mp [("a", k 1)], jm [("a", js "v")]), (mp [("a", k 0)], jm [("a", js "a")]),
     (mp [("a", k 0)], jm []),
@@ -8163,10 +7628,6 @@ theorem keyUpCases_checkable : ∀ c ∈ keyUpCases, (vetDoc c).1.CheckableA := 
 tries lands: under a map member's key, and at the index a list member
 takes among those kept. -/
 def keyUpFilterCases : List (Val × Data) :=
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
-  let str (s : String) : Val := .lit (.str s)
-  let js (s : String) : Data := .str s
   [(.filter (mp [("a", str "a"), ("b", str "c")]) (.keyUp 0), .map [("a", js "a")]),
     (.filter (lst [str "x", str "0", str "1"]) (.keyUp 0), .list [js "0", js "1"]),
     (.filter (lst [str "0", str "b", str "2"]) (.keyUp 0), .list [js "0"]),
@@ -8212,8 +7673,6 @@ over a map's members, `type()` around the hole, beside data that an
 instance holding a position would refuse, and a marked instance that
 is a conflict, which makes the list `nil`, as a written one is. -/
 def markedEachCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let lst (xs : List Val) : Val := .list xs none false
   let hd (v : Val) : Val := .ride .hide v []
   let each (d t : Val) : Val := .call .each [d, t]
   [(each (lst [int 1]) (hd (lst [.hole, .hole])), .list []),
@@ -8238,10 +7697,7 @@ of each kind (#635); and a preference arm the member refuses, beside an
 arm that adds a member, which keeps nothing and matches nothing, since
 the arm has no parent type (#637). -/
 def armCallCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
   let b1 : Val := mp [("b", int 1)]
   let pick : Val := .or [(1, b1), (0, mp [])]
   let plain : Val := .or [(0, b1), (0, mp [])]
@@ -8262,10 +7718,7 @@ it answers, beside data with no member, so the filter alone supplies
 what it keeps: data that holds the member would supply it to an open
 container. -/
 def optCallCases : List (Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
   let c3 : Val := .map [("c", true, int 3)] none false
   let sized (f : Val) (n : Val := int 1) : Val := .meet f (.len n)
   [(sized (.filter (lst [mp []]) c3), .list []), (.select (mp []) [(c3, int 1)] (some (int 2)), j 1),
@@ -8276,6 +7729,19 @@ def optCallCases : List (Val × Data) :=
     (sized (.filter (mp [("k", mp [])]) c3), .map []),
     (sized (.filter (lst [mp [("c", int 3)]]) c3), .list []),
     (sized (.filter (lst [mp [("c", int 4)]]) c3) (int 0), .list [])]
+
+set_option maxRecDepth 16384 in
+theorem armCallCases_readable : ∀ c ∈ armCallCases, (Decls.readR [] (vetDoc c).1).CheckableA := by decide
+
+set_option maxRecDepth 16384 in
+theorem optCallCases_readable : ∀ c ∈ optCallCases, (Decls.readR [] (vetDoc c).1).CheckableA := by decide
+
+theorem arm_call_verdict_exact : ∀ c ∈ armCallCases ++ optCallCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v := by
+  intro c hc _ v
+  rcases List.mem_append.mp hc with h | h
+  · exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) (armCallCases_readable c h) v
+  · exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) (optCallCases_readable c h) v
 
 /-! ## Variables
 
@@ -8301,9 +7767,6 @@ default, and as the data a generator reads, and a kind the program binds
 met with a number. A float, a big integer and a big decimal bind too,
 and have no row, since `Data.json` writes no number but an integer. -/
 def varCases : List Val :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
   let v (n : String) : Val := .var n
   [v "foo", v "bar", v "flag", v "obj", v "big", v "off", v "nul", v "PARENT",
     .meet (v "foo") .integer, .meet (v "foo") .number, .meet (v "big") .integer,
@@ -8331,9 +7794,6 @@ read by key and a list by the index the text spells, a variable as the
 first step, two variables in one path, and a `move` that hides the
 member a variable names. -/
 def varPathCases : List Val :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
-  let lst (xs : List Val) : Val := .list xs none false
   let keyed (k n : String) : Val := mp [("q", mp [(k, int 3)]), ("x", .path [.key "v", .key "q", .var n])]
   [keyed "11" "foo", keyed "hello" "bar", keyed "true" "flag", keyed "false" "off",
     keyed "1152921504606846976" "big", keyed "1.5" "half", keyed "5" "bigi", keyed "1.5" "bigd",
@@ -8381,8 +7841,6 @@ def varRows (tag : String) : IO Unit := do
 
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
-  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
-  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   [([("A", int 3)], .call .add [.alias "A", int 1], j 4),
     ([("A", int 3)], .call .add [.alias "A", int 1], j 5),
     ([("A", .integer)], .call .add [.alias "A", int 1], j 2),
@@ -8429,7 +7887,6 @@ def addrAt (up : ℕ) (steps : List String) : Val := .addr ⟨up, steps⟩
 `path` and `any`, in a disjunction and behind a preference, and in a
 map and a list, for the `gens` rows k0 on. -/
 def addrVals : List Val :=
-  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
   [addrAt 0 ["a"], addrAt 0 ["a", "b"], addrAt 1 ["a"], addrAt 2 ["a", "b"], addrAt 0 ["a", "0"],
     .meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"]), .meet (addrAt 0 ["a", "b"]) (addrAt 0 ["a"]),
     .meet (addrAt 1 ["a"]) (addrAt 1 ["a", "b"]), .meet (addrAt 0 ["a"]) (addrAt 0 ["a"]),
@@ -8454,7 +7911,6 @@ beside another path value and a relative one, for the `gens` rows ks0
 on. -/
 def spellVals : List Val :=
   let s (b : String) : Bound := .str b
-  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   [.meet (addrAt 0 ["a"]) (.len (n 3)), .meet (.len (n 3)) (addrAt 0 ["a"]),
     .meet (addrAt 0 ["a"]) (.min (s "$")), .meet (.min (s "$.a")) (addrAt 0 ["a"]),
     .meet (addrAt 0 ["a", "b"]) (.above (s "$.a")), .meet (addrAt 0 ["a"]) (.max (s "$.b")),
@@ -8476,7 +7932,6 @@ theorem spell_output_exact : ∀ v ∈ spellVals, ∀ (env : Env) (root j : Data
 address passes by its spelling, for the `verdict` rows ks0 on: the fill
 supplies the address the data leaves out. -/
 def spellVetCases : List (Val × Data) :=
-  let x (v : Val) : Val := .map [("x", false, v)] none false
   let n3 : Val := .lit (.num (.integer ⟨3, by decide⟩))
   [(x (.meet (addrAt 0 ["a"]) (.len n3)), .map []),
     (x (.meet (addrAt 0 ["a", "b"]) (.above (.str "$.a"))), .map []),
@@ -8494,7 +7949,6 @@ on: a path the data leaves out, which the fill supplies, and a string
 the data writes for it, which no path value admits, since no JSON text
 reads as an address; `path` alone; and meets no value satisfies. -/
 def addrVetCases : List (Val × Data) :=
-  let x (v : Val) : Val := .map [("x", false, v)] none false
   [(x (addrAt 0 ["a"]), .map []), (addrAt 0 ["a"], .str "$.a"), (x .pathKind, .map []),
     (.pathKind, .str "$.a"), (.map [("x", true, addrAt 0 ["a"])] none false, .map []),
     (x (.meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"])), .map []),
@@ -8579,8 +8033,6 @@ and a container, each refused; a string a call computes, converted once
 it's settled; a preference, which only waits; and a path value, handed
 back as it is, behind a rider too, where `path` alone waits. -/
 def pathCallCases : List (Val × Data) :=
-  let x (v : Val) : Val := .map [("x", false, v)] none false
-  let str (s : String) : Val := .lit (.str s)
   let p (s : String) : Val := .call .path [str s]
   let one : Val := .lit (.num (.integer (.of 1)))
   [(x (.meet (p "$.a") (addrAt 0 ["a"])), .map []), (x (.meet (p "$.a") (addrAt 1 ["a"])), .map []),
@@ -8624,8 +8076,6 @@ of a grammar and a string, the tree as data, met with the tree it must
 be; and `parse` of a grammar alone, the constraint of the strings it
 parses whole, against data. Each grammar is one of `oracleGrammars`. -/
 def grammarCases : List (Val × Data) :=
-  let x (v : Val) : Val := .map [("x", false, v)] none false
-  let str (s : String) : Val := .lit (.str s)
   let one : Val := .lit (.num (.integer (.of 1)))
   let gi := str "v = \"a\"\n"
   let gs := str "v = %s\"ab\""

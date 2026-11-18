@@ -136,7 +136,7 @@ output optional and `any`, through the containers, `|`, `*`, `&` and
 the riders. -/
 def Val.visible : Val → Val
   | .map fs spread closed => .map (visibleFields fs) (visibleSpread spread) closed
-  | .list items spread closed => .list (visibleItems items) (visibleElems spread) closed
+  | .list items spread closed => .list (visibleItems items) (visibleSpread spread) closed
   | .or arms => .or (visibleArms arms)
   | .pref r x => .pref r x.visible
   | .meet a b => .meet a.visible b.visible
@@ -155,10 +155,6 @@ def visibleSpread : Option Val → Option Val
 def visibleItems : List Val → List Val
   | [] => []
   | v :: vs => v.visible :: visibleItems vs
-
-def visibleElems : Option Val → Option Val
-  | none => none
-  | some s => some s.visible
 
 def visibleArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
@@ -195,41 +191,16 @@ theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : 
       · exact .inr ⟨o'', v, hm', hc⟩
 
 theorem visibleSpread_eq {spread : Option Val} {t : Val} :
-    visibleSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible := by
-  cases spread <;> simp [visibleSpread, eq_comm]
+    visibleSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_visibleItems {items : List Val} {w : Val} :
-    w ∈ visibleItems items ↔ ∃ v, v ∈ items ∧ w = v.visible := by
-  induction items with
-  | nil => simp [visibleItems]
-  | cons v vs ih =>
-    simp only [visibleItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨v', hm, rfl⟩)
-      · exact ⟨v, Or.inl rfl, rfl⟩
-      · exact ⟨v', Or.inr hm, rfl⟩
-    · rintro ⟨v', rfl | hm, rfl⟩
-      · exact Or.inl rfl
-      · exact Or.inr ⟨v', hm, rfl⟩
-
-theorem visibleElems_eq {spread : Option Val} {t : Val} :
-    visibleElems spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible := by
-  cases spread <;> simp [visibleElems, eq_comm]
+    w ∈ visibleItems items ↔ ∃ v, v ∈ items ∧ w = v.visible :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem mem_visibleArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ visibleArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.visible := by
-  induction arms with
-  | nil => simp [visibleArms]
-  | cons p arms ih =>
-    obtain ⟨r', a'⟩ := p
-    simp only [visibleArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ visibleArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.visible :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read has a visible part it can read. -/
 theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.CheckableA := by
@@ -249,7 +220,7 @@ theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.Checkabl
       obtain ⟨v, hv, rfl⟩ := mem_visibleItems.mp hm
       exact ihi v hv
     · intro t ht
-      obtain ⟨s, hs, rfl⟩ := visibleElems_eq.mp ht
+      obtain ⟨s, hs, rfl⟩ := visibleSpread_eq.mp ht
       exact ihs s hs
   | @or arms _ ih =>
     refine .or fun r b hm => ?_
@@ -278,7 +249,7 @@ theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable 
       obtain ⟨v, hv, rfl⟩ := mem_visibleItems.mp hm
       exact ihi v hv
     · intro t ht
-      obtain ⟨s, hs, rfl⟩ := visibleElems_eq.mp ht
+      obtain ⟨s, hs, rfl⟩ := visibleSpread_eq.mp ht
       exact ihs s hs
   | @or arms _ ih =>
     refine .or fun r b hm => ?_

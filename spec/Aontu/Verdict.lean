@@ -652,16 +652,6 @@ def Fn.takes : Fn → ℕ → Bool
   | .load, n | .bnd .neq, n => 1 ≤ n
   | .bnd _, n => n == 1
 
-/-- Whether a function computes its value from its arguments' values, so
-that a call over a hole the data fills is made once the data fills it:
-the arithmetic, the folds, the calls on bags and text but `join`, `path`,
-`abnf`, `parse` and the components, as both ports read them. -/
-def Fn.computes : Fn → Bool
-  | .add | .sub | .mul | .div | .mod | .rem | .neg | .sum | .least | .greatest
-  | .pick | .sort | .upper | .lower | .translate | .esc | .usc | .split | .rep | .nom
-  | .path | .abnf | .parse | .cmp _ => true
-  | _ => false
-
 /-- Whether a call's value holds its argument, so that the moves the
 argument holds ride the value already: `super`, `pref`, `move`, `copy`
 and `relate`. -/
@@ -1050,141 +1040,73 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
     | none => .call f args
 
 mutual
-/-- Whether a term holds a call, at any depth: a `+` or a `join` that
-waits, or a call no reading made. -/
-def Val.holdsCall : Val → Bool
-  | .call _ _ => true
-  | .ride _ v _ => v.holdsCall
-  | .link v _ => v.holdsCall
-  | .len c => c.holdsCall
-  | .map fs spread _ => callFields fs || callSpread spread
-  | .list items spread _ => callItems items || callSpread spread
-  | .or arms => callArms arms
-  | .pref _ x => x.holdsCall
-  | .meet a b => a.holdsCall || b.holdsCall
-  | .nof n cs => n.holdsCall || callItems cs
-  | .must c _ => c.holdsCall
-  | .when c t e => c.holdsCall || t.holdsCall || callSpread e
-  | .contains c n => c.holdsCall || n.holdsCall
-  | .rest t cs => t.holdsCall || callCovers cs
-  | .select s arms d => s.holdsCall || callPairs arms || callSpread d
-  | .filter s c => s.holdsCall || c.holdsCall
+/-- Whether a term holds a node `p` picks out, at any depth: `p` tried at
+the term, then through its members and spreads, arms, sides, riders, a
+link's value, the operands of a check or a trial, and a call's
+arguments. -/
+def Val.holds (p : Val → Bool) (v : Val) : Bool :=
+  p v || match v with
+  | .ride _ w _ | .link w _ | .len w | .pref _ w | .must w _ => w.holds p
+  | .map fs s _ => holdsFields p fs || holdsSpread p s
+  | .list items s _ => holdsItems p items || holdsSpread p s
+  | .or arms => holdsArms p arms
+  | .meet a b | .contains a b | .filter a b => a.holds p || b.holds p
+  | .nof n cs => n.holds p || holdsItems p cs
+  | .when c t e => c.holds p || t.holds p || holdsSpread p e
+  | .rest t cs => t.holds p || holdsCovers p cs
+  | .select s arms d => s.holds p || holdsPairs p arms || holdsSpread p d
+  | .call _ args => holdsItems p args
   | _ => false
+termination_by structural v
 
-def callFields : List (String × Bool × Val) → Bool
+def holdsFields (p : Val → Bool) : List (String × Bool × Val) → Bool
   | [] => false
-  | (_, _, v) :: fs => v.holdsCall || callFields fs
+  | (_, _, v) :: fs => v.holds p || holdsFields p fs
 
-def callItems : List Val → Bool
+def holdsItems (p : Val → Bool) : List Val → Bool
   | [] => false
-  | v :: vs => v.holdsCall || callItems vs
+  | v :: vs => v.holds p || holdsItems p vs
 
-def callSpread : Option Val → Bool
+def holdsSpread (p : Val → Bool) : Option Val → Bool
   | none => false
-  | some s => s.holdsCall
+  | some s => s.holds p
 
-def callArms : List (ℕ × Val) → Bool
+def holdsArms (p : Val → Bool) : List (ℕ × Val) → Bool
   | [] => false
-  | (_, a) :: arms => a.holdsCall || callArms arms
+  | (_, a) :: arms => a.holds p || holdsArms p arms
 
-def callPairs : List (Val × Val) → Bool
+def holdsPairs (p : Val → Bool) : List (Val × Val) → Bool
   | [] => false
-  | (p, r) :: ps => p.holdsCall || r.holdsCall || callPairs ps
+  | (q, r) :: ps => q.holds p || r.holds p || holdsPairs p ps
 
-def callCovers : List Cover → Bool
+def holdsCovers (p : Val → Bool) : List Cover → Bool
   | [] => false
-  | (c, k, m) :: cs => callSpread c || callSpread k || callSpread m || callCovers cs
+  | (c, k, m) :: cs => holdsSpread p c || holdsSpread p k || holdsSpread p m || holdsCovers p cs
 end
 
-mutual
+/-- Whether a selection's patterns or results hold a call, at any depth:
+a `+` or a `join` that waits, or a call no reading made. -/
+def callPairs : List (Val × Val) → Bool := holdsPairs fun | .call _ _ => true | _ => false
+
 /-- Whether a term holds a form no reading has made yet, at any depth:
 a call, a selection or a `filter`. -/
-def Val.unmade : Val → Bool
-  | .call _ _ | .select _ _ _ | .filter _ _ => true
-  | .ride _ v _ => v.unmade
-  | .link v _ => v.unmade
-  | .len c => c.unmade
-  | .map fs spread _ => unmadeFields fs || unmadeSpread spread
-  | .list items spread _ => unmadeItems items || unmadeSpread spread
-  | .or arms => unmadeArms arms
-  | .pref _ x => x.unmade
-  | .meet a b => a.unmade || b.unmade
-  | .nof n cs => n.unmade || unmadeItems cs
-  | .must c _ => c.unmade
-  | .when c t e => c.unmade || t.unmade || unmadeSpread e
-  | .contains c n => c.unmade || n.unmade
-  | .rest t cs => t.unmade || unmadeCovers cs
+def Val.unmade : Val → Bool :=
+  Val.holds fun | .call _ _ | .select _ _ _ | .filter _ _ => true | _ => false
+
+/-- Whether a term is a `key(n)`. -/
+def Val.isKeyUp : Val → Bool
+  | .keyUp _ => true
   | _ => false
 
-def unmadeFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.unmade || unmadeFields fs
-
-def unmadeItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.unmade || unmadeItems vs
-
-def unmadeSpread : Option Val → Bool
-  | none => false
-  | some s => s.unmade
-
-def unmadeArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.unmade || unmadeArms arms
-
-def unmadeCovers : List Cover → Bool
-  | [] => false
-  | (c, k, m) :: cs => unmadeSpread c || unmadeSpread k || unmadeSpread m || unmadeCovers cs
-end
-
-mutual
 /-- Whether a term holds a `key(n)` no reading has placed, at any depth,
 a call's arguments among them: a term whose value waits on the position
-it lands at. -/
-def Val.holdsKey : Val → Bool
-  | .keyUp _ => true
-  | .call _ args => keyItems args
-  | .ride _ v _ => v.holdsKey
-  | .link v _ => v.holdsKey
-  | .len c => c.holdsKey
-  | .map fs spread _ => keyFields fs || keySpread spread
-  | .list items spread _ => keyItems items || keySpread spread
-  | .or arms => keyArms arms
-  | .pref _ x => x.holdsKey
-  | .meet a b => a.holdsKey || b.holdsKey
-  | .nof n cs => n.holdsKey || keyItems cs
-  | .must c _ => c.holdsKey
-  | .when c t e => c.holdsKey || t.holdsKey || keySpread e
-  | .contains c n => c.holdsKey || n.holdsKey
-  | .rest t cs => t.holdsKey || keyCovers cs
-  | .select s arms d => s.holdsKey || keyPairs arms || keySpread d
-  | .filter s c => s.holdsKey || c.holdsKey
-  | _ => false
+it lands at. `keyItems` and `keyPairs` ask it of a list's elements and of
+a selection's patterns and results. -/
+def Val.holdsKey : Val → Bool := Val.holds Val.isKeyUp
 
-def keyFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.holdsKey || keyFields fs
+def keyItems : List Val → Bool := holdsItems Val.isKeyUp
 
-def keyItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.holdsKey || keyItems vs
-
-def keySpread : Option Val → Bool
-  | none => false
-  | some s => s.holdsKey
-
-def keyArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.holdsKey || keyArms arms
-
-def keyPairs : List (Val × Val) → Bool
-  | [] => false
-  | (p, r) :: ps => p.holdsKey || r.holdsKey || keyPairs ps
-
-def keyCovers : List Cover → Bool
-  | [] => false
-  | (c, k, m) :: cs => keySpread c || keySpread k || keySpread m || keyCovers cs
-end
+def keyPairs : List (Val × Val) → Bool := holdsPairs Val.isKeyUp
 
 mutual
 /-- Whether a term waits for the place a use gives it: whether it holds
@@ -1504,17 +1426,18 @@ map or list. -/
 def memberField (ds : Decls) (f : String × Bool × Val) : Bool :=
   !(f.2.2.marked || f.2.2.isAbsent || (f.2.1 && (genD ds f.2.2).all Data.emptyBag))
 
-/-- A term's conjuncts: a meet's sides, at any depth, and any other
-term itself. -/
-def Val.conj : Val → List Val
-  | .meet a b => a.conj ++ b.conj
+/-- The terms a meet is written of, in order and at any depth; any other
+term is its own. -/
+def Val.conjuncts : Val → List Val
+  | .meet a b => a.conjuncts ++ b.conjuncts
   | v => [v]
 
 /-- Whether two terms meet the same conjuncts, each conjunct of either
 written alike one of the other's (`Val.beq`), so that a meet that
 repeats a conjunct, `min(1) & min(1)`, is alike the conjunct. -/
 def conjAlike (a b : Val) : Bool :=
-  a.conj.all (fun x => b.conj.any x.beq) && b.conj.all (fun y => a.conj.any y.beq)
+  a.conjuncts.all (fun x => b.conjuncts.any x.beq) &&
+    b.conjuncts.all (fun y => a.conjuncts.any y.beq)
 
 mutual
 /-- Whether a node and its meet with a `match` are alike, as both ports
@@ -1712,15 +1635,10 @@ def emitPlan (ds : Decls) (m tW tB tM : Val) : Option (ℕ ⊕ List Val) :=
     | none => none
   | none => none
 
-/-- The members `keep` keeps, in order, each tried at the index it takes
-among those kept before it, as a list's `filter` places its trial. -/
-def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
-  | _, [] => []
-  | i, x :: xs => if keep i x then x :: keptAt keep (i + 1) xs else keptAt keep i xs
-
-/-- The elements of a list `keep` takes as the terms they are, in order,
-each tried at the index it takes among those kept before it. -/
-def keptTerms (keep : ℕ → Val → Bool) : ℕ → List Val → List Val
+/-- The elements `keep` keeps, data or terms, in order, each tried at the
+index it takes among those kept before it, as a list's `filter` places
+its trial. -/
+def keptTerms {α} (keep : ℕ → α → Bool) : ℕ → List α → List α
   | _, [] => []
   | i, v :: vs => if keep i v then v :: keptTerms keep (i + 1) vs else keptTerms keep i vs
 
@@ -1767,8 +1685,8 @@ def keptElems (nf : Val) (keep : ℕ → Data → Bool) (xs : List Data) : Val :
   match nf with
   | .list items _ _ =>
     if items.length = xs.length then .list (keptPairs keep 0 (items.zip xs)) none false
-    else (Data.list (keptAt keep 0 xs)).term
-  | _ => (Data.list (keptAt keep 0 xs)).term
+    else (Data.list (keptTerms keep 0 xs)).term
+  | _ => (Data.list (keptTerms keep 0 xs)).term
 
 /-- Whether an argument both ports read as they build a trial is a
 conflict: dead in normal form, though not a written `nil`, which both
@@ -2206,14 +2124,8 @@ def filledCovers : List Cover → List Cover
 end
 
 
-theorem mem_filledItems : ∀ {vs : List Val} {w : Val}, w ∈ filledItems vs → ∃ v, v ∈ vs ∧ w = v.filled
-  | [], _, h => nomatch h
-  | v :: vs, w, h => by
-    simp only [filledItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_filledItems h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+theorem mem_filledItems : ∀ {vs : List Val} {w : Val}, w ∈ filledItems vs → ∃ v, v ∈ vs ∧ w = v.filled :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem mem_filledHead : ∀ {vs : List Val} {w : Val}, w ∈ filledHead vs → w ∈ vs ∨ ∃ v, v ∈ vs ∧ w = v.filled
   | [], _, h => nomatch h
@@ -2224,14 +2136,8 @@ theorem mem_filledHead : ∀ {vs : List Val} {w : Val}, w ∈ filledHead vs → 
     · exact .inl (List.mem_cons_of_mem _ h)
 
 theorem mem_filledFields : ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-    (k, o, w) ∈ filledFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.filled
-  | [], _, _, _, h => nomatch h
-  | (k', o', v') :: fs, k, o, w, h => by
-    simp only [filledFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_filledFields h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+    (k, o, w) ∈ filledFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.filled :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
 theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = some t → ∃ s, sp = some s ∧ t = s.filled
   | none, _, h => nomatch h
@@ -2245,24 +2151,12 @@ theorem tmplSpread_some : ∀ {sp : Option Val} {t : Val}, tmplSpread sp = some 
     exact ⟨s, rfl, h.symm⟩
 
 theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
-    (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled
-  | [], _, _, h => nomatch h
-  | (r', a') :: arms, r, b, h => by
-    simp only [filledArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a', List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_filledArms h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+    (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 theorem mem_filledPairs : ∀ {arms : List (Val × Val)} {p r : Val},
-    (p, r) ∈ filledPairs arms → ∃ p₀ r₀, (p₀, r₀) ∈ arms ∧ p = p₀.filled ∧ r = r₀.filled
-  | [], _, _, h => nomatch h
-  | (p', r') :: arms, p, r, h => by
-    simp only [filledPairs, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
-    · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_filledPairs h
-      exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+    (p, r) ∈ filledPairs arms → ∃ p₀ r₀, (p₀, r₀) ∈ arms ∧ p = p₀.filled ∧ r = r₀.filled :=
+  Iff.mp (mem_mapPairs rfl fun _ _ _ => rfl)
 
 theorem mem_filledCovers : ∀ {cs : List Cover} {c : Cover}, c ∈ filledCovers cs →
     ∃ c₀, c₀ ∈ cs ∧ c = (filledSpread c₀.1, filledSpread c₀.2.1, filledSpread c₀.2.2)
@@ -2514,14 +2408,8 @@ theorem mem_resolveElems {ds : Decls} {b : Option Val} {here : Option (List Step
       exact ⟨v, List.mem_cons_of_mem _ hv, i', rfl⟩
 
 theorem mem_resolveItems {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {vs : List Val} {w : Val},
-    w ∈ resolveItems ds b here vs → ∃ v, v ∈ vs ∧ w = resolveD ds b here v
-  | [], _, h => nomatch h
-  | v' :: vs, w, h => by
-    simp only [resolveItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := mem_resolveItems h
-      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+    w ∈ resolveItems ds b here vs → ∃ v, v ∈ vs ∧ w = resolveD ds b here v :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem resolveSpread_some {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {sp : Option Val} {w : Val},
     resolveSpread ds b here sp = some w → ∃ s, sp = some s ∧ w = resolveD ds b here s
@@ -2530,25 +2418,13 @@ theorem resolveSpread_some {ds : Decls} {b : Option Val} {here : Option (List St
 
 theorem mem_resolveArms {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
-    (r, w) ∈ resolveArms ds b here arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds b here a
-  | [], _, _, h => nomatch h
-  | (r', a') :: arms, r, w, h => by
-    simp only [resolveArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a', List.mem_cons_self, rfl⟩
-    · obtain ⟨a, ha, rfl⟩ := mem_resolveArms h
-      exact ⟨a, List.mem_cons_of_mem _ ha, rfl⟩
+    (r, w) ∈ resolveArms ds b here arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds b here a :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 theorem mem_resolvePairs {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {ps : List (Val × Val)} {p r : Val},
-    (p, r) ∈ resolvePairs ds b here ps → ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = resolveD ds b here p₀ ∧ r = resolveD ds b here r₀
-  | [], _, _, h => nomatch h
-  | (p', r') :: ps, p, r, h => by
-    simp only [resolvePairs, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
-    · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_resolvePairs h
-      exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+    (p, r) ∈ resolvePairs ds b here ps → ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = resolveD ds b here p₀ ∧ r = resolveD ds b here r₀ :=
+  Iff.mp (mem_mapPairs rfl fun _ _ _ => rfl)
 
 theorem mem_resolveCovers {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {cs : List Cover} {c : Cover},
     c ∈ resolveCovers ds b here cs → ∃ c₀, c₀ ∈ cs ∧ c.1 = resolveSpread ds b here c₀.1 ∧
@@ -3418,23 +3294,11 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
 /-- A call's term is one the checker can read where its arguments are. -/
 theorem mem_preferFields :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-      (k, o, w) ∈ preferFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.prefer
-  | [], _, _, _, h => nomatch h
-  | (k', o', v') :: fs, k, o, w, h => by
-    simp only [preferFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := mem_preferFields h
-      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+      (k, o, w) ∈ preferFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.prefer :=
+  Iff.mp (mem_mapFields rfl fun _ _ _ _ => rfl)
 
-theorem mem_preferItems : ∀ {vs : List Val} {w : Val}, w ∈ preferItems vs → ∃ v, v ∈ vs ∧ w = v.prefer
-  | [], _, h => nomatch h
-  | v :: vs, w, h => by
-    simp only [preferItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_preferItems h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+theorem mem_preferItems : ∀ {vs : List Val} {w : Val}, w ∈ preferItems vs → ∃ v, v ∈ vs ∧ w = v.prefer :=
+  Iff.mp (mem_mapItems rfl fun _ _ => rfl)
 
 theorem mem_preferArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
     (r, x) ∈ preferArms arms → ∃ r' a, (r', a) ∈ arms ∧ (x = a ∨ x = a.prefer)
@@ -3567,14 +3431,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
 
 theorem mem_fillTopArms {ds : Decls} {w : Val} :
     ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
-      (r, x) ∈ fillTopArms ds w arms → ∃ a, (r, a) ∈ arms ∧ x = fillTop ds w a
-  | [], _, _, h => nomatch h
-  | (r', a) :: arms, r, x, h => by
-    simp only [fillTopArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨a, List.mem_cons_self, rfl⟩
-    · obtain ⟨b, hb, rfl⟩ := mem_fillTopArms h
-      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+      (r, x) ∈ fillTopArms ds w arms → ∃ a, (r, a) ∈ arms ∧ x = fillTop ds w a :=
+  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
 
 /-- The top of `maybe`'s argument with its missing references read as a
 term the checker can read is a term it can read. -/
@@ -4182,11 +4040,6 @@ def clash (arms : List (ℕ × Val)) : Bool :=
     | [] => false
     | x :: rest => rest.any fun y => decide (y ≠ x)
 
-/-- The terms a meet is written of, in order. -/
-def Val.conjuncts : Val → List Val
-  | .meet a b => a.conjuncts ++ b.conjuncts
-  | v => [v]
-
 /-- The members a container literal generates: each position of a list,
 each required key of a map, and each optional key whose value generates
 something but an empty map or list, as the reference's `len` counts what
@@ -4531,52 +4384,8 @@ theorem staged_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (v.staged 
   | link _ ht ih _ => simp only [Val.staged]; exact .link ih ht
   | _ => simp only [Val.staged]; constructor <;> assumption
 
-mutual
 /-- Whether a term holds an `ident()`, at any depth. -/
-def Val.idents : Val → Bool
-  | .ride .ident _ _ => true
-  | .ride _ v _ => v.idents
-  | .link v _ => v.idents
-  | .len c => c.idents
-  | .map fs spread _ => identsFields fs || identsSpread spread
-  | .list items spread _ => identsItems items || identsSpread spread
-  | .or arms => identsArms arms
-  | .pref _ x => x.idents
-  | .meet a b => a.idents || b.idents
-  | .nof n cs => n.idents || identsItems cs
-  | .must c _ => c.idents
-  | .when c t e => c.idents || t.idents || identsSpread e
-  | .contains c n => c.idents || n.idents
-  | .rest t cs => t.idents || identsCovers cs
-  | .select s arms d => s.idents || identsPairs arms || identsSpread d
-  | .filter s c => s.idents || c.idents
-  | .call _ args => identsItems args
-  | _ => false
-
-def identsPairs : List (Val × Val) → Bool
-  | [] => false
-  | (p, r) :: ps => p.idents || r.idents || identsPairs ps
-
-def identsCovers : List Cover → Bool
-  | [] => false
-  | (c, k, m) :: cs => identsSpread c || identsSpread k || identsSpread m || identsCovers cs
-
-def identsFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.idents || identsFields fs
-
-def identsItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.idents || identsItems vs
-
-def identsSpread : Option Val → Bool
-  | none => false
-  | some s => s.idents
-
-def identsArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.idents || identsArms arms
-end
+def Val.idents : Val → Bool := Val.holds fun | .ride .ident _ _ => true | _ => false
 
 /-- Whether an `ident()` stands where none may: anywhere in the
 document's term, or in a declaration's body but at its top or on a term
@@ -4745,52 +4554,20 @@ def untriedArms : List (ℕ × Val) → List (ℕ × Val)
 end
 
 theorem mem_untriedFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
-    (k, o, w) ∈ untriedFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.untried := by
-  induction fs with
-  | nil => simp [untriedFields]
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [untriedFields, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
-      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
-      · exact ⟨v, Or.inr hm, rfl⟩
-    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl, rfl⟩
-      · exact Or.inr ⟨v, hm, rfl⟩
+    (k, o, w) ∈ untriedFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.untried :=
+  mem_mapFields rfl fun _ _ _ _ => rfl
 
 theorem mem_untriedItems {items : List Val} {w : Val} :
-    w ∈ untriedItems items ↔ ∃ v, v ∈ items ∧ w = v.untried := by
-  induction items with
-  | nil => simp [untriedItems]
-  | cons v vs ih =>
-    simp only [untriedItems, List.mem_cons, ih]
-    constructor
-    · rintro (rfl | ⟨v', hm, rfl⟩)
-      · exact ⟨v, Or.inl rfl, rfl⟩
-      · exact ⟨v', Or.inr hm, rfl⟩
-    · rintro ⟨v', rfl | hm, rfl⟩
-      · exact Or.inl rfl
-      · exact Or.inr ⟨v', hm, rfl⟩
+    w ∈ untriedItems items ↔ ∃ v, v ∈ items ∧ w = v.untried :=
+  mem_mapItems rfl fun _ _ => rfl
 
 theorem untriedSpread_eq {spread : Option Val} {t : Val} :
-    untriedSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.untried := by
-  cases spread <;> simp [untriedSpread, eq_comm]
+    untriedSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.untried :=
+  mapSpread_eq rfl fun _ => rfl
 
 theorem mem_untriedArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
-    (r, b) ∈ untriedArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.untried := by
-  induction arms with
-  | nil => simp [untriedArms]
-  | cons p arms ih =>
-    obtain ⟨r', a'⟩ := p
-    simp only [untriedArms, List.mem_cons, Prod.mk.injEq, ih]
-    constructor
-    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
-      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
-      · exact ⟨a, Or.inr hm, rfl⟩
-    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
-      · exact Or.inl ⟨rfl, rfl⟩
-      · exact Or.inr ⟨a, hm, rfl⟩
+    (r, b) ∈ untriedArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.untried :=
+  mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read stays one with its trials unread. -/
 theorem onLeaves_checkableA {v : Val} (h : v.CheckableA) : v.onLeaves.CheckableA := by
@@ -5032,12 +4809,6 @@ theorem expandF_termElems {ds : Decls} (k : ℕ) : ∀ xs : List Data,
   | x :: xs => by
     simp only [termElems, List.map_cons, expandF_term k x, expandF_termElems k xs]
 end
-
-theorem Val.unride_checkableA {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
-  induction h with
-  | ride _ ih => exact ih
-  | link _ _ ih _ => exact ih
-  | _ => simp only [Val.unride]; constructor <;> assumption
 
 theorem keptPairs_mem : ∀ {keep : ℕ → Data → Bool} {i : ℕ} {ps : List (Val × Data)} {v : Val},
     v ∈ keptPairs keep i ps → ∃ x, (v, x) ∈ ps

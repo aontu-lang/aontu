@@ -975,13 +975,6 @@ refutation comes from an instance that tells the two apart,
 returns is the proof, and it is no part of the contract: an engine may
 decide more. -/
 
-/-- The kind that admits exactly a leaf, as a kind. -/
-def Leaf.toKind : Leaf → Kind
-  | .integer => .integer
-  | .float => .float
-  | .biginteger => .biginteger
-  | .bigdecimal => .bigdecimal
-
 /-- Every arm of a disjunction below `b`, found arm by arm. -/
 def armsAllDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (b : Val) :
     (arms : List (ℕ × Val)) → Option (PLift (∀ r a, (r, a) ∈ arms → a ⊑[env] b))

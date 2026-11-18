@@ -8,6 +8,63 @@ each change affects.
 
 ## Unreleased
 
+### The definition says each thing once
+
+The definition and its oracle only. No row, engine or reading changes:
+every row the oracle prints is byte for byte what it printed before.
+
+- **Restated definitions and theorems are gone.** `Val.conj` was
+  `Val.conjuncts`, `keptAt` was `keptTerms` over data, `visibleElems`
+  was `visibleSpread`, and `Val.choosesArm` was `Val.isNode`; each pair
+  is now one. So are the theorems proved twice: `Val.unride_checkableA`,
+  `foldl_meet_unguardedRefs`, and the `lookup_mem` that Meet and Check
+  each proved. `landing`, which `Decls.landingD` superseded, is
+  removed, with `Fn.computes`, `Leaf.toKind`, `checkSpread` and
+  thirteen lemmas nothing used, and `Decls.isEmpty_false_iff` gives way
+  to core's `List.isEmpty_eq_false_iff`.
+- **`dead_sound` is derived** from `dead_refuses` and `judge_unique`, a
+  term refused everywhere admitting nothing, where it was a second
+  induction over the same cases.
+- **`Val.checkableB` is `Val.checkableAB` and no name read**,
+  `v.checkableAB && v.refs.isEmpty`, where it was a second traversal
+  of every term written out beside the first; `Val.Checkable.toA` is
+  one line.
+- **One traversal, `Val.holds`, asks whether a term holds a node of a
+  kind.** `Val.unmade`, `Val.holdsKey`, `Val.idents` and `callPairs`
+  each name the node they look for, where each was a traversal of its
+  own.
+- **The schema's own reading needs nothing of the checker.** It decides
+  only the `error` class, which `vet` computes on any document
+  (`vet_error_iff`), so `vetA_iff` asks only of the reading with the
+  data, and `vetA_iff_of`, `vetA_iff_reads`, `vetP_iff_reads`,
+  `Decls.readsAB` and `Decls.readsPB` are gone. The oracle's cases ask
+  `Decls.readsPD`.
+- **A helper that rewrites each value is read once.** Fifty-one
+  membership lemmas, `mem_untriedFields` and its kin, were each an
+  induction of their own over a helper that is `List.map` in effect;
+  each is now one line from the helper's two equations, through
+  `mem_mapFields`, `mem_mapItems`, `mem_mapArms`, `mem_mapPairs` and
+  `mapSpread_eq` in `spec/Aontu/Syntax.lean`.
+- **The oracle's cases share their helpers.** The 36 helpers its case
+  lists each wrote for themselves, `int`, `str`, `m` and their kin, are
+  written once in `Case`, and 604 copies are gone. One `verdictLines`
+  prints a case's rows in the three modes, where four printers each
+  wrote them out.
+- **`judge_unique` reads each kind and bound once.** Its twenty kind
+  rules and sixteen bound rules each had an alternative of their own,
+  the same three lines over a different name; they share six now, and
+  the proof is a hundred lines shorter.
+- **One tactic, `judge_rebuild`, rebuilds a judgement rule by rule.**
+  `judge_root` and `judge_of_follows` each wrote out the same 114
+  alternatives.
+- **Two case lists are certified.** `armCallCases` and `optCallCases`
+  printed 51 `verdict` rows, x2271 on, with no theorem tying them to
+  `Vet`; `arm_call_verdict_exact` now does, as their neighbours'
+  theorems do.
+- **`map_le` depends on no axiom**; it depended on `propext`. The
+  lookup lemma it rests on is now the one proved without it, and
+  `spec/Aontu/Axioms.lean` pins the smaller set.
+
 ### `gen(spec)` says how a value is written
 
 Both engines, a bundled model and shared rows. An addition to the
