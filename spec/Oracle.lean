@@ -7730,6 +7730,19 @@ def optCallCases : List (Val × Data) :=
     (sized (.filter (lst [mp [("c", int 3)]]) c3), .list []),
     (sized (.filter (lst [mp [("c", int 4)]]) c3) (int 0), .list [])]
 
+set_option maxRecDepth 16384 in
+theorem armCallCases_readable : ∀ c ∈ armCallCases, (Decls.readR [] (vetDoc c).1).CheckableA := by decide
+
+set_option maxRecDepth 16384 in
+theorem optCallCases_readable : ∀ c ∈ optCallCases, (Decls.readR [] (vetDoc c).1).CheckableA := by decide
+
+theorem arm_call_verdict_exact : ∀ c ∈ armCallCases ++ optCallCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v := by
+  intro c hc _ v
+  rcases List.mem_append.mp hc with h | h
+  · exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) (armCallCases_readable c h) v
+  · exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) (optCallCases_readable c h) v
+
 /-! ## Variables
 
 A variable is a name the calling program declares. Both runners bind the

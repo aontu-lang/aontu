@@ -57,6 +57,10 @@ every row the oracle prints is byte for byte what it printed before.
 - **One tactic, `judge_rebuild`, rebuilds a judgement rule by rule.**
   `judge_root` and `judge_of_follows` each wrote out the same 114
   alternatives.
+- **Two case lists are certified.** `armCallCases` and `optCallCases`
+  printed 51 `verdict` rows, x2271 on, with no theorem tying them to
+  `Vet`; `arm_call_verdict_exact` now does, as their neighbours'
+  theorems do.
 - **`map_le` depends on no axiom**; it depended on `propext`. The
   lookup lemma it rests on is now the one proved without it, and
   `spec/Aontu/Axioms.lean` pins the smaller set.
