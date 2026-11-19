@@ -414,7 +414,7 @@ func packageSelf(dir string, opts *PkgOptions) PackageSelf {
 // allowlist, refused by default. The data half is ADR-012's table.
 var archiveAdmittedExt = map[string]bool{
 	"aontu": true,
-	"json": true, "jsonld": true, "jsonc": true, "json5": true, "jsonic": true,
+	"json":  true, "jsonld": true, "jsonc": true, "json5": true, "jsonic": true,
 	"jsc": true, "toml": true, "yaml": true, "yml": true, "ini": true,
 	"md": true, "txt": true,
 }

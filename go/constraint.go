@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"math"
 	"slices"
@@ -67,7 +66,6 @@ type constraintRe struct {
 	norm string
 	prog []rxInst // compiled by aontu's own matcher (ADR-060)
 }
-
 
 const reRepeatMax = 1000
 
@@ -473,8 +471,8 @@ type ConstraintVal struct {
 	kind   Kind   // KindTop when unnarrowed; a numeric leaf otherwise
 	lo, hi *constraintBound
 	neqs   []*ScalarVal
-	mults  []*ScalarVal   // divisors, each a positive number (mulof())
-	res    []constraintRe // accumulated patterns, sorted by source
+	mults  []*ScalarVal       // divisors, each a positive number (mulof())
+	res    []constraintRe     // accumulated patterns, sorted by source
 	fmts   []constraintFormat // formats, sorted by source, each once
 	// count is the len() residual: itself a residual over the integer
 	// domain, because the count atom reuses this same algebra

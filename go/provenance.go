@@ -1,6 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-
 package aontu
 
 import (
@@ -20,16 +19,16 @@ const (
 type WhySite struct {
 	Col  int    `json:"col"`
 	File string `json:"file"`
-	Len int `json:"len"`
-	Row int `json:"row"`
+	Len  int    `json:"len"`
+	Row  int    `json:"row"`
 }
 
 type WhyConjunct struct {
-	Canon string `json:"canon"`
-	Rank *int    `json:"rank,omitempty"`
-	Role string  `json:"role"`
-	Site WhySite `json:"site"`
-	Src string `json:"src"`
+	Canon string  `json:"canon"`
+	Rank  *int    `json:"rank,omitempty"`
+	Role  string  `json:"role"`
+	Site  WhySite `json:"site"`
+	Src   string  `json:"src"`
 }
 
 type WhyRecord struct {
@@ -56,7 +55,7 @@ type whyPathRecord struct {
 type Provenance struct {
 	paths map[string]*whyPathRecord
 	// The entry source, for turning a byte offset into row and column.
-	src string
+	src   string
 	texts map[string]string
 }
 

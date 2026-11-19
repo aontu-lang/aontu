@@ -113,7 +113,7 @@ func trustPkgProject(t *testing.T, include string) string {
 			"dep: {\"corp.example/schemas/service\": {v: \"1.0.0\"}}\n",
 		filepath.Join(store, "pkg.aontu"): "pkg: {path: " +
 			"\"corp.example/schemas/service\", main: \"service.aontu\"}\n",
-		filepath.Join(store, "doc.md"):      "# hi\n",
+		filepath.Join(store, "doc.md"):        "# hi\n",
 		filepath.Join(store, "service.aontu"): include + "\nname: string\n",
 	}
 	for at, src := range files {

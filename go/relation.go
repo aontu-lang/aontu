@@ -8,11 +8,10 @@ import (
 	"strings"
 )
 
-
 type RelationFinding struct {
 	// At is where the offending edge is written, as a `$.dotted.path`.
-	At   string `json:"at"`
-	Code string `json:"code"`
+	At     string   `json:"at"`
+	Code   string   `json:"code"`
 	Detail []string `json:"detail"`
 	// Relation the finding is about.
 	Relation string `json:"relation"`
@@ -20,7 +19,7 @@ type RelationFinding struct {
 
 // RelationReport is the relation checks for one document.
 type RelationReport struct {
-	Declared *int `json:"declared,omitempty"`
+	Declared *int              `json:"declared,omitempty"`
 	Errors   []VetFinding      `json:"errors,omitempty"`
 	Findings []RelationFinding `json:"findings"`
 	Verdict  string            `json:"verdict"`

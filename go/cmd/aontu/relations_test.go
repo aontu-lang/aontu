@@ -2,7 +2,6 @@
 
 package main
 
-
 import (
 	"bytes"
 	"encoding/json"
@@ -35,7 +34,6 @@ b: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.a)]}
 const relClean = `a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}
 b: {usedBy: relate() & [path($.a)]}
 `
-
 
 func TestRelationsVerb(t *testing.T) {
 	// A cycle AND a missing inverse: both are reported, and the exit

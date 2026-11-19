@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-
 func TestDecimalNormalForm(t *testing.T) {
 	cases := []struct {
 		coeff int64
@@ -21,9 +20,9 @@ func TestDecimalNormalForm(t *testing.T) {
 		{100, 3, "0.1"},   // repeatedly
 		{1, -3, "1000.0"}, // negative scale folded into the coefficient
 		{15, -1, "150.0"},
-		{10, 1, "1.0"},    // never below one decimal place
+		{10, 1, "1.0"}, // never below one decimal place
 		{1000, 0, "1000.0"},
-		{0, 5, "0.0"},  // zero normalises to scale 1
+		{0, 5, "0.0"}, // zero normalises to scale 1
 		{0, -5, "0.0"},
 		{-15, 1, "-1.5"},
 		{1, 4, "0.0001"}, // padded past the point
@@ -144,7 +143,7 @@ func TestExactnessBudgetBoundary(t *testing.T) {
 	ok := []string{
 		"x:0d" + d4095 + ".9",
 		"x:0d1e-" + itoa(decimalMaxScale),
-		"x:0d1e" + itoa(decimalMaxScale),  // and at the negative bound
+		"x:0d1e" + itoa(decimalMaxScale), // and at the negative bound
 	}
 	for _, src := range ok {
 		if _, err := New().Unify(src); err != nil {
@@ -306,15 +305,14 @@ func TestCanonRoundTrips(t *testing.T) {
 	}
 }
 
-
 // TestDecimalAddIsExact pins the addition itself: align the scales, add
 // the coefficients, renormalise. No rounding, at any scale difference.
 func TestDecimalAddIsExact(t *testing.T) {
 	cases := []struct{ a, b, want string }{
-		{"0.1", "0.2", "0.3"},   // the headline: not 0.30000000000000004
-		{"1.5", "1.5", "3.0"},   // integral results keep one decimal place
+		{"0.1", "0.2", "0.3"}, // the headline: not 0.30000000000000004
+		{"1.5", "1.5", "3.0"}, // integral results keep one decimal place
 		{"0.25", "0.75", "1.0"},
-		{"1.0", "-1.0", "0.0"},  // and zero is the one normal zero
+		{"1.0", "-1.0", "0.0"}, // and zero is the one normal zero
 		{"1e-10", "1", "1.0000000001"},
 		{"1234567890123456789012345678901234.5", "0.5", "1234567890123456789012345678901235.0"},
 	}
@@ -365,7 +363,7 @@ func TestIntegerSumStorageContract(t *testing.T) {
 		{1 << 52, 1 << 52, 1 << 53},
 		{(1 << 53) - 1, 1, 1 << 53},
 		{-(1 << 53), 0, -(1 << 53)},
-		{math.MinInt64, 0, math.MinInt64},  // -2^63 is exactly representable
+		{math.MinInt64, 0, math.MinInt64}, // -2^63 is exactly representable
 		{math.MinInt64 / 2, 0, -(1 << 62)},
 	}
 	for _, c := range ok {
@@ -381,11 +379,11 @@ func TestIntegerSumStorageContract(t *testing.T) {
 	}
 
 	bad := [][2]int64{
-		{1 << 52, (1 << 52) + 1},             // 2^53+1: exact, but not in binary64
-		{math.MaxInt64, 1},                   // wraps: the checked add catches it
+		{1 << 52, (1 << 52) + 1}, // 2^53+1: exact, but not in binary64
+		{math.MaxInt64, 1},       // wraps: the checked add catches it
 		{math.MaxInt64, math.MaxInt64},
-		{math.MinInt64, -1},                  // and in the other direction
-		{math.MinInt64, math.MinInt64},       // a wrap that lands exactly on 0
+		{math.MinInt64, -1},            // and in the other direction
+		{math.MinInt64, math.MinInt64}, // a wrap that lands exactly on 0
 		{1 << 62, 1 << 62},
 		{math.MaxInt64 - 1, 0},               // in range, but binary64 rounds it up
 		{4503599627370496, 4503599627370497}, // the spec row, at the boundary

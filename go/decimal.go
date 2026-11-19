@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-
 type Decimal struct {
 	coeff *big.Int
 	scale int32

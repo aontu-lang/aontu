@@ -1,6 +1,5 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-
 package aontu
 
 import (

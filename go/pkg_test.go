@@ -1190,8 +1190,8 @@ func TestAKeyWithAKnownExtensionNamesAFile(t *testing.T) {
 func TestEntryPathsRefuseReservedNamesAndDeepNesting(t *testing.T) {
 	for p, want := range map[string]string{
 		"con.aontu":                          "an entry path element is a name a platform reserves",
-		"a/NUL.json":                       "an entry path element is a name a platform reserves",
-		"a/lpt1":                           "an entry path element is a name a platform reserves",
+		"a/NUL.json":                         "an entry path element is a name a platform reserves",
+		"a/lpt1":                             "an entry path element is a name a platform reserves",
 		"a/con2.aontu":                       "",
 		strings.Repeat("a/", 32) + "x.aontu": "an entry path has more than 32 elements",
 		strings.Repeat("a/", 31) + "x.aontu": "",

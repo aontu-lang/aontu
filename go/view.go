@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"math"
 	"path/filepath"
@@ -154,16 +153,16 @@ var viewKinds = []string{"doc", "lattice", "tree", "matrix", "graph", "layer", "
 	"state", "sequence", "lane", "treemap"}
 
 var viewProfiles = map[string][]string{
-	"doc":     {"text", "svg"},
-	"lattice": {"text", "svg"},
-	"tree":    {"text", "svg"},
-	"matrix":  {"text", "svg"},
-	"graph":   {"mermaid", "dot", "er", "svg"},
-	"layer":   {"text", "mermaid", "svg"},
-	"sets":    {"text", "svg"},
-	"layers":  {"text", "svg"},
-	"ladder":  {"mermaid", "dot", "svg"},
-	"poset":   {"mermaid", "dot", "svg"},
+	"doc":      {"text", "svg"},
+	"lattice":  {"text", "svg"},
+	"tree":     {"text", "svg"},
+	"matrix":   {"text", "svg"},
+	"graph":    {"mermaid", "dot", "er", "svg"},
+	"layer":    {"text", "mermaid", "svg"},
+	"sets":     {"text", "svg"},
+	"layers":   {"text", "svg"},
+	"ladder":   {"mermaid", "dot", "svg"},
+	"poset":    {"mermaid", "dot", "svg"},
 	"state":    {"mermaid", "text", "svg"},
 	"sequence": {"mermaid", "text", "svg"},
 	"lane":     {"mermaid", "text", "svg"},

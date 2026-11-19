@@ -1,6 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-
 package aontu
 
 import (
@@ -44,7 +43,7 @@ type PatchReport struct {
 	// Overlay is the overlay text as it would stand after the
 	// assignments. The caller writes it — an engine that touched the
 	// filesystem could not be used by a server.
-	Overlay string `json:"overlay"`
+	Overlay  string             `json:"overlay"`
 	Replaced []PatchReplacement `json:"replaced"`
 	Verdict  string             `json:"verdict"`
 }

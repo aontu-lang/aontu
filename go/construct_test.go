@@ -91,7 +91,7 @@ func TestNewIntegerRefusesLossyInt64(t *testing.T) {
 		9007199254740992,
 		-9007199254740992,
 		1152921504606846976,
-		9223372036854774784,  // 2^63-1024, the last exact int64
+		9223372036854774784, // 2^63-1024, the last exact int64
 		-9223372036854775808,
 		1000000000000000000,
 	}
@@ -103,9 +103,9 @@ func TestNewIntegerRefusesLossyInt64(t *testing.T) {
 
 	// Values that would have to CHANGE to be stored.
 	lossy := []int64{
-		9007199254740993,     // 2^53+1, the first
-		-9007199254740993,    // and its mirror
-		9223372036854775807,  // 2^63-1 (math.MaxInt64), rounds UP to 2^63
+		9007199254740993,    // 2^53+1, the first
+		-9007199254740993,   // and its mirror
+		9223372036854775807, // 2^63-1 (math.MaxInt64), rounds UP to 2^63
 		1152921504606846977,
 		-9223372036854775807,
 	}

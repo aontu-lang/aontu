@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"os"
 	"path/filepath"
@@ -46,7 +45,6 @@ func TestViewTreeOfNoEdgesIsAnEmptyFigure(t *testing.T) {
 		t.Fatalf("report: %+v", r)
 	}
 }
-
 
 func viewTempDoc(t *testing.T, dir, name, src string) string {
 	t.Helper()

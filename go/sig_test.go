@@ -1,6 +1,4 @@
-
 package aontu
-
 
 import (
 	"os"

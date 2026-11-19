@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"math"
 	"math/big"

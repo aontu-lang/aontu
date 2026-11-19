@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"crypto/sha256"
 	"encoding/binary"

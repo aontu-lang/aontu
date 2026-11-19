@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-
 // funcText is the string a value carries, or !ok when it is not a
 // string. Mirrors stringLeaf: a path is a string too, so a spelled
 // address may be escaped and split like any other text.

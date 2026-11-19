@@ -2,7 +2,6 @@
 
 package aontu
 
-
 type MapKindVal struct {
 	base
 }

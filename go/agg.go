@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 func isBag(v Val) bool {
 	switch v.(type) {
 	case *ListVal, *MapVal:
@@ -59,7 +58,6 @@ func aggregate(ctx *Ctx, op string, f *FuncVal, base []string, data Val) Val {
 	// least of a bag of bigdecimals is a bigdecimal.
 	return clonePath(best, cp(base))
 }
-
 
 // joinVerdict is what a value can be to join: text it can fold, a
 // settled value it never can, or something not settled yet.

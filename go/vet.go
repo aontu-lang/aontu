@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"path/filepath"
 	"regexp"
@@ -36,10 +35,10 @@ type VetSite struct {
 	// neither document -- one unification minted, rather than one
 	// either document wrote. A consumer reads `file` without a presence
 	// check; the canonical port coerces the same way.
-	File string `json:"file"`
-	Len  int    `json:"len"`
-	Role string `json:"role"`
-	Row  int    `json:"row"`
+	File  string `json:"file"`
+	Len   int    `json:"len"`
+	Role  string `json:"role"`
+	Row   int    `json:"row"`
 	Src   string `json:"src"`
 	Value string `json:"value"`
 }
@@ -53,7 +52,7 @@ type VetFinding struct {
 	Class    string  `json:"class"`
 	Code     string  `json:"code"`
 	Expected *string `json:"expected,omitempty"`
-	Hint *string `json:"hint,omitempty"`
+	Hint     *string `json:"hint,omitempty"`
 
 	Message string  `json:"message"`
 	Note    *string `json:"note,omitempty"`
@@ -78,9 +77,9 @@ type VetReport struct {
 }
 
 type VetOptions struct {
-	At      string // validate against this path of the schema
-	Closed  bool   // close() the anchor for this run
-	Partial bool   // residue is not a failure
+	At        string // validate against this path of the schema
+	Closed    bool   // close() the anchor for this run
+	Partial   bool   // residue is not a failure
 	MaxErrors int
 
 	// Coverage accounts for what the check examined (G11 phase 5). Off
@@ -534,7 +533,6 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	if 0 < options.MaxErrors {
 		maxErrors = options.MaxErrors
 	}
-
 
 	schemaA := aontuForPathTrust(
 		options.SchemaPath, options.Trust, options.TextExt)

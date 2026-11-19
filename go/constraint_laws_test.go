@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-
 var lawAtoms = loadLawAtoms()
 
 func loadLawAtoms() []string {

@@ -1,6 +1,4 @@
-
 package lsp
-
 
 import (
 	"encoding/json"

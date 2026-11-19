@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"bytes"
 	"encoding/json"

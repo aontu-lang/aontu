@@ -231,7 +231,6 @@ func contributionsMarkdown(conjuncts []aontu.WhyConjunct) string {
 	return "\n\n---\n\nContributions:\n" + strings.Join(lines, "\n")
 }
 
-
 // --- Aliases ----------------------------------------------------------
 
 // Location is the LSP textDocument/definition response.
@@ -313,7 +312,6 @@ func Definition(src string, line, character int, uri string) *Location {
 		End:   Position{Line: row, Character: col + len(bind.Name)},
 	}}
 }
-
 
 // LSP CompletionItemKind subset.
 const (

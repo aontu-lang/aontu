@@ -4,29 +4,28 @@ package aontu
 
 import "strings"
 
-
 // Ctx carries unification state: the root Val (for path resolution,
 // once references are ported) and the collected error list.
 type Ctx struct {
 	root Val
-	src string
+	src  string
 	// file is the display name of the entry source for error frames
 	// (Aontu.File); empty renders <no-file>.
-	file string
-	texts map[string]string
-	err   []*NilVal
-	depth int // unite recursion depth (cycle guard)
-	cc    int // current fixpoint pass (for late-resolving funcs)
-	trial bool
+	file      string
+	texts     map[string]string
+	err       []*NilVal
+	depth     int // unite recursion depth (cycle guard)
+	cc        int // current fixpoint pass (for late-resolving funcs)
+	trial     bool
 	matchRead bool
-	fixroot Val
-	settle bool
-	vars   map[string]Val // user-provided variables, resolved by $name
-	collect bool
-	dropped bool
-	probe bool
-	snapmap map[string]Val
-	slot []string
+	fixroot   Val
+	settle    bool
+	vars      map[string]Val // user-provided variables, resolved by $name
+	collect   bool
+	dropped   bool
+	probe     bool
+	snapmap   map[string]Val
+	slot      []string
 
 	toward *towardData
 

@@ -7,7 +7,6 @@ import (
 	"math/big"
 )
 
-
 func divides(op string) bool {
 	return "div" == op || "mod" == op || "rem" == op
 }

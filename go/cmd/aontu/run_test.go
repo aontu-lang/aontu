@@ -10,8 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"regexp"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -345,7 +345,6 @@ func TestRunTextExtOnVerbs(t *testing.T) {
 	}
 }
 
-
 // evalReportOf drives the bare command in json mode and reads the
 // envelope back, so the assertions are about the SHAPE rather than
 // about a formatting of it.
@@ -472,7 +471,6 @@ func TestEmitJSONWithoutAFinding(t *testing.T) {
 		t.Error("a foreign error should carry no finding")
 	}
 }
-
 
 func TestVacuitySignals(t *testing.T) {
 	dir := t.TempDir()

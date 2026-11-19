@@ -1531,3 +1531,9 @@ The answers to the agent's questions, each question followed by the option chose
 #733 in part: is a declaration a row of the coverage report's `declared` and `unused`? For `%N = integer & min(1)` used in `orders: { &: { qty: %N } }`, both engines list `%N` as unused, though its use checked the data's one leaf. Go also spells it by internal key (`$.%N@#1`, or an absolute file path for a name a destructure takes) and counts a taken name twice, so `declared` is 5 in Go and 4 in TypeScript.
 → No row, uses counted (Recommended)
 ```
+
+## 2026-11-19 18:35:15 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+do the quick wins
+```
