@@ -1,0 +1,6 @@
+# Writes `export` with a bare name where a set belongs, which is
+# refused. Loaded beside alias_export_refused_b.aontu, so the refusals
+# of two files loaded at one root both stand.
+%x = 1
+export(%x)
+a: 1

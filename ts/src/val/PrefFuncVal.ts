@@ -18,14 +18,20 @@ import { FuncBaseVal } from './FuncBaseVal'
 
 // A call is left as written: preferring its arguments would change what it
 // computes, where pref changes only what it defaults to.
-function prefer(ctx: AontuContext, val: Val): Val {
+function prefer(ctx: AontuContext, val: Val, call: Val): Val {
   if (val.isScalar || val.isPref) {
-    return new PrefVal({ peg: val }, ctx)
+    const made = new PrefVal({ peg: val }, ctx)
+    made.site.row = call.site.row
+    made.site.col = call.site.col
+    made.site.url = call.site.url
+    made.site.len = call.site.len
+    made.site.src = call.site.src
+    return made
   }
   if (val.isMap || val.isList || val.isConjunct || val.isDisjunct) {
     const peg: any = val.peg
     for (const k of Object.keys(peg)) {
-      peg[k] = prefer(ctx, peg[k])
+      peg[k] = prefer(ctx, peg[k], call)
     }
   }
   return val
@@ -56,7 +62,7 @@ class PrefFuncVal extends FuncBaseVal {
     let out = args[0] ?? makeNilErr(ctx, 'arg', this)
 
     if (!out.isNil) {
-      out = prefer(ctx, out.clone(ctx))
+      out = prefer(ctx, out.clone(ctx), this)
     }
 
     return out

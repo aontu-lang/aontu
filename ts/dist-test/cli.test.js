@@ -142,6 +142,17 @@ const NO_SERVERS = {
         Assert.equal(r.code, 0);
         Assert.equal(r.out.trim(), '{"a":1|2}');
     });
+    // Mirrors TestRunCanonUnknownFunction in go/cmd/aontu/run_test.go.
+    (0, node_test_1.test)('cli-canon-refuses-an-unknown-function', () => {
+        for (const src of ['x: nosuchfn(1)', 'x: rel() & path($.a)', 'x: {a: nosuchfn(1)}']) {
+            const r = run(['--canon'], src);
+            Assert.equal(r.code, 1, src);
+            Assert.match(r.out, /\[aontu\/unknown_function\]/, src);
+        }
+        const dead = run(['--canon'], 'x: nosuchfn(1) | 2');
+        Assert.equal(dead.code, 0);
+        Assert.equal(dead.out.trim(), '{"x":2}');
+    });
     // Mirrors TestRunExactNumbers in go/cmd/aontu/run_test.go.
     (0, node_test_1.test)('bare-command-exact-numbers', () => {
         const src = 'x: 12345678901234567890.5\ny: 1.0\nz: 0.1\n';

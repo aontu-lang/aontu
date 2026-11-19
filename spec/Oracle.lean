@@ -3582,9 +3582,11 @@ scope (`Decls.ofSource`): a source whose name its own body uses, loaded
 alone and beside a document that names it, which can't read it; a
 source that names a name only the document declares, which it can't
 read; two sources that declare one name, which stay two names; a
-source whose name loads a source from its own directory; and a source
+source whose name loads a source from its own directory; a source
 whose name names nothing, which only a document that loads it is an
-error for. -/
+error for; and a document that declares the name a source it loads at
+the root declares, which stays the document's and never meets the
+source's. -/
 def scopeCases : List (Decls × Val × Data) :=
   let files : Decls :=
     Decls.ofSource (fx "alias_declares_u.aontu") [("u", int 7)] (m [("y", int 1)]) ++
@@ -3607,7 +3609,10 @@ def scopeCases : List (Decls × Val × Data) :=
     (files, .meet (ld (fx "alias_sigil.aontu")) (m [("x", int 1)]), dm [("q", j 0)]),
     (files, ld (fx "defload/alias_loads.aontu"), dm []),
     (files, ld (fx "defload/alias_loads.aontu"), dm [("y", dm [("l", j 2)])]),
-    (files, ld (fx "alias_stray.aontu"), dm [])]
+    (files, ld (fx "alias_stray.aontu"), dm []),
+    (("b", int 5) :: files, ld (fx "alias_sigil.aontu"), dm []),
+    (("b", .string) :: files, ld (fx "alias_sigil.aontu"), dm []),
+    (("b", .string) :: files, ld (fx "alias_sigil.aontu"), dm [("q", j 0)])]
 
 theorem scopeCases_checkable : ∀ c ∈ scopeCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -3675,12 +3680,20 @@ theorem take_verdict_exact : ∀ c ∈ takeCases, ∀ (m : Mode) (v : Verdict),
 whether or not anything uses the body: used, with the data it admits
 and refuses, and none; unused; a name taken under another; and a name
 the source doesn't publish, an error whether or not the body is used,
-as every declaration is read. -/
+as every declaration is read. Then a destructure a source writes, in
+the source's own scope: the source loaded alone, with the data it
+admits and refuses, beside a member, and beside a second source that
+takes the same name. -/
 def bodyTakeCases : List (Decls × Val × Data) :=
   let take (s : String) (names : List String) : Val := .call .load (.lit (.str (fx s)) :: names.map str)
+  let taking (k : String) : Val :=
+    .meet (.call .load (.lit (.str "./alias_exports.aontu") :: ["uint8", "uint8"].map str))
+      (m [(k, .alias "uint8")])
   let files : Decls :=
     Decls.ofSource (fx "alias_exports.aontu") [("uint8", int 255), ("secret", str "shh")]
-      (m [("defaults", m [("retries", int 3)])]) ["uint8"]
+      (m [("defaults", m [("retries", int 3)])]) ["uint8"] ++
+    Decls.ofSource (fx "alias_takes.aontu") [] (taking "y") ++
+    Decls.ofSource (fx "alias_takes_b.aontu") [] (taking "v")
   let body (names : List String) : Decls := ("B", m [("inner", take "alias_exports.aontu" names)]) :: files
   [(body ["uint8", "uint8"], m [("v", .alias "B"), ("y", .alias "uint8")], dm [("y", j 255)]),
     (body ["uint8", "uint8"], m [("v", .alias "B"), ("y", .alias "uint8")], dm [("y", j 1)]),
@@ -3689,7 +3702,11 @@ def bodyTakeCases : List (Decls × Val × Data) :=
     (body ["p", "uint8"], m [("v", .alias "B"), ("y", .alias "p")], dm [("y", j 255)]),
     (body ["p", "uint8"], m [("v", .alias "B"), ("y", .alias "p")], dm [("y", j 1)]),
     (body ["secret", "secret"], m [("v", .alias "B")], dm []),
-    (body ["secret", "secret"], m [("z", int 1)], dm [])]
+    (body ["secret", "secret"], m [("z", int 1)], dm []),
+    (files, ld (fx "alias_takes.aontu"), dm [("y", j 255)]),
+    (files, ld (fx "alias_takes.aontu"), dm [("y", j 1)]),
+    (files, .meet (ld (fx "alias_takes.aontu")) (m [("w", int 4)]), dm []),
+    (files, .meet (ld (fx "alias_takes.aontu")) (ld (fx "alias_takes_b.aontu")), dm [])]
 
 theorem bodyTakeCases_checkable : ∀ c ∈ bodyTakeCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

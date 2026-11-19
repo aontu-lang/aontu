@@ -1,0 +1,4 @@
+# The other half of the alias_export_refused.aontu pair.
+%y = 2
+export(%y)
+b: 2

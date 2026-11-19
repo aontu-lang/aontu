@@ -3956,6 +3956,15 @@ ls26	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict
 ls27	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error"}
 ls28	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
 ls29	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+ls30	verdict	%b = 5\n@"__FIXTURES__/alias_sigil.aontu"	{}	{"verdict":"valid"}
+ls31	verdict	%b = 5\n@"__FIXTURES__/alias_sigil.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls32	verdict	%b = 5\n@"__FIXTURES__/alias_sigil.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+ls33	verdict	%b = string\n@"__FIXTURES__/alias_sigil.aontu"	{}	{"verdict":"valid"}
+ls34	verdict	%b = string\n@"__FIXTURES__/alias_sigil.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls35	verdict	%b = string\n@"__FIXTURES__/alias_sigil.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+ls36	verdict	%b = string\n@"__FIXTURES__/alias_sigil.aontu"	{"q": 0}	{"verdict":"invalid"}
+ls37	verdict	%b = string\n@"__FIXTURES__/alias_sigil.aontu"	{"q": 0}	{"verdict":"invalid","opts":{"noFill":true}}
+ls38	verdict	%b = string\n@"__FIXTURES__/alias_sigil.aontu"	{"q": 0}	{"verdict":"invalid","opts":{"partial":true}}
 lx0	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid"}
 lx1	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 lx2	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
@@ -4037,6 +4046,18 @@ lb20	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n
 lb21	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error"}
 lb22	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"noFill":true}}
 lb23	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"partial":true}}
+lb24	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 255}	{"verdict":"valid"}
+lb25	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 255}	{"verdict":"incomplete","opts":{"noFill":true}}
+lb26	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 255}	{"verdict":"valid","opts":{"partial":true}}
+lb27	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 1}	{"verdict":"invalid"}
+lb28	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+lb29	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 1}	{"verdict":"invalid","opts":{"partial":true}}
+lb30	verdict	(@"__FIXTURES__/alias_takes.aontu") & ({"w": 4})	{}	{"verdict":"valid"}
+lb31	verdict	(@"__FIXTURES__/alias_takes.aontu") & ({"w": 4})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lb32	verdict	(@"__FIXTURES__/alias_takes.aontu") & ({"w": 4})	{}	{"verdict":"valid","opts":{"partial":true}}
+lb33	verdict	(@"__FIXTURES__/alias_takes.aontu") & (@"__FIXTURES__/alias_takes_b.aontu")	{}	{"verdict":"valid"}
+lb34	verdict	(@"__FIXTURES__/alias_takes.aontu") & (@"__FIXTURES__/alias_takes_b.aontu")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lb35	verdict	(@"__FIXTURES__/alias_takes.aontu") & (@"__FIXTURES__/alias_takes_b.aontu")	{}	{"verdict":"valid","opts":{"partial":true}}
 lm0	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"valid"}
 lm1	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 lm2	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}

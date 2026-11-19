@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### Go keeps a loaded file's names to itself, and both ports answer two more shapes alike
+
+Phase 1 of `admin/issue-plan.md`, the quick wins in Go and in both
+ports. Each fix comes with the shared rows or twin tests that pin it,
+each answered alike by both engines.
+
+- **A file loaded at the root keeps its names to itself** in Go, as in
+  TypeScript (#514, #730, #804). Go kept a map's declarations on the
+  map, so loading a file merged them into the document's: the
+  document's own declaration was left in the output or met the file's
+  of the same name, the file's published names became the document's,
+  and a document that loaded a file holding a destructure was `nil`.
+  Nineteen rows in `test/spec/alias.tsv` hold these shapes.
+- **`nom` refuses the empty style** in Go, as TypeScript and the
+  definition do: `nom("a_b", "")` is `invalid_arg`, where Go read it as
+  no style and answered every spelling (#451).
+- **`--canon` refuses a call to an unknown function** as evaluation
+  does, in both ports, where it printed `nil` and exited 0 (#833).
+- **A made default's clash is sited at its member and the `pref()`
+  call**, in both ports: `b: pref(1 | 2)` is `$.b` framed at `1:4`, where
+  TypeScript gave no source position and Go sited it at `$` (#832).
+
 ### TypeScript answers seven shapes as Go and the definition do
 
 Phase 1 of `admin/issue-plan.md`, TypeScript's quick wins. Each fix

@@ -44,6 +44,10 @@ const aliasDeclsKey = reservedKeyPrefix + "aliasdecls"
 const aliasValsKey = reservedKeyPrefix + "aliasvals"
 const exportDeclsKey = reservedKeyPrefix + "exportdecls"
 const exportKeysKey = reservedKeyPrefix + "exportkeys"
+
+// A file publishes only what it declares: an include's names stay its own.
+type publishedKeys []string
+
 const importDeclsKey = reservedKeyPrefix + "importdecls"
 const importMergeKey = reservedKeyPrefix + "importmerge"
 
@@ -307,13 +311,23 @@ help isolate the syntax error.`,
 						return val
 					}
 				}
+				if _, ok := val.(publishedKeys); ok {
+					return prev
+				}
 				if prev == nil {
 					return val
 				}
 				// Both sides are the engine's own list; no source key reaches one.
-				if pl, ok := prev.([]string); ok {
+				switch pl := prev.(type) {
+				case []string:
 					vl, _ := val.([]string)
 					return appendNew(pl, vl...)
+				case []Val:
+					vl, _ := val.([]Val)
+					return slices.Concat(pl, vl)
+				case []keyRefusal:
+					vl, _ := val.([]keyRefusal)
+					return slices.Concat(pl, vl)
 				}
 				return mergeVals(asVal(prev), asVal(val))
 			},
@@ -637,7 +651,7 @@ func renameNodeKey(m map[string]any, from, to string) {
 // and a bare name, key or wildcard is refused.
 func recordExports(m map[string]any) {
 	exs, _ := m[exportDeclsKey].([]exportDecl)
-	ek, _ := m[exportKeysKey].([]string)
+	ek, _ := m[exportKeysKey].(publishedKeys)
 	krs, _ := m[keyRefusalsKey].([]keyRefusal)
 	for _, e := range exs {
 		if !e.ok {
@@ -754,6 +768,10 @@ func closeMap(r *jsonic.Rule, ctx *jsonic.Context) {
 		scopeAliasKeys(m)
 		recordExports(m)
 		bindImports(m, ctx)
+		// Spent: a file loaded at the root would hand them to the includer.
+		for _, k := range []string{aliasDeclsKey, aliasValsKey, exportDeclsKey, importDeclsKey} {
+			delete(m, k)
+		}
 		if r.D == 1 {
 			placeFileAliasHoists(m, ctx)
 		}
@@ -2344,7 +2362,7 @@ func asValDepth(node any, depth int) Val {
 		if ak, ok := n[aliasKeysKey].([]string); ok {
 			mv.aliasKeys = ak
 		}
-		if ek, ok := n[exportKeysKey].([]string); ok {
+		if ek, ok := n[exportKeysKey].(publishedKeys); ok {
 			mv.exportKeys = ek
 		}
 		if p, ok := n[posKey].(int); ok {

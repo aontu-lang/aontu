@@ -327,6 +327,17 @@ alias-include-still-carries-values	gens	@"__FIXTURES__/alias_declares_u.aontu"	{
 # is constrained by a declaration it never saw: `a` here would acquire
 # `extra` from a file it does not name.
 alias-same-name-in-two-files-stays-separate	gens	@"__FIXTURES__/alias_row_a.aontu"\n@"__FIXTURES__/alias_row_b.aontu"	{"a":{"kind":"x"},"b":{"extra":9,"kind":"y"}}
+# THE INCLUDER'S DECLARATION STAYS ITS OWN when the file it loads at
+# the root declares one too: whichever name each declares, on either
+# side of the load. It is no field of the output, and the includer's
+# own uses read it and not the file's.
+alias-includer-declares-another-name	gens	%c = string\n@"__FIXTURES__/alias_sigil.aontu"	{"q":7}
+alias-includer-declares-the-same-name	gens	%b = 5\n@"__FIXTURES__/alias_sigil.aontu"	{"q":7}
+alias-includer-declares-the-same-name-open	gens	%b = integer\n@"__FIXTURES__/alias_sigil.aontu"	{"q":7}
+alias-includer-declares-beside-a-field	gens	%b = string\nx: 1\n@"__FIXTURES__/alias_sigil.aontu"	{"q":7,"x":1}
+alias-includer-declares-after-the-load	gens	@"__FIXTURES__/alias_sigil.aontu"\n%b = string	{"q":7}
+alias-includer-reads-its-own-name	gens	%b = 3\n@"__FIXTURES__/alias_sigil.aontu"\nz: %b	{"q":7,"z":3}
+alias-includer-own-name-is-not-the-files	canon	%b = string\n@"__FIXTURES__/alias_sigil.aontu"\nz: %b	{"q":7,"z":string}
 # A REFERENCE RESOLVES WHERE IT WAS WRITTEN, not where it lands. The
 # rule here is written in one file and instantiated against data
 # declared in another, which is what file scope has to keep working.
@@ -345,6 +356,9 @@ alias-export-wildcard-refused	errc	%u = 1\nexport({%})	export_arg
 # `export` publishes a name and does not rename one: the publishing
 # file names what it has, and the taking file renames what it takes.
 alias-export-rename-refused	errc	%u = 1\nexport({ %p: %u })	export_arg
+# ... and a refusal in a file loaded at the root stands in the document
+# beside a second file's refusal.
+alias-export-refused-in-two-includes	errc	@"__FIXTURES__/alias_export_refused.aontu"\n@"__FIXTURES__/alias_export_refused_b.aontu"	export_arg
 # An `export` publishes out of the DOCUMENT's scope, so it answers to
 # the rule a declaration does: it sits at the document root or nowhere.
 alias-export-nested-refused	errc	x: { export({ %u }) }	alias_not_toplevel
@@ -390,6 +404,22 @@ alias-import-unexported-refused-unused	errc	{ %secret } = @"__FIXTURES__/alias_e
 # an include belongs to the file that wrote it, and re-exporting it
 # would publish what its own file withheld.
 alias-export-of-an-included-name-refused	errc	{ %u } = @"__FIXTURES__/alias_reexport.aontu"\na: %u	import_not_exported
+# ... and a file it loads at the root publishes nothing on its behalf,
+# while what it does publish still stands beside the load.
+alias-export-beside-a-publishing-include	gens	%x = 1\nexport({ %x })\n@"__FIXTURES__/alias_exports.aontu"	{"defaults":{"retries":3}}
+alias-import-from-a-file-that-includes	gens	{ %x } = @"__FIXTURES__/alias_publishes_and_includes.aontu"\nz: %x	{"defaults":{"retries":3},"z":1}
+alias-import-of-a-name-its-include-publishes-refused	errc	{ %uint8 } = @"__FIXTURES__/alias_publishes_and_includes.aontu"\nz: %uint8	import_not_exported
+# A DESTRUCTURE ONE INCLUDE DOWN reads as it does in the entry document:
+# alone, beside other members, beside a second taking file, beside the
+# document's own destructure, and with the taken file's own values.
+alias-include-of-a-taking-file	gens	@"__FIXTURES__/alias_takes.aontu"	{"defaults":{"retries":3},"y":255}
+alias-include-of-a-taking-file-beside-a-member	gens	@"__FIXTURES__/alias_takes.aontu"\nw: 4	{"defaults":{"retries":3},"w":4,"y":255}
+alias-include-of-a-taking-file-after-another	gens	@"__FIXTURES__/car.aontu"\n@"__FIXTURES__/alias_takes.aontu"	{"color":"silver","defaults":{"retries":3},"doors":4,"y":255}
+alias-include-of-two-taking-files	gens	@"__FIXTURES__/alias_takes.aontu"\n@"__FIXTURES__/alias_takes_b.aontu"	{"defaults":{"retries":3},"v":255,"y":255}
+alias-include-of-a-taking-file-after-a-take	gens	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n@"__FIXTURES__/alias_takes.aontu"\nz: %uint8	{"defaults":{"retries":3},"y":255,"z":255}
+alias-include-of-a-taking-file-before-a-take	gens	@"__FIXTURES__/alias_takes.aontu"\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\nz: %uint8	{"defaults":{"retries":3},"y":255,"z":255}
+alias-include-of-a-taking-file-vets-valid	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 255}	{"verdict":"valid"}
+alias-include-of-a-taking-file-vets-invalid	verdict	@"__FIXTURES__/alias_takes.aontu"	{"y": 1}	{"verdict":"invalid"}
 # ... and so is a name the other file never declared at all.
 alias-import-undeclared-refused	errc	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\na: %nosuch	import_not_exported
 # A right-hand side that is not a document publishes no name, so the
