@@ -109,7 +109,7 @@ func nomFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 		return makeNilErrFull(ctx, "invalid-arg", f, args[0], "name", nil)
 	}
 
-	style := ""
+	style, styled := "", false
 	acronyms := []string{}
 
 	if 2 <= len(args) {
@@ -124,6 +124,7 @@ func nomFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 			acronyms = acr
 		} else {
 			style, ok = stringPeg(args[1])
+			styled = true
 			if !ok {
 				return makeNilErrFull(ctx, "invalid-arg", f, args[1], "style", nil)
 			}
@@ -137,8 +138,8 @@ func nomFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 		}
 	}
 
-	// One style: the string.
-	if "" != style {
+	// One style: the string, the empty one included, which names none.
+	if styled {
 		out, ok := nomStyleName(name, style, acronyms)
 		if !ok {
 			return makeNilErrFull(ctx, "invalid-arg", f, args[1], "style", nil)
