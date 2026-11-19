@@ -1471,3 +1471,63 @@ review all of the outstanding github issues and categorise them
 ```text
 yes, close them and update the out-of-date ones; present a plan for addressing the others
 ```
+
+## 2026-11-19 15:41:09 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+yes, ask me the rulings
+```
+
+## 2026-11-19 16:15:09 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#738: does a declaration `%a = X` have a place? Today both engines store it as a hidden root member `$.%a` and evaluate its body there. So `%a = { net: integer, gross: add(.net, 1) }` is refused (`func_arg` at `$.%a.gross`), though the same body as a template `&:` gives `gross: 101`. A body's `..x` reads from the document root, and findings name `$.%T.gross`, a path no document can write. Should a declaration's body be read at each use instead, as a template is read at each member?
+→ No place, read at each use (Recommended)
+
+#738: is a call or a bound over a kind that fits its slot a residual, like `string`, rather than a refusal? Today `a: { net: integer, tax: integer, gross: add(.net, .tax) }` vetted against `{"a": {"net": 100, "tax": 19}}` is `error` (`func_arg`), though the same two written as one document generate `gross: 119`. The rule would apply to `type()` definitions too.
+→ Yes, a residual (Recommended)
+
+#738: is a template held to the check a declaration is held to? Decision 17 checks every declaration, used or not, so an unused `%a = { a: 1 & 2 }` is an error. A template is read only where members exist. With `c: { &: { a: 1 & 2 } }`, the data `{"c": {"m": {}}}` is `invalid`, blaming the data for the schema's conflict, and `{"c": {}}` is `valid`.
+→ Yes, check templates too (Recommended)
+
+#535: in a trial's eager argument, is a conflict below the argument's top an `error`? `must({b?: 1 & 2}, "m")` (a conflict at an optional member) and `must(len(1) & [1, 2], "m")` (a size refusing the count) are `error` in both engines. The definition answers `invalid`: it counts a conflict only where the argument's normal form is dead, so it refuses the data instead.
+→ Error, as the engines say (Recommended)
+```
+
+## 2026-11-19 16:21:37 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#738: with a declaration read at each use, which parts of its body wait for a use instead of being read where it is declared? The proposal names five. Three need a place: a hole `_`, a `key(n)`, and a relative path that climbs out of the body. Two need data: a call and a bound over a member nothing has filled yet. Everything else is checked at the declaration (decision 17), so `%T = 1 & 2` stays an error.
+→ All five wait (Recommended)
+
+#738: what does a finding at a declaration carry in place of a path? Today it carries `"path": "$.%T.tier"` and `"pointer": "/%T/tier"`, which name nothing a document can write or a JSON Pointer can reach. Findings at a use's copy would carry that use's real path.
+→ Name and member (Recommended)
+
+#818: may a `match` read the map it is met into? `order: match($.order.status, "shipped", { trackingNo: string }, {})` selects the record's shape by its own field. Both engines never settle it: `incomplete` against every record, and under `--partial` they accept `trackingNo: 7`. The definition answers `error` in every mode. The same rule written as a disjunction of shapes works in both engines.
+→ Yes, read the field (Recommended)
+
+#457: when a refusal draws the call again (`value was: …`), does it show an argument as written or as driven? TypeScript draws what the engine saw: `sum(nil)` for `sum($.missing)`, and `join(["a"],1)` for `join(["a"], $.k)`. Go draws what the author typed, `sum($.missing)` and `join(["a"],$.k)`. For `upper(.nosuch)` the roles reverse: TypeScript draws it as written and Go draws `nil`.
+→ As written (Recommended)
+```
+
+## 2026-11-19 16:24:06 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#327, the site rule a ruling on #457 settles with it: where is an unresolved reference inside a call's argument sited? For `a: must($.t, "m")`, TypeScript sites `no_path` at column 10 (the dot inside `$.t`) and Go at column 4 (`must`). For `must($.t & string, "m")` it is the `$` and the `(`. A later argument is sited at the call in both engines. The same split runs through #331, #333, #391 and #685.
+→ The reference's own span (Recommended)
+
+#819: what does `subsume` answer for a relation's member template against a member the specific side links? `r: rel() & { a: path($.x) }` against the same relation one member longer, `{ a: path($.x), b: path($.y) }`, is `undecided` in both engines (`sub_unresolved` at `$.r.b`), and the definition decides none of the relation rows, not even identical ones. So `breaking` cannot pass a lifecycle version that drops a transition without `--allow-undecided`.
+→ Subsumes where range admits (Recommended)
+
+#770 case 1: inside a `type()` block, may a definition add a member to its copy of a sibling? Written whole, `type: type({ A: { k:"x"|"y" }, C: $.type.A & { k:"y" n:integer } })` lets `C` add `n`, in both engines. Written as `type: type({})` and then one statement per definition, which the reference calls the same definition, TypeScript reads the copy of `A` as sealed (`closed` at `$.type.C.n`) and Go allows it.
+→ Yes, as written whole (Recommended)
+
+#733 in part: is a declaration a row of the coverage report's `declared` and `unused`? For `%N = integer & min(1)` used in `orders: { &: { qty: %N } }`, both engines list `%N` as unused, though its use checked the data's one leaf. Go also spells it by internal key (`$.%N@#1`, or an absolute file path for a name a destructure takes) and counts a taken name twice, so `declared` is 5 in Go and 4 in TypeScript.
+→ No row, uses counted (Recommended)
+```

@@ -22,19 +22,22 @@ by how many rows of `spec/ledger.tsv` it clears.
 
 ## Phase 0: decisions
 
-Seven questions hold up code. Each needs the project owner's ruling:
+Seven questions held up code. The project's owner ruled on all of them
+on 2026-11-19, as rulings 59 to 68 of section 7 of
+[`sketch/DEFINITION.0.md`](../sketch/DEFINITION.0.md), and none is
+built yet:
 
-| # | the question | unblocks |
-|---|---|---|
-| [#738](https://github.com/aontu-lang/aontu/issues/738) | does a declaration have a place, or is its body read at each use as a template is? (five open decisions) | the copies workstream, [#692](https://github.com/aontu-lang/aontu/issues/692), [#733](https://github.com/aontu-lang/aontu/issues/733), [#746](https://github.com/aontu-lang/aontu/issues/746) |
-| [#818](https://github.com/aontu-lang/aontu/issues/818) | what a `match()` met with the map whose field it reads answers | [#818](https://github.com/aontu-lang/aontu/issues/818), the trials in the generators workstream |
-| [#535](https://github.com/aontu-lang/aontu/issues/535) | a conflict below an eager argument's top: `error`, as the ports answer, or `invalid`, as the definition reads | [#535](https://github.com/aontu-lang/aontu/issues/535) |
-| [#457](https://github.com/aontu-lang/aontu/issues/457) | does a call's refusal show an argument as written or as driven? | [#457](https://github.com/aontu-lang/aontu/issues/457), and with [#327](https://github.com/aontu-lang/aontu/issues/327) every refusal inside a call |
-| [#819](https://github.com/aontu-lang/aontu/issues/819) | the subsumption rule for a relation's members | [#819](https://github.com/aontu-lang/aontu/issues/819), `breaking` over relations |
-| [#770](https://github.com/aontu-lang/aontu/issues/770) | case 1: a `type()` block declared empty and filled by statements | [#770](https://github.com/aontu-lang/aontu/issues/770) |
-| [#733](https://github.com/aontu-lang/aontu/issues/733) | part: how coverage names a declaration and counts a taken one | [#733](https://github.com/aontu-lang/aontu/issues/733) |
+| # | the question | ruled | unblocks |
+|---|---|---|---|
+| [#738](https://github.com/aontu-lang/aontu/issues/738) | does a declaration have a place, or is its body read at each use as a template is? (five decisions) | 59 to 61: no place, the body read at each use; a call or a bound over a kind that fits its slot is a residual; a template is held to a declaration's check | the copies workstream, [#692](https://github.com/aontu-lang/aontu/issues/692), [#733](https://github.com/aontu-lang/aontu/issues/733), [#746](https://github.com/aontu-lang/aontu/issues/746) |
+| [#818](https://github.com/aontu-lang/aontu/issues/818) | what a `match()` met with the map whose field it reads answers | 63: it reads the field | [#818](https://github.com/aontu-lang/aontu/issues/818), the trials in the generators workstream |
+| [#535](https://github.com/aontu-lang/aontu/issues/535) | a conflict below an eager argument's top: `error`, as the ports answer, or `invalid`, as the definition reads | 62: `error`, and the definition moves | [#535](https://github.com/aontu-lang/aontu/issues/535) |
+| [#457](https://github.com/aontu-lang/aontu/issues/457) | does a call's refusal show an argument as written or as driven? | 64: as written; with [#327](https://github.com/aontu-lang/aontu/issues/327), 65: a value is sited at its own span | [#457](https://github.com/aontu-lang/aontu/issues/457), and with [#327](https://github.com/aontu-lang/aontu/issues/327) every refusal inside a call |
+| [#819](https://github.com/aontu-lang/aontu/issues/819) | the subsumption rule for a relation's members | 66: it subsumes where the range admits | [#819](https://github.com/aontu-lang/aontu/issues/819), `breaking` over relations |
+| [#770](https://github.com/aontu-lang/aontu/issues/770) | case 1: a `type()` block declared empty and filled by statements | 67: as written whole | [#770](https://github.com/aontu-lang/aontu/issues/770) |
+| [#733](https://github.com/aontu-lang/aontu/issues/733) | part: how coverage names a declaration and counts a taken one | 68: a declaration is no row, and its uses are counted | [#733](https://github.com/aontu-lang/aontu/issues/733) |
 
-Ruled and waiting only on the build: [#474](https://github.com/aontu-lang/aontu/issues/474) (decision 23), [#714](https://github.com/aontu-lang/aontu/issues/714)
+Ruled earlier and waiting only on the build: [#474](https://github.com/aontu-lang/aontu/issues/474) (decision 23), [#714](https://github.com/aontu-lang/aontu/issues/714)
 (rulings 41 and 42, decision 43), [#743](https://github.com/aontu-lang/aontu/issues/743) (ruling 49), [#777](https://github.com/aontu-lang/aontu/issues/777) (the range
 checks, 2026-11-17) and [#825](https://github.com/aontu-lang/aontu/issues/825) (`form`, cheapest before the next
 release).
@@ -62,8 +65,8 @@ Four workstreams hold 354 of the ledger's rows. In order:
 3. **Seals and marks**: led by #726's bare `close()` and `open()`, with
    57 rows, ruled by decisions 44 to 46. #748 and #749 here also
    unblock the relations workstream.
-4. **Copies, bodies and templates**: after #738 is ruled, following
-   `sketch/CORE.0.md` §4.
+4. **Copies, bodies and templates**: #738 is ruled (rulings 59 to 61),
+   and the work follows `sketch/CORE.0.md` §4.
 
 ### The alias-cycle rule
 
@@ -115,14 +118,14 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 | [#668](https://github.com/aontu-lang/aontu/issues/668) | bug | M |  | `move` of a list element drops it from output, but vet keeps its position; output fails vet. |
 | [#346](https://github.com/aontu-lang/aontu/issues/346) | def | M | 8 | `close([1, 2])` met with `[&: integer]` loses its fixed length and admits `[1, 2, 3]` in both ports. |
 | [#343](https://github.com/aontu-lang/aontu/issues/343) | def | M |  | `string & (string & empty())` admits the empty string in both ports; the definition refuses it. |
-| [#770](https://github.com/aontu-lang/aontu/issues/770) | parity | L |  | type() block filled by statements answers unlike the whole block, ports split five ways; case 1 needs ruling. |
+| [#770](https://github.com/aontu-lang/aontu/issues/770) | parity | L |  | type() block filled by statements answers unlike the whole block, ports split five ways; case 1 ruled (67). |
 | [#486](https://github.com/aontu-lang/aontu/issues/486) | parity | M |  | move with a meta/hide rider: TS and Go split on vet data overriding the copy |
 
 ### Where copies, bodies and templates read paths and key()
 
 16 issues (1 S, 13 M, 2 L), 78 ledger rows.
 
-Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 alone has 54 rows. Waits on #738, which decides whether a declaration has a place to read from.
+Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 alone has 54 rows. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -190,7 +193,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 10 issues (2 S, 8 M), 12 ledger rows.
 
-Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), and the trial questions of #818 and #535 once ruled.
+Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), and the trial questions of #818 and #535, ruled as 63 and 62.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -273,7 +276,7 @@ The pinned `@tabnas/expr` overflows. Retest against the published 0.6.3 before c
 
 13 issues (7 S, 6 M).
 
-Thirteen issues where the verdict agrees and a code, site, frame or message does not. A ruling on the site of a value (#457 with #327) would settle #327, #331, #333, #391 and #685 together, and each needs a row in the full-message twin tests.
+Thirteen issues where the verdict agrees and a code, site, frame or message does not. Rulings 64 and 65 settle #457 and #327, a refusal drawing a call as written and a value sited at its own span, and with them #331, #391 and #685. Each needs a row in the full-message twin tests.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -346,7 +349,7 @@ Each is a small gate that stops a fault from coming back.
 
 | phase | workstreams | issues | ledger rows |
 |---|---|---|---|
-| 0 | decisions | 7 questions | |
+| 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
 | 2 | alias cycles, preferences, seals and marks, copies | 42 | 354 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 56 | 34 |

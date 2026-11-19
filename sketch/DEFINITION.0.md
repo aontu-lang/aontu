@@ -2591,6 +2591,150 @@ until the phase that encodes it lands.
    and writes nothing into it. **Not yet built**: the definition meets
    the range into its targets (`Decls.withRefers`), as both ports do,
    until #777 lands.
+59. **A declaration's place.** Raised 2026-11-12 by #738: both ports
+   store a declaration as a member of the root map, under a key made
+   of its name and its file (`aliasScopedKey`), evaluate its body
+   there, and build each use as an absolute reference to that key, and
+   the definition models the place (`Decls.bodyRoots`,
+   `Decls.placedNames`). So a body's relative path reads from one step
+   below the root wherever the declaration is written, a call or a
+   bound over a member that a use fills is refused at the declaration,
+   a finding names `$.%T.gross`, a path no document can write, and a
+   declaration written at a field is reported twice. **Ruled
+   2026-11-19 (the project's owner): a declaration has no place, and
+   its body is read at each use, as a spread's template is read at
+   each member.** At the declaration nothing is evaluated: the check of
+   decision 17 stays, in the form `Decls.bodyIll` has, the body read
+   with each part that needs a use read as what any use could make of
+   it (`Val.unplaced`). Five parts need a use: a hole, a `key(n)` and a
+   relative path that climbs out of the body, which need a place, and
+   a call and a bound over a member nothing has filled, which need
+   data. Each use gets a copy of the body as written, placed there,
+   which reads its `key(n)` and its relative paths from the copy's own
+   path. A finding at a declaration names the declaration and the
+   member, `%T` and `.gross`, with the frame where it is written, and
+   carries no `path` and no `pointer`. **Not yet built**: both ports
+   and the definition move, in the copies workstream of
+   `admin/issue-plan.md`.
+60. **A call or a bound over a member still its kind.** Raised
+   2026-11-12 by #738: outside a template, a call or a bound over a
+   member that is still its kind is refused wherever it stands, with
+   data or without, so
+   `a: { net: integer, tax: integer, gross: add(.net, .tax) }` vetted
+   against `{"a": {"net": 100, "tax": 19}}` is an `error`, though the
+   two written as one document generate `"gross": 119`. **Ruled
+   2026-11-19 (the project's owner): a residual.** A call or a bound
+   over a kind that fits its slot stays as written, as `string` does,
+   until data fills it, and generation refuses it at a real path if
+   nothing does; a schema alone that holds one is `incomplete`, not
+   `error`, and a `type()` definition reads it so too. A kind that
+   can't fit the slot, a path that names nothing and a wrong count of
+   arguments stay refusals. **Not yet built**: both ports and the
+   definition move.
+61. **A broken template nothing reaches.** Raised 2026-11-12 by #738:
+   decision 17 reads every declaration, used or not, while a template
+   is read only at the members there are, so against
+   `c: { &: { a: 1 & 2 } }` the data `{"c": {"m": {}}}` is `invalid`,
+   `scalar_value` at `$.c.m.a`, with both sites in the schema, and
+   `{"c": {}}` is `valid`. **Ruled 2026-11-19 (the project's owner): a
+   template is held to the check a declaration is.** A template whose
+   body fails the check of decision 17 is the schema's `error` whether
+   or not a member reaches it, so both documents above are `error`s.
+   **Not yet built**: both ports and the definition move, and a
+   document that carries a broken template nothing reaches gains a
+   refusal.
+62. **A conflict below an eager argument's top.** Raised 2026-10-23 by
+   #535: both ports read a conflict anywhere in a trial's eager
+   argument as an `error`, so `must({b?: 1 & 2}, "m")`, a conflict at
+   an optional member, and `must(len(1) & [1, 2], "m")`, a size
+   refusing the count at the meet, are `error`s, where the definition
+   calls an argument a conflict only where its normal form is dead,
+   which neither is, and refuses the data instead, `invalid`. **Ruled
+   2026-11-19 (the project's owner): an `error`, as both ports
+   answer.** A conflict anywhere in an eager argument is the schema's
+   error, as a conflict the meet finds is (ruling 54). **Not yet
+   built**: the definition moves, reading the argument's members and
+   not only its normal form. The questions of #535 about a written
+   `nil` were settled by ruling 54 and #796.
+63. **A `match` over the map it is met into.** Raised 2026-11-17 by
+   #818: the rule
+   `order: match($.order.status, "shipped", { trackingNo: string }, {})`
+   reads the record it is met into. Neither port ever
+   settles it, answering `incomplete` in the default mode and under
+   `--no-fill`, and `valid` under `--partial`, which accepts a
+   `trackingNo` of `7`; the definition answers `error` in every mode.
+   **Ruled 2026-11-19 (the project's owner): it reads the field.** A
+   `match` may read the map it is met into: it reads its scrutinee as
+   the rest of the document settles it, without its own arms, picks
+   that arm and meets it in, and an arm that would change the value
+   its scrutinee read is an error. The four records of #818 then
+   answer as the same rule written as a disjunction of the record's
+   shapes does. **Not yet built**: both ports and the definition move.
+64. **How a refusal draws its call.** Raised 2026-10-21 by #457: a
+   refusal draws the call it refuses again under its frame, and where
+   an argument is driven, TypeScript draws the value the engine saw,
+   `sum(nil)` for `sum($.missing)` and `join(["a"],1)` for
+   `join(["a"], $.k)`, and Go the call as written, while for `upper`
+   and `lower` over an argument that failed the two swap. **Ruled
+   2026-11-19 (the project's owner): as written.** A refusal draws a
+   call as its author wrote it, an unresolved path named and not
+   `nil`. **Not yet built**: TypeScript moves for the staged calls and
+   Go for `upper` and `lower`, with full-message twins in
+   `ts/test/error.test.ts` and `go/hints_test.go`. The definition holds
+   no message (decision 3) and doesn't move.
+65. **The site of a value inside a call.** Raised 2026-10-16 by #327:
+   a reference that names nothing, in the first argument of a call of
+   two or more arguments, is sited at the `.` inside it in TypeScript
+   and at the call in Go, and the argument's shape moves both sites:
+   `must($.t & string, "m")` is sited at the `$` and at the `(`.
+   **Ruled 2026-11-19 (the project's owner): the value's own span.** A
+   value inside a call is sited where it begins, the `$` of `$.t`, in
+   every argument position. **Not yet built**: both parsers move, the
+   rows that pin today's call-site answers are derived again from both
+   engines, and the OPEN entry of `test/spec/divergent.tsv` goes with
+   it. #331, #391 and #685, where a value is sited at different
+   columns in each port, follow the same rule. The definition holds no
+   site and doesn't move.
+66. **A relation's member under `subsume`.** Raised 2026-11-17 by #819:
+   `relate() & { a: path($.x) }` against the same relation one member
+   longer is `undecided` in both ports, `sub_unresolved` at the added
+   member, since they read an unreduced function on either side as
+   `undecided`, and the definition's `leDecD` decides no relation row,
+   the identical pair included, so `breaking` passes no change to a
+   relation without `--allow-undecided`. **Ruled 2026-11-19 (the
+   project's owner): it subsumes where the range admits.** A
+   relation's member template admits each address that resolves in the
+   document, and every link the specific side makes resolves there, so
+   the general relation subsumes the specific link wherever its range
+   admits that link's target, and identical relations subsume. **Not
+   yet built**: both ports and `leDecD` gain the rule, with shared rows
+   for the four documents of #819 and a `breaking` row for a dropped
+   transition.
+67. **A definition that adds to its copy of a sibling.** Raised
+   2026-11-14 by #770: the reference reads a `type()` block written
+   whole and one declared empty and filled by statements as one
+   definition, but where `C: $.type.A & { k:"y" n:integer }` adds `n`
+   to its copy of `A`, both ports accept the whole form, and in the
+   statement form TypeScript reads the copy as a sealed instance,
+   `closed` at `$.type.C.n`, where Go accepts it. **Ruled 2026-11-19
+   (the project's owner): as written whole.** A definition inside a
+   `type()` block may add to its copy of a sibling, however the block
+   is written, and the seal holds for an instance taken outside the
+   block. **Not yet built**: TypeScript moves for the statement form.
+   The other four cases of #770 need no ruling: each answers as the
+   block written whole.
+68. **A declaration in the coverage report.** Raised 2026-11-12 by
+   #733: both ports list a declared name as `unused` though a use of
+   it checked the data's only leaf, since data never meets a
+   declaration's own place, and Go spells the name by its internal
+   key, `$.%N@#1`, or by a file's absolute path for a name a
+   destructure takes, and counts a taken name twice. **Ruled
+   2026-11-19 (the project's owner): no row, and its uses are
+   counted.** Coverage counts places, and a declaration has none
+   (ruling 59), so it is no row of `declared` or of `unused`; its uses
+   count where they land, both ports report the same numbers, and no
+   internal key or file path reaches the report. **Not yet built**:
+   both ports move. The definition holds no report and doesn't move.
 
 ## 8. Risks
 
