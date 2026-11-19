@@ -78,6 +78,18 @@ func TestLongRefCycleIsProven(t *testing.T) {
 	}
 }
 
+// Mirrors full-message-twin-made-default in ts/test/error.test.ts.
+func TestFullMessageTwinMadeDefault(t *testing.T) {
+	_, err := New().Generate("b: pref(1 | 2)\n")
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	want := "[aontu/pref_rank_clash]: Cannot unify values at path $.b\n\nTwo defaults of the same rank disagree. Rank one of them (`**x`) to say which is the weaker layer, or give them the same value.\n\n Cannot unify value: *2 with value: *1\n  \x1b[34m--> <no-file>:1:4\n\x1b[34m  1 | \x1b[0mb: pref(1 | 2)\n         \x1b[34m^ value was: *2\x1b[0m\n\x1b[34m  2 | \x1b[0m\n\x1b[34m  3 | \x1b[0m\n\n Cannot unify value: *1 with value: *2\n  \x1b[34m--> <no-file>:1:4\n\x1b[34m  1 | \x1b[0mb: pref(1 | 2)\n         \x1b[34m^ value was: *1\x1b[0m\n\x1b[34m  2 | \x1b[0m\n\x1b[34m  3 | \x1b[0m\n"
+	if got := err.Error(); got != want {
+		t.Fatalf("full message mismatch\n want: %q\n got:  %q", want, got)
+	}
+}
+
 func TestFullMessageTwinFramed(t *testing.T) {
 	_, err := New().Generate("x: 0\ny: 0\n\"\u00e9\": 1\n\"\u00e9\": 2\nz: 0\n")
 	if err == nil {

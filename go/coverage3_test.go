@@ -280,7 +280,7 @@ func TestFuncArmsDirect(t *testing.T) {
 
 	// walkPref descends conjunct members.
 	cj := newConjunct([]Val{newPref(newInteger(1)), newInteger(2)})
-	if walkPref(cj) != Val(cj) {
+	if walkPref(cj, site{}) != Val(cj) {
 		t.Fatalf("walkPref conjunct identity")
 	}
 }

@@ -724,7 +724,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		if len(args) == 0 {
 			return makeNilErr(ctx, "arg", f, nil)
 		}
-		return walkPref(clonePath(args[0], cp(base)))
+		return walkPref(clonePath(args[0], cp(base)), f.site)
 	case "type":
 		if len(args) == 0 {
 			return makeNilErr(ctx, "arg", f, nil)
@@ -1231,32 +1231,41 @@ func keyFunc(ctx *Ctx, f *FuncVal, base []string) Val {
 	return newString(key)
 }
 
-func walkPref(v Val) Val {
+func walkPref(v Val, call site) Val {
 	switch n := v.(type) {
 	case *ScalarVal:
-		return newPref(n)
+		return madePref(n, n.path, call)
 	case *PrefVal:
-		return newPref(n)
+		return madePref(n, n.path, call)
 	case *MapVal:
 		for _, k := range n.keys {
-			n.peg[k] = walkPref(n.peg[k])
+			n.peg[k] = walkPref(n.peg[k], call)
 		}
 		return n
 	case *ListVal:
 		for i := range n.peg {
-			n.peg[i] = walkPref(n.peg[i])
+			n.peg[i] = walkPref(n.peg[i], call)
 		}
 		return n
 	case *DisjunctVal:
 		for i := range n.peg {
-			n.peg[i] = walkPref(n.peg[i])
+			n.peg[i] = walkPref(n.peg[i], call)
 		}
 		return n
 	case *ConjunctVal:
 		for i := range n.peg {
-			n.peg[i] = walkPref(n.peg[i])
+			n.peg[i] = walkPref(n.peg[i], call)
 		}
 		return n
 	}
 	return v
+}
+
+// A preference pref() makes stands where its value does, sited at the call.
+func madePref(v Val, path []string, call site) *PrefVal {
+	p := newPref(v)
+	p.path = cp(path)
+	p.site = call
+	p.resuper()
+	return p
 }

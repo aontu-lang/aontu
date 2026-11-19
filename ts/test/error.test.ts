@@ -186,6 +186,22 @@ describe('error', function() {
   })
 
 
+  // Mirrors TestFullMessageTwinMadeDefault in go/hints_test.go.
+  it('full-message-twin-made-default', () => {
+    let err: any = undefined
+    try {
+      new Aontu().generate('b: pref(1 | 2)\n')
+    }
+    catch (e: any) {
+      err = e
+    }
+    if (undefined === err) {
+      throw new Error('expected error')
+    }
+    expect(err.message).equal("[aontu/pref_rank_clash]: Cannot unify values at path $.b\n\nTwo defaults of the same rank disagree. Rank one of them (`**x`) to say which is the weaker layer, or give them the same value.\n\n Cannot unify value: *2 with value: *1\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0mb: pref(1 | 2)\n         \u001b[34m^ value was: *2\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n\n Cannot unify value: *1 with value: *2\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0mb: pref(1 | 2)\n         \u001b[34m^ value was: *1\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n")
+  })
+
+
   it('full-message-twin-framed', () => {
     let err: any = undefined
     try {
