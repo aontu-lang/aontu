@@ -185,7 +185,8 @@ class PendingLinkVal extends FeatureVal {
     }
     const there: any = (site as any).isPath ? site : undefined
     const mine = this.tval.isTop ? [] : [this.tval]
-    const out: any = linkAt(ctx, this.addrsrc as string, this.path, there?.flows,
+    const whereAddressArrives: string[] = there?.path ?? this.path
+    const out: any = linkAt(ctx, this.addrsrc as string, whereAddressArrives, there?.flows,
       mine, this.root || true === there?.relroot)
     // A relative address climbing off the top of the tree refuses at once.
     if (undefined === out) {
