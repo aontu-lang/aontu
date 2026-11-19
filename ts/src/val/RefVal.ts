@@ -135,14 +135,24 @@ function pendingMarkWrapper(v: any): boolean {
 function markedChild(v: any, part: any): Val | undefined {
   v = throughRider(v)
   if (true === v?.isMap || true === v?.isList) {
-    return v.peg[part]
+    return member(v, part)
   }
   if (true === v?.isFunc
     && (true === v.isHideFunc || true === v.isTypeFunc)
     && (true === v.peg?.[0]?.isMap || true === v.peg?.[0]?.isList)) {
-    return v.peg[0].peg[part]
+    return member(v.peg[0], part)
   }
   return undefined
+}
+
+
+const CANONICAL_LIST_INDEX = /^(0|[1-9][0-9]*)$/
+
+function member(v: any, part: any): any {
+  if (true === v.isList && !CANONICAL_LIST_INDEX.test(String(part))) {
+    return undefined
+  }
+  return v.peg[part]
 }
 
 
@@ -378,7 +388,7 @@ class RefVal extends FeatureVal {
             if (part.isNil) {
               return
             }
-            else if (true !== part.isScalar) {
+            else if (true !== part.isScalar || true === part.isNull) {
               return makeNilErr(ctx, 'no_path', this)
             }
             else {
@@ -431,13 +441,13 @@ class RefVal extends FeatureVal {
             node = node.peg[part]
           }
           else if (node.isList) {
-            node = node.peg[part]
+            node = member(node, part)
           }
           else if (true === (node as any).isFunc
             && ((node as any).isHideFunc || (node as any).isTypeFunc)
             && (true === (node as any).peg?.[0]?.isMap
               || true === (node as any).peg?.[0]?.isList)) {
-            node = (node as any).peg[0].peg[part]
+            node = member((node as any).peg[0], part)
           }
 
           else if (true === (node as any).isConjunct && undefined !== this.aliasKey
@@ -492,7 +502,7 @@ class RefVal extends FeatureVal {
           const part = refpath[pI]
           fnode = throughRider(fnode)
           if (true === fnode.isMap || true === fnode.isList) {
-            fnode = fnode.peg[part]
+            fnode = member(fnode, part)
           }
           else if (true === fnode.isConjunct && undefined !== this.aliasKey) {
             fnode = declaration(fnode, part)
@@ -629,7 +639,7 @@ class RefVal extends FeatureVal {
 
       let node: any = ctx.root
       for (let i = 0; i < rp.length && null != node; i++) {
-        node = (node.isMap || node.isList) ? node.peg[rp[i]] : undefined
+        node = (node.isMap || node.isList) ? member(node, rp[i]) : undefined
       }
       if (null == node) {
         return false
