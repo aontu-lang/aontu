@@ -60,6 +60,14 @@ how the rest reproduce.
 
 ## Close, merge or narrow
 
+**Done on 2026-11-19.** Each issue below was re-checked in both CLIs:
+- Fourteen were closed: twelve as fixed, #830 into #465 and #776 into #777.
+- #431 was found only partly fixed, so it stays open with the two checklist items that still fail.
+- The out-of-date issues further down were updated on their threads, and seven of them retitled (#328, #330, #661, #714, #746, #752, #777).
+- #836 tracks the shared rows the closed fixes still owe.
+
+What comes next is [`issue-plan.md`](issue-plan.md).
+
 These no longer reproduce, or are another issue's question:
 
 | # | evidence | to do |
