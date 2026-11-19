@@ -2,7 +2,6 @@
 
 package aontu
 
-
 // GraphAtomVal is a graph atom met with nothing: the declaration alone.
 // Met with a value it hands the value back as it is, and the meet's
 // riders carry the declaration on to it, as they carry `meta()` and

@@ -228,7 +228,7 @@ func (b *base) cjo() int            { return 99999 }
 func (b *base) vpath() []string     { return b.path }
 func (b *base) setvpath(p []string) { b.path = p }
 
-func (b *base) markedType() bool                   { return b.mtype }
+func (b *base) markedType() bool                     { return b.mtype }
 func (b *base) deprecRec() map[string][]string       { return b.deprec }
 func (b *base) setDeprecRec(rec map[string][]string) { b.deprec = rec }
 func (b *base) metaRec() map[string][]Val            { return b.meta }
@@ -238,12 +238,12 @@ func (b *base) genOpts() map[string]any              { return b.genopts }
 func (b *base) setGenRec(rec Val, opts map[string]any) {
 	b.genrec, b.genopts = rec, opts
 }
-func (b *base) viaRec() []string                     { return b.vias }
-func (b *base) setViaRec(via []string)               { b.vias = via }
-func (b *base) identRec() map[string][]Val           { return b.ident }
-func (b *base) setIdentRec(rec map[string][]Val)     { b.ident = rec }
-func (b *base) declRec() *declRecord                 { return b.decl }
-func (b *base) setDeclRec(d *declRecord)             { b.decl = d }
+func (b *base) viaRec() []string                 { return b.vias }
+func (b *base) setViaRec(via []string)           { b.vias = via }
+func (b *base) identRec() map[string][]Val       { return b.ident }
+func (b *base) setIdentRec(rec map[string][]Val) { b.ident = rec }
+func (b *base) declRec() *declRecord             { return b.decl }
+func (b *base) setDeclRec(d *declRecord)         { b.decl = d }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }
@@ -252,8 +252,8 @@ func (b *base) setEmitOrig(o *emitOrigin) { b.emitted = o }
 
 func (b *base) linkAddr() string        { return b.link }
 func (b *base) setLinkAddr(addr string) { b.link = addr }
-func (b *base) linkInfo() linkInfo        { return b.lk }
-func (b *base) setLinkInfo(li linkInfo)   { b.lk = li }
+func (b *base) linkInfo() linkInfo      { return b.lk }
+func (b *base) setLinkInfo(li linkInfo) { b.lk = li }
 func (b *base) markedHide() bool        { return b.mhide }
 func (b *base) fromSpread() bool        { return b.fspr }
 func (b *base) setFromSpread()          { b.fspr = true }
@@ -273,13 +273,13 @@ func (b *base) notdone() {
 
 // --- type predicate helpers (mirror the TS isX flags) ---
 
-func isTop(v Val) bool      { _, ok := v.(*TopVal); return ok }
-func isConjunct(v Val) bool { _, ok := v.(*ConjunctVal); return ok }
-func isDisjunct(v Val) bool { _, ok := v.(*DisjunctVal); return ok }
-func isPref(v Val) bool     { _, ok := v.(*PrefVal); return ok }
-func isRef(v Val) bool      { _, ok := v.(*RefVal); return ok }
-func isVar(v Val) bool      { _, ok := v.(*VarVal); return ok }
-func isFunc(v Val) bool     { _, ok := v.(*FuncVal); return ok }
+func isTop(v Val) bool         { _, ok := v.(*TopVal); return ok }
+func isConjunct(v Val) bool    { _, ok := v.(*ConjunctVal); return ok }
+func isDisjunct(v Val) bool    { _, ok := v.(*DisjunctVal); return ok }
+func isPref(v Val) bool        { _, ok := v.(*PrefVal); return ok }
+func isRef(v Val) bool         { _, ok := v.(*RefVal); return ok }
+func isVar(v Val) bool         { _, ok := v.(*VarVal); return ok }
+func isFunc(v Val) bool        { _, ok := v.(*FuncVal); return ok }
 func isPendingLink(v Val) bool { _, ok := v.(*PendingLinkVal); return ok }
 
 // TopVal is the unit of the lattice: unifying with it yields the other operand.

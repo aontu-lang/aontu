@@ -185,9 +185,9 @@ aontu: Lang: template: { marker:"(*-" close:"*)" ext:["ml" "mli"] }
 func TestTemplateTakesItsMarkerFromAProfile(t *testing.T) {
 	dir := templateDir(t, map[string]string{
 		"ocaml.aontu": templateOcamlProfile,
-		"gen.ml":    "(*- n: [ *)\nlet a = 1\n(*- ] *)\n",
+		"gen.ml":      "(*- n: [ *)\nlet a = 1\n(*- ] *)\n",
 		"plain.aontu": "@\"aontu:profile\"\n\naontu: Lang: lang: \"plain\"\n",
-		"note.md":   "<!--- n: [ -->\n# T\n<!--- ] -->\n",
+		"note.md":     "<!--- n: [ -->\n# T\n<!--- ] -->\n",
 	})
 	profile := filepath.Join(dir, "ocaml.aontu")
 	unit := filepath.Join(dir, "gen.ml")

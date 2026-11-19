@@ -8,7 +8,6 @@ import (
 	"sort"
 )
 
-
 // NewString returns a string scalar value.
 func NewString(s string) Val { return newString(s) }
 

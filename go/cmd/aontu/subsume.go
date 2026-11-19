@@ -1,6 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-
 package main
 
 import (
@@ -169,10 +168,10 @@ func runSubsume(argv []string, stdout, stderr io.Writer) int {
 }
 
 type breakingArgs struct {
-	help    bool
-	file    string
-	against []string
-	mode    string
+	help             bool
+	file             string
+	against          []string
+	mode             string
 	at               string
 	allowUndecided   bool
 	allowDeprRemoval bool

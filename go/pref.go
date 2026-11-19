@@ -4,9 +4,9 @@ package aontu
 
 type PrefVal struct {
 	base
-	peg Val
+	peg      Val
 	superpeg Val
-	rank int
+	rank     int
 
 	narrowed Val
 }

@@ -2,7 +2,6 @@
 
 package main
 
-
 import (
 	"bytes"
 	"encoding/json"
@@ -563,7 +562,6 @@ func TestVetWatchWaitSeesAChange(t *testing.T) {
 		t.Fatal("watchWait should report a change")
 	}
 }
-
 
 func vetCovFiles(t *testing.T, schema, data string) (string, string) {
 	t.Helper()

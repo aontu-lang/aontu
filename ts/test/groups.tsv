@@ -7,6 +7,7 @@
 # the JSON Schema dialects). Every test file is in exactly one group,
 # or --check and groups.test.ts refuse.
 0	agents-guide.test.ts
+0	prompt-log.test.ts
 0	aontumodel.test.ts
 0	capability-review.test.ts
 0	comments.test.ts

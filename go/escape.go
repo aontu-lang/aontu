@@ -8,7 +8,6 @@ import (
 	"unicode/utf8"
 )
 
-
 // escVariants are the variant names, in the order the reference lists
 // them. `none` is not here: it is the absent argument, and the absent
 // argument is the C/JSON convention.

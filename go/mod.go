@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"encoding/json"
 	"os"

@@ -41,7 +41,8 @@ Every prompt given to an agent working in the project is recorded in
   same place, so a merge can drop an entry's closing fence or weave two
   entries that begin alike into one. After a merge that touches the
   log, the agent checks that each entry holds one fence, closed before
-  the next entry's heading. It restores a damaged entry from the last
+  the next entry's heading, and `ts/test/prompt-log.test.ts` checks the
+  same on every push. It restores a damaged entry from the last
   commit that held it whole, and keeps any redaction made to it since.
 - **Keep the log without discussing it.** An agent appends its entries
   and resolves the log's conflicts without raising either with the

@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-
 func TestKindStringNeverEmpty(t *testing.T) {
 	want := map[Kind]string{
 		KindTop:        "any",

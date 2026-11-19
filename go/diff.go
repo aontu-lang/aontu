@@ -1,6 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-
 package aontu
 
 import (
@@ -25,7 +24,7 @@ type DiffReport struct {
 	Changes  []DiffChange `json:"changes"`
 	Findings []VetFinding `json:"findings"`
 	OK       bool         `json:"ok"`
-	Same bool `json:"same"`
+	Same     bool         `json:"same"`
 }
 
 type DiffOptions struct {

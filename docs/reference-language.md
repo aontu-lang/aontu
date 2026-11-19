@@ -3758,14 +3758,14 @@ way and an identifier another.
 plain: esc("plain text")
 inner: esc("it\'s", sq)
 table: esc("o\'brien", sql)
-markup: esc("<a>&", xml)
+markup: esc("x < y & z", xml)
 address: esc("a b/c", uri)
 pattern: esc("a.b", regex)
 ```
 
 ```json
 {"plain": "plain text", "inner": "it\\'s", "table": "o''brien",
- "markup": "&lt;a&gt;&amp;", "address": "a%20b%2Fc", "pattern": "a\\.b"}
+ "markup": "x &lt; y &amp; z", "address": "a%20b%2Fc", "pattern": "a\\.b"}
 ```
 
 **Escaping a value that was already safe changes nothing**, which is
@@ -4193,9 +4193,11 @@ stands in an arm exactly where that value does, and the definition
 reads a document's links from its normal form, within the arms the rank
 rule picks (`Val.links` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)),
 each link reading its address in its own arm. Rows from rf120 on hold
-both engines to it. With data, both engines also read a body's relative
-link from each place that uses the body, which
-[#488](https://github.com/aontu-lang/aontu/issues/488) tracks.
+both engines to it. Both engines also read a body's relative link at
+each place that uses the body, under `vet` as under evaluation, so a
+use whose place the address names nothing from is `rel_unresolved`
+(`rel-body-link-used-elsewhere` in
+[`test/spec/rel.tsv`](../test/spec/rel.tsv)).
 
 ### The argument is a template, not an address
 

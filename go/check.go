@@ -91,7 +91,7 @@ type ValueSpan struct {
 	Len   int
 	Canon string
 	Kind  string
-	Path []string
+	Path  []string
 	// Titles and Descriptions are the value's annotations (meta()).
 	Titles       []string
 	Descriptions []string

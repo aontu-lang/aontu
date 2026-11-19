@@ -7,19 +7,18 @@ import (
 	"strings"
 )
 
-
 // Edge is one checked link. Mirrors Edge in ts/src/graph.ts.
 type Edge struct {
 	From string `json:"from"`
-	Key string `json:"key"`
-	To string `json:"to"`
+	Key  string `json:"key"`
+	To   string `json:"to"`
 	// At is where the link is, as a `$.dotted.path`.
-	At string `json:"at"`
-	Hidden bool `json:"hidden,omitempty"`
+	At     string `json:"at"`
+	Hidden bool   `json:"hidden,omitempty"`
 }
 
 type Graph struct {
-	Edges []Edge `json:"edges"`
+	Edges    []Edge   `json:"edges"`
 	Disjunct []string `json:"disjunct,omitempty"`
 }
 

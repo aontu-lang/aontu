@@ -193,7 +193,7 @@ func realOrAbs(p string) string {
 var includeKinds = map[string]string{
 	"aontu": "source",
 
-	"json": "json",
+	"json":   "json",
 	"jsonld": "json",
 	"jsonc":  "jsonc",
 	"json5":  "json5",
@@ -289,11 +289,11 @@ const trustMetaKey = reservedKeyPrefix + "trust"
 // and the include manifest. A POINTER, like notFoundSink, so a nested
 // include's writes reach the entry parse.
 type trustSink struct {
-	none   bool
-	mem    map[string]string
-	root   string
-	denied string // first denial's message ("" = none)
-	deps   *[]IncludeDep
+	none     bool
+	mem      map[string]string
+	root     string
+	denied   string // first denial's message ("" = none)
+	deps     *[]IncludeDep
 	texts    map[string]string
 	warn     func(kind, path string)
 	warnRoot string
@@ -301,7 +301,7 @@ type trustSink struct {
 	modCache string
 	modCode  string
 	modMsg   string
-	textExt []string
+	textExt  []string
 }
 
 func trustSinkOf(ctx *jsonic.Context) *trustSink {
@@ -616,9 +616,9 @@ func includeProcessors() map[string]multisource.Processor {
 func msOptions(base string, resolver multisource.Resolver) map[string]any {
 	return map[string]any{
 		"_opts": &multisource.MultiSourceOptions{
-			Resolver:  resolver,
-			Path:      base,
-			Processor: includeProcessors(),
+			Resolver:    resolver,
+			Path:        base,
+			Processor:   includeProcessors(),
 			ImplicitExt: []string{".aontu"},
 		},
 	}

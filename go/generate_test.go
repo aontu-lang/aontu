@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-
 func TestGenerateNativeExactTypes(t *testing.T) {
 	cases := []struct {
 		name string

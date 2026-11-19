@@ -2,7 +2,6 @@
 
 package aontu
 
-
 // The closed role set. `label` is unstyled: an entity's own name is
 // the figure's content, not a mark about it.
 const (

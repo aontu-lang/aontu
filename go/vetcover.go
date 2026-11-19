@@ -1,6 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-
 package aontu
 
 import (
@@ -21,7 +20,7 @@ type VetCoverage struct {
 	Declared int `json:"declared"`
 	// Leaves counts data leaves in all, under CoverageAt when it is
 	// given. Checked over this is the ratio a reader wants.
-	Leaves int `json:"leaves"`
+	Leaves    int      `json:"leaves"`
 	Unchecked []string `json:"unchecked"`
 	// Unused names the SHALLOWEST declarations no data path met.
 	Unused []string `json:"unused"`
@@ -299,6 +298,6 @@ func vetCoverageOf(anchor, dataVal Val, coverageAt string, root Val) VetCoverage
 		Leaves:    leaves,
 		Unchecked: coverShallowest(unchecked),
 		Unused:    coverShallowest(unused),
-		Vacuous: 0 == checked && 0 < leaves,
+		Vacuous:   0 == checked && 0 < leaves,
 	}
 }

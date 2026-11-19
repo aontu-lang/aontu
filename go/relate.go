@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 type Address struct {
 	// Absolute is anchored at the document root rather than at the
 	// link's own position.
@@ -624,7 +623,6 @@ func (r *RelateVal) Unify(peer Val, ctx *Ctx) Val {
 		out.path = cp(r.path)
 		return out
 	}
-
 
 	if sv, ok := peer.(*ScalarVal); ok {
 		if KindPath == sv.kind {

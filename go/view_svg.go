@@ -2,7 +2,6 @@
 
 package aontu
 
-
 import (
 	"sort"
 	"strings"
@@ -422,7 +421,7 @@ func sequenceSvg(names []string, msgs []viewMsg, about, style string) string {
 // treemapRow is one row of the treemap: its tile, its depth and the row
 // of its parent, and its bar in whole cells.
 type treemapRow struct {
-	prefix, name             string
+	prefix, name               string
 	weight, depth, parent, bar int
 }
 
