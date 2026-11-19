@@ -9998,13 +9998,14 @@ A name a source declares reads its loads from the source's own
 directory, as the source's term does, and a load of the source itself
 is a cycle. A source the document never loads, not even through
 another source, adds none of its names, so a name it declares over
-nothing makes an error only of a document that loads it. Rows from ls0
-on hold these readings, and both engines answer every one as the
-definition does. Both engines refuse a source that
-declares a name when a document loads it under a key, which the
-definition reads as it reads one at the root. When a document declares
-a name and loads such a source at the root, Go keeps the document's
-declaration in its output, which #514 tracks. No row holds either.
+nothing makes an error only of a document that loads it. A document
+that loads a source at the root and declares a name the source declares
+too holds two names, as two sources do: its own stays its own and never
+meets the source's. Rows from ls0 on hold these readings, and both
+engines answer every one as the definition does. Both engines refuse a
+source that declares a name when a document loads it under a key, which
+the definition reads as it reads one at the root, and no row holds
+that.
 
 The last argument of `Decls.ofSource` holds the names a source
 publishes, `export({ %a })`. The definition declares each under a third
@@ -10041,18 +10042,18 @@ source doesn't publish, or publishes as `nil`, makes the document an
 error, whether or not anything reads the name (`Decls.takesLeft`), one
 in a body whether or not anything uses the body, as the definition reads
 every declaration, and `{ % }` asks for every name the source publishes. Rows from
-lx0 on hold these readings, rows from lb0 on the ones a body writes,
-and both engines' `vet` answers every one as the definition does. A destructure in a list's element binds no name in the
+lx0 on hold these readings, rows from lb0 on the ones a body or a
+source writes, and both engines' `vet` answers every one as the
+definition does. A destructure in a list's element binds no name in the
 definition, since the engines read it differently, which #518 tracks.
 Under a key, both engines class a take of a name the source doesn't
 publish as an `error`, as they class a call the schema can't build,
 and the rows take such a name only at the top.
 
-No row yet holds a source that writes a destructure, since Go fails to
-include one, which #804 tracks. The definition doesn't yet read an
-extension the calling program adds to those read as text, as
-`--text-ext` does, and no term of the definition spells a destructure
-over a term that isn't a load, which both engines refuse.
+The definition doesn't yet read an extension the calling program adds
+to those read as text, as `--text-ext` does, and no term of the
+definition spells a destructure over a term that isn't a load, which
+both engines refuse.
 
 ### Modules
 
