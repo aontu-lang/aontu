@@ -201,6 +201,9 @@
 #   the site rule for every argument position, which rows in several
 #   files pin. The rows of test/spec/constraint-when.tsv put a pending
 #   reference in a later argument.
+#   Ruled 2026-11-19, ruling 65 of sketch/DEFINITION.0.md section 7: a
+#   value inside a call is sited at its own span, from its `$`, in every
+#   argument position. Both parsers move; not yet built.
 #
 # ---------------------------------------------------------------------
 #
