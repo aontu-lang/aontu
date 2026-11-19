@@ -1,0 +1,4 @@
+# The second of two files that each take `%uint8` from
+# alias_exports.aontu, loaded beside alias_takes.aontu.
+{ %uint8 } = @"./alias_exports.aontu"
+v: %uint8

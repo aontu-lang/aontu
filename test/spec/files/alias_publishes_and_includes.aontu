@@ -1,0 +1,6 @@
+# Publishes `%x` and loads, at its root, alias_exports.aontu, which
+# publishes `%uint8`. A file publishes what it declares, so only `%x`
+# can be taken from this one.
+%x = 1
+export({ %x })
+@"./alias_exports.aontu"

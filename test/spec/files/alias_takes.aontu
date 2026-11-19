@@ -1,0 +1,4 @@
+# Takes `%uint8` from alias_exports.aontu with a destructure. Loaded by
+# alias.tsv's rows that hold a destructure one include down.
+{ %uint8 } = @"./alias_exports.aontu"
+y: %uint8
