@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### TypeScript answers seven shapes as Go and the definition do
+
+Phase 1 of `admin/issue-plan.md`, TypeScript's quick wins. Each fix
+comes with the shared rows that pin it, each answered alike by both
+engines.
+
+- **`split` of the empty text at a pattern** is one empty field, `[""]`,
+  at every pattern but the empty one (#447).
+- **A biginteger `upper` or `lower` index** is one wherever it fits
+  int64, as the integer of the same value is (#439). Go: a length near
+  the int64 limit no longer wraps the span's end below its start.
+- **`pack` meets the instances a repeated key makes**, riders included,
+  where it kept only the first (#466).
+- **A path step is checked before it is read**: a variable bound to
+  `null` names no step, and a list answers only to a canonical decimal
+  index, so `$.q."length"` is `no_path`, not an internal error (#471).
+- **A `match` result reads its relative paths where the selection
+  stands**, the default's too, where it read below a `NaN` step (#698).
+- **A member's climbing address under an in-place template link** reads
+  from the member, so `..b` and `...b` link as they do for a template
+  reached by a path (#752).
+- **The language server's diagnostics are plain text**, the detail line
+  and the hint, as Go's are, with no colour escapes or source frame
+  (#834).
+
 ### The repository's checks catch what used to slip through
 
 No engine changes. Four gaps in the repository's own checks are closed
