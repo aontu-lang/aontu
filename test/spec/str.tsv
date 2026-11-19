@@ -188,6 +188,12 @@ split-empty-separator-is-characters	gens	o: split("abc", "")\n	{"o":["a","b","c"
 split-empty-separator-code-points	gens	o: split("aé", "")\n	{"o":["a","é"]}
 split-pattern	gens	o: split("a1b22c", re("[0-9]+"))\n	{"o":["a","b","c"]}
 split-pattern-empty-match	gens	o: split("abc", re("x*"))\n	{"o":["a","b","c"]}
+split-empty-text-at-a-pattern	gens	o: split("", re("x"))\n	{"o":[""]}
+split-empty-text-at-a-starred-pattern	gens	o: split("", re("x*"))\n	{"o":[""]}
+split-empty-text-at-a-class-pattern	gens	o: split("", re("[0-9]+"))\n	{"o":[""]}
+split-empty-text-at-an-anchor	gens	o: split("", re("^"))\n	{"o":[""]}
+split-empty-text-at-the-empty-pattern	gens	o: split("", re(""))\n	{"o":[]}
+split-empty-text-at-a-literal	gens	o: split("", "x")\n	{"o":[""]}
 # A pattern separator is the same portable subset rep() reads, refused
 # with the same code, though re() itself reads it.
 split-pattern-outside-subset	errc	o: split("a1b", re("\\\\p{Nd}"))\n	rep_pattern

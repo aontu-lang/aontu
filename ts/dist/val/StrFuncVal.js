@@ -260,7 +260,9 @@ class SplitFuncVal extends FuncBaseVal_1.FuncBaseVal {
             if ('string' === typeof host) {
                 return (0, err_1.makeNilErr)(ctx, host, this);
             }
-            fields = splitRe(src, host);
+            // An empty text is one empty field at every pattern but the empty
+            // one, before any match is looked for, as the Go port reads it.
+            fields = '' === src && '' !== sep.res[0].src ? [''] : splitRe(src, host);
         }
         else {
             return (0, err_1.makeNilErr)(ctx, 'split_sep', this);
