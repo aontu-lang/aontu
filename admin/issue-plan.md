@@ -1,8 +1,9 @@
 # Plan for the open issues
 
-What to do about the 129 issues open on 2026-11-19, after the triage of
-[`issue-triage.md`](issue-triage.md). Fifteen issues were closed, and the
-triage filed three. Each open issue is in one workstream below, and the
+What to do about the 131 issues open on 2026-11-19, after the triage of
+[`issue-triage.md`](issue-triage.md). Fourteen issues were closed that
+day. #431, found only partly fixed, stays open. The triage filed three,
+and #836 tracks the rows the closed fixes still owe. Each open issue is in one workstream below, and the
 workstreams fall into five phases, ordered by what each one unblocks and
 by how many rows of `spec/ledger.tsv` it clears.
 
@@ -16,7 +17,7 @@ by how many rows of `spec/ledger.tsv` it clears.
   So does each issue closed on 2026-11-19 that still has no row.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
-- **Progress is three numbers**: open issues (129), ledger rows (394
+- **Progress is three numbers**: open issues (131), ledger rows (394
   at most), and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -41,14 +42,14 @@ release).
 ## Phase 1: quick wins
 
 Each is a small fix in one engine or in the repository, and each fix
-comes with its row. These take days, not weeks, and clear seventeen
+comes with its row. These take days, not weeks, and clear eighteen
 issues:
 
 - TypeScript: [#439](https://github.com/aontu-lang/aontu/issues/439), [#447](https://github.com/aontu-lang/aontu/issues/447), [#466](https://github.com/aontu-lang/aontu/issues/466), [#471](https://github.com/aontu-lang/aontu/issues/471), [#502](https://github.com/aontu-lang/aontu/issues/502), [#698](https://github.com/aontu-lang/aontu/issues/698), [#752](https://github.com/aontu-lang/aontu/issues/752), [#834](https://github.com/aontu-lang/aontu/issues/834)
 - Go: [#451](https://github.com/aontu-lang/aontu/issues/451), [#514](https://github.com/aontu-lang/aontu/issues/514)
 - both ports: [#832](https://github.com/aontu-lang/aontu/issues/832), [#833](https://github.com/aontu-lang/aontu/issues/833)
 - the definition: [#826](https://github.com/aontu-lang/aontu/issues/826) and [#828](https://github.com/aontu-lang/aontu/issues/828), each a behaviour change, so each starts from the parity probe
-- the repository: [#813](https://github.com/aontu-lang/aontu/issues/813) (a `gofmt` gate), [#611](https://github.com/aontu-lang/aontu/issues/611) (a test that each prompt-log entry closes its fence), [#443](https://github.com/aontu-lang/aontu/issues/443)
+- the repository: [#836](https://github.com/aontu-lang/aontu/issues/836) (the rows the closed fixes owe), [#813](https://github.com/aontu-lang/aontu/issues/813) (a `gofmt` gate), [#611](https://github.com/aontu-lang/aontu/issues/611) (a test that each prompt-log entry closes its fence), [#443](https://github.com/aontu-lang/aontu/issues/443)
 
 ## Phase 2: the rules with the most ledger rows
 
@@ -80,7 +81,7 @@ A name or a path that reaches itself consuming no key or element is a static `er
 
 ### Preferences and disjunction arms
 
-9 issues (3 S, 4 M, 2 L), 178 ledger rows.
+10 issues (4 S, 4 M, 2 L), 178 ledger rows.
 
 How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714 still generates the wrong value in four shapes no `gens` row holds, so its rows come first. #832 is the siting half of #482.
 
@@ -95,6 +96,7 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#349](https://github.com/aontu-lang/aontu/issues/349) | bug | S |  | `*(` before a literal container reads as an implicit bag: an error alone, silently dropped in a disjunction. |
 | [#348](https://github.com/aontu-lang/aontu/issues/348) | parity | M |  | Disjunction arms written differently but generating the same value: Go generates it, TypeScript answers disjunct_no_gen. |
 | [#832](https://github.com/aontu-lang/aontu/issues/832) | parity | S |  | A made default's pref_rank_clash: Go sites $, TypeScript loses the position. |
+| [#431](https://github.com/aontu-lang/aontu/issues/431) | bug | S |  | A concrete value lost to a default by declaration order (`**default`, value, `*default`). |
 
 ### Seals, marks, moves and generation-time checks
 
@@ -329,12 +331,13 @@ These can run at any point. #826 and #828 are already in phase 1.
 
 ### Repository process
 
-3 issues (3 S).
+4 issues (3 S, 1 M).
 
 Each is a small gate that stops a fault from coming back.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
+| [#836](https://github.com/aontu-lang/aontu/issues/836) | process | M |  | Shared rows owed for seven fixes closed on 2026-11-19, and two stale texts. |
 | [#813](https://github.com/aontu-lang/aontu/issues/813) | tool | S |  | Go sources are not gofmt-clean and no Makefile target or workflow checks gofmt. |
 | [#611](https://github.com/aontu-lang/aontu/issues/611) | process | S |  | Union merge of the prompt log drops shared closing fences, leaving entries unclosed; no automated guard. |
 | [#443](https://github.com/aontu-lang/aontu/issues/443) | tool | S |  | Vale drops alerts around an HTML entity spelling a tag in a code fence. |
@@ -344,10 +347,10 @@ Each is a small gate that stops a fault from coming back.
 | phase | workstreams | issues | ledger rows |
 |---|---|---|---|
 | 0 | decisions | 7 questions | |
-| 1 | quick wins | 17 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 41 | 354 |
+| 1 | quick wins | 18 | |
+| 2 | alias cycles, preferences, seals and marks, copies | 42 | 354 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 56 | 34 |
 | 4 | diagnostics, tooling | 24 | |
-| alongside | the definition, the repository | 8 | 2 |
+| alongside | the definition, the repository | 9 | 2 |
 
 The issue counts overlap where a quick win belongs to a workstream.
