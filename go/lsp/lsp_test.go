@@ -49,6 +49,25 @@ func TestDiagnosticsConflictPosition(t *testing.T) {
 	}
 }
 
+// The same text as the TypeScript server: the detail line and the hint,
+// plain, with no colour escapes and no source frame.
+func TestDiagnosticsMessageIsPlainText(t *testing.T) {
+	d := Diagnostics("a: 1\nmode: \"a\" & \"b\"")
+	if len(d) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(d), d)
+	}
+	want := "Cannot unify value: \"b\" with value: \"a\"\n" +
+		"Literal scalar values of the same kind can only unify if they are\n" +
+		"exactly equal.\n \nExamples:\n" +
+		"  1 & 1   -> 1    # Does unify (equal Integers);\n" +
+		"  a & a   -> a    # Does unify (equal Strings);\n" +
+		"  1 & 2   -> nil  # Does not unify (unequal Integers);\n" +
+		"  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float)."
+	if d[0].Message != want {
+		t.Errorf("message = %q, want %q", d[0].Message, want)
+	}
+}
+
 // Twin: ts/test/lsp.test.ts alias-budget-is-a-diagnostic. The editor
 // checks on each keystroke, so a ladder too big to expand is turned
 // away here too; evaluating it instead takes tens of seconds.
