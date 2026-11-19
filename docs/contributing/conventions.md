@@ -113,7 +113,10 @@ import/publish line the thing is on rather than trusting the ear.
 
 - Keep new TypeScript code in the style of the surrounding `ts/src` files.
 - Go is `package aontu`; exported API is `New().Parse/Unify/Generate`.
-  Run `go vet ./...` and `gofmt` before committing.
+  Run `go vet ./...` and `gofmt -w` before committing. The Go sources
+  are held to the layout gofmt writes: `make gofmt` lists a file it would change,
+  and `TestGoSourcesAreGofmtClean` in `go/gofmt_test.go` fails on one,
+  so CI does too.
 - Go module releases (a Go module in a subdirectory) use git tags of the
   form `go/vX.Y.Z`, and carry the CLI binaries, packages and the
   package-manager manifests on a GitHub Release at that tag, and the

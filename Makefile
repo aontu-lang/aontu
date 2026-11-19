@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go spec \
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go spec gofmt \
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
         helpdoc aontu formats formatgen unicodegen vocabularies metaschemas prose \
@@ -47,6 +47,11 @@ install-go:
 # .githooks/pre-push.
 comments:
 	node admin/scripts/comment-gate.cjs
+
+# The Go sources in gofmt's layout. The same check runs in
+# go/gofmt_test.go, so CI runs it on every push.
+gofmt:
+	@out=$$(cd go && gofmt -l .); test -z "$$out" || { echo "gofmt: run gofmt -w on:"; echo "$$out"; exit 1; }
 
 # Point git at the hooks this repository ships: pre-push runs the
 # comment gate before the push leaves the machine.
@@ -201,7 +206,7 @@ test-group:
 # gate, both builds, the gate group and the Go suite. The other groups,
 # the other operating systems, the prose gate and the definition are
 # CI's: make test-group, make prose and make spec run them by hand.
-quick: comments build-ts
+quick: comments gofmt build-ts
 	cd go && go build ./... && go vet ./...
 	cd ts && node scripts/test-group.cjs --run 0
 	cd go && go test ./...
