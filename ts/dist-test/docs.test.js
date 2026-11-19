@@ -797,6 +797,31 @@ corpusDescribe('docs-style', () => {
         Assert.ok(files.includes('test/system/rb-solar/README.md'), 'each system README is gated');
         Assert.ok(files.includes('test/system/rb-solar/doc/erd.md'), 'each system guide is gated');
     });
+    // Vale reads a tag spelled in entities inside a fence as an element,
+    // and the prose that element swallows loses its alerts, the whole
+    // page's count shrinking with nothing to say so.
+    (0, node_test_1.test)('no-fence-spells-a-tag-in-entities', () => {
+        const hits = [];
+        for (const { file, abs } of stylePaths()) {
+            let fence = null;
+            Fs.readFileSync(abs, 'utf8').split('\n').forEach((text, index) => {
+                const mark = /^\s*(`{3,}|~{3,})/.exec(text);
+                if (null != mark) {
+                    if (null == fence) {
+                        fence = mark[1];
+                    }
+                    else if (text.trim() === fence) {
+                        fence = null;
+                    }
+                }
+                else if (null != fence && /&lt;\/?[A-Za-z][^&\s]*&gt;/.test(text)) {
+                    hits.push(`${file}:${index + 1}: ${text.trim()}`);
+                }
+            });
+        }
+        Assert.deepEqual(hits, [], 'a fence spells a tag in entities, which hides alerts from Vale; '
+            + `write an example whose text spells no tag:\n${hits.join('\n')}`);
+    });
     (0, node_test_1.test)('no-banned-phrases-in-prose', () => {
         const hits = [];
         for (const { file, abs } of stylePaths()) {

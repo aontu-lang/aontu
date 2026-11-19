@@ -3758,14 +3758,14 @@ way and an identifier another.
 plain: esc("plain text")
 inner: esc("it\'s", sq)
 table: esc("o\'brien", sql)
-markup: esc("<a>&", xml)
+markup: esc("x < y & z", xml)
 address: esc("a b/c", uri)
 pattern: esc("a.b", regex)
 ```
 
 ```json
 {"plain": "plain text", "inner": "it\\'s", "table": "o''brien",
- "markup": "&lt;a&gt;&amp;", "address": "a%20b%2Fc", "pattern": "a\\.b"}
+ "markup": "x &lt; y &amp; z", "address": "a%20b%2Fc", "pattern": "a\\.b"}
 ```
 
 **Escaping a value that was already safe changes nothing**, which is
