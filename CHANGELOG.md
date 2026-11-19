@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### The repository's checks catch what used to slip through
+
+No engine changes. Four gaps in the repository's own checks are closed
+(phase 1 of `admin/issue-plan.md`).
+
+- **The Go sources stay in gofmt's layout** (#813). `gofmt -w` ran over
+  `go/`, which changed whitespace and one import's order, and
+  `TestGoSourcesAreGofmtClean` in `go/gofmt_test.go` now fails on any
+  file gofmt would change. `make gofmt` lists those files, and
+  `make quick` runs it.
+- **A damaged prompt-log entry fails its branch** (#611).
+  `ts/test/prompt-log.test.ts`, in the group every push runs, fails on
+  an entry whose fence is left open or that holds other than one fenced
+  prompt. It found one entry woven into the next by a union merge, and
+  that entry is restored from the commit that added it.
+- **The prose gate sees the whole reference** (#443). The `esc`
+  example's output spelled a tag in entities, which Vale read as an
+  element, hiding 52 alerts. The example now escapes `"x < y & z"`, the
+  count is re-measured at 5,502, and a docs check fails on any gated
+  fence that spells a tag in entities.
+- **Seven closed fixes have their rows** (#836): ten in
+  `test/spec/gen-key.tsv`, eight in `test/spec/rel.tsv` and one in
+  `test/spec/rest.tsv`, each answered alike by both engines. The
+  reference no longer cites #488 as open, and the retired
+  `refer_address` hint says `refer()` is now `relate()`.
+
 ### The definition says each thing once
 
 The definition and its oracle only. No row, engine or reading changes:
