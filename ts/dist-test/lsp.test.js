@@ -60,6 +60,19 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.deepEqual(d[0].range.start, { line: 1, character: 2 });
         Assert.match(d[0].message, /Cannot unify value/);
     });
+    // The same text as Go's server: the detail line and the hint, plain,
+    // with no colour escapes and no source frame.
+    (0, node_test_1.test)('message-is-plain-text', () => {
+        const d = (0, lsp_1.computeDiagnostics)('a: 1\nmode: "a" & "b"');
+        Assert.equal(d.length, 1);
+        Assert.equal(d[0].message, 'Cannot unify value: "b" with value: "a"\n'
+            + 'Literal scalar values of the same kind can only unify if they are\n'
+            + 'exactly equal.\n \nExamples:\n'
+            + '  1 & 1   -> 1    # Does unify (equal Integers);\n'
+            + '  a & a   -> a    # Does unify (equal Strings);\n'
+            + '  1 & 2   -> nil  # Does not unify (unequal Integers);\n'
+            + '  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).');
+    });
     // Twin: go/lsp/lsp_test.go TestDiagnosticsAliasBudget. The editor
     // unifies on each keystroke, so a ladder too big to expand is turned
     // away here too; evaluating it instead takes tens of seconds.

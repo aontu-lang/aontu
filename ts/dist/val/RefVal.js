@@ -98,14 +98,21 @@ function pendingMarkWrapper(v) {
 function markedChild(v, part) {
     v = (0, RecurseVal_1.throughRider)(v);
     if (true === v?.isMap || true === v?.isList) {
-        return v.peg[part];
+        return member(v, part);
     }
     if (true === v?.isFunc
         && (true === v.isHideFunc || true === v.isTypeFunc)
         && (true === v.peg?.[0]?.isMap || true === v.peg?.[0]?.isList)) {
-        return v.peg[0].peg[part];
+        return member(v.peg[0], part);
     }
     return undefined;
+}
+const CANONICAL_LIST_INDEX = /^(0|[1-9][0-9]*)$/;
+function member(v, part) {
+    if (true === v.isList && !CANONICAL_LIST_INDEX.test(String(part))) {
+        return undefined;
+    }
+    return v.peg[part];
 }
 const aliasname_1 = require("../aliasname");
 const rider_1 = require("../rider");
@@ -291,7 +298,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         if (part.isNil) {
                             return;
                         }
-                        else if (true !== part.isScalar) {
+                        else if (true !== part.isScalar || true === part.isNull) {
                             return (0, err_1.makeNilErr)(ctx, 'no_path', this);
                         }
                         else {
@@ -337,13 +344,13 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         node = node.peg[part];
                     }
                     else if (node.isList) {
-                        node = node.peg[part];
+                        node = member(node, part);
                     }
                     else if (true === node.isFunc
                         && (node.isHideFunc || node.isTypeFunc)
                         && (true === node.peg?.[0]?.isMap
                             || true === node.peg?.[0]?.isList)) {
-                        node = node.peg[0].peg[part];
+                        node = member(node.peg[0], part);
                     }
                     else if (true === node.isConjunct && undefined !== this.aliasKey
                         && Array.isArray(node.peg) && !pendingMarkWrapper(node)) {
@@ -394,7 +401,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     const part = refpath[pI];
                     fnode = (0, RecurseVal_1.throughRider)(fnode);
                     if (true === fnode.isMap || true === fnode.isList) {
-                        fnode = fnode.peg[part];
+                        fnode = member(fnode, part);
                     }
                     else if (true === fnode.isConjunct && undefined !== this.aliasKey) {
                         fnode = (0, RecurseVal_1.declaration)(fnode, part);
@@ -514,7 +521,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
             }
             let node = ctx.root;
             for (let i = 0; i < rp.length && null != node; i++) {
-                node = (node.isMap || node.isList) ? node.peg[rp[i]] : undefined;
+                node = (node.isMap || node.isList) ? member(node, rp[i]) : undefined;
             }
             if (null == node) {
                 return false;

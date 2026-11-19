@@ -130,3 +130,10 @@ subsume-kind-over-value	subsume	d: path	d: path($.a)	{"findings":[],"verdict":"s
 subsume-prefix-over-extension	subsume	d: path($.a)	d: path($.a.b)	{"findings":[],"verdict":"subsumes"}
 # A path over a string a generator still makes waits for it.
 path-waits-for-a-staged-string	canon	p: path(join(each(["$", "q"], _), "."))\nq: 1	{"p":path($.q),"q":1}
+
+# A list answers only to a canonical decimal index: a step that spells a
+# property of the host array names nothing.
+list-step-length-names-nothing	errc	q: [1, 2]\nx: $.q."length"	no_path
+list-step-method-names-nothing	errc	q: [1, 2]\nx: $.q."map"	no_path
+list-step-nested-length-names-nothing	errc	q: [[1, 2]]\nx: $.q.0."length"	no_path
+list-step-canonical-index-reads	gens	q: [1, 2]\nx: $.q."1"	{"q":[1,2],"x":2}

@@ -65,3 +65,12 @@ match-unfilled-optional-is-not-a-member	gens	m:match({},{a?:integer},"hit","miss
 # second of one canon in a meet at one place is written once.
 match-a-repeated-waiting-match-is-one	canon	a: {&: match(key(0), "x", any, any)} & {&: match(key(0), "y", any, any)} & {&: match(key(0), "x", any, any)}	{"a":{&:match(key(0),"x",any,any)&match(key(0),"y",any,any)}}
 match-a-repeated-waiting-list-match-is-one	canon	a: [&: match(key(0), "0", any, any)] & [&: match(key(0), "1", any, any)] & [&: match(key(0), "0", any, any)]	{"a":[&:match(key(0),"0",any,any)&match(key(0),"1",any,any)]}
+
+# A result stands where the selection stands, so a relative path written
+# in it reads from there, at any depth and for the default too.
+match-result-relative-path	gens	k: "m"\nhosts: match($.k, "m", {name: "x", url: .name}, "n", null)	{"hosts":{"name":"x","url":"x"},"k":"m"}
+match-result-relative-path-nested	gens	k: "m"\nhosts: match($.k, "m", {a: {name: "x", url: .name}}, "n", null)	{"hosts":{"a":{"name":"x","url":"x"}},"k":"m"}
+match-result-relative-path-climbs	gens	k: "m"\nhosts: match($.k, "m", {name: "x", sub: {url: ..name}}, "n", null)	{"hosts":{"name":"x","sub":{"url":"x"}},"k":"m"}
+match-default-relative-path	gens	k: "z"\nhosts: match($.k, "m", 1, {name: "x", url: .name})	{"hosts":{"name":"x","url":"x"},"k":"z"}
+match-result-relative-path-vet-admits	verdict	k: "m"\nhosts: match($.k, "m", {name: string, url: .name}, "n", null)	{"k":"m","hosts":{"name":"x","url":"x"}}	{"verdict":"valid"}
+match-result-relative-path-vet-refuses	verdict	k: "m"\nhosts: match($.k, "m", {name: string, url: .name}, "n", null)	{"k":"m","hosts":{"name":"x","url":"y"}}	{"verdict":"invalid"}

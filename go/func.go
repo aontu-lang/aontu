@@ -1059,7 +1059,9 @@ func caseLower(s string) string {
 
 func caseSpan(n, start, length int) (int, int) {
 	span := length
-	if span < 0 {
+	// Clamped to the string before it is added: a length near the int64
+	// limit would otherwise wrap the end below the start.
+	if span < 0 || span > n {
 		span = n
 	}
 	if 0 <= start {

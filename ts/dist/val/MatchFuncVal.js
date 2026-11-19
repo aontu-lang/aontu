@@ -7,6 +7,7 @@ const err_1 = require("../err");
 const top_1 = require("./top");
 const PrefVal_1 = require("./PrefVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const Val_1 = require("./Val");
 function effectiveScrutinee(v) {
     let out = v;
     if (true === out?.isDisjunct && Array.isArray(out.peg)) {
@@ -17,6 +18,13 @@ function effectiveScrutinee(v) {
         out = prefs.reduce((a, b) => b.rank < a.rank ? b : a);
     }
     return (0, PrefVal_1.prefInnerPeg)(out);
+}
+// A result stands where the selection stands, so the relative paths
+// written in it read from there, as a template's instance reads them.
+function placed(result, ctx) {
+    const out = result.clone(ctx, { dup: true });
+    (0, Val_1.repathInstance)(out, ctx.path);
+    return out;
 }
 class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
@@ -65,11 +73,11 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
             // untouched for the next document that reads its canon.
             const met = (0, FuncBaseVal_1.trialUnify)(ctx, scrutinee.clone(ctx), pattern.clone(ctx));
             if (undefined !== met && (0, FuncBaseVal_1.sameMembers)(scrutinee, met, ctx, true)) {
-                return args[i + 1].clone(ctx);
+                return placed(args[i + 1], ctx);
             }
         }
         if (undefined !== dflt) {
-            return dflt.clone(ctx);
+            return placed(dflt, ctx);
         }
         return (0, err_1.makeNilErr)(ctx, 'match_none', this, undefined, 'resolve', {
             value: scrutinee.canon,

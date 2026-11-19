@@ -269,8 +269,15 @@ case-range-bad-index	errc	a:upper("foo",true)	func_arg
 # A BIGINTEGER INDEX IS AN INDEX, declared as `key`'s level already is:
 # a position in a string is small by construction, or it clamps.
 case-range-bigint-index	gen	a:upper("foo",0d1,0d1)	{"a":"fOo"}
+case-range-bigint-index-past-a-safe-number	gen	a:upper("foo",0d9007199254740992)	{"a":"foo"}
+case-range-bigint-index-at-the-largest	gen	a:upper("foo",0d9223372036854775807)	{"a":"foo"}
+case-range-bigint-index-at-the-smallest	gen	a:upper("foo",-0d9223372036854775808)	{"a":"foo"}
+case-range-bigint-length-at-the-largest	gen	a:upper("foo",0d1,0d9223372036854775807)	{"a":"fOO"}
+case-range-bigint-length-past-a-safe-number	gen	a:lower("FOO",0d1,0d9007199254740993)	{"a":"Foo"}
 # EVERY WAY AN ARGUMENT CAN FAIL TO BE AN INDEX. A preference reaches
 # the call with nothing for the signature gate to check, and a
 # biginteger past int64 is not a position in any string.
 case-range-pref-index	errc	a:upper("foo",*1)	invalid-arg
 case-range-huge-index	errc	a:upper("foo",0d99999999999999999999,1)	invalid-arg
+case-range-bigint-index-past-the-largest	errc	a:upper("foo",0d9223372036854775808)	invalid-arg
+case-range-bigint-index-below-the-smallest	errc	a:upper("foo",-0d9223372036854775809)	invalid-arg

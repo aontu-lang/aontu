@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.caseSpan = caseSpan;
 exports.caseRange = caseRange;
 exports.rangeArg = rangeArg;
+const INDEX_MIN = -(2n ** 63n);
+const INDEX_MAX = 2n ** 63n - 1n;
 // The half-open code-point span [lo, hi) a (start, len) selects over a
 // string of `n` code points.
 function caseSpan(n, start, len) {
@@ -36,13 +38,12 @@ function rangeArg(v) {
     if ('number' === typeof p && Number.isInteger(p)) {
         return p;
     }
-    // A biginteger index is an index: a position in a string is small by
-    // construction, or it is not an index at all.
-    if ('bigint' === typeof p) {
-        const n = Number(p);
-        if (Number.isSafeInteger(n)) {
-            return n;
-        }
+    // A biginteger is an index where it fits the integer leaf's magnitude,
+    // so the integer and the biginteger of one value are one index. A value
+    // too large for a number to hold exactly loses that exactness here, but
+    // both ends clamp, so it indexes as it would exactly.
+    if ('bigint' === typeof p && INDEX_MIN <= p && p <= INDEX_MAX) {
+        return Number(p);
     }
     return NaN;
 }

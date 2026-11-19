@@ -277,7 +277,8 @@ class SplitFuncVal extends FuncBaseVal {
       if ('string' === typeof host) {
         return makeNilErr(ctx, host, this)
       }
-      fields = splitRe(src, host)
+      const emptyTextIsOneField = '' === src && '' !== sep.res[0].src
+      fields = emptyTextIsOneField ? [''] : splitRe(src, host)
     }
     else {
       return makeNilErr(ctx, 'split_sep', this)

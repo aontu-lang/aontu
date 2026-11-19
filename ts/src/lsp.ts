@@ -166,8 +166,6 @@ function siteExtent(v: any): number {
 // NilVal.Message() (go/val.go) so diagnostics match across
 // implementations: "Cannot <attempt> value: X with value: Y\n<hint>".
 function nilMessage(nil: any): string {
-  if (nil.msg) return nil.msg
-
   const attempt = nil.attempt ?? (null == nil.secondary ? 'resolve' : 'unify')
   let msg = 'Cannot ' + attempt + ' value'
   if (null != nil.primary) {

@@ -226,7 +226,7 @@ type Diagnostic = {
 computeDiagnostics('a:1\na:2')
 // [{ range: { start: { line: 1, character: 2 }, end: { line: 1, character: 3 } },
 //    severity: 1, code: 'scalar_value', source: 'aontu',
-//    message: '[aontu/scalar_value]: Cannot unify values at path $.a\n...' }]
+//    message: 'Cannot unify value: 2 with value: 1\nLiteral scalar values of ...' }]
 
 computeDiagnostics('a:string') // []  (valid schema)
 ```
