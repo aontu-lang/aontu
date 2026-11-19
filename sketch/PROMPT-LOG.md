@@ -1465,3 +1465,9 @@ Git pull the latest version and review the lean spec for redundancy, duplication
 ```text
 review all of the outstanding github issues and categorise them
 ```
+
+## 2026-11-19 12:25:04 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+yes, close them and update the out-of-date ones; present a plan for addressing the others
+```
