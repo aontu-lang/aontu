@@ -157,7 +157,7 @@ var hints = map[string]string{
 	// RETIRED with the function refer(), whose links relate() makes.
 	// Registered still, errcodes.tsv being append-only, so a code a
 	// released engine raised keeps its meaning.
-	"refer_address":         "A refer() was given something that is not a tree address. An address\nis a PATH VALUE — `path($.a.b)` from the document root, `path(.b)`\nfrom the link's own sibling scope — and only a path value can be one:\na bare string never is, and `path(\"...\")` is the one conversion.\n \nExamples:\n  refer() & path($.services.auth)  -> ...   # From the root;\n  refer() & path(.auth)            -> ...   # ... or beside the link;\n  refer() & \"$.services.auth\"      -> nil   # ... a string is not a path;\n  refer() & 1                      -> nil   # ... and neither is a number.",
+	"refer_address":         "The refer() function was renamed relate(), so this code is retired and\nnothing raises it. relate() refuses a value that is not a tree address\nas rel_address, and a document that still calls refer() is refused as\nunknown_function.",
 	"refer_unresolved":      "A name that has to be a node of this document names none: an endpoint\ngiven to `aontu reaches`, or the root given to a tree view. Check the\nspelling against the nodes the note lists. A link whose address names\nno node answers rel_unresolved.",
 	"view_relation_unknown": "The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.",
 	"view_kind_unknown":     "The figure kind is not one the verb draws. The note lists\nthe kinds.",

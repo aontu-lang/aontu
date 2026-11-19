@@ -50,3 +50,17 @@ key-spread-through-ref-merged-2	gens	a: b: { e:$.a.b.f f: { &: { n:key() } x: {}
 key-spread-through-ref-merged-3	gens	a: b: { c:e:$.a.b.f f: { &: { n:key() } x: {} } }	{"a":{"b":{"c":{"e":{"x":{"n":"x"}}},"f":{"x":{"n":"x"}}}}}
 key-spread-through-ref-merged-4	gens	a: b: { c:d:e:$.a.b.f f: { &: { n:key() } x: {} } }	{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
 key-spread-through-ref-merged-5	gens	a: b: { c:d:g:e:$.a.b.f f: { &: { n:key() } x: {} } }	{"a":{"b":{"c":{"d":{"g":{"e":{"x":{"n":"x"}}}}},"f":{"x":{"n":"x"}}}}}
+
+# A path copies its target's term, and a key() in it reads where the
+# copy lands, while the target keeps its own value, whatever reads it.
+# Each row holds both places; the definition answers the same.
+key-target-keeps-its-own-upper	gens	a: upper(key())\nb: c: $.a	{"a":"","b":{"c":"B"}}
+key-target-keeps-its-own-upper-0	gens	a: upper(key(0))\nb: c: $.a	{"a":"A","b":{"c":"C"}}
+key-target-keeps-its-own-lower	gens	a: lower(key())\nb: c: $.a	{"a":"","b":{"c":"b"}}
+key-target-keeps-its-own-member	gens	a: x: upper(key())\nb: c: $.a	{"a":{"x":"A"},"b":{"c":{"x":"C"}}}
+key-target-keeps-its-own-list	gens	a: [upper(key())]\nb: c: $.a	{"a":["A"],"b":{"c":["C"]}}
+key-target-keeps-its-own-concat	gens	a: upper("x" + key())\nb: c: $.a	{"a":"X","b":{"c":"XB"}}
+key-target-keeps-its-own-join	gens	a: join([key()])\nb: c: $.a	{"a":"a","b":{"c":"c"}}
+key-target-keeps-its-own-each	gens	a: each([key()], _)\nb: c: $.a	{"a":["a"],"b":{"c":["c"]}}
+key-target-keeps-its-own-pack	gens	a: pack([key()], {v: 1})\nb: c: $.a	{"a":{"a":{"v":1}},"b":{"c":{"c":{"v":1}}}}
+key-target-keeps-its-own-pack-shallow	gens	a: pack([key()], {v: 1})\nb: $.a	{"a":{"a":{"v":1}},"b":{"b":{"v":1}}}

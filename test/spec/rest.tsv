@@ -75,3 +75,6 @@ rest-errc-a-waiting-cover-not-a-map	errc	a: rest(nil, $.b) & {}\nb: 1	invalid-ar
 # itself: two values of one hash form are one value.
 rest-general-is-undecided	subsume	a: rest(nil)	a: 5	{"findings":[{"actual":"5","class":"compat","code":"sub_evaluate_only","expected":"rest(nil)","message":"a check of the members no cover evaluates (rest) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"rest","value":"rest(nil)"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"5","value":"5"}]}],"verdict":"undecided"}
 rest-residual-admits-itself	subsume	a: rest(nil)	a: rest(nil)	{"findings":[],"verdict":"subsumes"}
+
+# A nil cover with a keys option admits the keyed map.
+rest-nil-cover-keys-admits-the-keyed-map	vet	a: rest(nil, {keys: "a"}, nil)	{"a": {"a": 1}}	{"findings":[],"truncated":false,"verdict":"valid"}

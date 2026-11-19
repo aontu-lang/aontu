@@ -111,3 +111,23 @@ rel-a-bare-relation-meets-a-typed-one	canon	b: {}\nx: relate() & [path($.b)]\ny:
 # member as the kind it is.
 rel-member-kind-then-address	gens	a: uses: relate() & [path]\na: uses: [path($.b)]\nb: {}	{"a":{"uses":["$.b"]},"b":{}}
 rel-member-constraint-kind-canon	canon	x: relate() & [constraint]	{"x":relate()&[constraint]}
+
+# A link held in a nested container reads each leaf from the field.
+rel-nested-container-reads-each-leaf-from-the-field	gens	s: {d: relate({k:1}) & [[path(.x)]], x: {}}	{"s":{"d":[[".x"]],"x":{"k":1}}}
+
+# A relative leaf that climbs off the top names nothing, under vet too.
+rel-relative-leaf-off-the-top-vet	vet	s: {d: relate({k:1}) & [path(..x)], x: {}}	{}	{"findings":[{"class":"reference","code":"rel_unresolved","path":"$.s.d.0","pointer":"/s/d/0","severity":"error","sites":[{"col":25,"file":"schema","len":4,"role":"schema","row":1,"src":"path","value":"path(..x)"}]}],"truncated":false,"verdict":"error"}
+
+# A body's relative link used where its address names nothing.
+rel-body-link-used-elsewhere	errc	%L = relate() & path(.auth)\ns: { b: %L }	rel_unresolved
+rel-body-link-used-elsewhere-vet	verdict	%L = relate() & path(.auth)\ns: { b: %L }	{}	{"verdict":"error"}
+
+# A link copied whole is a link at each copy, its template read there,
+# so two copies meet "T" and "r" at the target: a conflict in every order.
+rel-copied-whole-conflicts	errc	a: {}\nT: relate({n: key()}) & path($.a)\nx: {r: $.T}	scalar_value
+rel-copied-whole-conflicts-copy-first	errc	a: {}\nx: {r: $.T}\nT: relate({n: key()}) & path($.a)	scalar_value
+rel-copied-whole-conflicts-three-places	errc	a: {}\nx: {r: $.T}\nT: relate({n: key()}) & path($.a)\ny: {q: $.T}	scalar_value
+
+# A pattern beside relate() and a graph atom, where the range is a
+# subtype of the declaring type, waits for the address.
+rel-pattern-beside-graph-atom-in-hidden-type	gens	t: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate($.t.D) & acyclic() & re("^\\\\$\\\\.n\\\\.[^.]+$") }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{"n":{"a":{"k":"d"},"b":{"k":"f","up":"$.n.a"}}}

@@ -280,7 +280,7 @@ const hints: Record<string, string> = {
   // RETIRED with the function refer(), whose links relate() makes.
   // Registered still, errcodes.tsv being append-only, so a code a
   // released engine raised keeps its meaning.
-  refer_address: 'A refer() was given something that is not a tree address. An address\nis a PATH VALUE — `path($.a.b)` from the document root, `path(.b)`\nfrom the link\'s own sibling scope — and only a path value can be one:\na bare string never is, and `path("...")` is the one conversion.\n \nExamples:\n  refer() & path($.services.auth)  -> ...   # From the root;\n  refer() & path(.auth)            -> ...   # ... or beside the link;\n  refer() & "$.services.auth"      -> nil   # ... a string is not a path;\n  refer() & 1                      -> nil   # ... and neither is a number.',
+  refer_address: 'The refer() function was renamed relate(), so this code is retired and\nnothing raises it. relate() refuses a value that is not a tree address\nas rel_address, and a document that still calls refer() is refused as\nunknown_function.',
 
   path_address: 'This is not a tree address, so it cannot be a path value. An address\nis `$.a.b` from the document root, or `.b` from the sibling scope with\none more leading dot per parent step -- the grammar path() captures.\nString text with no anchor converts as RELATIVE, and a string\nconverts ONLY through the call\'s own argument.\n \nExamples:\n  d: path("$.services.auth") -> path($.services.auth) # A converted string;\n  d: path("auth")           -> path(.auth)  # ... anchorless text is relative;\n  d: path("a..b")           -> nil   # ... but this spells nothing;\n  d: path("$")              -> nil   # ... and the root is not addressable.',
 
