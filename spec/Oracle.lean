@@ -7107,7 +7107,7 @@ def readThroughCases : List (Val × Data) :=
   let l34 : Data := .list [.integer 3, .integer 4]
   [(.call .super [h1], x), (.call .super [h1], l1), (.call .super [hk], k1),
     (.call .pref [h1], x), (.call .pref [h1], l1), (.call .move [h1], x), (.call .move [h1], l1),
-    (.call .relate [h1], x), (.call .relate [h1], l1), (.call .relate [h1], x),
+    (.call .relate [h1], x), (.call .relate [h1], l1), (.call .relate [hk], k1),
     (.call (.bnd .min) [h1], x), (.call (.bnd .min) [h1], l1), (.call (.bnd .max) [hk], k1),
     (.call (.bnd .above) [h1], l1), (.call (.bnd .below) [h1], x), (.call (.bnd .mulof) [h1], l1),
     (.call (.bnd .neq) [h1], l1), (.call (.bnd .neq) [lst [n 1, .hole]], .integer 3),
