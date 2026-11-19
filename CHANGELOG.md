@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads every term as written alike itself
+
+Phase 1 of `admin/issue-plan.md`, the definition's quick wins. No
+engine changes.
+
+- **`Val.beq` has a case for every constructor** (#826). It read `map`,
+  `list` and `_` as unlike themselves. `Val.beq_refl` in
+  `spec/Aontu/Meet.lean` now proves that every term is written alike
+  itself, so a constructor added without its case fails the build. No
+  generated row moves.
+- **Rows dr27 to dr29 of `test/spec/def-call.tsv` hold `relate` over a
+  map that holds a hole** (#828), where they repeated dr21 to dr23. Both
+  engines answer `error`, as the definition does.
+
 ### Go keeps a loaded file's names to itself, and both ports answer two more shapes alike
 
 Phase 1 of `admin/issue-plan.md`, the quick wins in Go and in both

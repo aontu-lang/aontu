@@ -3679,8 +3679,11 @@ side is met one side at a time, and on the right `meetRight` tries each
 atom against each other once: `a` meets `b₁`, and where the two had
 nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
 `b₂` instead, and the pair is never taken up in another association,
-which the two rows would otherwise do without end. A rider of step 19
-carries the meet of its value, so its record rides the result. A
+which the two rows would otherwise do without end. It checks whether a
+pair stayed as written with `Val.beq`, under which every term reads
+alike itself (`Val.beq_refl`), `map`, `list` and `_` among them. A
+rider of step 19 carries the meet of its value, so its record rides the
+result. A
 disjunction meets a peer arm by arm,
 the side whose preference ranks stronger outermost (`meetNodes`), so
 that `*integer & **1` and `**1 & *integer` both default to `1`, the

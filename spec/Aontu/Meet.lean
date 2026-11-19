@@ -2462,7 +2462,8 @@ mutual
 def Val.beq : Val → Val → Bool
   | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
   | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
-  | .pathKind, .pathKind | .any, .any | .absent, .absent | .nil, .nil | .nothing, .nothing => true
+  | .pathKind, .pathKind | .mapKind, .mapKind | .listKind, .listKind | .hole, .hole
+  | .any, .any | .absent, .absent | .nil, .nil | .nothing, .nothing => true
   | .lit s, .lit t => decide (s = t)
   | .addr a, .addr b => decide (a = b)
   | .min a, .min b => decide (a = b)
@@ -2534,6 +2535,94 @@ def beqArms : List (ℕ × Val) → List (ℕ × Val) → Bool
   | (r, a) :: as, (r', b) :: bs => decide (r = r') && a.beq b && beqArms as bs
   | _, _ => false
 termination_by structural as _ => as
+end
+
+mutual
+/-- Every term is written alike itself, so no constructor of `Val` lacks
+its own case in `Val.beq`. -/
+theorem Val.beq_refl : (v : Val) → v.beq v = true
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
+  | .mapKind | .listKind | .pathKind | .any | .nil | .absent | .nothing | .key | .hole => rfl
+  | .lit s => by show decide (s = s) = true; simp
+  | .addr a => by show decide (a = a) = true; simp
+  | .min b => by show decide (b = b) = true; simp
+  | .max b => by show decide (b = b) = true; simp
+  | .above b => by show decide (b = b) = true; simp
+  | .beneath b => by show decide (b = b) = true; simp
+  | .neq b => by show decide (b = b) = true; simp
+  | .mulof d => by show decide (d = d) = true; simp
+  | .unique k => by show decide (k = k) = true; simp
+  | .re p => by show decide (p = p) = true; simp
+  | .format g => by show decide (g = g) = true; simp
+  | .grammar g => by show decide (g = g) = true; simp
+  | .alias n => by show decide (n = n) = true; simp
+  | .path p => by show decide (p = p) = true; simp
+  | .keyUp n => by show decide (n = n) = true; simp
+  | .len c => by show c.beq c = true; exact Val.beq_refl c
+  | .map fs s c => by
+    show (beqFields fs fs && beqSpread s s && decide (c = c)) = true
+    simp [beqFields_refl fs, beqSpread_refl s]
+  | .list is s c => by
+    show (beqItems is is && beqSpread s s && decide (c = c)) = true
+    simp [beqItems_refl is, beqSpread_refl s]
+  | .or as => by show beqArms as as = true; exact beqArms_refl as
+  | .pref r x => by show (decide (r = r) && x.beq x) = true; simp [Val.beq_refl x]
+  | .meet a b => by show (a.beq a && b.beq b) = true; simp [Val.beq_refl a, Val.beq_refl b]
+  | .nof n cs => by show (n.beq n && beqItems cs cs) = true; simp [Val.beq_refl n, beqItems_refl cs]
+  | .must c m => by show (c.beq c && decide (m = m)) = true; simp [Val.beq_refl c]
+  | .when c t e => by
+    show (c.beq c && t.beq t && beqSpread e e) = true
+    simp [Val.beq_refl c, Val.beq_refl t, beqSpread_refl e]
+  | .contains c n => by show (c.beq c && n.beq n) = true; simp [Val.beq_refl c, Val.beq_refl n]
+  | .rest t cs => by show (t.beq t && beqCovers cs cs) = true; simp [Val.beq_refl t, beqCovers_refl cs]
+  | .select s as d => by
+    show (s.beq s && beqPairs as as && beqSpread d d) = true
+    simp [Val.beq_refl s, beqPairs_refl as, beqSpread_refl d]
+  | .filter s c => by show (s.beq s && c.beq c) = true; simp [Val.beq_refl s, Val.beq_refl c]
+  | .ride k v r => by
+    show (decide (k = k) && v.beq v && decide (r = r)) = true
+    simp [Val.beq_refl v]
+  | .link v t => by show (v.beq v && t.beq t) = true; simp [Val.beq_refl v, Val.beq_refl t]
+  | .call f args => by show (decide (f = f) && beqItems args args) = true; simp [beqItems_refl args]
+termination_by structural v => v
+
+theorem beqFields_refl : (fs : List (String × Bool × Val)) → beqFields fs fs = true
+  | [] => rfl
+  | (k, o, v) :: fs => by
+    show (decide (k = k) && decide (o = o) && v.beq v && beqFields fs fs) = true
+    simp [Val.beq_refl v, beqFields_refl fs]
+termination_by structural fs => fs
+
+theorem beqItems_refl : (vs : List Val) → beqItems vs vs = true
+  | [] => rfl
+  | v :: vs => by show (v.beq v && beqItems vs vs) = true; simp [Val.beq_refl v, beqItems_refl vs]
+termination_by structural vs => vs
+
+theorem beqSpread_refl : (s : Option Val) → beqSpread s s = true
+  | none => rfl
+  | some s => by show s.beq s = true; exact Val.beq_refl s
+termination_by structural s => s
+
+theorem beqPairs_refl : (ps : List (Val × Val)) → beqPairs ps ps = true
+  | [] => rfl
+  | (p, r) :: ps => by
+    show (p.beq p && r.beq r && beqPairs ps ps) = true
+    simp [Val.beq_refl p, Val.beq_refl r, beqPairs_refl ps]
+termination_by structural ps => ps
+
+theorem beqCovers_refl : (cs : List (Option Val × Option Val × Option Val)) → beqCovers cs cs = true
+  | [] => rfl
+  | (c, k, m) :: cs => by
+    show (beqSpread c c && beqSpread k k && beqSpread m m && beqCovers cs cs) = true
+    simp [beqSpread_refl c, beqSpread_refl k, beqSpread_refl m, beqCovers_refl cs]
+termination_by structural cs => cs
+
+theorem beqArms_refl : (as : List (ℕ × Val)) → beqArms as as = true
+  | [] => rfl
+  | (r, a) :: as => by
+    show (decide (r = r) && a.beq a && beqArms as as) = true
+    simp [Val.beq_refl a, beqArms_refl as]
+termination_by structural as => as
 end
 
 /-- A term met with a meet, `a & (b₁ & b₂)`: `a` meets `b₁`, and where
