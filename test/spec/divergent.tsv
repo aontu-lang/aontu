@@ -410,8 +410,9 @@
 # ---------------------------------------------------------------------
 #
 # OPEN -- a key MISSING under a value that arrived by a reference to a
-#   DEEPER target is reported at a path that does not exist, in
-#   TypeScript only.
+#   DEEPER target is reported at a path that does not exist, in Go
+#   only (TypeScript until 2026-11; the sides swapped, re-probed
+#   2026-11-19).
 #   issue: #330; found 2026-08-27 while landing the money wire
 #   convention (use-cases/REVIEW.md finding I), by running both engines
 #   on the same document and diffing.
@@ -429,9 +430,9 @@
 #   Divergent input:  schema `schema:{M:type(close({a:string&re("^x$")}))}`
 #                     `quote: $.schema.M`
 #     with data `{"quote":{}}`         -- an unsatisfied key
-#     TypeScript: mapval_required at $.quote.M.a   (no such path in
+#     TypeScript: mapval_required at $.quote.a     (correct)
+#     Go:         mapval_required at $.quote.M.a   (no such path in
 #                 either document -- the alias's own key is in the tail)
-#     Go:         mapval_required at $.quote.a     (correct)
 #   A conflict in the same shape, data `{"quote":{"a":"y"}}`, was
 #   recorded here at $.quote.M.a in TypeScript. Both ports now answer
 #   constraint at $.quote.a (re-probed 2026-10-16), so only the missing
@@ -443,6 +444,9 @@
 #   is merely wrong, because taking the context path unconditionally was
 #   tried and moves every closed-key, spread-template and `--at`
 #   finding to the driving location instead.
+#
+#   The two paragraphs below diagnose the side that was wrong before the
+#   swap, TypeScript's; Go's stale segment is not yet diagnosed.
 #
 #   Not simply fixed because the cause is the clone-path difference
 #   ts/src/val/RefVal.ts documents in detectRefCycle: Go's
@@ -618,11 +622,14 @@
 #                     serves them, vetted with --no-fill --exact-numbers
 #                     against {"allOf": [{"type": "strin"}]}
 #   TypeScript: invalid, empty at $.allOf.0, the schema site at the
-#               applicator vocabulary's ident() (row 2, col 92)
+#               applicator vocabulary's ident() (row 2, col 92), the
+#               value carrying six vocabulary titles
 #   Go:         invalid, empty at $.allOf.0, the schema site at the
-#               meta-schema root's ident() (row 238, col 80)
+#               meta-schema root's ident() (row 238, col 80), the value
+#               carrying two
 #
-#   Verdict, code, path and the rendered value agree. The operand is the
+#   Verdict, code and path agree; the rendered value no longer does
+#   (re-probed 2026-11-19). The operand is the
 #   meet of seven vocabularies, each an ident() over `boolean|{...}`, and
 #   a distributed meet keeps the site of the disjunction that received
 #   it; the ports fold the vocabularies in a different order on the way
