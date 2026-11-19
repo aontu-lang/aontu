@@ -4659,9 +4659,9 @@ dr23	verdict	v: relate([_])	v: "x"	{"verdict":"error","opts":{"partial":true}}
 dr24	verdict	v: relate([_])	v: [1]	{"verdict":"error"}
 dr25	verdict	v: relate([_])	v: [1]	{"verdict":"error","opts":{"noFill":true}}
 dr26	verdict	v: relate([_])	v: [1]	{"verdict":"error","opts":{"partial":true}}
-dr27	verdict	v: relate([_])	v: "x"	{"verdict":"error"}
-dr28	verdict	v: relate([_])	v: "x"	{"verdict":"error","opts":{"noFill":true}}
-dr29	verdict	v: relate([_])	v: "x"	{"verdict":"error","opts":{"partial":true}}
+dr27	verdict	v: relate({"k": _})	v: {"k": 1}	{"verdict":"error"}
+dr28	verdict	v: relate({"k": _})	v: {"k": 1}	{"verdict":"error","opts":{"noFill":true}}
+dr29	verdict	v: relate({"k": _})	v: {"k": 1}	{"verdict":"error","opts":{"partial":true}}
 dr30	verdict	v: min([_])	v: "x"	{"verdict":"error"}
 dr31	verdict	v: min([_])	v: "x"	{"verdict":"error","opts":{"noFill":true}}
 dr32	verdict	v: min([_])	v: "x"	{"verdict":"error","opts":{"partial":true}}
