@@ -160,3 +160,15 @@ func parseNilIn(v Val) *NilVal {
 	}
 	return first
 }
+
+// HasUnknownFunction reports whether v holds an unknown function's nil.
+func HasUnknownFunction(v Val) bool {
+	var nils []*NilVal
+	collectNils(v, &nils, map[Val]bool{})
+	for _, n := range nils {
+		if "unknown_function" == n.why {
+			return true
+		}
+	}
+	return false
+}

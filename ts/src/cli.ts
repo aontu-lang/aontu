@@ -74,6 +74,7 @@ import type { WhyRecord } from './provenance'
 import { agentsMdSplice } from './agentsmd'
 import { format, unifiedDiff } from './format'
 import { canonRiders, includeOpts } from './utility'
+import { collectNils } from './walk'
 import { HELPDOC, INITDOC } from './helpdoc'
 import type { HelpTopic } from './helpdoc'
 import { hints, codeClasses, codeClass } from './hints'
@@ -672,7 +673,7 @@ function evalSource(
 ): { ok: boolean; text: string; findings: VetFinding[] } {
   try {
     const text = 'canon' === mode
-      ? canonRiders(aontu.unify(src))
+      ? canonOf(aontu, src)
       : exactJSON(aontu.generate(src), 2)
     return { ok: true, text, findings: [] }
   }
@@ -688,6 +689,18 @@ function evalSource(
       findings: null == first ? [] : [evalFinding(first.why, msg)],
     }
   }
+}
+
+
+// A call to a function the language lacks is a nil the parse makes and no
+// meet reports, so canon would print it as nil: it is refused as evaluation
+// refuses it.
+function canonOf(aontu: Aontu, src: string): string {
+  const v = aontu.unify(src)
+  if (collectNils(v, new Set()).some((n: any) => 'unknown_function' === n.why)) {
+    aontu.generate(src)
+  }
+  return canonRiders(v)
 }
 
 
