@@ -14,6 +14,7 @@ import { makeNilErr } from '../err'
 import { top } from './top'
 import { prefInnerPeg } from './PrefVal'
 import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
+import { repathInstance } from './Val'
 
 
 export function effectiveScrutinee(v: Val): Val {
@@ -26,6 +27,15 @@ export function effectiveScrutinee(v: Val): Val {
     out = prefs.reduce((a: any, b: any) => b.rank < a.rank ? b : a)
   }
   return prefInnerPeg(out)
+}
+
+
+// A result stands where the selection stands, so the relative paths
+// written in it read from there, as a template's instance reads them.
+function placed(result: Val, ctx: AontuContext): Val {
+  const out = result.clone(ctx, { dup: true })
+  repathInstance(out, ctx.path)
+  return out
 }
 
 
@@ -96,12 +106,12 @@ class MatchFuncVal extends FuncBaseVal {
       // untouched for the next document that reads its canon.
       const met = trialUnify(ctx, scrutinee.clone(ctx), pattern.clone(ctx))
       if (undefined !== met && sameMembers(scrutinee, met, ctx, true)) {
-        return args[i + 1].clone(ctx)
+        return placed(args[i + 1], ctx)
       }
     }
 
     if (undefined !== dflt) {
-      return dflt.clone(ctx)
+      return placed(dflt, ctx)
     }
 
     return makeNilErr(ctx, 'match_none', this, undefined, 'resolve', {
@@ -111,6 +121,7 @@ class MatchFuncVal extends FuncBaseVal {
   }
 
 } /* node:coverage ignore next 5 */
+
 
 
 export {
