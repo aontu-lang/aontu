@@ -21,6 +21,8 @@ pack-list	gens	n:[a,b,c]\nd:pack($.n,{x:1})\n	{"d":{"a":{"x":1},"b":{"x":1},"c":
 pack-list-canon	canon	n:[a,b]\nd:pack($.n,{x:1})\n	{"d":{"a":{"x":1},"b":{"x":1}},"n":["a","b"]}
 pack-map	gens	m:{b:1,a:2}\nd:pack($.m,{x:1})\n	{"d":{"a":{"x":1},"b":{"x":1}},"m":{"a":2,"b":1}}
 pack-map-canon	canon	m:{b:1,a:2}\nd:pack($.m,{x:1})\n	{"d":{"a":{"x":1},"b":{"x":1}},"m":{"a":2,"b":1}}
+pack-colliding-instances-meet	canon	x: pack([meta("x", {r:1}), meta("x", {r:2})], _)	{"x":{"x":meta("x",{"r":1},{"r":2})}}
+pack-colliding-instances-meet-apart	canon	x: pack([meta("x", {r:1}), meta("y", {r:2}), meta("x", {r:3})], _)	{"x":{"x":meta("x",{"r":1},{"r":3}),"y":meta("y",{"r":2})}}
 pack-duplicate-keys-merge	gens	n:[a,a,b]\nd:pack($.n,{x:1})\n	{"d":{"a":{"x":1},"b":{"x":1}},"n":["a","a","b"]}
 pack-empty-list	gens	n:[]\nd:pack($.n,{x:1})\n	{"d":{},"n":[]}
 pack-empty-map	gens	m:{}\nd:pack($.m,{x:1})\n	{"d":{},"m":{}}

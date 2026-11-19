@@ -62,9 +62,9 @@ class PackFuncVal extends FuncBaseVal_1.FuncBaseVal {
         const tmpl = args[1];
         const peg = (0, BagVal_1.keyTable)();
         const src = args[0];
-        for (const key of keys) {
+        for (const [index, key] of keys.entries()) {
             const keyctx = ctx.descend(key);
-            const source = true === src?.isMap ? src.peg[key] : src.peg[keys.indexOf(key)];
+            const source = true === src?.isMap ? src.peg[key] : src.peg[index];
             const inst = tmpl.clone(keyctx, { dup: true });
             (0, Val_1.repathInstance)(inst, inst.path);
             const child = (0, PlaceVal_1.fillPlace)(inst, source, keyctx);
