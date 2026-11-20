@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### A path in an arm reads its member as the data narrows it
+
+Both ports, fixing what #863 broke and part of #700.
+
+- **A path in a disjunction's arm reads the member the arm meets.**
+  `x: ({a: integer, b: .a} | null) & {a: 1}` is `{"x": {"a": 1, "b":
+  1}}` again, and over `{a: 1, b: 2}` the arm refuses the data again.
+  Since #863 both ports read `a` as the arm wrote it, `integer`, so
+  `b` stayed `integer` and the second document passed.
+- **A path in a lone preference's value reads the same**:
+  `x: *{a: integer, b: .a} & {a: 5}` is `{"x": {"a": 5, "b": 5}}`,
+  where `b` stayed `integer`.
+- **lp21 and its twin leave the ledger**, and its bound drops from 200
+  to 198. Five new rows in `pref.tsv` hold the reading in both ports.
+
 ### A path in a lone preference reads its value
 
 Ruling 40 of `sketch/DEFINITION.0.md` §7, with ruling 53. Both ports,

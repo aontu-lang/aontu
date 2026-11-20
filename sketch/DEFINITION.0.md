@@ -348,10 +348,7 @@ it when the target comes first, and move (#504, #696); and a recursive
 name used alone whose body links to its own member, which the
 definition keeps residual where no data reaches it, as one with no
 link, where both ports expand it for the link, and move (#762); and a path
-inside a lone preference `*x` to a member the data narrows, which ruling
-40 of §7 reads where the preference holds its value met with the data,
-where both ports read the default's own value there, and move (#700);
-and a path that names nothing among lone preferences met at one place,
+that names nothing among lone preferences met at one place,
 which ruling 53 reads as an `error`, where both ports' `vet` answers
 `invalid`, and move (#700); the parent arm of a lone preference whose
 value holds a template with a path, which ruling 40 lifts from what the
@@ -2098,8 +2095,10 @@ until the phase that encodes it lands.
    paths read leaves the parent arm, and the parent arm lifts the
    default as read on its own, two defaults of one rank met at one
    place as their meet (ruling 53). 118 rows leave the ledger, 67 of
-   #700, 12 of #702 and 39 of #704. Left: a path to a member the data
-   narrows, which reads the default's own type (lp21); a path that
+   #700, 12 of #702 and 39 of #704. A path in a held arm or value reads
+   its member as the terms met there narrow it, and waits while a
+   later meet could narrow it still, but in the settling pass, from
+   2026-11-20 too (lp21). Left: a path that
    names nothing among met defaults, which both ports' `vet` reads as
    `invalid` (lq27 to lq29); a path in a template inside the value,
    which both lift to `any` in the parent arm (lp51 to lp53); and under

@@ -47,17 +47,26 @@ type Ctx struct {
 
 	reads map[string]bool
 
-	// The arm a disjunction holds at a path (Decls.armChosen in spec/Aontu/Paths.lean).
-	armAt map[string]Val
+	// The arm a disjunction holds at a path, with the peer it meets
+	// (Decls.armChosen in spec/Aontu/Paths.lean).
+	armAt map[string]heldArm
 }
 
-func (c *Ctx) holdArm(path []string, arm Val, fn func() Val) Val {
+type heldArm struct {
+	arm, peer Val
+	own       bool
+}
+
+func (c *Ctx) holdArm(path []string, arm, peer Val, own bool, fn func() Val) Val {
 	saved := c.armAt
-	c.armAt = make(map[string]Val, len(saved)+1)
+	c.armAt = make(map[string]heldArm, len(saved)+1)
 	for k, v := range saved {
 		c.armAt[k] = v
 	}
-	c.armAt[strings.Join(path, "\x00")] = arm
+	if isTop(peer) {
+		peer = nil
+	}
+	c.armAt[strings.Join(path, "\x00")] = heldArm{arm, peer, own}
 	defer func() { c.armAt = saved }()
 	return fn()
 }

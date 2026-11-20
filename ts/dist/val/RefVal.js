@@ -15,6 +15,7 @@ const StringVal_1 = require("./StringVal");
 const IntegerVal_1 = require("./IntegerVal");
 const NumberVal_1 = require("./NumberVal");
 const ConjunctVal_1 = require("./ConjunctVal");
+const FuncBaseVal_1 = require("./FuncBaseVal");
 const VarVal_1 = require("./VarVal");
 const FeatureVal_1 = require("./FeatureVal");
 const numkind_1 = require("./numkind");
@@ -107,19 +108,29 @@ function markedChild(v, part) {
     }
     return undefined;
 }
-// The arm a disjunction holds (Decls.armChosen) answers only for its own members.
-function heldChild(arm, part) {
-    return undefined === arm || undefined === markedChild(arm, part) ? undefined : arm;
+// A held arm (Decls.armChosen) and its peer answer for the arm's members.
+function heldAt(ctx, refpath, pI) {
+    const held = ctx._armAt?.get(refpath.slice(0, pI).join('\u0000'));
+    return undefined === held || undefined === markedChild(held[0], refpath[pI]) ? undefined : held;
 }
 // A held arm answers from its own level, however the levels above it stand.
-function heldFrom(armAt, refpath, pI, node) {
-    for (let hI = refpath.length - 1; undefined !== armAt && pI < hI; hI--) {
-        const arm = heldChild(armAt.get(refpath.slice(0, hI).join('\u0000')), refpath[hI]);
-        if (undefined !== arm) {
-            return [hI, arm];
+function heldFrom(ctx, refpath, pI) {
+    for (let hI = refpath.length - 1; undefined !== ctx._armAt && pI < hI; hI--) {
+        if (undefined !== heldAt(ctx, refpath, hI)) {
+            return hI;
         }
     }
-    return [pI, node];
+    return pI;
+}
+// Met with its peer's; one a later meet could still narrow waits (null).
+function heldMet(ctx, mine, peer, own, parts) {
+    let theirs = peer;
+    for (const part of parts) {
+        theirs = undefined === theirs ? undefined : markedChild(theirs, part);
+    }
+    const met = undefined === theirs || true === mine.isScalar || !mine.done ? mine :
+        (0, FuncBaseVal_1.trialUnify)(ctx, mine.clone(ctx), theirs.clone(ctx)) ?? mine;
+    return own || true === met.isScalar || true === ctx.settle ? met : null;
 }
 const CANONICAL_LIST_INDEX = /^(0|[1-9][0-9]*)$/;
 function member(v, part) {
@@ -351,15 +362,17 @@ class RefVal extends FeatureVal_1.FeatureVal {
             let node = ctx.root;
             let nopath = offtop;
             let held = false;
+            let peer = [undefined, false, 0];
             if (!offtop && null != node) {
-                const from = node;
-                [pI, node] = heldFrom(ctx._armAt, refpath, pI, node);
-                held = from !== node;
+                pI = heldFrom(ctx, refpath, pI);
                 for (; pI < refpath.length; pI++) {
                     let part = refpath[pI];
-                    const arm = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part);
-                    held = held || undefined !== arm;
-                    node = arm ?? node;
+                    const arm = heldAt(ctx, refpath, pI);
+                    if (undefined !== arm) {
+                        node = arm[0];
+                        held = true;
+                        peer = [arm[1], arm[2], pI];
+                    }
                     node = (0, RecurseVal_1.throughRider)(node);
                     if (node.isMap) {
                         node = node.peg[part];
@@ -412,6 +425,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         nopath = true;
                         break;
                     }
+                }
+                if (held && !nopath && pI === refpath.length) {
+                    node = heldMet(ctx, node, peer[0], peer[1], refpath.slice(peer[2]));
                 }
             }
             const fixroot = ctx._fixroot;

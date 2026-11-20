@@ -94,7 +94,7 @@ class AontuContext {
 
   _fixroot: any
 
-  _armAt?: Map<string, Val>
+  _armAt?: Map<string, [Val, Val | undefined, boolean]>
 
   budget: {
     passes: number, revisits: number, depth: number, alias: number,
@@ -197,10 +197,11 @@ class AontuContext {
     return ctx
   }
 
-  holdArm(path: string[], arm: Val): AontuContext {
+  holdArm(path: string[], arm: Val, peer?: Val, own?: boolean): AontuContext {
     const ctx = Object.create(this)
     ctx._armAt = new Map(this._armAt)
-    ctx._armAt.set(path.join('\u0000'), arm)
+    ctx._armAt.set(path.join('\u0000'),
+      [arm, true === peer?.isTop ? undefined : peer, true === own])
     return ctx
   }
 

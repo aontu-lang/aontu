@@ -96,7 +96,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		ctx.err = trial
 		ctx.trial = true
 		ctx.slot = slot
-		r := ctx.holdArm(d.path, prefInnerPeg(m), func() Val { return unite(ctx, m, member) })
+		r := ctx.holdArm(d.path, prefInnerPeg(m), member, false, func() Val { return unite(ctx, m, member) })
 		failed := len(ctx.err) > 0 || r.Nil()
 		ctx.err = saved
 		ctx.trial = savedTrial

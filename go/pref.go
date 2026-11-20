@@ -55,7 +55,7 @@ func (p *PrefVal) lone() Val {
 // Ruling 40: the parent arm lifts the default as read on its own.
 func (p *PrefVal) parentArm(ctx *Ctx) Val {
 	alone := p.lone()
-	own := ctx.holdArm(p.path, alone, func() Val {
+	own := ctx.holdArm(p.path, alone, nil, true, func() Val {
 		return trialUnify(ctx, clonePath(alone, cp(p.path)), top())
 	})
 	if nil == own {
@@ -160,7 +160,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 		// A default its peers have met that dies once its paths read
 		// leaves the parent arm, as `x | super(x)` does.
 		dead := false
-		p.peg = ctx.holdArm(p.path, prefInnerPeg(p), func() Val {
+		p.peg = ctx.holdArm(p.path, prefInnerPeg(p), nil, false, func() Val {
 			if nil != p.narrowed && nil == trialUnify(ctx, clonePath(p.peg, cp(p.path)), top()) {
 				dead = true
 				return p.peg
@@ -220,7 +220,9 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 
 			inner := prefInnerPeg(p)
-			met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer)
+			met := ctx.holdArm(p.path, inner, peer, false, func() Val {
+				return trialUnify(ctx, clonePath(inner, cp(p.path)), peer)
+			})
 			if nil != met {
 				waits = met.Dc() != DONE
 				// A peer that empties the override space leaves the preference standing.

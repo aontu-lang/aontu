@@ -128,7 +128,7 @@ class DisjunctVal extends JunctionVal {
         ctx.err = trialErr
 
         oval[vI] = unite((te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx)
-          .holdArm(this.path, prefInnerPeg(v)), v, member, 'dj-peer')
+          .holdArm(this.path, prefInnerPeg(v), member), v, member, 'dj-peer')
 
         if (0 < trialErr.length) {
           oval[vI] = TRIAL_NIL
