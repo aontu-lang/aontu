@@ -193,6 +193,9 @@ func makeLang(base string, resolver multisource.Resolver) (*jsonic.Jsonic, error
 			Name:   "aontu",
 			Suffix: false,
 		},
+		Error: map[string]string{
+			"include_operand": "@ takes the string right after it as the path to load",
+		},
 		Hint: map[string]string{
 			"unknown": `
 Since the error is unknown, this is probably a bug. Please consider
@@ -436,6 +439,23 @@ help isolate the syntax error.`,
 		// spread, not a conjunct — backtrack so the map can take it.
 		rs.PrependClose(
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, B: 2, G: "spread"},
+		)
+		// `@` TAKES THE STRING RIGHT AFTER IT and nothing more (ruling 69),
+		// so `@"a" | 3` is `(@"a") | 3`: the operand ends at its first
+		// token, ahead of the expression rules, and only a string loads.
+		rs.PrependClose(
+			&jsonic.AltSpec{
+				C: func(r *jsonic.Rule, _ *jsonic.Context) bool {
+					return r.Parent != nil && r.Parent.Name == "multisource"
+				},
+				E: func(r *jsonic.Rule, _ *jsonic.Context) *jsonic.Token {
+					if jsonic.TinST == r.O0.Tin {
+						return nil
+					}
+					return r.O0.Bad("include_operand")
+				},
+				G: "include-operand",
+			},
 		)
 		rs.AddAC(wrapLeaf)
 		rs.AddAC(recordAliasHoist)
@@ -2692,6 +2712,9 @@ func syntaxError(err error, src, file string) *AontuError {
 		marker = je.Code
 		msg, _, _ = strings.Cut(je.Detail, "\n")
 		row, col = je.Row, je.Col
+	}
+	if "include_operand" == marker {
+		return parseRefusal(marker, marker, msg, row, col, file, src, "")
 	}
 	return parseRefusal("syntax", marker, msg, row, col, file, src, opCharHint(src))
 }

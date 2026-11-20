@@ -2735,6 +2735,18 @@ until the phase that encodes it lands.
    count where they land, both ports report the same numbers, and no
    internal key or file path reaches the report. **Not yet built**:
    both ports move. The definition holds no report and doesn't move.
+69. **How `@` takes its operand.** Raised 2026-10-23 by #502: `@` took
+   everything after it as its operand, so `y: @"./b.aontu" | 3` read as
+   `@("./b.aontu" | 3)`, which TypeScript crashed on and Go refused as a
+   source not found that it didn't name, while `@("./b.aontu")` loaded
+   in TypeScript and failed in Go. **Ruled 2026-11-20 (the project's
+   owner): `@` takes only the string right after it.** `@"./b.aontu" | 3`
+   is `(@"./b.aontu") | 3`, as the definition writes a load, and
+   anything else straight after `@`, a parenthesis, a number or a map,
+   is refused where it stands. **Built 2026-11-20**: both parsers end
+   the operand at its first token and refuse any other as
+   `include_operand`, with rows in `test/spec/file.tsv`. The definition
+   holds no parse and doesn't move.
 
 ## 8. Risks
 
