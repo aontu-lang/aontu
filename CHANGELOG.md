@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### A name or a path that reaches itself with nothing between is refused
+
+Phase 2 of `admin/issue-plan.md` begins with the alias-cycle rule,
+decisions 1, 2 and 7 of `sketch/DEFINITION.0.md` §7. Both ports.
+
+- **The rule is checked before evaluation.** A name or a path that
+  reaches itself with no key and no element between is refused as
+  `path_cycle`, sited at the reference that starts the cycle. That
+  covers `%U = %U` and `a: $.a`, which both ports answered by running
+  out of steps (#354, #357), `%T = %T | 1` and `%T = nof(0, %T)`, which
+  both ports ran (#361), two names that reach each other through trials,
+  which the ports answered differently (#329), and a trial that reads
+  only its own name met with a container, which crashed TypeScript
+  (#360). A recursion through a map's member, a list's element or a
+  spread's template is unchanged.
+- **33 rows leave the ledger**, and its bound drops from 394 to 361.
+  `subsume` answers `error` for a self-reading document; #774 tracks
+  that the answer carries no finding.
+
 ### `@` takes only the string right after it
 
 Ruling 69 settles #502. Both ports.
