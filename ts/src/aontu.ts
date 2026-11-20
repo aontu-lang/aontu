@@ -35,6 +35,7 @@ import { readSourceMap, vetOutput } from './sourcemap'
 export type { OutputUnit, SourceMap, SourceSpan, VetOutput } from './sourcemap'
 import { aliasBudget, aliasErrors } from './alias'
 import { unboundHole } from './val/PlaceVal'
+import { aliasCycle } from './cycle'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
 import { desugarTemplate, resugarTemplate, markerFor } from './template'
@@ -172,7 +173,8 @@ class Aontu {
       // than in generate, because an editor unifies on each keystroke
       // and a document too big to evaluate must be turned away there
       // too.
-      const over = aliasBudget(ac as any, pval) ?? unboundHole(ac as any, pval)
+      const over = aliasBudget(ac as any, pval) ?? unboundHole(ac as any, pval) ??
+        aliasCycle(ac as any, pval)
 
       if (undefined !== over) {
         out = over
