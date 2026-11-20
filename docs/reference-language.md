@@ -1847,15 +1847,21 @@ nothing. Both engines read a path in an arm where the disjunction holds
 it, so over `hosts: {a: {name: "x", url: "y"}}` the first arm refuses
 the data through `url` and the second takes it. A path that names a
 member the arm doesn't write waits for the terms the arm meets, and a
-path in a preferred arm left alone reads as one in a lone preference
-does, which #700 tracks. The definition reads each arm so by
+path into a disjunction or a lone preference the arm holds waits for
+that choice. The definition reads each arm so by
 `Decls.armChosen`. A path inside a lone preference `*x` reads the
 same, where the preference holds its value, and the parent arm, which
 takes what overrides the default, is the parent type of what the value
-reads as on its own: in `x: *{a: 1, b: .a}` the parent arm is `{a:
-integer, b: integer}`, so `{a: 2, b: 3}` passes and `{a: 2, b: "s"}`
-doesn't. Both engines lift a path inside the value to `any` there,
-which #704 tracks. The definition reads a lone preference so by
+reads as on its own: in `x: *{a: 1, b: .a}` the default is `{a: 1, b:
+1}` and the parent arm is `{a: integer, b: integer}`, so `{a: 2, b: 3}`
+passes and `{a: 2, b: "s"}` doesn't. Both engines read a lone
+preference so. They still lift a path in a template inside the value
+to `any` in the parent arm, which #704 tracks, and `vet` lifts one to a
+place outside the value the same way where the data overrides the
+default, which #702 tracks. A path to a member the data narrows reads
+the default's own type: over `x: {a: 5}`, `x: *{a: integer, b: .a}`
+leaves `b` as `integer`, where the definition reads `5`, which #700
+tracks. The definition reads a lone preference so by
 `Decls.nodeChosen`. A disjunction met with another at one place reads as
 one disjunction of the meets of their arms, as the meet makes them: in
 `x: ({b: .a} | null) & ({a: 1} | {a: 2})`, `b` reads `1` in one arm and
@@ -1873,9 +1879,11 @@ read as one disjunction as well, each as its value or its parent arm, so
 a path in one's value reads what another prefers, or its parent type
 where the other's parent arm holds: in `x: *{a: 1, b: .c} & *{c: 2}`,
 `{a: 1, b: 2, c: 2}` and `{a: 5, b: 7, c: 7}` pass and `{a: 5, b: "s",
-c: 7}` doesn't. Both engines leave such a path waiting while a default
-is in play and lift it to `any` in a parent arm, which #700 and #704
-track. The definition reads the meet so by `Val.meetOrs`.
+c: 7}` doesn't. Both engines read such a meet so, but for a path that
+names nothing in any of the values, as in `x: *{a: 1, b: .d} & *{c:
+2}`, which the definition refuses as an error and both engines read as
+data that fails, which #700 tracks. The definition reads the meet so by
+`Val.meetOrs`.
 
 ### Recursive references (fixpoints)
 

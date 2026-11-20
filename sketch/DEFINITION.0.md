@@ -348,17 +348,18 @@ it when the target comes first, and move (#504, #696); and a recursive
 name used alone whose body links to its own member, which the
 definition keeps residual where no data reaches it, as one with no
 link, where both ports expand it for the link, and move (#762); and a path
-in a disjunction's arm, which the definition reads where the disjunction
-holds the arm, where both ports leave it waiting while two arms are
-live, and in a preferred arm for good, and move (#700); a path inside a
-lone preference `*x`, which ruling 40 of §7 reads where the preference
-holds its value, where both ports leave it waiting while the default
-is in play, and move (#700); the parent arm of such a preference, which
-ruling 40 lifts from what the value reads as on its own, where both
-ports lift a path inside the value to `any`, and move (#704); and a
-path from a lone preference to a place outside it, whose value the
-parent arm lifts as both ports' `eval` does, where both ports' `vet`
-disagrees with their own `eval`, and move (#702); and a clash a meet makes,
+inside a lone preference `*x` to a member the data narrows, which ruling
+40 of §7 reads where the preference holds its value met with the data,
+where both ports read the default's own value there, and move (#700);
+and a path that names nothing among lone preferences met at one place,
+which ruling 53 reads as an `error`, where both ports' `vet` answers
+`invalid`, and move (#700); the parent arm of a lone preference whose
+value holds a template with a path, which ruling 40 lifts from what the
+value reads as on its own, where both ports lift the path to `any`, and
+move (#704); and a path from a lone preference to a place outside it,
+whose value the parent arm lifts as both ports' `eval` does, where both
+ports' `vet` lifts it to `any` when the data overrides the default at
+once, and move (#702); and a clash a meet makes,
 two defaults of one rank that disagree, which the definition reads as
 an `error` as both ports' `eval` does, where both ports' `vet` answers
 `invalid`, and move (#482).
@@ -2088,6 +2089,22 @@ until the phase that encodes it lands.
    still lifts what the data writes there, since `Decls.placed` meets
    it into the copy where the preference stands; both ports do the
    same, and the README lists it as a limit.
+   **Built in both ports 2026-11-20** (#700, #702, #704): each engine
+   holds a lone preference's value at its own path while the value
+   reads, as it holds a disjunction's arm, and a walk starts at the
+   deepest value held, so a path inside the value reads it before the
+   levels above stand; a path into a choice a held value holds waits
+   for the choice. A default its peers have met that dies once its
+   paths read leaves the parent arm, and the parent arm lifts the
+   default as read on its own, two defaults of one rank met at one
+   place as their meet (ruling 53). 118 rows leave the ledger, 67 of
+   #700, 12 of #702 and 39 of #704. Left: a path to a member the data
+   narrows, which reads the default's own type (lp21); a path that
+   names nothing among met defaults, which both ports' `vet` reads as
+   `invalid` (lq27 to lq29); a path in a template inside the value,
+   which both lift to `any` in the parent arm (lp51 to lp53); and under
+   `vet` a path to a place outside the value, where the data overrides
+   the default at once (lp63 to lp65).
 
 41. **Preferences of different ranks that meet.** Raised 2026-11-11
    while building the reference's rule that compatible defaults fold.

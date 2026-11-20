@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### A path in a lone preference reads its value
+
+Ruling 40 of `sketch/DEFINITION.0.md` §7, with ruling 53. Both ports,
+part of #700, #702 and #704.
+
+- **A path inside a preference's value reads the value.**
+  `x: *{a: 1, b: .a}` is `{"x": {"a": 1, "b": 1}}`, where both ports
+  refused it as `ref`. `vet` reads data that matches the default, or
+  none, as `valid`, where both ports read it as `incomplete` or
+  `invalid`.
+- **The parent arm lifts the default as read on its own.** Over
+  `x: *{a: 1, b: .a}`, `{a: 2, b: 3}` passes and `{a: 2, b: "s"}`
+  doesn't, where both ports passed it. Under `vet`, data that
+  overrides the default through its path, `{a: 1, b: 2}`, takes the
+  parent arm, where both ports read it as `incomplete`.
+- **Lone preferences of one rank met at one place read as their
+  meet**: `x: *{a: 1, b: .c} & *{c: 2}` is
+  `{"x": {"a": 1, "b": 2, "c": 2}}`, where both ports refused it as
+  `ref`.
+- **118 rows leave the ledger**, 67 under #700, 12 under #702 and 39
+  under #704, and its bound drops from 318 to 200. 13 new rows in
+  `pref.tsv` hold the rulings in both ports.
+
 ### Preferences of different ranks meet as layers
 
 Rulings 41 and 42 and decision 43 of `sketch/DEFINITION.0.md` §7, closing

@@ -254,3 +254,21 @@ pref-narrowed-defaults-leave-the-type	canon	p: *1 & neq(5)\nq: *5 & neq(1)\na: $
 # A path in a disjunction's arm reads the arm where the disjunction holds
 # it (Decls.armChosen in spec/Aontu/Paths.lean, part of #700).
 pref-path-in-a-preferred-arm	gen	x: *{a: 1, c: .a} | {}	{"x":{"a":1,"c":1}}
+# A path inside a lone preference's value reads where the preference holds
+# it, and the parent arm lifts the value as read on its own (ruling 40).
+pref-lone-path-reads-the-value	gen	x: *{a: 1, b: .a}	{"x":{"a":1,"b":1}}
+pref-lone-path-reads-the-value-canon	canon	x: *{a: 1, b: .a}	{"x":*{"a":1,"b":1}}
+pref-lone-path-data-overrides	gen	x: *{a: 1, b: .a} & {a: 1, b: 2}	{"x":{"a":1,"b":2}}
+pref-lone-path-parent-arm-takes	gen	x: *{a: 1, b: .a} & {a: 2, b: 3}	{"x":{"a":2,"b":3}}
+pref-lone-path-parent-arm-refuses	errc	x: *{a: 1, b: .a} & {a: 2, b: "s"}	empty
+pref-lone-path-outside-parent-takes	gen	y: 1, x: *{b: $.y} & {b: 3}	{"x":{"b":3},"y":1}
+pref-lone-path-outside-parent-refuses	errc	y: 1, x: *{b: $.y} & {b: "s"}	empty
+pref-lone-path-through-a-name	gen	%T = {a: 1, b: .a}\nx: *(%T) & {a: 2, b: 3}	{"x":{"a":2,"b":3}}
+# Lone preferences of one rank met at one place read as one value
+# (ruling 53), so a path in one reads what another holds.
+pref-lone-defaults-meet	gen	x: (*{a: 1, b: .c}) & (*{c: 2})	{"x":{"a":1,"b":2,"c":2}}
+pref-lone-defaults-meet-canon	canon	x: (*{a: 1, b: .c}) & (*{c: 2})	{"x":*{"a":1,"b":2,"c":2}}
+pref-lone-defaults-meet-three	gen	x: ((*{a: .c}) & (*{b: 1})) & (*{c: 2})	{"x":{"a":2,"b":1,"c":2}}
+pref-lone-defaults-meet-each-way	gen	x: (*{a: 1, b: .c}) & (*{c: .a})	{"x":{"a":1,"b":1,"c":1}}
+# A path in an arm into a choice the arm holds waits for the choice.
+pref-path-into-an-inner-choice	errc	x: ({a: ({c: 1, d: .c}) | null, e: .a.d}) | null	disjunct_no_gen

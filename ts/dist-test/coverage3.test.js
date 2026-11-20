@@ -267,6 +267,15 @@ function capture(fn) {
         Assert.equal(new PrefVal_1.PrefVal({ peg: new IntegerVal_1.IntegerVal({ peg: 1 }) }, ctx)
             .unify(undefined, ctx).canon, '*1');
     });
+    // A default that fails read on its own leaves the parent arm its gate.
+    (0, node_test_1.test)('pref-parent-arm-when-alone-fails', () => {
+        const ctx = CTX();
+        const p = new PrefVal_1.PrefVal({ peg: new IntegerVal_1.IntegerVal({ peg: 1 }) }, ctx);
+        p.alone = new ConjunctVal_1.ConjunctVal({
+            peg: [new IntegerVal_1.IntegerVal({ peg: 1 }), new IntegerVal_1.IntegerVal({ peg: 2 })],
+        }, ctx);
+        Assert.equal(p.unify(new IntegerVal_1.IntegerVal({ peg: 5 }), ctx).canon, '5');
+    });
     (0, node_test_1.test)('nil-spread-drives-every-key', () => {
         const ctx = CTX();
         const lv = new ListVal_1.ListVal({ peg: [new IntegerVal_1.IntegerVal({ peg: 1 })] }, ctx);
