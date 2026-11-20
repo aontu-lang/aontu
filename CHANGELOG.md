@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### Preferences of different ranks meet as layers
+
+Rulings 41 and 42 and decision 43 of `sketch/DEFINITION.0.md` §7, closing
+#714. Both ports.
+
+- **A weaker default stays under a stronger one.** Where a preference
+  meets one of another rank, or a disjunction, the side whose default
+  ranks stronger goes outermost and the other meets each of its arms,
+  as the definition's `meetNodes` does. Both ports kept the stronger
+  preference alone.
+  - `**1 & *integer` defaults to `1`, where both ports generated nothing.
+  - `*{a: 1} & **{b: 2}` is `{"a": 1, "b": 2}`, and requires `b`.
+  - `(*1 & **7) & neq(1)` is `7`: the weaker default comes back where
+    a meet overrides the stronger one.
+  - `*1 & **7` canons as `*1|**7|integer`, where it was `*1`.
+- **An arm that wasn't a default stays one.** `(*1 | 2) & *integer`
+  defaults to `1`, where both ports generated `2`, and
+  `(1 | 2) & *integer` has no single default, where both ports refused
+  it as `empty`.
+  A disjunction folds only the defaults the rank rule picks.
+- **A meet of two disjunctions lists their defaults first**, as the
+  definition's normal form does: `(number | *1) & (number | *1)` canons
+  as `*1|number`, where it was `number|*1`. Generation is unchanged.
+- **A path in a disjunction's arm reads that arm** while the
+  disjunction meets it, so `hosts: {a: {name: "x", url: .name}} |
+  {a: {url: string}}` takes `{"a": {"name": "x", "url": "y"}}` through
+  the second arm, where both ports left it `incomplete`, as part of #700
+  asks.
+- **40 rows leave the ledger**, all 22 under #714 and 18 under #700,
+  and its bound drops from 358 to 318. Eleven hand-written rows of
+  `pref.tsv`, `view.tsv`, `views.tsv` and `why.tsv` that pinned the
+  single winner now pin the layers.
+
 ### A recursive position met in its own place unfolds as far as the data goes
 
 The last part of the alias-cycle rule, decision 7 of
