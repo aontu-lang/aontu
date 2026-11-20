@@ -541,6 +541,7 @@ func valSame(a, b Val) bool {
 type rankedArm struct {
 	rank int
 	val  Val
+	src  []Val
 }
 
 func meetRanked(ctx *Ctx, a, b Val) Val {
@@ -559,10 +560,11 @@ func nodeOf(v Val) bool {
 	return false
 }
 
+// A preferred arm's preference layers carry its riders through the meet.
 func armOf(v Val) []rankedArm {
 	switch n := v.(type) {
 	case *PrefVal:
-		return []rankedArm{{n.rank + 1, prefInnerPeg(n)}}
+		return []rankedArm{{n.rank + 1, prefInnerPeg(n), prefLayers(n)}}
 	case *DisjunctVal:
 		out := []rankedArm{}
 		for _, m := range n.peg {
@@ -570,13 +572,21 @@ func armOf(v Val) []rankedArm {
 		}
 		return out
 	}
-	return []rankedArm{{0, v}}
+	return []rankedArm{{0, v, nil}}
+}
+
+func prefLayers(v Val) []Val {
+	out := []Val{}
+	for p, ok := v.(*PrefVal); ok; p, ok = p.peg.(*PrefVal) {
+		out = append(out, p)
+	}
+	return out
 }
 
 // A lone preference `*x` is `x | super(x)`.
 func armsOf(v Val) []rankedArm {
 	if p, ok := v.(*PrefVal); ok {
-		return []rankedArm{{p.rank + 1, prefInnerPeg(p)}, {0, p.superpeg}}
+		return []rankedArm{{p.rank + 1, prefInnerPeg(p), nil}, {0, p.superpeg, nil}}
 	}
 	return armOf(v)
 }
@@ -612,19 +622,19 @@ func meetArms(ctx *Ctx, a, b Val) []rankedArm {
 func spreadArms(home Val, arms []rankedArm, meet func(Val) []rankedArm) []rankedArm {
 	out := []rankedArm{}
 	for _, a := range arms {
-		out = append(out, rankArms(home, a.rank, meet(a.val))...)
+		out = append(out, rankArms(home, a.rank, meet(a.val), a.src)...)
 	}
 	return out
 }
 
-func rankArms(home Val, r int, arms []rankedArm) []rankedArm {
+func rankArms(home Val, r int, arms []rankedArm, src []Val) []rankedArm {
 	if 0 == len(arms) {
 		return nil
 	}
 	if 0 == r {
 		return arms
 	}
-	return []rankedArm{{r, armsVal(home, arms)}}
+	return []rankedArm{{r, armsVal(home, arms), src}}
 }
 
 func tieArms(ctx *Ctx, r int, a, b Val) []rankedArm {
@@ -638,12 +648,14 @@ func tieArms(ctx *Ctx, r int, a, b Val) []rankedArm {
 		return out
 	}
 	pairs := [][]rankedArm{}
+	srcs := [][]Val{}
 	live := false
 	for _, p := range at(a, true) {
 		for _, q := range at(b, true) {
 			m := meetArms(ctx, p.val, q.val)
 			live = live || 0 < len(m)
 			pairs = append(pairs, m)
+			srcs = append(srcs, append(append([]Val{}, p.src...), q.src...))
 		}
 	}
 	k := r
@@ -651,20 +663,20 @@ func tieArms(ctx *Ctx, r int, a, b Val) []rankedArm {
 		k = r + 1
 	}
 	arms := []rankedArm{}
-	for _, m := range pairs {
-		arms = append(arms, rankArms(a, r, m)...)
+	for i, m := range pairs {
+		arms = append(arms, rankArms(a, r, m, srcs[i])...)
 	}
 	for _, p := range at(a, true) {
 		arms = append(arms, rankArms(a, k, spreadArms(a, at(b, false),
-			func(y Val) []rankedArm { return meetArms(ctx, p.val, y) }))...)
+			func(y Val) []rankedArm { return meetArms(ctx, p.val, y) }), p.src)...)
 	}
 	for _, q := range at(b, true) {
 		arms = append(arms, rankArms(a, k, spreadArms(a, at(a, false),
-			func(x Val) []rankedArm { return meetArms(ctx, x, q.val) }))...)
+			func(x Val) []rankedArm { return meetArms(ctx, x, q.val) }), q.src)...)
 	}
 	rest := meetArms(ctx, armsVal(a, at(a, false)), armsVal(a, at(b, false)))
 	if live {
-		arms = rankArms(a, r, arms)
+		arms = rankArms(a, r, arms, nil)
 	}
 	return append(arms, rest...)
 }
@@ -677,13 +689,22 @@ func armsVal(home Val, arms []rankedArm) Val {
 		done = done && DONE == v.Dc()
 		for rI := 0; rI < a.rank; rI++ {
 			p := newPref(v)
-			rankedPlace(v, &p.base)
+			at := v
+			if rI == a.rank-1 && 0 < len(a.src) {
+				at = a.src[0]
+			}
+			rankedPlace(at, &p.base)
 			v = p
+		}
+		for _, layer := range a.src {
+			ride(v, layer, nil)
 		}
 		pegs[i] = v
 	}
 	if pegs = dedup(pegs, true); 1 == len(pegs) {
-		return prefInnerPeg(pegs[0])
+		one := clonePath(prefInnerPeg(pegs[0]), nil)
+		ride(one, pegs[0], nil)
+		return one
 	}
 	out := newDisjunct(pegs)
 	rankedPlace(home, &out.base)

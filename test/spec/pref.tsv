@@ -272,6 +272,13 @@ pref-lone-defaults-meet-three	gen	x: ((*{a: .c}) & (*{b: 1})) & (*{c: 2})	{"x":{
 pref-lone-defaults-meet-each-way	gen	x: (*{a: 1, b: .c}) & (*{c: .a})	{"x":{"a":1,"b":1,"c":1}}
 # A path in an arm into a choice the arm holds waits for the choice.
 pref-path-into-an-inner-choice	errc	x: ({a: ({c: 1, d: .c}) | null, e: .a.d}) | null	disjunct_no_gen
+# A preferred arm keeps the records on its preference through a ranked meet.
+pref-arm-keeps-its-meta	canon	x: (meta(*1, {title: "t"}) | 2) & (integer | **3)	{"x":meta(*1,{"title":"t"})|2}
+pref-arm-keeps-its-deprecation	canon	x: (deprecate(*1, {msg: "old"}) | 2) & (integer | **3)	{"x":deprecate(*1,{"msg":"old"})|2}
+pref-arm-alone-keeps-its-meta	canon	x: (meta(*1, {title: "t"}) | 2) & (1 | **3)	{"x":meta(1,{"title":"t"})}
+pref-arms-meet-their-metas	canon	x: (meta(*1, {title: "t"}) | 2) & (meta(*1, {title: "u"}) | 3)	{"x":meta(1,{"title":"t"},{"title":"u"})}
+pref-tie-lone-and-arm	canon	x: *1 & (*1 | 2)	{"x":*1|2}
+pref-tie-arm-and-lone	canon	x: (*1 | 2) & *1	{"x":*1|2}
 # A path in a held arm reads the member as the arm's peer narrows it, and
 # waits while a later meet could narrow it still.
 pref-path-in-arm-meets-the-data	errc	x: ({a: integer, b: .a} | null) & {a: 1, b: 2}	empty
