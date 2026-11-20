@@ -82,7 +82,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 const trialErr = [];
                 ctx.err = trialErr;
                 oval[vI] = (0, unify_1.unite)((te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx)
-                    .holdArm(this.path, (0, PrefVal_1.prefInnerPeg)(v)), v, member, 'dj-peer');
+                    .holdArm(this.path, (0, PrefVal_1.prefInnerPeg)(v), member), v, member, 'dj-peer');
                 if (0 < trialErr.length) {
                     oval[vI] = NilVal_1.TRIAL_NIL;
                 }

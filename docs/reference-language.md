@@ -1848,7 +1848,10 @@ it, so over `hosts: {a: {name: "x", url: "y"}}` the first arm refuses
 the data through `url` and the second takes it. A path that names a
 member the arm doesn't write waits for the terms the arm meets, and a
 path into a disjunction or a lone preference the arm holds waits for
-that choice. The definition reads each arm so by
+that choice. A path reads its member as the terms the arm meets narrow
+it, so `x: ({a: integer, b: .a} | null) & {a: 1}` is `{"x": {"a": 1,
+"b": 1}}`, and over `{a: 1, b: 2}` the arm refuses the data. The
+definition reads each arm so by
 `Decls.armChosen`. A path inside a lone preference `*x` reads the
 same, where the preference holds its value, and the parent arm, which
 takes what overrides the default, is the parent type of what the value
@@ -1858,10 +1861,7 @@ passes and `{a: 2, b: "s"}` doesn't. Both engines read a lone
 preference so. They still lift a path in a template inside the value
 to `any` in the parent arm, which #704 tracks, and `vet` lifts one to a
 place outside the value the same way where the data overrides the
-default, which #702 tracks. A path to a member the data narrows reads
-the default's own type: over `x: {a: 5}`, `x: *{a: integer, b: .a}`
-leaves `b` as `integer`, where the definition reads `5`, which #700
-tracks. The definition reads a lone preference so by
+default, which #702 tracks. The definition reads a lone preference so by
 `Decls.nodeChosen`. A disjunction met with another at one place reads as
 one disjunction of the meets of their arms, as the meet makes them: in
 `x: ({b: .a} | null) & ({a: 1} | {a: 2})`, `b` reads `1` in one arm and

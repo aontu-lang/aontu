@@ -65,10 +65,10 @@ class AontuContext {
         }
         return ctx;
     }
-    holdArm(path, arm) {
+    holdArm(path, arm, peer, own) {
         const ctx = Object.create(this);
         ctx._armAt = new Map(this._armAt);
-        ctx._armAt.set(path.join('\u0000'), arm);
+        ctx._armAt.set(path.join('\u0000'), [arm, true === peer?.isTop ? undefined : peer, true === own]);
         return ctx;
     }
     descend(key) {

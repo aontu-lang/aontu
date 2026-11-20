@@ -66,7 +66,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
     // Ruling 40: the parent arm lifts the default as read on its own.
     parentArm(ctx) {
         const alone = this.alone ?? prefInnerPeg(this);
-        const own = (0, FuncBaseVal_1.trialUnify)(ctx.holdArm(this.path, alone), alone.clone(ctx), (0, top_1.top)());
+        const own = (0, FuncBaseVal_1.trialUnify)(ctx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), (0, top_1.top)());
         return undefined === own ? this.superpeg.clone(ctx) :
             (0, unify_1.unite)(ctx, (0, SuperFuncVal_1.superOf)(ctx, own), this.superpeg.clone(ctx), 'pref/lift');
     }
@@ -164,7 +164,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         }
         else if (!peer.isTop) {
             why += 'super-';
-            const met = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), peer);
+            const met = (0, FuncBaseVal_1.trialUnify)(ctx.holdArm(this.path, prefInnerPeg(this), peer), prefInnerPeg(this).clone(ctx), peer);
             if (undefined !== met) {
                 // An override space the peer empties leaves the preference
                 // standing with nothing left to replace it, not a conflict.

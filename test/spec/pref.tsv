@@ -272,3 +272,10 @@ pref-lone-defaults-meet-three	gen	x: ((*{a: .c}) & (*{b: 1})) & (*{c: 2})	{"x":{
 pref-lone-defaults-meet-each-way	gen	x: (*{a: 1, b: .c}) & (*{c: .a})	{"x":{"a":1,"b":1,"c":1}}
 # A path in an arm into a choice the arm holds waits for the choice.
 pref-path-into-an-inner-choice	errc	x: ({a: ({c: 1, d: .c}) | null, e: .a.d}) | null	disjunct_no_gen
+# A path in a held arm reads the member as the arm's peer narrows it, and
+# waits while a later meet could narrow it still.
+pref-path-in-arm-meets-the-data	errc	x: ({a: integer, b: .a} | null) & {a: 1, b: 2}	empty
+pref-path-in-arm-reads-the-data	gen	x: ({a: integer, b: .a} | null) & {a: 1}	{"x":{"a":1,"b":1}}
+pref-lone-path-reads-the-data	gen	x: *{a: integer, b: .a} & {a: 5}	{"x":{"a":5,"b":5}}
+pref-lone-path-parent-arm-of-a-kind	gen	x: *{a: number, b: .a} & {a: 5, b: 2.5}	{"x":{"a":5,"b":2.5}}
+pref-path-in-arm-second-arm-takes	gen	hosts: {a: {name: "x", url: .name}} | {a: {url: string}}\nhosts: {a: {name: "x", url: "y"}}	{"hosts":{"a":{"name":"x","url":"y"}}}

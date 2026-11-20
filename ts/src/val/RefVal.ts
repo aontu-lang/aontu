@@ -35,6 +35,7 @@ import { StringVal } from './StringVal'
 import { IntegerVal } from './IntegerVal'
 import { NumberVal } from './NumberVal'
 import { ConjunctVal } from './ConjunctVal'
+import { trialUnify } from './FuncBaseVal'
 import { VarVal } from './VarVal'
 import { FeatureVal } from './FeatureVal'
 import { integerDigits } from './numkind'
@@ -146,22 +147,35 @@ function markedChild(v: any, part: any): Val | undefined {
 }
 
 
-// The arm a disjunction holds (Decls.armChosen) answers only for its own members.
-function heldChild(arm: Val | undefined, part: any): Val | undefined {
-  return undefined === arm || undefined === markedChild(arm, part) ? undefined : arm
+// A held arm (Decls.armChosen) and its peer answer for the arm's members.
+function heldAt(ctx: AontuContext, refpath: string[], pI: number):
+  [Val, Val | undefined, boolean] | undefined {
+  const held = ctx._armAt?.get(refpath.slice(0, pI).join('\u0000'))
+  return undefined === held || undefined === markedChild(held[0], refpath[pI]) ? undefined : held
 }
 
 
 // A held arm answers from its own level, however the levels above it stand.
-function heldFrom(armAt: Map<string, Val> | undefined, refpath: string[],
-  pI: number, node: Val): [number, Val] {
-  for (let hI = refpath.length - 1; undefined !== armAt && pI < hI; hI--) {
-    const arm = heldChild(armAt.get(refpath.slice(0, hI).join('\u0000')), refpath[hI])
-    if (undefined !== arm) {
-      return [hI, arm]
+function heldFrom(ctx: AontuContext, refpath: string[], pI: number): number {
+  for (let hI = refpath.length - 1; undefined !== ctx._armAt && pI < hI; hI--) {
+    if (undefined !== heldAt(ctx, refpath, hI)) {
+      return hI
     }
   }
-  return [pI, node]
+  return pI
+}
+
+
+// Met with its peer's; one a later meet could still narrow waits (null).
+function heldMet(ctx: AontuContext, mine: Val, peer: Val | undefined, own: boolean,
+  parts: string[]): Val | null {
+  let theirs: any = peer
+  for (const part of parts) {
+    theirs = undefined === theirs ? undefined : markedChild(theirs, part)
+  }
+  const met = undefined === theirs || true === (mine as any).isScalar || !mine.done ? mine :
+    trialUnify(ctx, mine.clone(ctx), theirs.clone(ctx)) ?? mine
+  return own || true === (met as any).isScalar || true === ctx.settle ? met : null
 }
 
 
@@ -446,21 +460,23 @@ class RefVal extends FeatureVal {
       }
       refpath = reduced
 
-      let node = ctx.root as Val
+      let node: any = ctx.root
 
       let nopath = offtop
       let held = false
+      let peer: [Val | undefined, boolean, number] = [undefined, false, 0]
 
       if (!offtop && null != node) {
-        const from = node
-        ;[pI, node] = heldFrom(ctx._armAt, refpath, pI, node)
-        held = from !== node
+        pI = heldFrom(ctx, refpath, pI)
         for (; pI < refpath.length; pI++) {
           let part = refpath[pI]
 
-          const arm = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part)
-          held = held || undefined !== arm
-          node = arm ?? node
+          const arm = heldAt(ctx, refpath, pI)
+          if (undefined !== arm) {
+            node = arm[0]
+            held = true
+            peer = [arm[1], arm[2], pI]
+          }
           node = throughRider(node)
 
           if (node.isMap) {
@@ -517,6 +533,9 @@ class RefVal extends FeatureVal {
             break
           }
 
+        }
+        if (held && !nopath && pI === refpath.length) {
+          node = heldMet(ctx, node, peer[0], peer[1], refpath.slice(peer[2]))
         }
       }
 
