@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### A preferred arm keeps its records through a ranked meet
+
+Both ports, fixing what #863 broke.
+
+- **A preferred arm keeps the records on its preference**, `meta`,
+  `deprecate` and the rest, where a ranked meet rebuilds it:
+  `x: (meta(*1, {title: "t"}) | 2) & (integer | **3)` canons as
+  `{"x":meta(*1,{"title":"t"})|2}` again, where since #863 it was
+  `{"x":*1|2}`. `vet` of its `deprecate` twin against `x: 1` warns
+  `deprecated` again.
+- **A lone surviving arm keeps them on its value**:
+  `x: (meta(*1, {title: "t"}) | 2) & (1 | **3)` is
+  `{"x":meta(1,{"title":"t"})}`.
+- Four new rows in `pref.tsv` hold it in both ports.
+
 ### A path in an arm reads its member as the data narrows it
 
 Both ports, fixing what #863 broke and part of #700.
