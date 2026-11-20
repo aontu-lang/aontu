@@ -508,7 +508,7 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(tu(ctx, P('number|string').unify(P('boolean|number'), ctx), TOP).canon)
             .equal('number');
         (0, expect_1.expect)(tu(ctx, P('number|*1').unify(P('number|*1'), ctx), TOP).canon)
-            .equal('number|*1');
+            .equal('*1|number');
         let u0 = tu(ctx, P('number|*1'), P('number'));
         (0, expect_1.expect)(u0.canon).equal('number|*1');
         (0, expect_1.expect)(u0.gen(ctx)).equal(1);

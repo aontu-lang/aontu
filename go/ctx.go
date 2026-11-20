@@ -46,6 +46,20 @@ type Ctx struct {
 	prov *Provenance
 
 	reads map[string]bool
+
+	// The arm a disjunction holds at a path (Decls.armChosen in spec/Aontu/Paths.lean).
+	armAt map[string]Val
+}
+
+func (c *Ctx) holdArm(path []string, arm Val, fn func() Val) Val {
+	saved := c.armAt
+	c.armAt = make(map[string]Val, len(saved)+1)
+	for k, v := range saved {
+		c.armAt[k] = v
+	}
+	c.armAt[strings.Join(path, "\x00")] = arm
+	defer func() { c.armAt = saved }()
+	return fn()
 }
 
 // trialState is one evaluation's admission trials and their verdicts.

@@ -720,7 +720,7 @@ describe('val-basic', function() {
       .equal('number')
 
     expect(tu(ctx, P('number|*1').unify(P('number|*1'), ctx), TOP).canon)
-      .equal('number|*1')
+      .equal('*1|number')
 
 
     let u0 = tu(ctx, P('number|*1'), P('number'))

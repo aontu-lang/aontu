@@ -52,7 +52,7 @@ describe('val-disjunct', function() {
 
 
     let u4 = UC('(number|*1) & (number|*2)')
-    expect(u4).equal('number|*1|*2')
+    expect(u4).equal('*2|*1|number')
 
 
     let g0 = G('{&:{x:*1|number},a:{},b:{x:2}}')

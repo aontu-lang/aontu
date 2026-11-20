@@ -358,14 +358,7 @@ ruling 40 lifts from what the value reads as on its own, where both
 ports lift a path inside the value to `any`, and move (#704); and a
 path from a lone preference to a place outside it, whose value the
 parent arm lifts as both ports' `eval` does, where both ports' `vet`
-disagrees with their own `eval`, and move (#702); two preferences of
-different ranks that meet, whose higher rank's constraint ruling 41 of
-§7 keeps, where both ports drop it, and move (#714); the higher rank's
-default, which ruling 42 fills in under the lower rank's where they
-agree, where both ports drop it too, and move (#714); an arm that was
-not a default, which decision 43 keeps one where a preference meets a
-disjunction at its rank or one with no default, where both ports make
-it a default and so clash, and move (#714); and a clash a meet makes,
+disagrees with their own `eval`, and move (#702); and a clash a meet makes,
 two defaults of one rank that disagree, which the definition reads as
 an `error` as both ports' `eval` does, where both ports' `vet` answers
 `invalid`, and move (#482).
@@ -2128,6 +2121,9 @@ until the phase that encodes it lands.
    `test/spec/def-verdict.tsv`, both ports answering 33 of 42 as the
    definition does, the other 9 in the ledger under #714 and #482,
    whose `vet` reads a clash a meet makes as `invalid`.
+   **Built in both ports 2026-11-20** with decisions 42 and 43 (#714):
+   a map default of a higher rank keeps its constraint too, so
+   `*{a: 1} & **{b: 2}` requires `b` (rk40).
 
 42. **A weaker default under a stronger one.** Raised 2026-11-11 while
    building ruling 41. The meet nested the right side's ranks inside the
@@ -2156,6 +2152,11 @@ until the phase that encodes it lands.
    with one rank still nests the right one inside the left one, where
    the fold of ruling 41 meets their defaults; decision 43 replaces
    that.
+   **Built in both ports 2026-11-20** (#714): a preference meets a
+   preference of another rank, or a disjunction, as `meetNodes` does
+   (`meetRanked` in `ts/src/val/DisjunctVal.ts` and `go/disjunct.go`),
+   the ranked arms built back into disjunctions, so `**1 & *integer` is
+   `1` and `(*1 & **7) & neq(1)` is `7`. rk24 and rk36 leave the ledger.
 
 43. **An arm that was not a default, under a meet.** Raised 2026-11-11
    while building decision 42. Where the two sides of a meet lead with
@@ -2201,6 +2202,13 @@ until the phase that encodes it lands.
    each still meets an arm of the other side, stands inside the arm the
    two defaults' meet held, as that arm's own, so the verdict drops the
    arm where ruling 41 makes the clash the disjunction's.
+   **Built in both ports 2026-11-20** (#714): two sides that lead with
+   one rank meet as `nodeTie` does, and a disjunction folds only the
+   defaults the rank rule picks (`foldArms`), so the arms one rank
+   weaker no longer clash. A path in a disjunction's arm reads the arm
+   where the disjunction holds it while the disjunction meets that arm,
+   which part of #700 asks. rk45 to rk50, dj177 to dj182, djl177 to
+   djl182 and dir172 leave the ledger with 18 rows of #700.
 
 44. **`open()`, and the seals it lifts.** Raised 2026-11-11 while
    working through the definition's limits. `open()` reverses a seal,

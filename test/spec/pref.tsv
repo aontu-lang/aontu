@@ -55,10 +55,10 @@ pref-conjunct-names-nothing-errc	errc	a:("1.0"|"1.1") & *"2.0"	disjunct_no_gen
 # key and as an explicit conjunct. This is the layered-defaults
 # ladder's whole contract (***org / **env / *tenant), and each
 # spelling exercises a different arm of the comparison.
-pref-rank-lower-wins-second	canon	a:**1 a:*2	{"a":*2}
-pref-rank-lower-wins-first	canon	a:*2 a:**1	{"a":*2}
-pref-rank-lower-wins-conjunct	canon	a:**1&*2	{"a":*2}
-pref-rank-lower-wins-conjunct-flipped	canon	a:*2&**1	{"a":*2}
+pref-rank-lower-wins-second	canon	a:**1 a:*2	{"a":*2|**1|integer}
+pref-rank-lower-wins-first	canon	a:*2 a:**1	{"a":*2|**1|integer}
+pref-rank-lower-wins-conjunct	canon	a:**1&*2	{"a":*2|**1|integer}
+pref-rank-lower-wins-conjunct-flipped	canon	a:*2&**1	{"a":*2|**1|integer}
 pref-rank2-conjunct-kind-keeps-default	gen	a:**1.5 & float	{"a":1.5}
 pref-rank2-conjunct-kind-keeps-default-canon	canon	a:**1.5 & float	{"a":**1.5}
 pref-rank2-disjunct-kind-keeps-default	gen	b:**2|integer\nb:integer	{"b":2}
@@ -228,3 +228,29 @@ pref-spread-bound-kept-type-list-pass	gen	r:[&:integer & min(1)] r:[*integer] r:
 pref-type-rank-both-bounds-pass	gen	a: *integer & min(1)\na: *integer & max(5)\na: 3	{"a":3}
 pref-type-rank-both-bounds-refuse	errc	a: *integer & min(1)\na: *integer & max(5)\na: 7	empty
 pref-type-rank-both-bounds-list	errc	a: *[integer] & [min(1)]\na: *[integer] & [max(5)]\na: [7]	empty
+
+# Ranks are layers (rulings 41 and 42 and decision 43 of
+# sketch/DEFINITION.0.md section 7, #714): a weaker default fills in
+# under a stronger one where they agree, and comes back where the
+# stronger one is overridden; an arm that wasn't a default stays one.
+pref-layers-weaker-default-fills-in	gen	x: **1 & *integer	{"x":1}
+pref-layers-weaker-default-fills-in-flipped	gen	x: *integer & **1	{"x":1}
+pref-layers-map-defaults-meet	gen	x: *{a: 1} & **{b: 2}	{"x":{"a":1,"b":2}}
+pref-layers-map-default-keeps-its-constraint	errc	x: *{a: 1} & **{b: 2} & {a: 1, b: "s"}	empty
+pref-layers-weaker-default-returns	gen	x: (*1 & **7) & neq(1)	{"x":7}
+pref-layers-keep-both-canon	canon	x: *1 & **7	{"x":*1|**7|integer}
+pref-layers-arm-stays-no-default	gen	x: (*1 | 2) & *integer	{"x":1}
+pref-layers-arm-stays-no-default-flipped	gen	x: *integer & (*1 | 2)	{"x":1}
+pref-layers-map-arm-stays-no-default	gen	x: (*{a: 1} | {c: 3}) & *{b: 2}	{"x":{"a":1,"b":2}}
+pref-layers-no-arm-a-default	errc	x: (1 | 2) & *integer	disjunct_no_gen
+pref-layers-plain-twin-drops	canon	x: (string | *"b") & ("b" | "c")	{"x":*"b"|"c"}
+pref-layers-keep-an-annotation	canon	a: (1 | 2) & meta(*1, {title: "t"})	{"a":meta(*1|2,{"title":"t"})}
+pref-layers-tie-one-default	canon	x: (number | *1) & (number | *1)	{"x":*1|number}
+# Two narrowed defaults of one rank, each refused by the other's bound:
+# the one still admitted stands, and where neither is, the type does.
+pref-narrowed-default-stands	canon	p: *1 & neq(5)\na: $.p & *5	{"a":*1,"p":*1}
+pref-narrowed-default-stands-flipped	canon	p: *1 & neq(5)\na: *5 & $.p	{"a":*1,"p":*1}
+pref-narrowed-defaults-leave-the-type	canon	p: *1 & neq(5)\nq: *5 & neq(1)\na: $.p & $.q	{"a":integer&neq(1,5),"p":*1,"q":*5}
+# A path in a disjunction's arm reads the arm where the disjunction holds
+# it (Decls.armChosen in spec/Aontu/Paths.lean, part of #700).
+pref-path-in-a-preferred-arm	gen	x: *{a: 1, c: .a} | {}	{"x":{"a":1,"c":1}}

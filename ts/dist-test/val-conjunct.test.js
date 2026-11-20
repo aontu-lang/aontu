@@ -42,7 +42,7 @@ const G = (x, ctx) => new unify_1.Unify(x, lang).res.gen(ctx);
         let u2 = UC('a:*1|number,a:*2|number');
         (0, expect_1.expect)(u2).equal('{"a":*2|*1|number}');
         let u4 = UC('(number|*1) & (number|*2)');
-        (0, expect_1.expect)(u4).equal('number|*1|*2');
+        (0, expect_1.expect)(u4).equal('*2|*1|number');
     });
     (0, node_test_1.test)('map', () => {
         let m0 = UC('{a:1}&{b:2}');

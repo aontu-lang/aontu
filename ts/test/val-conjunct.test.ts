@@ -77,7 +77,7 @@ describe('val-conjunct', function() {
 
 
     let u4 = UC('(number|*1) & (number|*2)')
-    expect(u4).equal('number|*1|*2')
+    expect(u4).equal('*2|*1|number')
 
   })
 
