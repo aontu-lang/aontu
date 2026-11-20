@@ -152,6 +152,19 @@ function heldChild(arm: Val | undefined, part: any): Val | undefined {
 }
 
 
+// A held arm answers from its own level, however the levels above it stand.
+function heldFrom(armAt: Map<string, Val> | undefined, refpath: string[],
+  pI: number, node: Val): [number, Val] {
+  for (let hI = refpath.length - 1; undefined !== armAt && pI < hI; hI--) {
+    const arm = heldChild(armAt.get(refpath.slice(0, hI).join('\u0000')), refpath[hI])
+    if (undefined !== arm) {
+      return [hI, arm]
+    }
+  }
+  return [pI, node]
+}
+
+
 const CANONICAL_LIST_INDEX = /^(0|[1-9][0-9]*)$/
 
 function member(v: any, part: any): any {
@@ -436,12 +449,18 @@ class RefVal extends FeatureVal {
       let node = ctx.root as Val
 
       let nopath = offtop
+      let held = false
 
       if (!offtop && null != node) {
+        const from = node
+        ;[pI, node] = heldFrom(ctx._armAt, refpath, pI, node)
+        held = from !== node
         for (; pI < refpath.length; pI++) {
           let part = refpath[pI]
 
-          node = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part) ?? node
+          const arm = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part)
+          held = held || undefined !== arm
+          node = arm ?? node
           node = throughRider(node)
 
           if (node.isMap) {
@@ -483,7 +502,9 @@ class RefVal extends FeatureVal {
             node = 1 === kids.length ?
               kids[0] : new ConjunctVal({ peg: kids }, ctx)
           }
-          else if (node.done) {
+          // A choice inside a held arm is read before the arm: wait for it.
+          else if (node.done && !(held && (true === (node as any).isDisjunct ||
+            true === (node as any).isPref))) {
             nopath = true
             break;
           }

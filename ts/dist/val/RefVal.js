@@ -111,6 +111,16 @@ function markedChild(v, part) {
 function heldChild(arm, part) {
     return undefined === arm || undefined === markedChild(arm, part) ? undefined : arm;
 }
+// A held arm answers from its own level, however the levels above it stand.
+function heldFrom(armAt, refpath, pI, node) {
+    for (let hI = refpath.length - 1; undefined !== armAt && pI < hI; hI--) {
+        const arm = heldChild(armAt.get(refpath.slice(0, hI).join('\u0000')), refpath[hI]);
+        if (undefined !== arm) {
+            return [hI, arm];
+        }
+    }
+    return [pI, node];
+}
 const CANONICAL_LIST_INDEX = /^(0|[1-9][0-9]*)$/;
 function member(v, part) {
     if (true === v.isList && !CANONICAL_LIST_INDEX.test(String(part))) {
@@ -340,10 +350,16 @@ class RefVal extends FeatureVal_1.FeatureVal {
             refpath = reduced;
             let node = ctx.root;
             let nopath = offtop;
+            let held = false;
             if (!offtop && null != node) {
+                const from = node;
+                [pI, node] = heldFrom(ctx._armAt, refpath, pI, node);
+                held = from !== node;
                 for (; pI < refpath.length; pI++) {
                     let part = refpath[pI];
-                    node = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part) ?? node;
+                    const arm = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part);
+                    held = held || undefined !== arm;
+                    node = arm ?? node;
                     node = (0, RecurseVal_1.throughRider)(node);
                     if (node.isMap) {
                         node = node.peg[part];
@@ -383,7 +399,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         node = 1 === kids.length ?
                             kids[0] : new ConjunctVal_1.ConjunctVal({ peg: kids }, ctx);
                     }
-                    else if (node.done) {
+                    // A choice inside a held arm is read before the arm: wait for it.
+                    else if (node.done && !(held && (true === node.isDisjunct ||
+                        true === node.isPref))) {
                         nopath = true;
                         break;
                     }

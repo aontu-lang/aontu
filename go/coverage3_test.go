@@ -426,6 +426,16 @@ func TestPrefRankArms(t *testing.T) {
 	}
 }
 
+// A default that fails read on its own leaves the parent arm its gate.
+func TestPrefParentArmAloneFails(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	p := newPref(newInteger(1))
+	p.alone = newConjunct([]Val{newInteger(1), newInteger(2)})
+	if got := p.Unify(newInteger(5), ctx).Canon(); "5" != got {
+		t.Fatalf("the gate must take the peer, got %s", got)
+	}
+}
+
 func TestCallSuperiorIsTop(t *testing.T) {
 	if !isTop(newFunc("upper", []Val{newString("x")}).superior()) {
 		t.Fatalf("a call's superior must be top")

@@ -70,13 +70,25 @@ func declaration(cj *ConjunctVal, key string) Val {
 	return nil
 }
 
+// A held arm answers from its own level, however the levels above it stand.
+func heldFrom(armAt map[string]Val, refpath []string, root Val) (Val, int) {
+	for hI := len(refpath) - 1; 0 < hI && 0 < len(armAt); hI-- {
+		if held, ok := armAt[strings.Join(refpath[:hI], "\x00")]; ok && nil != markedChild(held, refpath[hI]) {
+			return held, hI
+		}
+	}
+	return root, 0
+}
+
 func (rv *RefVal) walkFrom(root Val, refpath []string, armAt map[string]Val) (Val, walkOutcome) {
-	var node Val = root
+	node, start := heldFrom(armAt, refpath, root)
+	inArm := 0 < start
 	_, isAlias := rv.aliasKey()
-	for pI, part := range refpath {
+	for pI := start; pI < len(refpath); pI++ {
+		part := refpath[pI]
 		// A held arm answers only for the members it holds.
 		if held, ok := armAt[strings.Join(refpath[:pI], "\x00")]; ok && nil != markedChild(held, part) {
-			node = held
+			node, inArm = held, true
 		}
 		node = throughRider(node)
 		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
@@ -128,7 +140,10 @@ func (rv *RefVal) walkFrom(root Val, refpath []string, armAt map[string]Val) (Va
 				node = n.peg[idx]
 			}
 		default:
-			if node.Dc() == DONE {
+			// A choice inside a held arm is read before the arm: wait for it.
+			_, dj := node.(*DisjunctVal)
+			_, pf := node.(*PrefVal)
+			if node.Dc() == DONE && !(inArm && (dj || pf)) {
 				return nil, walkMissed
 			}
 			return nil, walkDefer
