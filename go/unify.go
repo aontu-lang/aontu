@@ -455,6 +455,9 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if loose := unboundHole(ctx, root); nil != loose {
 		return loose
 	}
+	if cyc := aliasCycle(ctx, root); nil != cyc {
+		return cyc
+	}
 	if nil == ctx.snapmap {
 		ctx.snapmap = map[string]Val{}
 	}

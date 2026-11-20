@@ -112,9 +112,9 @@ expanded the schema one more level to meet it.
 
 ## The unguarded tail refuses
 
-Guardedness is emergent: the engine never analyses the schema for
-well-foundedness, the data decides. Drop the `?` and the schema still
-evaluates, but no finite document can satisfy it. Write this as
+Through a key, guardedness is emergent: the data decides how deep the
+schema reaches. Drop the `?` and the schema still evaluates, but no
+finite document can satisfy it. Write this as
 `chain.aontu`:
 
 <!-- test: scenario recursion-unguarded -->

@@ -2761,32 +2761,36 @@ $.v.next.n: no_scalar_unify [conflict]
 $ echo $?
 1
 $ aontu vet self-schema.aontu one.aontu
-verdict: invalid
+verdict: error
 
-$.v: unify_cycle [budget]
-  [aontu/unify_cycle]: Cannot unify values at path $.v
-  data: one.aontu:1:4 (1)
+$.%U: path_cycle [reference]
+  [aontu/path_cycle]: Cannot resolve value at path $.%U
   schema: self-schema.aontu:1:6 (%U)
 $ echo $?
-1
+4
 $ aontu vet pair-schema.aontu one.aontu
 verdict: error
 
 $.%A: path_cycle [reference]
   [aontu/path_cycle]: Cannot resolve value at path $.%A
-  schema: pair-schema.aontu:1:6 (nil)
+  schema: pair-schema.aontu:1:6 (%B)
 $ echo $?
 4
 $ aontu vet arm-schema.aontu one.aontu
-verdict: valid
+verdict: error
+
+$.%T: path_cycle [reference]
+  [aontu/path_cycle]: Cannot resolve value at path $.%T
+  schema: arm-schema.aontu:1:6 (%T)
+$ echo $?
+4
 ```
 
-Both engines check the recursive list at every level. `%U = %U` they
-refuse by running out of steps, and the pair as a cycle of references,
-where the rule reads both as the same ill-formed document. `%T = %T |
-1` they run, and `1` passes by its second arm, where the rule refuses
-the document. Step 14's `vet` answers `error` for all three, and the
-ledger of step 15 carries `%U = %U`, where the engines move.
+Both engines check the recursive list at every level, and refuse all
+three documents before evaluation, as the rule does: each name reaches
+itself with no key and no element between, so each is `path_cycle`,
+sited at the reference that starts the cycle. Step 14's `vet` answers
+`error` for all three, as both engines do.
 
 ### How a document reads
 
@@ -2881,8 +2885,8 @@ def Decls.callsMade (ds : Decls) : Decls :=
 Step 14's `vet` reads a document this way, and the sixth generated
 fragment, [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv),
 runs documents with declarations in the three modes, recursive names
-among them. Both engines agree with the definition on every row but
-`%U = %U` and `%T = %T | 1`, which the ledger carries. A recursive
+among them. Both engines agree with the definition on every row,
+`%U = %U` and `%T = %T | 1` among them. A recursive
 name met with data has its rows because the checker of step 17 reads a
 residual.
 
@@ -5469,12 +5473,12 @@ case, `invalid` in every mode, and the ledger names them, so the run
 fails the day an engine comes to agree and the rows still stand there.
 
 A name declared as itself alone, `%U = %U`, is an `error` in the
-definition, a schema that admits nothing, as step 8 proves, where both
-engines answer `invalid` by running out of steps and blame the data.
+definition, a schema that admits nothing, as step 8 proves, and
 `%T = %T | 1` breaks the alias-cycle rule through `|` and is an `error`
-too, where both engines run it and its second arm admits `1`. Six rows
-of [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv) carry the
-two cases, and the ledger names the engines as the side that changes.
+too. Both engines once answered them by running out of steps or by
+running the second arm. They now refuse both before evaluation, and the
+six rows of [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv)
+that hold them have left the ledger.
 
 In others, two optional declarations of one key can't both hold:
 
@@ -5524,12 +5528,12 @@ the side that changes, since it has no ill-formed terms, which is what
 
 A name that refers to itself through a trial alone, `%T = nof(0, %T)`,
 breaks the alias-cycle rule and is an `error`, as `%T = %T` is: nothing
-between the name and itself consumes data. Both engines decide the
-trial by running out of steps, and answer `valid` or `invalid` as the
-count falls. Twenty-one rows of
-[`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv) carry seven such
-documents, `%T = when(%T, 1)` and `%T = when(string, %T)` among them,
-and the ledger names the engines as the side that changes.
+between the name and itself consumes data. Both engines once decided
+the trial by running out of steps, answering `valid` or `invalid` as the
+count fell. They now refuse it before evaluation, and the twenty-one
+rows of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv) that
+hold seven such documents, `%T = when(%T, 1)` and
+`%T = when(string, %T)` among them, have left the ledger.
 In the same file, `must(1 & 2, "m")` refuses `1` as `nof(1, 1 & 2)`
 does, a branch that admits nothing counting as none, where both
 engines answer `error`: six rows, the engines the side that changes.

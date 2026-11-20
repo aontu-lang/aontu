@@ -36,8 +36,9 @@ in `spec/Aontu/Alias.lean`, a reference to a recursive name a residual
 that expands against concrete structure alone, with `vet` an `error`
 for a name declared nowhere or an unguarded cycle, run as the sixth
 generated fragment, `test/spec/def-alias.tsv`, on which both ports
-agree with the definition on every row but `%U = %U` and `%T = %T | 1`,
-which the ledger carries under decisions 1 and 2 of §7; the same day
+agree with the definition on every row, `%U = %U` and `%T = %T | 1`
+since 2026-11-20, when both came to refuse them before evaluation under
+decisions 1 and 2 of §7; the same day
 the checker gained a hook for names, `checkWith` in
 `spec/Aontu/Check.lean` and `checkR` in `spec/Aontu/Alias.lean`, which
 unfolds a residual against the data with a stack the alias-cycle rule
@@ -321,13 +322,11 @@ passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
 ledger holds 325 rows under twenty-two causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
-#346, the sealed list met with a spread, where the ports move; the
-alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
-and through a trial #361); the cycles through paths of decision 7 of
-§7, where the ports move (#357); `must` refusing a conflicting branch
-as an error of the schema, where the ports move (#361); an optional
-key of the general side compared only where the specific side declares
-it, where the ports move (#377); and a
+#346, the sealed list met with a spread, where the ports move; a
+recursive position met with data in its own place, under decision 7 of
+§7, where the ports move (#357); an optional key of the general side
+compared only where the specific side declares it, where the ports
+move (#377); and a
 path inside a rider's value to a member beside it, which decision 14 of
 §7 reads through the rider, where the ports move (#416); a default at a list position
 under the `defaults` profile, which the ports do not compare, where the
@@ -491,8 +490,9 @@ until the phase that encodes it lands.
    `error`. An alias admitted only through itself
    has no finite derivation under the least fixpoint, so it admits
    nothing; the greatest fixpoint would admit everything. Both ports
-   answer `unify_cycle`, class `budget`: the least-fixpoint verdict,
-   reached by running out of steps. The ruling follows decision 4 of
+   answered `unify_cycle`, class `budget`, reaching the least-fixpoint
+   verdict by running out of steps, until both came to refuse it before
+   evaluation on 2026-11-20 (#354). The ruling follows decision 4 of
    §2: a document that names nothing but itself is a contradiction of
    the same kind as `integer & string`, and it follows from the cycle
    rule below.
@@ -519,7 +519,11 @@ until the phase that encodes it lands.
    first step of P4: refusal is the second answer of the one relation,
    `Judge`, so a trial schema reads the branches that refuse a value
    without a negation, and the alias-cycle rule is what keeps a trial
-   that reads only by itself, `%T = nof(0, %T)`, an `error`.
+   that reads only by itself, `%T = nof(0, %T)`, an `error`. **Built in
+   both ports 2026-11-20**: a check before evaluation, `aliasCycle` in
+   `ts/src/cycle.ts` and `go/cycle.go`, refuses every name or path that
+   reaches itself with no key and no element between as `path_cycle`,
+   reading a term's references as `Val.unguardedRefs` does.
 3. **Error codes.** The codes are append-only and the ports agree on
    them row by row. In the definition they would be a function from a
    refusal's shape to a code, which is a large table to prove anything
@@ -550,9 +554,9 @@ until the phase that encodes it lands.
 7. **Cycles through paths.** Ruled 2026-10-19: a document that reads
    only by its own paths falls under the alias-cycle rule of decision
    2 and is an `error`: `a: $.b, b: $.a`, where both ports answer
-   `path_cycle`, and `a: $.a`, where both answer `unify_cycle`, class
-   invalid, which the ledger carries with the ports as the side that
-   moves. A recursive position, `then?: $.schema.Step` inside `Step`, is
+   `path_cycle`, and `a: $.a`, where both answered `unify_cycle`, class
+   invalid, until both came to refuse it before evaluation as
+   `path_cycle` on 2026-11-20. A recursive position, `then?: $.schema.Step` inside `Step`, is
    a name that refers to itself through a key: a residual that expands
    against the data as far as the data goes, as a recursive alias does,
    and as both ports read it through a copy, `doc: $.schema.Step`. Met

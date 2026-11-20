@@ -1900,9 +1900,8 @@ branches, and a disjunction meets it branch by branch. Data is finite,
 so evaluation terminates; the depth budget is the backstop
 (`recursion_budget`).
 
-**Guardedness is emergent: the data decides, never a static
-analysis.** Under an optional key (`then?:`) the chain ends where
-the data ends. A ranked default works the same way:
+**Through a key, guardedness is emergent: the data decides.** Under
+an optional key (`then?:`) the chain ends where the data ends. A ranked default works the same way:
 
 ```aontu
 schema: hide({ Node: { v:integer next: *null|$.schema.Node } })
@@ -1956,12 +1955,19 @@ level below the first at the body's own place, which #765 tracks.
 
 [Subsumption](#recursive-positions) reads a recursive position as the
 definition it names, so two recursive schemas compare with no data on
-either side. The degenerate
-self-reference with no structure at all (`a: $.a`) is a residual that
-can never expand: its canon is exactly `{"a":$.a}` and generation
-refuses with `recursion_unexpanded`. A cycle THROUGH other values
-(`a:$.b b:$.a`) is still `path_cycle`: two references chasing each
-other name no definition at all.
+either side.
+
+**A recursion passes through a key or an element.** A reference that
+reaches itself with nothing between names no definition at all, so the
+engine refuses it before evaluation, as `path_cycle`, sited at the
+reference that starts the cycle: the self-reference `a: $.a`, a member that reads
+its own place, `s: {x: 1 & .x}`, the pair `a: $.b` and `b: $.a`, a name
+declared as itself, `%U = %U`, and a name reached through its own
+disjunction, trial or selection, `%T = %T | 1`, `%T = nof(0, %T)` or
+`%T = match(%T, integer, 1, 2)`. A disjunction, a meet, a trial, a call
+and a rider all leave the value where it stands. A map's member, a
+list's element and a spread's template are the steps that consume
+data.
 
 For the recipe form see
 [Define a recursive schema](how-to/define-a-recursive-schema.md); the

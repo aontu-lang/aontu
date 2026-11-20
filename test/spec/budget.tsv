@@ -15,14 +15,36 @@
 # go/ref.go), THROUGH function arguments as well as plain refs. A chain
 # that passes through a variable segment, a conjunct, or any other
 # non-ref value yields NO proof and defers as before.
-# RE-PINNED (RECURSION.0.md): the prefix test's answer is a RESIDUAL
-# now, so an unguarded self-reference stops failing at unification and
-# starts failing at generation -- recursion_unexpanded, named at the
-# instance -- and its canon is the finite symbolic form. The chase
-# rows below (mutual, chain, func-routed) keep path_cycle: a VALUE
-# cycle is a different mechanism and genuinely unguarded.
-path-cycle-self	errc	a:$.a	recursion_unexpanded
-path-cycle-self-canon	canon	a:$.a	{"a":$.a}
+# RE-PINNED (RECURSION.0.md): the prefix test's answer is a RESIDUAL,
+# so a self-reference through a key fails at generation --
+# recursion_unexpanded, named at the instance. One with no key between,
+# `a:$.a`, is refused before evaluation by the alias-cycle rule
+# (decision 7 of sketch/DEFINITION.0.md section 7), at the reference.
+# The chase rows below (mutual, chain, func-routed) keep path_cycle.
+path-cycle-self	errc	a:$.a	path_cycle
+path-cycle-self-sited-at-the-reference	err	a:$.a	<no-file>:1:3
+# A member that names its own place, met with a literal or spelled from
+# the root, is the same cycle (#357), and so are two places that read
+# each other through trials (#329).
+path-cycle-self-met-with-a-literal	errc	s: {x: 1 & .x}	path_cycle
+path-cycle-self-from-the-root	errc	s: {x: $.s.x}	path_cycle
+path-cycle-mutual-through-trials	errc	a: nof(1, $.b)\nb: nof(1, $.a)	path_cycle
+# The rule reads a term as the definition does: a trial's count, a
+# cover's `if` and a seal hold the value where it stands, so a cycle
+# through them is refused, while a `contains` member term, a `rest`
+# trial and a list's element consume data, and `path()` names an
+# address, not a value. A path the rule can't place is left to
+# evaluation.
+path-cycle-through-a-contains-count	errc	x: contains(integer, $.y)\ny: $.x	path_cycle
+path-recursion-through-a-contains-member	canon	x: contains($.x)	{"x":contains($.x)}
+path-cycle-through-a-rest-cover-if	errc	x: rest(nil, {if: $.y})\ny: $.x	path_cycle
+path-recursion-through-a-rest-trial	canon	x: rest($.x)	{"x":rest($.x)}
+path-cycle-through-a-seal	errc	a: close($.a)	path_cycle
+path-cycle-an-element-reading-itself	errc	a: [$.a.0]	path_cycle
+path-recursion-an-element-reading-its-sibling	gens	a: [1, $.a.0]	{"a":[1,1]}
+path-recursion-an-address-of-itself	canon	a: path($.a)	{"a":path($.a)}
+path-cycle-a-climb-off-the-top-is-left-to-evaluation	errc	a: ...b	no_path
+path-cycle-an-unbound-step-is-left-to-evaluation	errc	a: $.b.$k\nb: {}	unknown_var
 path-cycle-ancestor	errc	a:b:$.a	recursion_unexpanded
 path-cycle-mutual	errc	a:$.b b:$.a	path_cycle
 path-cycle-chain	errc	a:$.b b:$.c c:$.a	path_cycle

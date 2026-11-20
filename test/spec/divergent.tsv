@@ -148,37 +148,6 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- a reference cycle through trial schemas that never reaches a
-#   value is cut at a different point, so the two engines answer it
-#   differently.
-#   issue: #329; found 2026-10-01 by the parity probe while landing
-#   G12 phase 5.
-#
-#   Divergent input:  %A = nof(1, null, %B)
-#                     %B = nof(1, number, %A)
-#                     a: %A
-#                     vetted against {"a": 5}
-#   TypeScript: verdict invalid, nof at $.a, expected
-#               nof(1,nof(1,%A,number),null). This entry recorded
-#               `valid` until it was re-probed on 2026-10-16.
-#   Go:         verdict error, unify_cycle at $.%A.
-#   The same split shows for `a: nof(1, $.b)` beside `b: nof(1, $.a)`
-#   against {"a": 1, "b": 1}: TypeScript refuses $.a and $.b with
-#   `nof`, and Go reports unify_cycle at $.a. Neither port accepts the
-#   data, but TypeScript blames the data and Go the schema.
-#
-#   Not simply fixed because the right reading is an open design
-#   question: whether a trial that cannot decide, the schemas recursing
-#   without consuming the value, refuses it or is the document's error.
-#   JSON Schema leaves such recursion to the implementation. Each engine
-#   cuts the cycle where its evaluation order meets it: TypeScript
-#   settles a reference lazily, inside the admission trial whose
-#   failures ADR-049 discards, and Go settles a trial argument eagerly,
-#   where ADR-049 makes a failure other than a conflict the document's.
-#   No row pins either answer.
-#
-# ---------------------------------------------------------------------
-#
 # OPEN -- the SITE of a reference that names nothing, in the first
 #   argument of a call of two or more arguments.
 #   issue: #327; found 2026-10-01 while landing G12 phase 6.

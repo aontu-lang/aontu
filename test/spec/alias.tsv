@@ -193,19 +193,32 @@ alias-value-position-redeclare-refused	errc	%m = 1\nz: %m = 2\ny: %m	scalar_valu
 # runs through the TREE, so it exists in neither namespace's graph
 # alone. It is caught here only because an alias reference IS a path
 # reference and there is therefore only one graph.
-# RE-PINNED (RECURSION.0.md): a self-referential alias is the same
-# prefix reference (%a is $.%a by construction), so the unguarded
-# direct cycle moves stage with it -- refused at generation as
-# recursion_unexpanded. The pair and through-the-tree cycles are
-# chase-detected VALUE cycles and keep path_cycle.
-alias-cycle-direct	errc	%a = %a\nx: %a	recursion_unexpanded
+# THE ALIAS-CYCLE RULE (decision 2 of sketch/DEFINITION.0.md section
+# 7): a name that reaches itself with no key and no element between is
+# refused before evaluation as path_cycle, the direct cycle as well as
+# the pair and the cycle through the tree.
+alias-cycle-direct	errc	%a = %a\nx: %a	path_cycle
 # And the refusal spells the name the SOURCE spells. A declaration
 # key carries the scope of the file that declared it, which is the
 # engine's bookkeeping: a reader who sees it learns nothing, and in
 # a file-backed document it was an absolute path.
-alias-cycle-direct-names-the-alias	err	%a = %a\nx: %a	Cannot recurse value: %a
+alias-cycle-direct-names-the-alias	err	%a = %a\nx: %a	Cannot resolve value: %a
 alias-cycle-pair	errc	%a = %b\n%b = %a\nx: %a	path_cycle
 alias-cycle-mixed-through-the-tree	errc	%a = $.x\nx: %a	path_cycle
+# ... and through a disjunction, a trial or a selection, none of which
+# consumes a key or an element (#354, #361, #329). A trial that reaches
+# its own name is refused before it is tried, so a container meets no
+# trial at all (#360).
+alias-cycle-through-a-disjunction	errc	%T = %T | 1\nt: %T	path_cycle
+alias-cycle-through-a-trial	errc	%T = nof(0, %T)\nt: %T	path_cycle
+alias-cycle-through-a-trial-met-with-a-map	errc	%T = nof(0, %T)\nt: %T\nt: {a: 1}	path_cycle
+alias-cycle-through-a-when-met-with-a-list	errc	%T = when(%T, 1)\nt: %T\nt: [1]	path_cycle
+alias-cycle-through-a-selection	errc	%T = match(%T, integer, 1, 2)\nt: %T	path_cycle
+alias-cycle-pair-through-trials	errc	%A = nof(1, null, %B)\n%B = nof(1, number, %A)\na: %A	path_cycle
+alias-cycle-pair-through-trials-names-the-first	err	%A = nof(1, null, %B)\n%B = nof(1, number, %A)\na: %A	at path $.%A
+# A key or an element between is the guard, and these recurse.
+alias-recursion-through-a-key	gens	%N = {n: integer, next?: %N}\nv: %N & {n: 1, next: {n: 2}}	{"v":{"n":1,"next":{"n":2}}}
+alias-recursion-through-a-trial-under-a-key	gens	%T = {a?: nof(0, %T)}\nt: %T & {}	{"t":{}}
 #
 # AN UNDECLARED ALIAS IS REFUSED, naming the name rather than silently
 # becoming the bare string it used to be.
