@@ -82,6 +82,8 @@ type Val interface {
 	setWritten()
 	innerOf() Val
 	setInnerOf(v Val)
+	copiedBy() string
+	setCopiedBy(target string)
 	deprecRec() map[string][]string
 	setDeprecRec(rec map[string][]string)
 	metaRec() map[string][]Val
@@ -155,6 +157,8 @@ type base struct {
 	lk      linkInfo
 	spr     Val
 	pdep    int8
+	// copied: the target whose expansion (RecurseVal) copied this, until something else meets it.
+	copied string
 }
 
 func (b *base) setVpath(p []string) { b.path = p }
@@ -261,6 +265,8 @@ func (b *base) written() bool           { return b.fwrt }
 func (b *base) setWritten()             { b.fwrt = true }
 func (b *base) innerOf() Val            { return b.finner }
 func (b *base) setInnerOf(v Val)        { b.finner = v }
+func (b *base) copiedBy() string        { return b.copied }
+func (b *base) setCopiedBy(t string)    { b.copied = t }
 func (b *base) setMarkType(v bool)      { b.mtype = v }
 func (b *base) setMarkHide(v bool)      { b.mhide = v }
 

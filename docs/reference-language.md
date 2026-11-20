@@ -1953,6 +1953,16 @@ doesn't. Below the last level the data or the schema writes, the body
 reads at its own place. Both engines' evaluation still reads every
 level below the first at the body's own place, which #765 tracks.
 
+**A recursive position read in its own place copies the data there.**
+In `a: {b: {c?: $.a.b}}`, the data at `a.b` is part of what `$.a.b`
+names, so every level of `c` holds a copy of it. The recursion unfolds
+only where the data reaches. Against `{"a": {"b": {"c": {}}}}` the copy
+at `a.b.c` holds a `c` of its own with no data under it, so `vet`
+answers `incomplete` there, as `recursion_unexpanded`, and `valid`
+under `--partial`. A conflict in a copy shows where the data writes
+it: with `y?: integer` beside `c`, the data `{"y": 1, "c": {"y": 2}}`
+at `a.b` is `invalid`, since the copy brings `y: 1` to `a.b.c`.
+
 [Subsumption](#recursive-positions) reads a recursive position as the
 definition it names, so two recursive schemas compare with no data on
 either side.

@@ -3546,6 +3546,44 @@ $ aontu -c members.aontu
 `x` meets the map at `y` with a map listing the same members in the
 other order, and the meet gives one value back.
 
+A path can name a place that holds it, and then it reads through a
+key, as `then?` does: `c?: $.a.b` inside `a.b`. The data written at
+`a.b` is part of what `$.a.b` names, so each level of `c` holds a copy
+of it, and the recursion unfolds only where the data reaches. Write
+`inplace.aontu`:
+
+<!-- test: scenario inplace -->
+<!-- test: file inplace.aontu -->
+```aontu
+a: b: c?: $.a.b
+```
+
+and `inplace-data.aontu`:
+
+<!-- test: file inplace-data.aontu -->
+```aontu
+a: b: c: {}
+```
+
+and vet the data against it:
+
+<!-- test: run -->
+```sh
+$ aontu vet inplace.aontu inplace-data.aontu
+verdict: incomplete
+
+$.a.b.c.c: recursion_unexpanded [incomplete]
+  [aontu/recursion_unexpanded]: Cannot recurse value at path $.a.b.c.c
+  schema: inplace.aontu:1:11 ($.a.b)
+$ echo $?
+3
+```
+
+The data writes `c` at `a.b`, so the copy at `a.b.c` holds a `c` too,
+and no data stands at `a.b.c.c` to unfold it against. Under
+`--partial` the same data is `valid`. These are rows p144 to p146 of
+the fragment.
+
 ## 10. The order, and the meet
 
 `spec/Aontu/Order.lean` orders terms by what they admit:

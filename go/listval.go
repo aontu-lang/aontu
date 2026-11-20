@@ -136,6 +136,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		out = l
 	} else {
 		out = &ListVal{}
+		if l.copied == peer.copiedBy() {
+			out.copied = l.copied
+		}
 		out.closed = l.closed
 		out.opened = l.opened
 		out.path = cp(l.path)

@@ -141,6 +141,7 @@ class ListVal extends BagVal {
 
     // NOTE: not a clone! needs to be constructed.
     let out: ListVal | NilVal = (peer.isTop ? this : new ListVal({ peg: [] }, ctx))
+    out.copied = peer.isTop || this.copied === peer.copied ? this.copied : undefined
 
     out.closed = this.closed
     out.opened = this.opened

@@ -85,13 +85,20 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 		return dj.Unify(r, ctx)
 	}
 
-	// CONCRETE STRUCTURE, or a kind, which picks the body's branch as
-	// structure does: expand one level against it.
 	concrete := false
 	switch peer.(type) {
 	case *MapVal, *ListVal, *ScalarVal, *ScalarKindVal, *MapKindVal, *ListKindVal:
 		concrete = true
 	}
+
+	// Its own expansion's copy is not data: decision 7 of sketch/DEFINITION.0.md section 7.
+	key := strings.Join(r.target, "\x00")
+	if concrete && key == peer.copiedBy() {
+		return r
+	}
+
+	// CONCRETE STRUCTURE, or a kind, which picks the body's branch as
+	// structure does: expand one level against it.
 	if concrete {
 		maxDepth := ctx.budgetDepth
 		if 0 == maxDepth {
@@ -113,6 +120,7 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 		level := undeclared(instanceClone(bodyv, cp(r.path)))
 		forceRootPath(level, cp(r.path))
 		walkMark(level, true, false, true, false)
+		walkMarkVals(level, func(n Val) { n.setCopiedBy(key) })
 		bumpRecurse(level, r.xc+1)
 		return unite(ctx, level, peer)
 	}
