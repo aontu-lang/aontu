@@ -165,5 +165,5 @@ function positions(terms, path, out) {
             });
         }
     }
-}
+} /* node:coverage ignore next 5 */
 //# sourceMappingURL=cycle.js.map

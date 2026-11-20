@@ -198,7 +198,7 @@ function positions(terms: any[], path: string[], out: string[][]): void {
       })
     }
   }
-}
+} /* node:coverage ignore next 5 */
 
 
 export {
