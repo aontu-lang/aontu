@@ -128,7 +128,7 @@ class DisjunctVal extends JunctionVal {
         ctx.err = trialErr
 
         oval[vI] = unite((te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx)
-          .holdArm(this.path, prefInnerPeg(v)), v, member, 'dj-peer')
+          .holdArm(this.path, prefInnerPeg(v), member), v, member, 'dj-peer')
 
         if (0 < trialErr.length) {
           oval[vI] = TRIAL_NIL
@@ -374,7 +374,7 @@ function dedupArms(ctx: AontuContext, oval: Val[], ranked: boolean): void {
 // the other meets each of its arms, so a weaker default stands under a
 // stronger one (rulings 41 and 42), and two that lead with one rank meet
 // as nodeTie does (decision 43). An arm's rank counts its stars.
-type Arm = [number, Val]
+type Arm = [number, Val, Val[]]
 
 
 function meetRanked(ctx: AontuContext, a: Val, b: Val): Val {
@@ -388,15 +388,25 @@ function nodeOf(v: Val): boolean {
 }
 
 
+// A preferred arm's preference layers carry its riders through the meet.
 function armOf(v: Val): Arm[] {
-  return v instanceof PrefVal ? [[v.rank + 1, prefInnerPeg(v)]] :
-    v instanceof DisjunctVal ? v.peg.flatMap(armOf) : [[0, v]]
+  return v instanceof PrefVal ? [[v.rank + 1, prefInnerPeg(v), prefLayers(v)]] :
+    v instanceof DisjunctVal ? v.peg.flatMap(armOf) : [[0, v, []]]
+}
+
+
+function prefLayers(v: Val): Val[] {
+  const out: Val[] = []
+  for (let p: any = v; true === p?.isPref; p = p.peg) {
+    out.push(p)
+  }
+  return out
 }
 
 
 // A lone preference `*x` is `x | super(x)`.
 function armsOf(v: Val): Arm[] {
-  return v instanceof PrefVal ? [[v.rank + 1, prefInnerPeg(v)], [0, v.superpeg]] : armOf(v)
+  return v instanceof PrefVal ? [[v.rank + 1, prefInnerPeg(v), []], [0, v.superpeg, []]] : armOf(v)
 }
 
 
@@ -423,42 +433,48 @@ function meetArms(ctx: AontuContext, a: Val, b: Val): Arm[] {
 
 
 function spread(ctx: AontuContext, home: Val, arms: Arm[], meet: (v: Val) => Arm[]): Arm[] {
-  return arms.flatMap(([r, v]) => ranked(ctx, home, r, meet(v)))
+  return arms.flatMap(([r, v, s]) => ranked(ctx, home, r, meet(v), s))
 }
 
 
-function ranked(ctx: AontuContext, home: Val, r: number, arms: Arm[]): Arm[] {
-  return 0 === arms.length ? [] : 0 === r ? arms : [[r, armsVal(ctx, home, arms)]]
+function ranked(ctx: AontuContext, home: Val, r: number, arms: Arm[], s: Val[]): Arm[] {
+  return 0 === arms.length ? [] : 0 === r ? arms : [[r, armsVal(ctx, home, arms), s]]
 }
 
 
 function tieArms(ctx: AontuContext, r: number, a: Val, b: Val): Arm[] {
   const at = (v: Val) => armsOf(v).filter((p) => p[0] === r)
   const off = (v: Val) => armsOf(v).filter((p) => p[0] !== r)
-  const pairs = at(a).flatMap((p) => at(b).map((q) => meetArms(ctx, p[1], q[1])))
-  const live = pairs.some((m) => 0 < m.length)
+  const pairs = at(a).flatMap((p) => at(b).map((q): [Arm[], Val[]] =>
+    [meetArms(ctx, p[1], q[1]), [...p[2], ...q[2]]]))
+  const live = pairs.some((m) => 0 < m[0].length)
   const k = live ? r + 1 : r
   const arms = [
-    ...pairs.flatMap((m) => ranked(ctx, a, r, m)),
-    ...at(a).flatMap((p) => ranked(ctx, a, k, spread(ctx, a, off(b), (y) => meetArms(ctx, p[1], y)))),
-    ...at(b).flatMap((q) => ranked(ctx, a, k, spread(ctx, a, off(a), (x) => meetArms(ctx, x, q[1])))),
+    ...pairs.flatMap((m) => ranked(ctx, a, r, m[0], m[1])),
+    ...at(a).flatMap((p) => ranked(ctx, a, k, spread(ctx, a, off(b), (y) => meetArms(ctx, p[1], y)), p[2])),
+    ...at(b).flatMap((q) => ranked(ctx, a, k, spread(ctx, a, off(a), (x) => meetArms(ctx, x, q[1])), q[2])),
   ]
   const rest = meetArms(ctx, armsVal(ctx, a, off(a)), armsVal(ctx, a, off(b)))
-  return [...(live ? ranked(ctx, a, r, arms) : arms), ...rest]
+  return [...(live ? ranked(ctx, a, r, arms, []) : arms), ...rest]
 }
 
 
 function armsVal(ctx: AontuContext, home: Val, arms: Arm[]): Val {
-  const pegs = arms.map(([r, v]) => {
+  const pegs = arms.map(([r, v, s]) => {
     for (let rI = 0; rI < r; rI++) {
-      v = v.place(new PrefVal({ peg: v }, ctx))
+      v = (rI === r - 1 ? s[0] ?? v : v).place(new PrefVal({ peg: v }, ctx))
+    }
+    for (const layer of s) {
+      ride(v, layer, undefined)
     }
     return v
   })
   dedupArms(ctx, pegs, true)
   const kept = pegs.filter((v) => !v.isNil)
   if (1 === kept.length) {
-    return prefInnerPeg(kept[0])
+    const one: any = prefInnerPeg(kept[0]).clone(ctx)
+    ride(one, kept[0], undefined)
+    return one
   }
   const out = home.place(new DisjunctVal({ peg: kept }, ctx))
   out.dc = arms.every((p) => DONE === p[1].dc) ? DONE : home.dc + 1

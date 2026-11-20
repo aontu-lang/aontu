@@ -254,3 +254,35 @@ pref-narrowed-defaults-leave-the-type	canon	p: *1 & neq(5)\nq: *5 & neq(1)\na: $
 # A path in a disjunction's arm reads the arm where the disjunction holds
 # it (Decls.armChosen in spec/Aontu/Paths.lean, part of #700).
 pref-path-in-a-preferred-arm	gen	x: *{a: 1, c: .a} | {}	{"x":{"a":1,"c":1}}
+# A path inside a lone preference's value reads where the preference holds
+# it, and the parent arm lifts the value as read on its own (ruling 40).
+pref-lone-path-reads-the-value	gen	x: *{a: 1, b: .a}	{"x":{"a":1,"b":1}}
+pref-lone-path-reads-the-value-canon	canon	x: *{a: 1, b: .a}	{"x":*{"a":1,"b":1}}
+pref-lone-path-data-overrides	gen	x: *{a: 1, b: .a} & {a: 1, b: 2}	{"x":{"a":1,"b":2}}
+pref-lone-path-parent-arm-takes	gen	x: *{a: 1, b: .a} & {a: 2, b: 3}	{"x":{"a":2,"b":3}}
+pref-lone-path-parent-arm-refuses	errc	x: *{a: 1, b: .a} & {a: 2, b: "s"}	empty
+pref-lone-path-outside-parent-takes	gen	y: 1, x: *{b: $.y} & {b: 3}	{"x":{"b":3},"y":1}
+pref-lone-path-outside-parent-refuses	errc	y: 1, x: *{b: $.y} & {b: "s"}	empty
+pref-lone-path-through-a-name	gen	%T = {a: 1, b: .a}\nx: *(%T) & {a: 2, b: 3}	{"x":{"a":2,"b":3}}
+# Lone preferences of one rank met at one place read as one value
+# (ruling 53), so a path in one reads what another holds.
+pref-lone-defaults-meet	gen	x: (*{a: 1, b: .c}) & (*{c: 2})	{"x":{"a":1,"b":2,"c":2}}
+pref-lone-defaults-meet-canon	canon	x: (*{a: 1, b: .c}) & (*{c: 2})	{"x":*{"a":1,"b":2,"c":2}}
+pref-lone-defaults-meet-three	gen	x: ((*{a: .c}) & (*{b: 1})) & (*{c: 2})	{"x":{"a":2,"b":1,"c":2}}
+pref-lone-defaults-meet-each-way	gen	x: (*{a: 1, b: .c}) & (*{c: .a})	{"x":{"a":1,"b":1,"c":1}}
+# A path in an arm into a choice the arm holds waits for the choice.
+pref-path-into-an-inner-choice	errc	x: ({a: ({c: 1, d: .c}) | null, e: .a.d}) | null	disjunct_no_gen
+# A preferred arm keeps the records on its preference through a ranked meet.
+pref-arm-keeps-its-meta	canon	x: (meta(*1, {title: "t"}) | 2) & (integer | **3)	{"x":meta(*1,{"title":"t"})|2}
+pref-arm-keeps-its-deprecation	canon	x: (deprecate(*1, {msg: "old"}) | 2) & (integer | **3)	{"x":deprecate(*1,{"msg":"old"})|2}
+pref-arm-alone-keeps-its-meta	canon	x: (meta(*1, {title: "t"}) | 2) & (1 | **3)	{"x":meta(1,{"title":"t"})}
+pref-arms-meet-their-metas	canon	x: (meta(*1, {title: "t"}) | 2) & (meta(*1, {title: "u"}) | 3)	{"x":meta(1,{"title":"t"},{"title":"u"})}
+pref-tie-lone-and-arm	canon	x: *1 & (*1 | 2)	{"x":*1|2}
+pref-tie-arm-and-lone	canon	x: (*1 | 2) & *1	{"x":*1|2}
+# A path in a held arm reads the member as the arm's peer narrows it, and
+# waits while a later meet could narrow it still.
+pref-path-in-arm-meets-the-data	errc	x: ({a: integer, b: .a} | null) & {a: 1, b: 2}	empty
+pref-path-in-arm-reads-the-data	gen	x: ({a: integer, b: .a} | null) & {a: 1}	{"x":{"a":1,"b":1}}
+pref-lone-path-reads-the-data	gen	x: *{a: integer, b: .a} & {a: 5}	{"x":{"a":5,"b":5}}
+pref-lone-path-parent-arm-of-a-kind	gen	x: *{a: number, b: .a} & {a: 5, b: 2.5}	{"x":{"a":5,"b":2.5}}
+pref-path-in-arm-second-arm-takes	gen	hosts: {a: {name: "x", url: .name}} | {a: {url: string}}\nhosts: {a: {name: "x", url: "y"}}	{"hosts":{"a":{"name":"x","url":"y"}}}

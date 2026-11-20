@@ -313,7 +313,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		// is recomputed. Dropping it widened a pinned default back out
 		// (ADR-011 R1).
 		out := &PrefVal{peg: peg, superpeg: n.superpeg,
-			narrowed: n.narrowed, rank: n.rank}
+			narrowed: n.narrowed, alone: n.alone, rank: n.rank}
 		out.dc = n.dc
 		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)

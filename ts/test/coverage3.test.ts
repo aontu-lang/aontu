@@ -295,6 +295,16 @@ describe('coverage3-bags', () => {
       '*1')
   })
 
+  // A default that fails read on its own leaves the parent arm its gate.
+  test('pref-parent-arm-when-alone-fails', () => {
+    const ctx = CTX()
+    const p: any = new PrefVal({ peg: new IntegerVal({ peg: 1 }) }, ctx)
+    p.alone = new ConjunctVal({
+      peg: [new IntegerVal({ peg: 1 }), new IntegerVal({ peg: 2 })],
+    }, ctx)
+    Assert.equal(p.unify(new IntegerVal({ peg: 5 }), ctx).canon, '5')
+  })
+
   test('nil-spread-drives-every-key', () => {
     const ctx = CTX()
     const lv: any = new ListVal({ peg: [new IntegerVal({ peg: 1 })] }, ctx)

@@ -3769,6 +3769,58 @@ $ aontu layers.aontu
 `*1 & **7` keeps both layers, and where `neq(1)` overrides the stronger
 default the weaker one comes back.
 
+A path inside a preference's value reads where the preference holds the
+value, as a path in an arm does, and the parent arm lifts the value as
+read on its own. Write `lone.aontu`:
+
+<!-- test: scenario lone -->
+<!-- test: file lone.aontu -->
+```aontu
+x: *{ a:1 b:.a }
+```
+
+then `lone-over.aontu`, which overrides the default:
+
+<!-- test: file lone-over.aontu -->
+```aontu
+x: { a:2 b:3 }
+```
+
+and `lone-bad.aontu`, which the parent arm refuses:
+
+<!-- test: file lone-bad.aontu -->
+```aontu
+x: { a:2 b:"s" }
+```
+
+and run them:
+
+<!-- test: run -->
+```sh
+$ aontu lone.aontu
+{
+  "x": {
+    "a": 1,
+    "b": 1
+  }
+}
+$ aontu vet lone.aontu lone-over.aontu
+verdict: valid
+$ aontu vet lone.aontu lone-bad.aontu
+verdict: invalid
+
+$.x: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.x
+  data: lone-bad.aontu:1:4 ({"a":2,"b":"s"})
+  schema: lone.aontu:1:4 (*{"a":1,"b":1})
+$ echo $?
+1
+```
+
+`b` reads the default's own `a`, so the default is `{a: 1, b: 1}`, and
+the parent arm is `{a: integer, b: integer}`: it takes `{a: 2, b: 3}`
+and refuses `"s"`.
+
 A preference alone is
 `x | super(x)`, as step 12 reads it, so `*8080 & min(1024)` is
 `*8080 | (integer & min(1024))`. Two maps merge key by key in

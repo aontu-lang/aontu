@@ -70,13 +70,53 @@ func declaration(cj *ConjunctVal, key string) Val {
 	return nil
 }
 
-func (rv *RefVal) walkFrom(root Val, refpath []string, armAt map[string]Val) (Val, walkOutcome) {
-	var node Val = root
+// A held arm (Decls.armChosen) and its peer answer for the arm's members.
+func armHeldAt(armAt map[string]heldArm, refpath []string, pI int) (heldArm, bool) {
+	held, ok := armAt[strings.Join(refpath[:pI], "\x00")]
+	return held, ok && nil != markedChild(held.arm, refpath[pI])
+}
+
+// A held arm answers from its own level, however the levels above it stand.
+func heldFrom(armAt map[string]heldArm, refpath []string) int {
+	for hI := len(refpath) - 1; 0 < hI && 0 < len(armAt); hI-- {
+		if _, ok := armHeldAt(armAt, refpath, hI); ok {
+			return hI
+		}
+	}
+	return 0
+}
+
+// Met with its peer's; one a later meet could still narrow waits (nil).
+func heldMet(ctx *Ctx, mine Val, held heldArm, parts []string) Val {
+	theirs := held.peer
+	for _, part := range parts {
+		if nil != theirs {
+			theirs = markedChild(theirs, part)
+		}
+	}
+	met := mine
+	if _, scalar := mine.(*ScalarVal); nil != theirs && !scalar && DONE == mine.Dc() {
+		if m := trialUnify(ctx, clonePath(mine, nil), clonePath(theirs, nil)); nil != m {
+			met = m
+		}
+	}
+	if _, scalar := met.(*ScalarVal); scalar || ctx.settle || held.own {
+		return met
+	}
+	return nil
+}
+
+func (rv *RefVal) walkFrom(ctx *Ctx, root Val, refpath []string, armAt map[string]heldArm) (Val, walkOutcome) {
+	node := root
+	inArm := false
+	var peer heldArm
+	peerAt := 0
 	_, isAlias := rv.aliasKey()
-	for pI, part := range refpath {
+	for pI := heldFrom(armAt, refpath); pI < len(refpath); pI++ {
+		part := refpath[pI]
 		// A held arm answers only for the members it holds.
-		if held, ok := armAt[strings.Join(refpath[:pI], "\x00")]; ok && nil != markedChild(held, part) {
-			node = held
+		if held, ok := armHeldAt(armAt, refpath, pI); ok {
+			node, inArm, peer, peerAt = held.arm, true, held, pI
 		}
 		node = throughRider(node)
 		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
@@ -128,13 +168,21 @@ func (rv *RefVal) walkFrom(root Val, refpath []string, armAt map[string]Val) (Va
 				node = n.peg[idx]
 			}
 		default:
-			if node.Dc() == DONE {
+			// A choice inside a held arm is read before the arm: wait for it.
+			_, dj := node.(*DisjunctVal)
+			_, pf := node.(*PrefVal)
+			if node.Dc() == DONE && !(inArm && (dj || pf)) {
 				return nil, walkMissed
 			}
 			return nil, walkDefer
 		}
 		if node == nil {
 			return nil, walkMissed
+		}
+	}
+	if inArm {
+		if node = heldMet(ctx, node, peer, refpath[peerAt:]); nil == node {
+			return nil, walkDefer
 		}
 	}
 	return node, walkFound
@@ -507,11 +555,11 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		return makeNilErr(ctx, "no_path", rv, nil)
 	}
 
-	node, outcome := rv.walkFrom(ctx.root, refpath, ctx.armAt)
+	node, outcome := rv.walkFrom(ctx, ctx.root, refpath, ctx.armAt)
 
 	if walkMissed == outcome && rv.absolute && nil != ctx.fixroot &&
 		ctx.fixroot != ctx.root {
-		if fnode, fout := rv.walkFrom(ctx.fixroot, refpath, nil); walkFound == fout {
+		if fnode, fout := rv.walkFrom(ctx, ctx.fixroot, refpath, nil); walkFound == fout {
 			node, outcome = fnode, fout
 		}
 	}

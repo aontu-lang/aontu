@@ -51,6 +51,8 @@ class PrefVal extends FeatureVal {
 
   narrowed?: Val
 
+  alone?: Val
+
   constructor(
     spec: ValSpec,
     ctx?: AontuContext
@@ -82,11 +84,12 @@ class PrefVal extends FeatureVal {
   }
 
 
-  private restand(met: Val, ctx: AontuContext): Val {
+  private restand(met: Val, ctx: AontuContext, alone?: Val): Val {
     let out: Val = met
     for (let rI = 0; rI <= this.rank; rI++) {
       out = new PrefVal({ peg: out }, ctx)
     }
+    (out as PrefVal).alone = alone ?? this.alone ?? prefInnerPeg(this)
     return this.place(out)
   }
 
@@ -98,10 +101,19 @@ class PrefVal extends FeatureVal {
     if (undefined === gate || met.superpeg.canon === gate.canon) {
       return met
     }
-    const stood = this.restand(prefInnerPeg(met), ctx) as PrefVal
+    const stood = this.restand(prefInnerPeg(met), ctx, met.alone) as PrefVal
     stood.narrowed = gate
     stood.superpeg = gate
     return stood
+  }
+
+
+  // Ruling 40: the parent arm lifts the default as read on its own.
+  private parentArm(ctx: AontuContext): Val {
+    const alone = this.alone ?? prefInnerPeg(this)
+    const own = trialUnify(ctx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), top())
+    return undefined === own ? this.superpeg.clone(ctx) :
+      unite(ctx, superOf(ctx, own), this.superpeg.clone(ctx), 'pref/lift')
   }
 
 
@@ -159,9 +171,16 @@ class PrefVal extends FeatureVal {
     let why = ''
 
     if (!this.peg.done && !(true === ctx.settle && 0 < this.dc)) {
-      const resolved = unite(te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx,
-        this.peg, top(), 'pref/resolve')
-      this.peg = resolved
+      const rctx = (te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx)
+        .holdArm(this.path, prefInnerPeg(this))
+      // A default its peers have met that dies once its paths read
+      // leaves the parent arm, as `x | super(x)` does.
+      if (null != this.narrowed && undefined === trialUnify(rctx, this.peg.clone(ctx), top())) {
+        out = unite(ctx, this.parentArm(ctx), top(), 'pref/over')
+        explainClose(te, out)
+        return out
+      }
+      this.peg = unite(rctx, this.peg, top(), 'pref/resolve')
       this.resuper(ctx)
     }
 
@@ -205,7 +224,7 @@ class PrefVal extends FeatureVal {
 
         out = undefined === peg
           ? makeNilErr(ctx, 'pref_rank_clash', this, peer, 'unify')
-          : this.overMet(peer, this.restand(peg, ctx) as PrefVal, ctx)
+          : this.overMet(peer, this.restand(peg, ctx, peg.clone(ctx)) as PrefVal, ctx)
         why += 'rank-same'
       }
     }
@@ -217,7 +236,8 @@ class PrefVal extends FeatureVal {
     else if (!peer.isTop) {
       why += 'super-'
 
-      const met = trialUnify(ctx, prefInnerPeg(this).clone(ctx), peer)
+      const met = trialUnify(ctx.holdArm(this.path, prefInnerPeg(this), peer),
+        prefInnerPeg(this).clone(ctx), peer)
 
       if (undefined !== met) {
         // An override space the peer empties leaves the preference
@@ -238,7 +258,7 @@ class PrefVal extends FeatureVal {
       // answer, it is half of the reason the answer is `empty`, and a
       // recorded `no_scalar_unify` would be the code the reader sees
       // however the refusal is relabelled afterwards.
-      const over = trialUnify(ctx, this.superpeg.clone(ctx), peer)
+      const over = trialUnify(ctx, this.parentArm(ctx), peer)
 
       out = undefined !== over ? over
         // A peer that arrived already failed keeps its own refusal:
@@ -255,7 +275,9 @@ class PrefVal extends FeatureVal {
 
     // Every pref result is DONE (as in go/pref.go), but one whose own
     // value still waits, as a reference may: until the settling pass.
-    out.dc = peer.isTop && !this.peg.done && true !== ctx.settle ? this.dc + 1 : DONE
+    const waits = peer.isTop ? !this.peg.done :
+      true === (out as any).isPref && !prefInnerPeg(out).done
+    out.dc = waits && true !== ctx.settle ? this.dc + 1 : DONE
 
 
     ctx.explain && explainClose(te, out)
@@ -283,6 +305,7 @@ class PrefVal extends FeatureVal {
       out.narrowed = this.narrowed
       out.superpeg = this.superpeg
     }
+    out.alone = this.alone
     if (true === spec?.dup && true === (this.peg as any)?.isVal) {
       out.peg = this.peg.clone(ctx, { dup: true })
     }

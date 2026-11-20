@@ -9,6 +9,7 @@ type PrefVal struct {
 	rank     int
 
 	narrowed Val
+	alone    Val
 }
 
 func newPref(v Val) *PrefVal {
@@ -39,7 +40,28 @@ func (p *PrefVal) restand(met Val) Val {
 		np.path = cp(p.path)
 		out = np
 	}
+	out.(*PrefVal).alone = p.lone()
 	return out
+}
+
+// lone is the default's value before any peer met it.
+func (p *PrefVal) lone() Val {
+	if nil != p.alone {
+		return p.alone
+	}
+	return prefInnerPeg(p)
+}
+
+// Ruling 40: the parent arm lifts the default as read on its own.
+func (p *PrefVal) parentArm(ctx *Ctx) Val {
+	alone := p.lone()
+	own := ctx.holdArm(p.path, alone, nil, true, func() Val {
+		return trialUnify(ctx, clonePath(alone, cp(p.path)), top())
+	})
+	if nil == own {
+		return clonePath(p.superpeg, cp(p.path))
+	}
+	return unite(ctx, superOf(cp(p.path), own), clonePath(p.superpeg, cp(p.path)))
 }
 
 // A preference met with another of its rank meets their override
@@ -135,7 +157,19 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 	// Resolve the preferred value (e.g. a function) before comparing.
 	if p.peg.Dc() != DONE && !(ctx.settle && 0 < p.Dc()) {
 		ctx.slot = slot
-		p.peg = unite(ctx, p.peg, top())
+		// A default its peers have met that dies once its paths read
+		// leaves the parent arm, as `x | super(x)` does.
+		dead := false
+		p.peg = ctx.holdArm(p.path, prefInnerPeg(p), nil, false, func() Val {
+			if nil != p.narrowed && nil == trialUnify(ctx, clonePath(p.peg, cp(p.path)), top()) {
+				dead = true
+				return p.peg
+			}
+			return unite(ctx, p.peg, top())
+		})
+		if dead {
+			return unite(ctx, p.parentArm(ctx), top())
+		}
 		p.regate(ctx)
 	}
 
@@ -165,8 +199,14 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			if nil == peg {
 				out = makeNilErr(ctx, "pref_rank_clash", p, peer)
 			} else {
-				out = p.overMet(ctx, pp, p.restand(peg))
+				// Ruling 53: defaults of one rank read as one value.
+				st := p.restand(peg)
+				st.(*PrefVal).alone = clonePath(peg, cp(p.path))
+				out = p.overMet(ctx, pp, st)
 			}
+		}
+		if op, ok := out.(*PrefVal); ok {
+			waits = prefInnerPeg(op).Dc() != DONE
 		}
 	case *DisjunctVal:
 		return meetRanked(ctx, p, pp)
@@ -180,7 +220,9 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 
 			inner := prefInnerPeg(p)
-			met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer)
+			met := ctx.holdArm(p.path, inner, peer, false, func() Val {
+				return trialUnify(ctx, clonePath(inner, cp(p.path)), peer)
+			})
 			if nil != met {
 				waits = met.Dc() != DONE
 				// A peer that empties the override space leaves the preference standing.
@@ -190,7 +232,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 				}
 
 				out = p.stand(met, gate)
-			} else if over := trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), peer); nil != over {
+			} else if over := trialUnify(ctx, p.parentArm(ctx), peer); nil != over {
 				out = over
 			} else if peer.Nil() {
 				// A peer that arrived already failed keeps its own

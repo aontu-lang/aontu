@@ -9,10 +9,12 @@ declare class PrefVal extends FeatureVal {
     superpeg: Val;
     rank: number;
     narrowed?: Val;
+    alone?: Val;
     constructor(spec: ValSpec, ctx?: AontuContext);
     private resuper;
     private restand;
     private overMet;
+    private parentArm;
     private stand;
     private meetPref;
     unify(peer: Val, ctx: AontuContext): Val;

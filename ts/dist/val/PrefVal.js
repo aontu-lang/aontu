@@ -43,11 +43,12 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         this.superpeg = null == this.narrowed ? base
             : (0, unify_1.unite)(ctx, base, this.narrowed, 'pref-narrow/' + this.id);
     }
-    restand(met, ctx) {
+    restand(met, ctx, alone) {
         let out = met;
         for (let rI = 0; rI <= this.rank; rI++) {
             out = new PrefVal({ peg: out }, ctx);
         }
+        out.alone = alone ?? this.alone ?? prefInnerPeg(this);
         return this.place(out);
     }
     // A peer of one rank meets the override space too: either's bound holds.
@@ -57,10 +58,17 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         if (undefined === gate || met.superpeg.canon === gate.canon) {
             return met;
         }
-        const stood = this.restand(prefInnerPeg(met), ctx);
+        const stood = this.restand(prefInnerPeg(met), ctx, met.alone);
         stood.narrowed = gate;
         stood.superpeg = gate;
         return stood;
+    }
+    // Ruling 40: the parent arm lifts the default as read on its own.
+    parentArm(ctx) {
+        const alone = this.alone ?? prefInnerPeg(this);
+        const own = (0, FuncBaseVal_1.trialUnify)(ctx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), (0, top_1.top)());
+        return undefined === own ? this.superpeg.clone(ctx) :
+            (0, unify_1.unite)(ctx, (0, SuperFuncVal_1.superOf)(ctx, own), this.superpeg.clone(ctx), 'pref/lift');
     }
     // Unchanged on both counts is the SAME preference, returned as
     // itself: minting a new one every pass would keep the fixpoint
@@ -101,8 +109,16 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         let out = this;
         let why = '';
         if (!this.peg.done && !(true === ctx.settle && 0 < this.dc)) {
-            const resolved = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'RES') }) : ctx, this.peg, (0, top_1.top)(), 'pref/resolve');
-            this.peg = resolved;
+            const rctx = (te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'RES') }) : ctx)
+                .holdArm(this.path, prefInnerPeg(this));
+            // A default its peers have met that dies once its paths read
+            // leaves the parent arm, as `x | super(x)` does.
+            if (null != this.narrowed && undefined === (0, FuncBaseVal_1.trialUnify)(rctx, this.peg.clone(ctx), (0, top_1.top)())) {
+                out = (0, unify_1.unite)(ctx, this.parentArm(ctx), (0, top_1.top)(), 'pref/over');
+                (0, utility_1.explainClose)(te, out);
+                return out;
+            }
+            this.peg = (0, unify_1.unite)(rctx, this.peg, (0, top_1.top)(), 'pref/resolve');
             this.resuper(ctx);
         }
         // `*nil` is `nil | super(nil)`: no arm holds a value, as in `nil | nil`.
@@ -137,7 +153,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 const peg = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), prefInnerPeg(peer));
                 out = undefined === peg
                     ? (0, err_1.makeNilErr)(ctx, 'pref_rank_clash', this, peer, 'unify')
-                    : this.overMet(peer, this.restand(peg, ctx), ctx);
+                    : this.overMet(peer, this.restand(peg, ctx, peg.clone(ctx)), ctx);
                 why += 'rank-same';
             }
         }
@@ -148,7 +164,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         }
         else if (!peer.isTop) {
             why += 'super-';
-            const met = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), peer);
+            const met = (0, FuncBaseVal_1.trialUnify)(ctx.holdArm(this.path, prefInnerPeg(this), peer), prefInnerPeg(this).clone(ctx), peer);
             if (undefined !== met) {
                 // An override space the peer empties leaves the preference
                 // standing with nothing left to replace it, not a conflict.
@@ -164,7 +180,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
             // answer, it is half of the reason the answer is `empty`, and a
             // recorded `no_scalar_unify` would be the code the reader sees
             // however the refusal is relabelled afterwards.
-            const over = (0, FuncBaseVal_1.trialUnify)(ctx, this.superpeg.clone(ctx), peer);
+            const over = (0, FuncBaseVal_1.trialUnify)(ctx, this.parentArm(ctx), peer);
             out = undefined !== over ? over
                 // A peer that arrived already failed keeps its own refusal:
                 // that is its failure, not the default's.
@@ -177,7 +193,9 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         }
         // Every pref result is DONE (as in go/pref.go), but one whose own
         // value still waits, as a reference may: until the settling pass.
-        out.dc = peer.isTop && !this.peg.done && true !== ctx.settle ? this.dc + 1 : type_1.DONE;
+        const waits = peer.isTop ? !this.peg.done :
+            true === out.isPref && !prefInnerPeg(out).done;
+        out.dc = waits && true !== ctx.settle ? this.dc + 1 : type_1.DONE;
         ctx.explain && (0, utility_1.explainClose)(te, out);
         return out;
     }
@@ -195,6 +213,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
             out.narrowed = this.narrowed;
             out.superpeg = this.superpeg;
         }
+        out.alone = this.alone;
         if (true === spec?.dup && true === this.peg?.isVal) {
             out.peg = this.peg.clone(ctx, { dup: true });
         }
