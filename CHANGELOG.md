@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### A recursive position met in its own place unfolds as far as the data goes
+
+The last part of the alias-cycle rule, decision 7 of
+`sketch/DEFINITION.0.md` §7, closing #357. Both ports.
+
+- **The data at a recursion's target no longer drives it without
+  end.** In `a: {b: {c?: $.a.b}}`, the data at `a.b` is part of what
+  `$.a.b` names, so each expansion copies it a level down. Both ports
+  expanded against that copy until the budget ran out, as
+  `unify_cycle`. A residual now drops a copy its own target's expansion
+  made, so it unfolds only where the data reaches. Against
+  `{"a": {"b": {"c": {}}}}` the answer is `incomplete`, as
+  `recursion_unexpanded` at `$.a.b.c.c`, and `valid` under `--partial`.
+  A copy that meets data it disagrees with is `invalid`.
+- **Rows p144 to p146 leave the ledger**, and its bound drops from 361
+  to 358. Twelve shared rows in `test/spec/recursion.tsv` pin the
+  shapes, and the definition gives each of their verdicts too.
+
 ### A name or a path that reaches itself with nothing between is refused
 
 Phase 2 of `admin/issue-plan.md` begins with the alias-cycle rule,

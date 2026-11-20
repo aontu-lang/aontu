@@ -168,6 +168,9 @@ abstract class Val {
   relates?: Val[]
   relroot?: boolean
 
+  // The target whose expansion (RecurseVal) copied this, until something else meets it.
+  copied?: string
+
   origin?: string
 
   emitted?: EmitOrigin
@@ -311,6 +314,9 @@ abstract class Val {
 
     if (null != this.origin) {
       out.origin = this.origin
+    }
+    if (null != this.copied) {
+      out.copied = this.copied
     }
     if (null != this.emitted) {
       out.emitted = this.emitted

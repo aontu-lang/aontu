@@ -322,12 +322,10 @@ passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
 ledger holds 325 rows under twenty-two causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
-#346, the sealed list met with a spread, where the ports move; a
-recursive position met with data in its own place, under decision 7 of
-§7, where the ports move (#357); an optional key of the general side
-compared only where the specific side declares it, where the ports
-move (#377); and a
-path inside a rider's value to a member beside it, which decision 14 of
+#346, the sealed list met with a spread, where the ports move; an
+optional key of the general side compared only where the specific side
+declares it, where the ports move (#377); and a path inside a rider's
+value to a member beside it, which decision 14 of
 §7 reads through the rider, where the ports move (#416); a default at a list position
 under the `defaults` profile, which the ports do not compare, where the
 ports move (#424); and a `+` that waits inside a `match` pattern, which the
@@ -560,8 +558,14 @@ until the phase that encodes it lands.
    a name that refers to itself through a key: a residual that expands
    against the data as far as the data goes, as a recursive alias does,
    and as both ports read it through a copy, `doc: $.schema.Step`. Met
-   with data in its own place the ports answer `unify_cycle` where the
-   definition expands it, which the ledger carries and #357 records.
+   with data in its own place, both ports answered `unify_cycle` where
+   the definition expands it, until 2026-11-20 (#357): the data at the
+   target is part of what the path names, so every expansion copied it
+   a level down, and the residual expanded against the copy without
+   end. Both ports now mark what an expansion copies with its target
+   (`copied` on a value), and a residual drops a copy of its own
+   target's and stays unexpanded, so it unfolds only where the data
+   reaches, as the definition's checker does.
 8. **Refusal at generation.** Raised 2026-10-19 by the trial rows of
    P4 and ruled the same day. Both ports try a container once its
    members have all arrived and answer `invalid` where the trial refuses

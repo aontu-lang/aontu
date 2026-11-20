@@ -167,6 +167,7 @@ class MapVal extends BagVal {
     // NOTE: not a clone! needs to be constructed.
     let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: keyTable() }, ctx))
 
+    out.copied = peer.isTop || this.copied === peer.copied ? this.copied : undefined
     out.closed = this.closed
     out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]

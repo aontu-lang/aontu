@@ -89,6 +89,7 @@ declare abstract class Val {
     flows?: [string, Val][];
     relates?: Val[];
     relroot?: boolean;
+    copied?: string;
     origin?: string;
     emitted?: EmitOrigin;
     graph?: any;

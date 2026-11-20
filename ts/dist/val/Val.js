@@ -136,6 +136,9 @@ class Val {
         if (null != this.origin) {
             out.origin = this.origin;
         }
+        if (null != this.copied) {
+            out.copied = this.copied;
+        }
         if (null != this.emitted) {
             out.emitted = this.emitted;
         }

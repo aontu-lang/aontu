@@ -252,6 +252,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 	case *MapVal:
 		out := newMap()
 		out.dc = n.dc
+		out.copied = n.copied
 		out.path = overlayPath(path, n.path)
 		// The source site travels with the clone (TS Val.clone copies
 		// site.row/col), so a ref-carried bag still frames at its brace.
@@ -271,6 +272,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 	case *ListVal:
 		out := &ListVal{}
 		out.dc = n.dc
+		out.copied = n.copied
 		out.path = overlayPath(path, n.path)
 		out.site.sp = n.site.sp
 		out.closed = n.closed

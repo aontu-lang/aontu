@@ -538,6 +538,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out = m
 	} else {
 		out = newMap()
+		if m.copied == peer.copiedBy() {
+			out.copied = m.copied
+		}
 		out.closed = m.closed
 		out.opened = m.opened
 		out.path = cp(home)

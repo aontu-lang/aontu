@@ -76,10 +76,18 @@ class RecurseVal extends FeatureVal {
       return peer.unify(this, ctx)
     }
 
+    const concrete = true === p.isMap || true === p.isList || true === p.isScalar ||
+      true === p.isScalarKind || true === p.isMapKind || true === p.isListKind
+
+    // Its own expansion's copy is not data: decision 7 of sketch/DEFINITION.0.md section 7.
+    const key = this.target.join('\u0000')
+    if (concrete && key === p.copied) {
+      return this
+    }
+
     // CONCRETE STRUCTURE, or a kind, which picks the body's branch as
     // structure does: expand one level against it.
-    if (true === p.isMap || true === p.isList || true === p.isScalar ||
-      true === p.isScalarKind || true === p.isMapKind || true === p.isListKind) {
+    if (concrete) {
       if (ctx.budget.depth <= this.xc) {
         return makeNilErr(ctx, 'recursion_budget', this, peer, 'recurse',
           { target: this.targetSpelling })
@@ -99,6 +107,7 @@ class RecurseVal extends FeatureVal {
       walk(level, (_key: string | number | undefined, v: Val) => {
         v.mark.type = false
         v.mark.hide = false
+        v.copied = key
         return v
       })
       bumpRecurse(level, this.xc + 1)
