@@ -1,6 +1,6 @@
 # aontu and CUE, feature by feature
 
-**Status:** Survey, 2026-11-20. Compares aontu at `main` (`ebd6557`,
+**Status:** Survey, 2026-11-20. Compares aontu at `main` (`967c5f3`,
 both ports; the latest release is 0.76.3) with CUE v0.17.1, the latest
 release, and v0.18.0-rc.4, the release candidate of 2026-11-11. Every
 difference in meaning below was checked by running both aontu engines
@@ -12,6 +12,8 @@ from CUE's published module sources, listed under [Sources](#sources).
 2026-10-01, which compares nine languages more briefly. This note goes
 deeper on CUE alone and corrects that survey where either language has
 moved since.
+**Plan:** [CUE-COMPARISON-PLAN.0.md](CUE-COMPARISON-PLAN.0.md) proposes
+the tasks that answer this note, starting with what comprehensions do.
 
 ## In short
 
@@ -184,6 +186,7 @@ user's expectation fails in aontu, or the reverse.
 | The kind of `1e3` | an integer: an exponent without a `.` keeps integer kind | a float, so `1e3 & int` conflicts | s22 |
 | A float that is whole | `1.0 & number` is written `1` | written `1.0` | s21 |
 | `+` with a string and a number | concatenates as text: `"port:" + 80` is `"port:80"`, `"n=" + 1.5 + true` is `"n=1.5true"` | refused; text is built by interpolation | s15, g5 |
+| `+` with two lists | joins them: `[1, 2] + [3]` is `[1, 2, 3]` | refused since v0.11, which points to `list.Concat` | s24 |
 | `div` and `mod` of negative numbers | `div` truncates toward zero and `mod` takes the divisor's sign: `div(-7, 2)` is `-3`, `mod(7, -2)` is `-1` | both Euclidean: `div(-7, 2)` is `-4`, `mod(7, -2)` is `1`; `quo` and `rem` truncate | s10, s23 |
 | Equality | no equality test. `match` and `filter` ask whether a value already satisfies a pattern, so `{x: 1, y: 2}` matches `{x: 1}` | `==` compares any two values, so `{x: 1, y: 2} == {x: 1}` is `false` | x9 |
 | A bare word | a string: `a: Mercury` | a reference, refused when nothing is named so | s18 |
@@ -232,7 +235,7 @@ Each table reads across: what aontu offers, then what CUE offers, as of
 | Numbers | binary64 `integer` and `float`, the kind decided by the source text; exact `biginteger` and `bigdecimal` written with `0d`; a lossy literal or an inexact integer result is refused (s6, n1); `--exact-numbers` reads every number by its value | `int` exact at any size, and in v0.18 its arithmetic too (n2); `float` as a decimal, with `+ - * /` in a 34-digit context; multipliers such as `1Ki` (s17) |
 | Named numeric types | none built in; a library of named constraints is written with `type()` (m14) | predeclared `uint8` to `uint128`, `int8` to `int128`, `rune`, `float32`, `float64` |
 | Other kinds | `boolean`, `null`, `map`, `list`, `path`, `constraint`, `any`, and `nil` as the failure | `bool`, `null`, `_` as top, `_\|_` as bottom |
-| Arithmetic | `+` (numbers, and text when either side is text), unary `-`, and `add`, `sub`, `mul`, `div`, `mod`, `rem` | `+ - * /`, `div mod quo rem`, and `*` to repeat a string |
+| Arithmetic | `+` (numbers, text when either side is text, and two lists end to end), unary `-`, and `add`, `sub`, `mul`, `div`, `mod`, `rem` | `+ - * /`, `div mod quo rem`, and `*` to repeat a string |
 | Comparison and logic | none as operators: `match` and `filter` test admission | `== != < <= > >=` and `&& \|\| !` |
 
 ### Composition
@@ -283,7 +286,7 @@ Each table reads across: what aontu offers, then what CUE offers, as of
 | Projection | `pick` projects a field into a list (g14); keeping the keys takes an aggregate for a number or a string (g1) and a built link for anything else (k18) | `{for k, v in m {(k): v.f}}` |
 | Computed keys | `pack([$.k], v)` (g11) | `(expr): v` and `"\(k)": v` |
 | Counting and aggregates | `sum`, `least`, `greatest`, `sort`; a count is `sum(each(d, 1))` (g7, g13) | `len`, and `list.Sum`, `Min`, `Max`, `Avg`, `Product`, `Sort` and others |
-| Functions | 68 built-ins, declared in both ports; no user-defined functions, by decision ([`g8-generation.md`](capability-review/g8-generation.md)) | builtins and 33 standard packages, among them `crypto/*`, `encoding/*`, `time`, `net`, `path` and `uuid`; user-defined functions in the `functions` preview (x3) |
+| Functions | 72 built-ins, declared in both ports; no user-defined functions, by decision ([`g8-generation.md`](capability-review/g8-generation.md)) | builtins and 33 standard packages, among them `crypto/*`, `encoding/*`, `time`, `net`, `path` and `uuid`; user-defined functions in the `functions` preview (x3) |
 | Output order | keys sorted (o1) | source order (o1) |
 | Writing files | the component tree, through `render`, `template` and `trace` ([the generation reference](../docs/reference-generation.md)) | `cue cmd` workflows with `tool/file` and `text/template`, and `cue exp writefs` |
 
@@ -386,8 +389,8 @@ ten made (k32).
 - a new record from each record, in an `emit` body (k1);
 - a filter by a bound, `|`, a second key or `neq`, against a written
   value or a value anywhere in the document (k2, k3, k38);
-- flattening the lists that members hold, and two lists end to end,
-  since the lists of an `emit` body splice (k6, k28);
+- flattening the lists that members hold, since the lists of an `emit`
+  body splice (k6), and two lists end to end under `+` (k28);
 - a block of fields, a list element and a chain of cases under a
   condition, and a test for a field's presence: `match`, with `maybe`
   for the element that isn't there (k22 to k25);
@@ -432,27 +435,29 @@ ten made (k32).
   why k36 looks up by `key(3)` and not by a climb. And a `match` whose
   pattern is a relative reference, as in
   `same: match(.a, .b, true, false)`, overflows the TypeScript stack
-  where Go answers: a sibling of
+  where Go answers
+  ([#868](https://github.com/aontu-lang/aontu/issues/868), beside
   [#850](https://github.com/aontu-lang/aontu/issues/850), which names
-  the result position.
+  the result position).
 
 ### What would shorten them
 
-None of these is decided, and none needs a comprehension keyword. Three
-additions would cover almost every row of the table:
+None of these is decided, and none needs a comprehension keyword.
+[The plan](CUE-COMPARISON-PLAN.0.md) makes them tasks, each with the
+code in both languages:
 
-1. **A template that reads a field of its member**, in `each`, `pack`
-   and `apply`, as an `emit` body does (k37 is the refusal today). It
-   makes the projection direct, and the derived-field and local-value
-   rows with it.
-2. **A lookup**: the member of a bag at a computed key or position. It
-   replaces the stamp, the `filter` by a counted level and the
-   aggregate in the keyed, lookup, pairing and position rows.
-3. **A `pack` keyed by a field of each member**, in place of a `pack`
-   over picked keys with a lookup back.
-
-A loop driven by a number is the one row they leave. It needs a ruling
-on the termination guarantee, not a built-in.
+1. **The member of a bag at a key or a position**, `at(d, ...k)`. It is
+   a field of the member in an `each`, `pack` or `apply` template, as an
+   `emit` body already reads one (k37 is the refusal today), and it is
+   the lookup that replaces the stamp, the `filter` by a counted level
+   and the aggregate.
+2. **A key for each child of `pack`**, in place of a `pack` over picked
+   keys with a lookup back.
+3. **A position as an integer**, the sibling of `key()`.
+4. **The member of an enclosing generator**, the depth argument that
+   [G8](capability-review/g8-generation.md) left open.
+5. **A loop driven by a number**, which needs a ruling on the
+   termination guarantee before it is a built-in.
 
 ## Found along the way
 
@@ -485,9 +490,19 @@ each is now an issue.
   binds a value from the command line with `-t name=value` into a field
   marked `@tag(name)`.
 
-One divergence surfaced too, and is not filed: the `match` whose
-pattern is a relative reference, described under
-[What the constructions cost](#what-the-constructions-cost).
+Three defects surfaced too, and each is an issue:
+
+- a `match` whose pattern is a relative reference overflows the
+  TypeScript stack, and one whose pattern is a bound over it is
+  refused there, where Go answers both
+  ([#868](https://github.com/aontu-lang/aontu/issues/868));
+- a call refused at parse, an unknown name or a wrong count, is silent
+  inside a trial, in both ports: `filter($.xs, length(3))`, with the
+  retired name, answers `[]`
+  ([#870](https://github.com/aontu-lang/aontu/issues/870));
+- `llms.txt` and the language-server page count 68 built-ins, where the
+  declarations hold 72
+  ([#869](https://github.com/aontu-lang/aontu/issues/869)).
 
 ## What this suggests for aontu
 
@@ -496,9 +511,10 @@ None of this is decided. Each item is a candidate for the maintainer.
 1. **The three issues above**: [#860](https://github.com/aontu-lang/aontu/issues/860),
    [#861](https://github.com/aontu-lang/aontu/issues/861) and
    [#862](https://github.com/aontu-lang/aontu/issues/862).
-2. **The three additions under
-   [What would shorten them](#what-would-shorten-them)**, which would
-   make most comprehension idioms one call without adding a keyword.
+2. **[The plan](CUE-COMPARISON-PLAN.0.md)**, whose first part is the
+   five additions under
+   [What would shorten them](#what-would-shorten-them), the defects on
+   their routes, the rows that pin today's routes and the guide.
 3. **The CUE guide that the plan's H3 asks for now has its table.** The
    table in
    [Where the same text means different things](#where-the-same-text-means-different-things),
@@ -572,14 +588,14 @@ candidate, described in [What is current in CUE](#what-is-current-in-cue).
 
 ## The probes
 
-Each of the 153 probes was written once for each language, to say the
+Each of the 154 probes was written once for each language, to say the
 same thing, and run through `aontu` (TypeScript and Go, built from this
 commit), and through `cue export --out json` from v0.17.1 and
 v0.18.0-rc.4 (`cue eval` for c2, c3 and c19, beside `aontu -c`). A file
 with no module, as here, takes the language version of the binary that
 reads it. "refused" names aontu's error code, or quotes the first line
 of CUE's message. "same" means v0.18.0-rc.4 answered as v0.17.1 did,
-which it did for 145 of them. Both aontu engines gave the same answer
+which it did for 146 of them. Both aontu engines gave the same answer
 to every probe. For k1 to k38 the answer shown is the member the probe
 is about, `out`, and the helpers beside it are left out. To run a probe
 again, write its two sources to `p.aontu` and `p.cue`, then run
@@ -610,6 +626,7 @@ again, write its two sources to `p.aontu` and `p.cue`, then run
 | s21 | integer equality across int and float | `a: 1 & number` `b: 1.0 & number` | `a: 1 & number` `b: 1.0 & number` | `{"a":1,"b":1}` | `{"a":1,"b":1.0}` | same |
 | s22 | float literal kind | `a: 1e3 & integer` | `a: 1e3 & int` | `{"a":1000}` | refused: conflicting values 1E+3 and int (mismatched types float and int) | same |
 | s23 | integer division of a negative number | `a: div(-7, 2)` `b: mod(-7, 2)` `c: rem(-7, 2)` `d: div(-7, -2)` `e: mod(7, -2)` | `a: div(-7, 2)` `b: mod(-7, 2)` `c: rem(-7, 2)` `d: div(-7, -2)` `e: mod(7, -2)` | `{"a":-3,"b":1,"c":-1,"d":3,"e":-1}` | `{"a":-4,"b":1,"c":-1,"d":4,"e":1}` | same |
+| s24 | two lists under + | `a: [1, 2] + [3]` | `a: [1, 2] + [3]` | `{"a":[1,2,3]}` | refused: Addition of lists is superseded by list.Concat; see https://cuelang.org/e/v0.11-list-arithmetic | same |
 | d1 | standalone default, overridden | `a: *1` `a: 2` | `a: *1` `a: 2` | `{"a":2}` | refused: preference mark not allowed at this position | same |
 | d2 | default in a disjunction, overridden | `a: *1 \| integer` `a: 2` | `a: *1 \| int` `a: 2` | `{"a":2}` | `{"a":2}` | same |
 | d3 | default in a disjunction, unset | `a: *1 \| integer` | `a: *1 \| int` | `{"a":1}` | `{"a":1}` | same |
@@ -729,7 +746,7 @@ again, write its two sources to `p.aontu` and `p.cue`, then run
 | k25 | a field present or absent | `x: {opt: 1}` `y: {}` `out: [match($.x, {opt: any}, true, false), match($.y, {opt: any}, true, false)]` | `x: {opt: 1}` `y: {}` `out: [[if x.opt != _\|_ {true}, false][0], [if y.opt != _\|_ {true}, false][0]]` | `{"out":[true,false]}` | `{"out":[true,false]}` | same |
 | k26 | a local value in the loop | `xs: [{a: 1}, {a: 2}, {a: 3}]` `tmp: hide(emit($.xs, {match: any, body: [{v: mul(.a, 2)}]}))` `out: filter($.tmp, {v: above(2)})` | `xs: [{a: 1}, {a: 2}, {a: 3}]` `out: [for x in xs let y = x.a * 2 if y > 2 {v: y}]` | `{"out":[{"v":4},{"v":6}]}` | `{"out":[{"v":4},{"v":6}]}` | same |
 | k27 | a sum of products | `lines: [{qty: 2, price: 5}, {qty: 1, price: 7}]` `out: sum(emit($.lines, {match: any, body: [mul(.qty, .price)]}))` | `import "list"` `lines: [{qty: 2, price: 5}, {qty: 1, price: 7}]` `out: list.Sum([for l in lines {l.qty * l.price}])` | `{"out":17}` | `{"out":17}` | same |
-| k28 | two lists end to end | `a: [1, 2]` `b: [3]` `out: emit([$.a, $.b], {match: any, body: [_]})` | `a: [1, 2]` `b: [3]` `out: [for x in a {x}, for y in b {y}]` | `{"out":[1,2,3]}` | `{"out":[1,2,3]}` | same |
+| k28 | two lists end to end | `a: [1, 2]` `b: [3]` `out: $.a + $.b` | `a: [1, 2]` `b: [3]` `out: [for x in a {x}, for y in b {y}]` | `{"out":[1,2,3]}` | `{"out":[1,2,3]}` | same |
 | k29 | the keys of a map as a list | `m: {b: 1, a: 2}` `out: each(pack($.m, key(0)), _)` | `m: {b: 1, a: 2}` `out: [for k, _ in m {k}]` | `{"out":["a","b"]}` | `{"out":["b","a"]}` | same |
 | k30 | a loop over a number itself | `n: 3` `out: each($.n, "node-" + key())` | `import "list"` `n: 3` `out: [for i in list.Range(0, n, 1) {"node-\(i)"}]` | refused, `each_data` | `{"out":["node-0","node-1","node-2"]}` | same |
 | k31 | a loop driven by a number, under a written bound | `n: 3` `out: each(filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], below($.n)), "node-" + _)` | `import "list"` `n: 3` `out: [for i in list.Range(0, n, 1) {"node-\(i)"}]` | `{"out":["node-0","node-1","node-2"]}` | `{"out":["node-0","node-1","node-2"]}` | same |
@@ -770,7 +787,7 @@ again, write its two sources to `p.aontu` and `p.cue`, then run
   `encoding/` and `internal/filetypes`.
 - The two CUE binaries, built with `go install cuelang.org/go/cmd/cue@v0.17.1`
   and `@v0.18.0-rc.4`, which answered every probe.
-- aontu at `ebd6557`: both CLIs built from this commit, the
+- aontu at `967c5f3`: both CLIs built from this commit, the
   [language reference](../docs/reference-language.md), the
   [API reference](../docs/reference-api.md), the
   [LSP page](../docs/lsp.md) and the
