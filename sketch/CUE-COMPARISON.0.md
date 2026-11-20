@@ -48,10 +48,21 @@ moved since.
   `openlists` preview makes list literals open, as aontu's are (x4).
   The `functions` preview adds user-defined functions (x3), which aontu
   rules out to keep evaluation terminating.
-- **Three aontu gaps surfaced that no decision explains**: `aontu trim`
-  misses redundancy across statements, a field cannot be projected with
-  its key kept, and the command line cannot bind `$name`
-  ([Found along the way](#found-along-the-way)).
+- **A comprehension computes nothing aontu can't, bar one loop.** 38
+  probes pair a comprehension with aontu's nearest spelling. Mapping,
+  filtering, flattening and conditions are direct. Keyed results,
+  lookups, pairings and positions take constructions that count levels,
+  unwrap through an aggregate and leave helper fields behind. Only a
+  loop whose length comes from a number alone has no spelling
+  ([What comprehensions do that the built-ins do not](#what-comprehensions-do-that-the-built-ins-do-not)).
+- **Three aontu gaps surfaced that no decision explains**, each now an
+  issue: `aontu trim` examines nothing below a key stated twice
+  ([#860](https://github.com/aontu-lang/aontu/issues/860)), a field
+  can't be projected with its keys in one call
+  ([#861](https://github.com/aontu-lang/aontu/issues/861)), and the
+  command line can't bind `$name`
+  ([#862](https://github.com/aontu-lang/aontu/issues/862)). See
+  [Found along the way](#found-along-the-way).
 
 ## What is current in CUE
 
@@ -266,10 +277,10 @@ Each table reads across: what aontu offers, then what CUE offers, as of
 
 | Feature | aontu | CUE |
 |---|---|---|
-| Iteration | `pack`, `each`, `filter`, `match`, `emit` and `apply` over bags that already exist (g1, g2, g9, g10) | `for`, `if` and `let` clauses in struct and list comprehensions |
+| Iteration | `pack`, `each`, `filter`, `match`, `emit` and `apply` over bags that already exist (g1, g2, g9, g10); what they reach and at what cost is in [the next section](#what-comprehensions-do-that-the-built-ins-do-not) | `for`, `if` and `let` clauses in struct and list comprehensions, each binding names the body and its keys can use |
 | A conditional field | `x?: match($.c, p, v, any)` (g3) | `if c { x: v }`, with `else` in the `try` preview (x2) |
 | Text | `+`, `join`, `upper`, `lower`, `split`, `rep`, `esc`, `usc`, `nom` (g4 to g8) | interpolation, and the `strings`, `regexp`, `strconv` and `text/template` packages |
-| Projection | `pick` projects a field into a list (g14); keeping the keys needs a workaround (g1) | `{for k, v in m {(k): v.f}}` |
+| Projection | `pick` projects a field into a list (g14); keeping the keys takes an aggregate for a number or a string (g1) and a built link for anything else (k18) | `{for k, v in m {(k): v.f}}` |
 | Computed keys | `pack([$.k], v)` (g11) | `(expr): v` and `"\(k)": v` |
 | Counting and aggregates | `sum`, `least`, `greatest`, `sort`; a count is `sum(each(d, 1))` (g7, g13) | `len`, and `list.Sum`, `Min`, `Max`, `Avg`, `Product`, `Sort` and others |
 | Functions | 68 built-ins, declared in both ports; no user-defined functions, by decision ([`g8-generation.md`](capability-review/g8-generation.md)) | builtins and 33 standard packages, among them `crypto/*`, `encoding/*`, `time`, `net`, `path` and `uuid`; user-defined functions in the `functions` preview (x3) |
@@ -331,7 +342,7 @@ close({
 | Graphs | `relate`, `path()`, `relations`, `reaches`, `acyclic()`, `inverse()`, `ident()` | none beyond references |
 | Draw a model | `view`, ten kinds | none |
 | Format | `fmt` | `cue fmt`, with a new formatter in v0.18 |
-| Trim | `trim --check` reports; it misses redundancy across statements | `cue trim` rewrites, across statements, and removes values a default implies |
+| Trim | `trim --check` reports; it examines nothing below a key stated twice, an explicit `&` or a call ([#860](https://github.com/aontu-lang/aontu/issues/860)) | `cue trim` rewrites, across statements, and removes values a default implies |
 | Language server | diagnostics, hover, completion, go-to-definition on alias names, signature help ([the LSP page](../docs/lsp.md)) | completion, definition, hover, references, rename, code actions, document symbols, code lens and external validators; visible and with a daemon mode from v0.18 |
 | Editors | VS Code, Emacs and Vim plugins in this repository | not documented on cuelang.org |
 | Agents | the MCP server (TypeScript only), `help`, `explain`, `init`, `agentsmd`, the skill pack, and GBNF, Lark and ABNF grammars for constrained decoding | none found |
@@ -346,63 +357,167 @@ close({
 | Reading files | `@"…"` under a capability: `--trust none`, `root:<dir>` or `system` | imports from the module and its dependencies, and `@embed` inside the module |
 | Termination | event budgets for passes, revisits and depth, with recursion expanded only against data | no user functions in a stable release, and structural cycles refused |
 
+## What comprehensions do that the built-ins do not
+
+A CUE comprehension binds names. `for k, v in m` names a member and its
+key, a nested clause sees every name outside it, and each name can be
+used in the body and in the key of what the body makes. aontu's
+built-ins bind less. A template holds its member whole, as `_`, and
+can't select from it. Only an `emit` body reads a field of its node,
+by a relative reference. A key is reached by counting levels, `key(2)`,
+and an outer member by counting dots, `..name`.
+
+That difference decides what is direct and what takes a construction.
+Probes k1 to k38 pair a comprehension with the nearest aontu spelling.
+
+### One thing has no spelling
+
+**A loop whose length comes from a number alone.** `each($.n, …)` is
+refused, `each_data` (k30): a generator iterates a bag that already
+exists, which is the termination guarantee that
+[G8](capability-review/g8-generation.md) chose. A number can still
+drive a loop under a bound the document writes:
+`filter([0, 1, …, 9], below($.n))` is the first `n` of ten (k31). Past
+the bound the answer is the bound's, with no finding: twelve asked for,
+ten made (k32).
+
+### Direct in both
+
+- a new record from each record, in an `emit` body (k1);
+- a filter by a bound, `|`, a second key or `neq`, against a written
+  value or a value anywhere in the document (k2, k3, k38);
+- flattening the lists that members hold, and two lists end to end,
+  since the lists of an `emit` body splice (k6, k28);
+- a block of fields, a list element and a chain of cases under a
+  condition, and a test for a field's presence: `match`, with `maybe`
+  for the element that isn't there (k22 to k25);
+- a sum of products (k27), and a count (g13).
+
+### Reached by a construction
+
+| What the comprehension does | CUE | aontu | Probes |
+|---|---|---|---|
+| compares two fields of one member | `if x.a > x.b` | derive `d: sub(.a, .b)` on a copy, then filter on `d`. Written directly, `filter($.xs, {a: above(.b)})` answers `[]` with no finding | k4, k5 |
+| uses a value made in the loop | `let y = x.a * 2` | an `emit` that makes the value, then a `filter` over the result | k26 |
+| reads the outer member in an inner loop | `for s in svcs for p in s.ports {"\(s.name):\(p)"}` | keep the member with `_ &`, build the inner list beside it by a climb, `..name`, then flatten with `emit` | k7, k8 |
+| keeps the members another list names | `if list.Contains(allowed, x.name)` | `pack` over the names, a `filter` by `key(2)` in each child, then flatten; the order becomes the keys' | k9 |
+| keys a map by a field, or by anything computed | `(x.name): …`, `"svc-\(k)": …`, `"\(x.ns)/\(x.name)": …` | `pack` over the picked keys, and in each child a `filter` by `key(2)` back into the source, unwrapped by `sum` or `join` | k10, k14 to k16 |
+| the same, holding a record | `(x.name): x` | make the keys with `pack`, then pour each record in through a checked link whose address is built, `relate(_) & path("$.out." + .name)` | k11, k18 |
+| groups by a field | `(x.team): [for y in xs if y.team == x.team {y.name}]` | `pack` over the picked teams, and a `filter` by `key(2)` | k12 |
+| pairs every member of two lists, keyed by both | `"\(a)-\(b)": {left: a, right: b}` | build the keys as text, `pack` over them, and `split` each key back apart | k17 |
+| looks a value up by a member's field | `teams[s.team].email` | stamp each team with its key, then in a spread a `filter` by a climb, `{id: ...team}`, unwrapped by `join` | k19 |
+| the same, for a whole record | `teams[s.team]` | group the members' keys under each team, then pour the team's record into each through a built link | k20 |
+| pairs two lists by position | `ys[i]` | stamp each member with its position, then a `filter` by `key(3)` | k21 |
+| uses a position as a number | `xs[len(xs)-1]`, `xs[i-1]`, `xs[1:3]`, `list.Reverse(xs)` | a position is text. The count reaches the last member. The rest take a written list of numbers to turn positions into numbers, then `sort` or a bound | k33 to k36 |
+| lists a map's keys | `[for k, _ in m {k}]` | `each(pack($.m, key(0)), _)`, in sorted order | k29 |
+
+### What the constructions cost
+
+- **Levels are counted, and a miscount answers nothing.** `key(2)` is
+  right in k12, and `key(3)` gives every group as `[]` with no finding
+  (k13). A miscounted climb does the same.
+- **A value is unwrapped by an aggregate.** `sum` and `join` stand in
+  for "the one member", so a number or a string comes out bare, a
+  boolean comes out as text, and a record takes the link route
+  ([#861](https://github.com/aontu-lang/aontu/issues/861)).
+- **Helpers stay in the document.** Each construction adds fields that
+  `hide()` keeps out of the output. The hash still covers them, and
+  links show in `aontu view graph` as edges, or as hidden contributions
+  when their field is hidden.
+- **Order follows the keys.** A result that passes through a map comes
+  out in sorted-key order (k9, k29).
+- **Two open faults sit on these routes.** In a member a generator
+  made, a `filter`'s condition reads no relative path and answers empty
+  ([#754](https://github.com/aontu-lang/aontu/issues/754)), which is
+  why k36 looks up by `key(3)` and not by a climb. And a `match` whose
+  pattern is a relative reference, as in
+  `same: match(.a, .b, true, false)`, overflows the TypeScript stack
+  where Go answers: a sibling of
+  [#850](https://github.com/aontu-lang/aontu/issues/850), which names
+  the result position.
+
+### What would shorten them
+
+None of these is decided, and none needs a comprehension keyword. Three
+additions would cover almost every row of the table:
+
+1. **A template that reads a field of its member**, in `each`, `pack`
+   and `apply`, as an `emit` body does (k37 is the refusal today). It
+   makes the projection direct, and the derived-field and local-value
+   rows with it.
+2. **A lookup**: the member of a bag at a computed key or position. It
+   replaces the stamp, the `filter` by a counted level and the
+   aggregate in the keyed, lookup, pairing and position rows.
+3. **A `pack` keyed by a field of each member**, in place of a `pack`
+   over picked keys with a lookup back.
+
+A loop driven by a number is the one row they leave. It needs a ruling
+on the termination guarantee, not a built-in.
+
 ## Found along the way
 
-Three things surfaced while writing the probes, each in both engines.
+Three gaps surfaced while writing the probes, each in both engines, and
+each is now an issue.
 
-- **`aontu trim` misses redundancy across statements.** It reports a
-  key a spread implies when the key is written in the spread's own map
-  literal, `svc: {&: {kind: "Deployment"}, web: {kind: "Deployment"}}`.
-  Written as two statements, `svc: {&: {kind: "Deployment"}}` and
-  `svc: web: {kind: "Deployment", image: "a"}`, it answers `clean`, and
-  so it does for a repeated key, `a: {x: 1, y: 2}` beside `a: {x: 1}`,
-  and for `a: {x: 1, y: 2, x: 1}`, though
-  [`aontu trim`](../docs/reference-api.md#aontu-trim) says that
-  duplicate-key merges are covered. `cue trim` removes both kinds. A
-  value a default implies is kept by `aontu trim` on purpose, since its
-  canon differs from the default's.
-- **No keyed projection.** `pick($.svc, port)` projects a field from
-  each member into a list and drops the keys. Keeping the keys takes
-  `pack($.svc, sum(pick([_], port)))`, which works for numbers only;
-  CUE writes `{for k, v in svc {(k): v.port}}`.
-- **No CLI binding for `$name`.** A host variable reaches a document
-  only through the TypeScript or Go API. CUE binds a value from the
-  command line with `-t name=value` into a field marked `@tag(name)`.
+- **`aontu trim --check` examines nothing below a key stated twice, an
+  explicit `&` or a call**
+  ([#860](https://github.com/aontu-lang/aontu/issues/860)). It reports
+  `$.a.b.x` in `a: { &: { x: 1 }, b: { x: 1, y: 2 } }`, and answers
+  `clean` for the same document written as `a: &: { x: 1 }` and
+  `a: b: { x: 1, y: 2 }`, as it does inside `close()` and `type()`. The
+  walk that lists candidates descends maps and lists only. One part of
+  this is by design: `test/spec/trim.tsv` pins a repeated statement of
+  one key as one entry. What it doesn't pin is that the entries below
+  such a key stop being examined. `cue trim` removes the entry in the
+  statement spelling. A value that a default implies is kept by
+  `aontu trim` on purpose, since its canon differs from the default's.
+- **No direct keyed projection**
+  ([#861](https://github.com/aontu-lang/aontu/issues/861)).
+  `pick($.svc, port)` projects a field of each member into a list and
+  drops the keys. Keeping them takes `pack($.svc, sum(pick([_], port)))`
+  for a number, the `join` twin for a string, and a checked link with a
+  built address for any other kind (k18). CUE writes
+  `{for k, v in svc {(k): v.port}}`.
+- **No command-line binding for `$name`**
+  ([#862](https://github.com/aontu-lang/aontu/issues/862)). A host
+  variable reaches a document only through the TypeScript or Go API, so
+  a document that reads one is `unknown_var` under every verb. CUE
+  binds a value from the command line with `-t name=value` into a field
+  marked `@tag(name)`.
+
+One divergence surfaced too, and is not filed: the `match` whose
+pattern is a relative reference, described under
+[What the constructions cost](#what-the-constructions-cost).
 
 ## What this suggests for aontu
 
 None of this is decided. Each item is a candidate for the maintainer.
 
-1. **`aontu trim` and its reference disagree.** Either the verb
-   reports redundancy across statements and repeated keys, or the
-   reference stops saying that duplicate-key merges are covered. An
-   issue is the first step.
-2. **The command line could bind `$name`.** A flag that sets a host
-   variable would let a CI step inject a value as CUE's `-t` does. The
-   trust contract is unchanged by it, since the host supplies the value
-   either way.
-3. **A keyed projection.** A spelling that projects one field of each
-   member and keeps the keys would replace the
-   `pack($.m, sum(pick([_], f)))` workaround, which holds for numbers
-   only.
-4. **The CUE guide that the plan's H3 asks for now has its table.** The
+1. **The three issues above**: [#860](https://github.com/aontu-lang/aontu/issues/860),
+   [#861](https://github.com/aontu-lang/aontu/issues/861) and
+   [#862](https://github.com/aontu-lang/aontu/issues/862).
+2. **The three additions under
+   [What would shorten them](#what-would-shorten-them)**, which would
+   make most comprehension idioms one call without adding a keyword.
+3. **The CUE guide that the plan's H3 asks for now has its table.** The
    table in
    [Where the same text means different things](#where-the-same-text-means-different-things),
    with each row's probe as an executed example, is most of
-   "aontu for CUE users", and M8's pattern catalogue can start from
-   [Computation and generation](#computation-and-generation).
-5. **The probes can seed L6.** The plan's differential corpus against a
+   "aontu for CUE users". M8's pattern catalogue can start from
+   [Reached by a construction](#reached-by-a-construction), whose rows
+   are the idioms a CUE user reaches for.
+4. **The probes can seed L6.** The plan's differential corpus against a
    pinned `cue` binary needs a corpus; these probes run both engines and
-   two CUE releases in about two minutes. Committed with expectations
+   two CUE releases in under a minute. Committed with expectations
    that both engines agree on, they would hold the rows where aontu
    follows CUE, and show where CUE itself moves, as v0.18 moved g12 and
    x8.
-6. **Three CUE previews change what a CUE user expects.** `openlists`
+5. **Three CUE previews change what a CUE user expects.** `openlists`
    would make CUE's list literals behave as aontu's do, `functions`
    would leave aontu the only one of the two without user-defined
    functions, and `try` is CUE's `maybe`. None needs action yet. Each
    changes what the CUE guide says once it is stable.
-7. **The plan's other CUE gaps stand.** YAML and TOML output (M1), the
+6. **The plan's other CUE gaps stand.** YAML and TOML output (M1), the
    language server's references, rename and key completion (M5), a
    repository that serves (M6), OpenAPI import (L3), type generation
    (L9) and the short form for a key pattern (L2) are all still open.
@@ -457,17 +572,18 @@ candidate, described in [What is current in CUE](#what-is-current-in-cue).
 
 ## The probes
 
-Each of the 115 probes was written once for each language, to say the
+Each of the 153 probes was written once for each language, to say the
 same thing, and run through `aontu` (TypeScript and Go, built from this
 commit), and through `cue export --out json` from v0.17.1 and
 v0.18.0-rc.4 (`cue eval` for c2, c3 and c19, beside `aontu -c`). A file
 with no module, as here, takes the language version of the binary that
 reads it. "refused" names aontu's error code, or quotes the first line
 of CUE's message. "same" means v0.18.0-rc.4 answered as v0.17.1 did,
-which it did for 107 of them. Both aontu engines gave the same answer
-to every probe. To run one again, write its two sources to `p.aontu`
-and `p.cue`, then run `aontu p.aontu` and
-`cue export p.cue --out json`.
+which it did for 145 of them. Both aontu engines gave the same answer
+to every probe. For k1 to k38 the answer shown is the member the probe
+is about, `out`, and the helpers beside it are left out. To run a probe
+again, write its two sources to `p.aontu` and `p.cue`, then run
+`aontu p.aontu` and `cue export p.cue --out json`.
 
 | ID | Probe | aontu source | CUE source | aontu (both engines) | CUE v0.17.1 | v0.18.0-rc.4 |
 |---|---|---|---|---|---|---|
@@ -586,6 +702,44 @@ and `p.cue`, then run `aontu p.aontu` and
 | x7 | a pattern that names its key, postfix alias | `m: {&: {name: key()}}` `m: {c: {}, d: {}}` | `m: [string]~(K,_): {name: K}` `m: {c: {}, d: {}}` | `{"m":{"c":{"name":"c"},"d":{"name":"d"}}}` | refused: postfix alias syntax requires @experiment(aliasv2) | `{"m":{"c":{"name":"c"},"d":{"name":"d"}}}` |
 | x8 | a field beside an embedded closed schema | `%A = close({x: *0 \| integer})` `b: %A & {y: 1}` | `#A: {x: *0 \| int}` `b: {#A, y: 1}` | refused, `closed` | `{"b":{"x":0,"y":1}}` | refused: field not allowed |
 | x9 | struct equality | `e: match({x: 1}, {x: 1}, yes, no)` `f: match({x: 1, y: 2}, {x: 1}, yes, no)` | `e: {x: 1} == {x: 1}` `f: {x: 1, y: 2} == {x: 1}` | `{"e":"yes","f":"yes"}` | `{"e":true,"f":false}` | same |
+| k1 | a new record from each record | `xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]` `out: emit($.xs, {match: any, body: [{name: .name, addr: .host + ":" + .port}]})` | `xs: [{name: "web", host: "h1", port: 80}, {name: "db", host: "h2", port: 5432}]` `out: [for x in xs {name: x.name, addr: "\(x.host):\(x.port)"}]` | `{"out":[{"addr":"h1:80","name":"web"},{"addr":"h2:5432","name":"db"}]}` | `{"out":[{"addr":"h1:80","name":"web"},{"addr":"h2:5432","name":"db"}]}` | same |
+| k2 | filter on a bound, then project | `xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]` `out: pick(filter($.xs, {port: above(1000)}), name)` | `xs: [{name: "web", host: "h1", port: 80}, {name: "db", host: "h2", port: 5432}]` `out: [for x in xs if x.port > 1000 {x.name}]` | `{"out":["db"]}` | `{"out":["db"]}` | same |
+| k3 | or, and, not in a condition | `xs: [{n: a, env: prod, tier: gold}, {n: b, env: dev, tier: gold}, {n: c, env: dev, tier: tin}]` `or: pick(filter($.xs, {env: prod} \| {tier: gold}), n)` `and: pick(filter($.xs, {env: dev, tier: gold}), n)` `not: pick(filter($.xs, {env: neq(prod)}), n)` | `xs: [{n: "a", env: "prod", tier: "gold"}, {n: "b", env: "dev", tier: "gold"}, {n: "c", env: "dev", tier: "tin"}]` `or: [for x in xs if x.env == "prod" \|\| x.tier == "gold" {x.n}]` `and: [for x in xs if x.env == "dev" && x.tier == "gold" {x.n}]` `not: [for x in xs if x.env != "prod" {x.n}]` | `{"and":["b"],"not":["b","c"],"or":["a","b"]}` | `{"and":["b"],"not":["b","c"],"or":["a","b"]}` | same |
+| k4 | a condition that compares two fields of one member | `xs: [{a: 3, b: 1}, {a: 1, b: 2}]` `out: filter($.xs, {a: above(.b)})` | `xs: [{a: 3, b: 1}, {a: 1, b: 2}]` `out: [for x in xs if x.a > x.b {x}]` | `{"out":[]}` | `{"out":[{"a":3,"b":1}]}` | same |
+| k5 | the same, through a derived field | `xs: [{a: 3, b: 1}, {a: 1, b: 2}]` `tmp: hide(each($.xs, _ & {d: sub(.a, .b)}))` `out: pick(filter($.tmp, {d: above(0)}), a)` | `xs: [{a: 3, b: 1}, {a: 1, b: 2}]` `out: [for x in xs if x.a > x.b {x.a}]` | `{"out":[3]}` | `{"out":[3]}` | same |
+| k6 | flatten the lists the members hold | `svcs: [{name: web, ports: [80, 443]}, {name: db, ports: [5432]}]` `out: emit($.svcs, {match: any, body: [.ports]})` | `svcs: [{name: "web", ports: [80, 443]}, {name: "db", ports: [5432]}]` `out: [for s in svcs for p in s.ports {p}]` | `{"out":[80,443,5432]}` | `{"out":[80,443,5432]}` | same |
+| k7 | an inner loop that reads the outer member | `svcs: [{name: web, ports: [80, 443]}, {name: db, ports: [5432]}]` `tmp: hide(each($.svcs, _ & {pairs: each(.ports, ..name + ":" + _)}))` `out: emit($.tmp, {match: any, body: [.pairs]})` | `svcs: [{name: "web", ports: [80, 443]}, {name: "db", ports: [5432]}]` `out: [for s in svcs for p in s.ports {"\(s.name):\(p)"}]` | `{"out":["web:80","web:443","db:5432"]}` | `{"out":["web:80","web:443","db:5432"]}` | same |
+| k8 | every pair from two lists | `as: [a, b]` `bs: [x, y]` `tmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))` `out: emit($.tmp, {match: any, body: [.row]})` | `as: ["a", "b"]` `bs: ["x", "y"]` `out: [for a in as for b in bs {"\(a)-\(b)"}]` | `{"out":["a-x","a-y","b-x","b-y"]}` | `{"out":["a-x","a-y","b-x","b-y"]}` | same |
+| k9 | the members named in another list | `allowed: [web, cache]` `xs: [{name: web}, {name: db}, {name: cache}]` `tmp: hide(pack($.allowed, filter($.xs, {name: key(2)})))` `out: pick(emit($.tmp, {match: any, body: [_]}), name)` | `import "list"` `allowed: ["web", "cache"]` `xs: [{name: "web"}, {name: "db"}, {name: "cache"}]` `out: [for x in xs if list.Contains(allowed, x.name) {x.name}]` | `{"out":["cache","web"]}` | `{"out":["web","cache"]}` | same |
+| k10 | a map keyed by a field of each member | `xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]` `out: pack(pick($.xs, name), sum(pick(filter($.xs, {name: key(2)}), port)))` | `xs: [{name: "web", host: "h1", port: 80}, {name: "db", host: "h2", port: 5432}]` `out: {for x in xs {(x.name): x.port}}` | `{"out":{"db":5432,"web":80}}` | `{"out":{"db":5432,"web":80}}` | same |
+| k11 | the same, holding each whole record | `xs: [{name: web, port: 80}, {name: db, port: 5432}]` `out: pack(pick($.xs, name), {})` `links: hide(emit($.xs, {match: any, body: [relate(_) & path("$.out." + .name)]}))` | `xs: [{name: "web", port: 80}, {name: "db", port: 5432}]` `out: {for x in xs {(x.name): x}}` | `{"out":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}}}` | `{"out":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}}}` | same |
+| k12 | group by a field | `xs: [{name: a, team: core}, {name: b, team: web}, {name: c, team: core}]` `out: pack(pick($.xs, team), pick(filter($.xs, {team: key(2)}), name))` | `xs: [{name: "a", team: "core"}, {name: "b", team: "web"}, {name: "c", team: "core"}]` `out: {for x in xs {(x.team): [for y in xs if y.team == x.team {y.name}]}}` | `{"out":{"core":["a","c"],"web":["b"]}}` | `{"out":{"core":["a","c"],"web":["b"]}}` | same |
+| k13 | the same, with the key level miscounted | `xs: [{name: a, team: core}, {name: b, team: web}, {name: c, team: core}]` `out: pack(pick($.xs, team), pick(filter($.xs, {team: key(3)}), name))` | `xs: [{name: "a", team: "core"}, {name: "b", team: "web"}, {name: "c", team: "core"}]` `out: {for x in xs {(x.team): [for y in xs if y.team == x.team {y.name}]}}` | `{"out":{"core":[],"web":[]}}` | `{"out":{"core":["a","c"],"web":["b"]}}` | same |
+| k14 | invert a map | `m: {a: x, b: y}` `st: hide(pack($.m, {k: key(), v: _}))` `out: pack(pick($.st, v), join(pick(filter($.st, {v: key(2)}), k)))` | `m: {a: "x", b: "y"}` `out: {for k, v in m {(v): k}}` | `{"out":{"x":"a","y":"b"}}` | `{"out":{"x":"a","y":"b"}}` | same |
+| k15 | a prefix on every key | `m: {a: 1, b: 2}` `st: hide(pack($.m, {k: "svc-" + key(), v: _}))` `out: pack(pick($.st, k), sum(pick(filter($.st, {k: key(2)}), v)))` | `m: {a: 1, b: 2}` `out: {for k, v in m {"svc-\(k)": v}}` | `{"out":{"svc-a":1,"svc-b":2}}` | `{"out":{"svc-a":1,"svc-b":2}}` | same |
+| k16 | a key built from two fields | `xs: [{ns: a, name: web, port: 80}, {ns: b, name: web, port: 81}]` `st: hide(each($.xs, _ & {id: .ns + "/" + .name}))` `out: pack(pick($.st, id), sum(pick(filter($.st, {id: key(2)}), port)))` | `xs: [{ns: "a", name: "web", port: 80}, {ns: "b", name: "web", port: 81}]` `out: {for x in xs {"\(x.ns)/\(x.name)": x.port}}` | `{"out":{"a/web":80,"b/web":81}}` | `{"out":{"a/web":80,"b/web":81}}` | same |
+| k17 | every pair from two lists, keyed by both | `as: [a, b]` `bs: [x, y]` `tmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))` `keys: hide(emit($.tmp, {match: any, body: [.row]}))` `out: pack($.keys, {parts: hide(split(key(), "-")), left: .parts.0, right: .parts.1})` | `as: ["a", "b"]` `bs: ["x", "y"]` `out: {for a in as for b in bs {"\(a)-\(b)": {left: a, right: b}}}` | `{"out":{"a-x":{"left":"a","right":"x"},"a-y":{"left":"a","right":"y"},"b-x":{"left":"b","right":"x"},"b-y":{"left":"b","right":"y"}}}` | `{"out":{"a-x":{"left":"a","right":"x"},"a-y":{"left":"a","right":"y"},"b-x":{"left":"b","right":"x"},"b-y":{"left":"b","right":"y"}}}` | same |
+| k18 | one field of each member, keys kept, any kind | `svc: {a: {cfg: {x: 1}}, b: {cfg: {x: 2}}}` `out: pack($.svc, {})` `links: hide(emit(pack($.svc, _ & {id: key()}), {match: any, body: [relate(.cfg) & path("$.out." + .id)]}))` | `svc: {a: {cfg: {x: 1}}, b: {cfg: {x: 2}}}` `out: {for k, v in svc {(k): v.cfg}}` | `{"out":{"a":{"x":1},"b":{"x":2}}}` | `{"out":{"a":{"x":1},"b":{"x":2}}}` | same |
+| k19 | look one field up by a field of the member | `teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}` `svc: {a: {team: core}, b: {team: web}, c: {team: core}}` `tst: hide(pack($.teams, _ & {id: key()}))` `svc: &: {owner: join(pick(filter($.tst, {id: ...team}), email))}` `out: pack($.svc, join(pick([_], owner)))` | `teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}` `svc: {a: {team: "core"}, b: {team: "web"}, c: {team: "core"}}` `out: {for k, s in svc {(k): teams[s.team].email}}` | `{"out":{"a":"core@x","b":"web@x","c":"core@x"}}` | `{"out":{"a":"core@x","b":"web@x","c":"core@x"}}` | same |
+| k20 | look a whole record up by a field of the member | `teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}` `svc: {a: {team: core}, b: {team: web}, c: {team: core}}` `sst: hide(pack($.svc, _ & {id: key()}))` `g: hide(pack($.teams, {rec: _, links: each(pick(filter($.sst, {team: key(3)}), id), relate({owner: ...rec}) & path("$.out." + _))}))` `out: pack($.svc, {})` | `teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}` `svc: {a: {team: "core"}, b: {team: "web"}, c: {team: "core"}}` `out: {for k, s in svc {(k): owner: teams[s.team]}}` | `{"out":{"a":{"owner":{"email":"core@x","tier":1}},"b":{"owner":{"email":"web@x","tier":2}},"c":{"owner":{"email":"core@x","tier":1}}}}` | `{"out":{"a":{"owner":{"email":"core@x","tier":1}},"b":{"owner":{"email":"web@x","tier":2}},"c":{"owner":{"email":"core@x","tier":1}}}}` | same |
+| k21 | pair two lists by position | `xs: [a, b]` `ys: [1, 2]` `yi: hide(each($.ys, {i: key(), y: _}))` `out: each($.xs, {k: _, y: sum(pick(filter($.yi, {i: key(3)}), y))})` | `xs: ["a", "b"]` `ys: [1, 2]` `out: [for i, x in xs {k: x, y: ys[i]}]` | `{"out":[{"k":"a","y":1},{"k":"b","y":2}]}` | `{"out":[{"k":"a","y":1},{"k":"b","y":2}]}` | same |
+| k22 | a block of fields under a condition | `env: prod` `out: {name: web} & match($.env, prod, {replicas: 3, tier: gold}, {})` | `env: "prod"` `out: {name: "web", if env == "prod" {replicas: 3, tier: "gold"}}` | `{"out":{"name":"web","replicas":3,"tier":"gold"}}` | `{"out":{"name":"web","replicas":3,"tier":"gold"}}` | same |
+| k23 | a list element under a condition | `debug: false` `out: [run, match($.debug, true, "--verbose", maybe($.none)), now]` | `debug: false` `out: ["run", if debug {"--verbose"}, "now"]` | `{"out":["run","now"]}` | `{"out":["run","now"]}` | same |
+| k24 | a chain of conditions, first match wins | `n: 7` `out: match($.n, below(3), small, below(10), medium, large)` | `n: 7` `out: [if n < 3 {"small"}, if n >= 3 && n < 10 {"medium"}, if n >= 10 {"large"}][0]` | `{"out":"medium"}` | `{"out":"medium"}` | same |
+| k25 | a field present or absent | `x: {opt: 1}` `y: {}` `out: [match($.x, {opt: any}, true, false), match($.y, {opt: any}, true, false)]` | `x: {opt: 1}` `y: {}` `out: [[if x.opt != _\|_ {true}, false][0], [if y.opt != _\|_ {true}, false][0]]` | `{"out":[true,false]}` | `{"out":[true,false]}` | same |
+| k26 | a local value in the loop | `xs: [{a: 1}, {a: 2}, {a: 3}]` `tmp: hide(emit($.xs, {match: any, body: [{v: mul(.a, 2)}]}))` `out: filter($.tmp, {v: above(2)})` | `xs: [{a: 1}, {a: 2}, {a: 3}]` `out: [for x in xs let y = x.a * 2 if y > 2 {v: y}]` | `{"out":[{"v":4},{"v":6}]}` | `{"out":[{"v":4},{"v":6}]}` | same |
+| k27 | a sum of products | `lines: [{qty: 2, price: 5}, {qty: 1, price: 7}]` `out: sum(emit($.lines, {match: any, body: [mul(.qty, .price)]}))` | `import "list"` `lines: [{qty: 2, price: 5}, {qty: 1, price: 7}]` `out: list.Sum([for l in lines {l.qty * l.price}])` | `{"out":17}` | `{"out":17}` | same |
+| k28 | two lists end to end | `a: [1, 2]` `b: [3]` `out: emit([$.a, $.b], {match: any, body: [_]})` | `a: [1, 2]` `b: [3]` `out: [for x in a {x}, for y in b {y}]` | `{"out":[1,2,3]}` | `{"out":[1,2,3]}` | same |
+| k29 | the keys of a map as a list | `m: {b: 1, a: 2}` `out: each(pack($.m, key(0)), _)` | `m: {b: 1, a: 2}` `out: [for k, _ in m {k}]` | `{"out":["a","b"]}` | `{"out":["b","a"]}` | same |
+| k30 | a loop over a number itself | `n: 3` `out: each($.n, "node-" + key())` | `import "list"` `n: 3` `out: [for i in list.Range(0, n, 1) {"node-\(i)"}]` | refused, `each_data` | `{"out":["node-0","node-1","node-2"]}` | same |
+| k31 | a loop driven by a number, under a written bound | `n: 3` `out: each(filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], below($.n)), "node-" + _)` | `import "list"` `n: 3` `out: [for i in list.Range(0, n, 1) {"node-\(i)"}]` | `{"out":["node-0","node-1","node-2"]}` | `{"out":["node-0","node-1","node-2"]}` | same |
+| k32 | the same, with the number past the written bound | `n: 12` `out: sum(each(filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], below($.n)), 1))` | `import "list"` `n: 12` `out: len([for i in list.Range(0, n, 1) {i}])` | `{"out":10}` | `{"out":12}` | same |
+| k33 | the last member of twelve | `xs: [a, b, c, d, e, f, g, h, i, j, k, l]` `st: hide(each($.xs, {i: key(), v: _}))` `lp: hide("" + sub(sum(each($.xs, 1)), 1))` `out: join(pick(filter($.st, {i: $.lp}), v))` | `xs: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"]` `out: xs[len(xs)-1]` | `{"out":"l"}` | `{"out":"l"}` | same |
+| k34 | a list reversed | `xs: [c, a, b]` `nums: hide(each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], {i: key(), n: _}))` `s1: hide(each($.xs, {v: _, n: sum(pick(filter($.nums, {i: key(3)}), n))}))` `out: pick(sort($.s1, n, desc), v)` | `import "list"` `xs: ["c", "a", "b"]` `out: list.Reverse(xs)` | `{"out":["b","a","c"]}` | `{"out":["b","a","c"]}` | same |
+| k35 | a slice | `xs: [1, 2, 3, 4]` `nums: hide(each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], {i: key(), n: _}))` `s1: hide(each($.xs, {v: _, n: sum(pick(filter($.nums, {i: key(3)}), n))}))` `out: pick(filter($.s1, {n: min(1) & below(3)}), v)` | `xs: [1, 2, 3, 4]` `out: xs[1:3]` | `{"out":[2,3]}` | `{"out":[2,3]}` | same |
+| k36 | each member against the one before it | `xs: [3, 5, 9]` `nums: hide(each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], {i: key(), n: _}))` `st: hide(each($.xs, {i: key(), v: _}))` `m: hide(pack(pick($.st, i), {v: sum(pick(filter($.st, {i: key(3)}), v)), n: sum(pick(filter($.nums, {i: key(3)}), n))}))` `m2: hide(each($.m, _ & {p: "" + sub(.n, 1)}))` `m3: hide(pack(pick($.m2, p), {prev: sum(pick(filter($.st, {i: key(3)}), v)), v: sum(pick(filter($.m2, {p: key(3)}), v)), n: sum(pick(filter($.m2, {p: key(3)}), n))}))` `out: emit(sort(filter($.m3, {n: above(0)}), n), {match: any, body: [sub(.v, .prev)]})` | `xs: [3, 5, 9]` `out: [for i, x in xs if i > 0 {x - xs[i-1]}]` | `{"out":[2,4]}` | `{"out":[2,4]}` | same |
+| k37 | a field of the member in an each template | `xs: [{name: web}, {name: db}]` `out: each($.xs, {n: .name})` | `xs: [{name: "web"}, {name: "db"}]` `out: [for x in xs {n: x.name}]` | refused, `no_path` | `{"out":[{"n":"web"},{"n":"db"}]}` | same |
+| k38 | a condition that reads a value elsewhere in the document | `limit: 2` `xs: [{a: 3}, {a: 1}]` `out: filter($.xs, {a: above($.limit)})` | `limit: 2` `xs: [{a: 3}, {a: 1}]` `out: [for x in xs if x.a > limit {x}]` | `{"out":[{"a":3}]}` | `{"out":[{"a":3}]}` | same |
 
 ## Sources
 

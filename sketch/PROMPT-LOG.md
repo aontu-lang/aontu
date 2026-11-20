@@ -1569,3 +1569,9 @@ start phase 2
 ```text
 work in aontu, and [redacted: session set-up]; review the current version of the cue language https://cuelang.org/ and compare its features to aontu
 ```
+
+## 2026-11-20 19:36:52 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+file issues for the three gaps; what can cue do with comprehensions that aontu cannot without them
+```
