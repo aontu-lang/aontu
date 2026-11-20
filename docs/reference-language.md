@@ -5635,6 +5635,38 @@ its argument writes.
 `@"path"` loads and parses another source file, then unifies the result
 in place, so external files merge like any other value.
 
+**`@` takes the string right after it, and nothing else.** What follows
+the string meets or joins the loaded value as it would any other value,
+so `@"./b.aontu" | 3` is `(@"./b.aontu") | 3`. Write the path as the
+string itself: the engine refuses anything else straight after `@`, a
+parenthesis, a number or a map, where it stands, as `include_operand`.
+Write `base.aontu`:
+
+<!-- test: scenario include-operand -->
+<!-- test: file base.aontu -->
+```aontu
+host: "localhost"
+port: integer
+```
+
+and meet it with a port in `main.aontu`:
+
+<!-- test: file main.aontu -->
+```aontu
+server: @"./base.aontu" & { port:8080 }
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aontu
+{
+  "server": {
+    "host": "localhost",
+    "port": 8080
+  }
+}
+```
+
 Source files use the `.aontu` extension. When the path has no
 extension, that one is supplied, so `@"foo"` resolves `foo.aontu`.
 

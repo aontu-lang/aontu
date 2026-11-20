@@ -85,6 +85,10 @@ include_denied	errcode	parse	0.53.0
 # and raised, not injected, for the same bare-member reason
 # include_denied is.
 include_extension	errcode	parse	0.54.0
+# An @ followed by anything but a string, which is all it takes (ruling
+# 69): a parenthesis, a number, a map or nothing. Parse-stage, sited at
+# the token that follows the @.
+include_operand	errcode	parse	0.77.0
 # A built-in called with the wrong number of arguments (issue #51).
 # Arity is known for every built-in, so a surplus or missing argument is
 # a mistake in the SOURCE and is refused where the author can see it.

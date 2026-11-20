@@ -2743,8 +2743,10 @@ until the phase that encodes it lands.
    owner): `@` takes only the string right after it.** `@"./b.aontu" | 3`
    is `(@"./b.aontu") | 3`, as the definition writes a load, and
    anything else straight after `@`, a parenthesis, a number or a map,
-   is refused where it stands. **Not yet built**: both parsers move.
-   The definition holds no parse and doesn't move.
+   is refused where it stands. **Built 2026-11-20**: both parsers end
+   the operand at its first token and refuse any other as
+   `include_operand`, with rows in `test/spec/file.tsv`. The definition
+   holds no parse and doesn't move.
 
 ## 8. Risks
 

@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### `@` takes only the string right after it
+
+Ruling 69 settles #502. Both ports.
+
+- **What follows the string meets or joins the loaded value.**
+  `a: @"./b.aontu" | 3` is `(@"./b.aontu") | 3`, and
+  `@"./base.aontu" & { port:8080 }` meets the file with the map. Before,
+  `@` took everything after it as its operand: TypeScript crashed on such
+  a document, and Go refused it as a source not found that it didn't
+  name.
+- **Anything else straight after `@` is refused where it stands**, as the
+  new code `include_operand` (class `parse`): a parenthesis, a number, a
+  map, or nothing. `@("./b.aontu")`, which TypeScript loaded and Go
+  refused, is now refused by both.
+
 ### The definition reads every term as written alike itself
 
 Phase 1 of `admin/issue-plan.md`, the definition's quick wins. No

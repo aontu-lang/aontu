@@ -44,12 +44,12 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **203** codes across
+There are seven classes, and the registry holds **204** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 58 | the text is not a document |
+| `parse` | 59 | the text is not a document |
 | `conflict` | 67 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 37 | a name or path resolves to nothing |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 203 codes have hint text. `aontu explain --list`
+**Hint text.** All 204 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -209,6 +209,7 @@ twenty rows have no such section and carry no link.
 | `ident_place` | 0.77.0 | `ident()` was written anywhere but as an alias declaration's value. ([Identity: `ident`](reference-language.md#identity-ident)) |
 | `include_denied` | 0.53.0 | An `@"..."` include refused by the active trust profile. ([Clause 1: hermeticity](trust.md#clause-1-hermeticity)) |
 | `include_extension` | 0.54.0 | An `@"..."` include naming a file whose extension the include table does not know. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
+| `include_operand` | 0.77.0 | An `@` followed by anything but a string, the one thing it takes: a parenthesis, a number, a map or nothing. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
 | `incomplete_expression` | 0.51.0 | An expression missing a term, grouping parentheses with nothing inside included. ([The `+` operator and grouping](reference-language.md#the--operator-and-grouping)) |
 | `inverse_name` | 0.53.0 | The argument to `inverse()` is not a relation name. ([Declared relations](reference-language.md#declared-relations)) |
 | `jsonschema_schema` | 0.77.0 | The text handed to the JSON Schema importer is not a schema: not JSON, a root that is neither an object nor a boolean, a keyword holding a value of the wrong type, or a schema its meta-schema refuses. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |

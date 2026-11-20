@@ -235,3 +235,16 @@ include-frame-names-its-own-file	err	@"__FIXTURES__/conflict_twelve.aontu"\n@"__
 include-cycle-refused	errc	x: @"__FIXTURES__/cycle_a.aontu"	syntax
 include-cycle-sited-at-the-include-that-closes-it	err	x: @"__FIXTURES__/cycle_a.aontu"	cycle_b.aontu:1:4
 include-cycle-says-the-source-includes-itself	err	x: @"__FIXTURES__/cycle_a.aontu"	source includes itself
+# `@` TAKES THE STRING RIGHT AFTER IT (ruling 69, #502): what follows the
+# string meets or joins the loaded value, as it would the value in
+# parentheses, and anything else straight after `@` is refused where it
+# stands.
+load-operand-meet	gen	a:@"__FIXTURES__/foo.aontu" & {g:2}	{"a":{"f":11,"g":2}}
+load-operand-disjunct	canon	a:@"__FIXTURES__/foo.aontu" | 3	{"a":{"f":11}|3}
+load-operand-as-in-parentheses	canon	a:(@"__FIXTURES__/foo.aontu") | 3	{"a":{"f":11}|3}
+load-operand-two-loads	gen	a:@"__FIXTURES__/foo.aontu" & @"__FIXTURES__/foo.aontu"	{"a":{"f":11}}
+load-operand-parenthesis-refused	errc	a:@("__FIXTURES__/foo.aontu")	include_operand
+load-operand-number-refused	errc	a:@3	include_operand
+load-operand-map-refused	errc	a:@{f:1}	include_operand
+load-operand-nothing-refused	errc	a:@	include_operand
+load-operand-refusal-says-why	err	a:@3	@ takes the string right after it

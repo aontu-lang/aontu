@@ -469,6 +469,9 @@ The character(s) {src} were not expected at this point as they do not
 match the expected syntax. Use the # character to comment out lines to
 help isolate the syntax error.`,
         },
+        error: {
+            include_operand: '@ takes the string right after it as the path to load',
+        },
         errmsg: {
             name: 'aontu',
             suffix: false,
@@ -989,7 +992,15 @@ help isolate the syntax error.`,
             }
             return undefined;
         })
-            .close([{ s: [CJ, CL], b: 2, g: 'spread,json,more' }]);
+            .close([{ s: [CJ, CL], b: 2, g: 'spread,json,more' }])
+            // `@` TAKES THE STRING RIGHT AFTER IT and nothing more (ruling 69),
+            // so `@"a" | 3` is `(@"a") | 3`: the operand ends at its first
+            // token, ahead of the expression rules, and only a string loads.
+            .close([{
+                c: (r) => 'multisource' === r.parent?.name,
+                e: (r) => ST === r.o0.tin ? undefined : r.o0.bad('include_operand'),
+                g: 'aontu-include-operand',
+            }]);
         return rs;
     });
     jsonic.rule('map', (rs) => {
@@ -2066,7 +2077,7 @@ class Lang {
         }
         catch (e) {
             const refused = 'include_denied' === e?.code ||
-                'include_extension' === e?.code ||
+                'include_extension' === e?.code || 'include_operand' === e?.code ||
                 'multisource_not_found' === e?.code || mod_1.MODULE_REFUSAL_CODES.has(e?.code);
             if (refused || e instanceof jsonic_1.JsonicError || 'JsonicError' === e.constructor.name) {
                 const why = refused ? e.code : 'syntax';
