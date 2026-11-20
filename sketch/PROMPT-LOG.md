@@ -1542,3 +1542,18 @@ The answers to the agent's questions, each question followed by the option chose
 ```text
 do the quick wins
 ```
+
+## 2026-11-20 01:22:18 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Ask me
+```
+
+## 2026-11-20 01:25:09 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#502: how does `@` bind? Today it takes everything after it as its operand, so `y: @"./b.aontu" | 3` reads as `@("./b.aontu" | 3)`: TypeScript crashes on that, and Go reports `source not found` without naming the file.
+→ Next string only (Recommended)
+```
