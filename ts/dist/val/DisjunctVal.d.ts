@@ -17,4 +17,5 @@ declare class DisjunctVal extends JunctionVal {
     getJunctionSymbol(): string;
     gen(ctx: AontuContext): any;
 }
-export { DisjunctVal, };
+declare function meetRanked(ctx: AontuContext, a: Val, b: Val): Val;
+export { DisjunctVal, meetRanked, };

@@ -26,6 +26,7 @@ import { top } from './top'
 import { FeatureVal } from './FeatureVal'
 import { trialUnify } from './FuncBaseVal'
 import { superOf } from './SuperFuncVal'
+import { meetRanked } from './DisjunctVal'
 import { genHeld } from '../genrec'
 
 
@@ -118,27 +119,22 @@ class PrefVal extends FeatureVal {
   }
 
 
-  // Scalar defaults meet as the disjunctions they stand for: each
-  // stands only where the other's override space admits it, so a value
-  // either one has already met survives the other's rank.
+  // Scalar defaults of one rank meet as the disjunctions they stand
+  // for: each stands only where the other's override space admits it.
   private meetPref(peer: PrefVal, ctx: AontuContext): Val {
-    const strong = peer.rank < this.rank ? peer : this
-    const weak = strong === this ? peer : this
-
-    const gate = trialUnify(ctx, strong.superpeg.clone(ctx),
-      weak.superpeg.clone(ctx))
+    const gate = trialUnify(ctx, this.superpeg.clone(ctx),
+      peer.superpeg.clone(ctx))
 
     if (undefined === gate) {
       return makeNilErr(ctx, 'empty', this, peer, 'unify')
     }
 
-    const strongMet = trialUnify(ctx, prefInnerPeg(strong).clone(ctx),
-      weak.superpeg.clone(ctx))
-    const weakMet = trialUnify(ctx, strong.superpeg.clone(ctx),
-      prefInnerPeg(weak).clone(ctx))
+    const strongMet = trialUnify(ctx, prefInnerPeg(this).clone(ctx),
+      peer.superpeg.clone(ctx))
+    const weakMet = trialUnify(ctx, this.superpeg.clone(ctx),
+      prefInnerPeg(peer).clone(ctx))
 
-    if (strong.rank === weak.rank &&
-      undefined !== strongMet && undefined !== weakMet) {
+    if (undefined !== strongMet && undefined !== weakMet) {
       const peg = trialUnify(ctx, prefInnerPeg(this).clone(ctx),
         prefInnerPeg(peer))
 
@@ -147,8 +143,8 @@ class PrefVal extends FeatureVal {
         : this.stand(peg, gate, ctx)
     }
 
-    return undefined !== strongMet ? strong.stand(strongMet, gate, ctx)
-      : undefined !== weakMet ? weak.stand(weakMet, gate, ctx)
+    return undefined !== strongMet ? this.stand(strongMet, gate, ctx)
+      : undefined !== weakMet ? peer.stand(weakMet, gate, ctx)
         : gate
   }
 
@@ -191,22 +187,19 @@ class PrefVal extends FeatureVal {
         why += 'same-peg'
       }
 
+      else if (this.rank !== peer.rank) {
+        out = meetRanked(ctx, this, peer)
+        explainClose(te, out)
+        return out
+      }
+
       else if (true === (prefInnerPeg(this) as any).isScalar &&
         true === (prefInnerPeg(peer) as any).isScalar) {
         out = this.meetPref(peer, ctx)
         why += 'gated'
       }
 
-      else if (this.rank < peer.rank) {
-        out = this
-        why += 'rank-win'
-      }
-      else if (peer.rank < this.rank) {
-        out = peer
-        why += 'rank-lose'
-      }
       else {
-
         const peg = trialUnify(ctx, prefInnerPeg(this).clone(ctx),
           prefInnerPeg(peer))
 
@@ -215,6 +208,11 @@ class PrefVal extends FeatureVal {
           : this.overMet(peer, this.restand(peg, ctx) as PrefVal, ctx)
         why += 'rank-same'
       }
+    }
+    else if (true === (peer as any).isDisjunct) {
+      out = meetRanked(ctx, this, peer)
+      explainClose(te, out)
+      return out
     }
     else if (!peer.isTop) {
       why += 'super-'

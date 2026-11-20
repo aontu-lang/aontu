@@ -412,7 +412,7 @@ func TestMarksDisjunctWalk(t *testing.T) {
 	}
 }
 
-// PrefVal: a nil peer keeps the pref; a lower rank supersedes.
+// PrefVal: a nil peer keeps the pref; preferences of different ranks meet as layers.
 func TestPrefRankArms(t *testing.T) {
 	ctx := &Ctx{root: newMap()}
 	p := newPref(newInteger(1))
@@ -421,8 +421,8 @@ func TestPrefRankArms(t *testing.T) {
 	}
 	lo := newPref(newInteger(3))
 	hi := newPref(newPref(newInteger(2)))
-	if lo.Unify(hi, ctx) != Val(lo) {
-		t.Fatalf("lower rank must supersede")
+	if got := lo.Unify(hi, ctx).Canon(); "*3|**2|integer" != got {
+		t.Fatalf("ranks must meet as layers, got %s", got)
 	}
 }
 

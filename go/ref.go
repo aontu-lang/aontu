@@ -70,10 +70,14 @@ func declaration(cj *ConjunctVal, key string) Val {
 	return nil
 }
 
-func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
+func (rv *RefVal) walkFrom(root Val, refpath []string, armAt map[string]Val) (Val, walkOutcome) {
 	var node Val = root
 	_, isAlias := rv.aliasKey()
-	for _, part := range refpath {
+	for pI, part := range refpath {
+		// A held arm answers only for the members it holds.
+		if held, ok := armAt[strings.Join(refpath[:pI], "\x00")]; ok && nil != markedChild(held, part) {
+			node = held
+		}
 		node = throughRider(node)
 		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
 			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
@@ -503,11 +507,11 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		return makeNilErr(ctx, "no_path", rv, nil)
 	}
 
-	node, outcome := rv.walkFrom(ctx.root, refpath)
+	node, outcome := rv.walkFrom(ctx.root, refpath, ctx.armAt)
 
 	if walkMissed == outcome && rv.absolute && nil != ctx.fixroot &&
 		ctx.fixroot != ctx.root {
-		if fnode, fout := rv.walkFrom(ctx.fixroot, refpath); walkFound == fout {
+		if fnode, fout := rv.walkFrom(ctx.fixroot, refpath, nil); walkFound == fout {
 			node, outcome = fnode, fout
 		}
 	}

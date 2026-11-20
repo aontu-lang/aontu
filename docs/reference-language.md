@@ -740,13 +740,14 @@ member by member. Preferences can be ranked: `**`
 has a higher rank number than `*`, and the lowest rank wins when two
 preferred values meet (`*1|**2` is `1`). The higher rank's constraint
 still holds, since `&` is a meet: `*1 & **7` is `1`, but `*1 & **"s"`
-admits nothing, as nothing is both an integer and a string. Both
-engines drop the higher-rank preference there, constraint and all,
-which [#714](https://github.com/aontu-lang/aontu/issues/714) tracks.
+admits nothing, as nothing is both an integer and a string.
 The higher rank's default fills in under the lower rank's where the two
 agree, in either order: `*integer & **1` is `1`, and
-`*{a: 1} & **{b: 2}` is `{"a": 1, "b": 2}`. Both engines drop it there
-too.
+`*{a: 1} & **{b: 2}` is `{"a": 1, "b": 2}`. It comes back where a
+meet overrides the lower rank's default: `(*1 & **7) & neq(1)` is `7`. The
+ranks are layers, and the meet keeps every one (`meetNodes` in
+[`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean)), so `*1 & **7` canons
+as `*1|**7|integer`.
 A ranked preference meets its peers exactly as rank 1
 does: the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as
 `a:*1.5 & float` is, and `**2|integer` met by a bare `integer` keeps its
@@ -785,10 +786,7 @@ holds it. In `(*1 | 2) & *integer` the defaults `1` and `integer` fold
 into `1`, and `2` stays an alternative, so the default is `1`. In
 `(1 | 2) & *integer` neither arm was a default, so `integer` meets both
 and the value has no single default. And `(*{a: 1} | {c: 3}) & *{b: 2}`
-is `{"a": 1, "b": 2}`. Both engines make every arm a preference meets a
-default of its rank: the first two are `pref_rank_clash` there, and the
-third is `{"a": 1, "b": 2, "c": 3}`
-([#714](https://github.com/aontu-lang/aontu/issues/714)).
+is `{"a": 1, "b": 2}`.
 
 **Two defaults of different ranks meet as their disjunctions.** Each
 stands only where the other's type admits it, and whichever stands
@@ -797,8 +795,8 @@ value the weaker default has met outlives the stronger one:
 `a:**true`, `a:true` and `a:*false` give `true` in every order, and
 `a:**1`, `a:min(1)` and `a:*0` give `1`, never the `0` the bound rules
 out. Defaults whose types share nothing refuse as `empty` at any rank:
-`a:**1` beside `a:*"a"`. Map and list defaults keep the plain rank
-order.
+`a:**1` beside `a:*"a"`. Map and list defaults layer the same way:
+`*{a: 1} & **{a: 2}` is `{"a": 1}`.
 
 **A preference conjoined with a disjunction names an alternative**:
 `(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so
@@ -1845,10 +1843,12 @@ names a member the data kills, so that over `name: "y"` an arm `{a:
 an arm names nothing, unless the meet leaves the disjunction one arm:
 in `x: (%T | null) & %T` with `%T = {a: 1, b: .a}`, the copy beside the
 disjunction reads `b` as the one arm's `a`, since `null` meets a map in
-nothing. Both engines read a path in an arm only once a
-single arm remains, and in a preferred arm never, so data an arm
-refuses through its path leaves the document `incomplete` while two
-arms are live, which #700 tracks. The definition reads each arm so by
+nothing. Both engines read a path in an arm where the disjunction holds
+it, so over `hosts: {a: {name: "x", url: "y"}}` the first arm refuses
+the data through `url` and the second takes it. A path that names a
+member the arm doesn't write waits for the terms the arm meets, and a
+path in a preferred arm left alone reads as one in a lone preference
+does, which #700 tracks. The definition reads each arm so by
 `Decls.armChosen`. A path inside a lone preference `*x` reads the
 same, where the preference holds its value, and the parent arm, which
 takes what overrides the default, is the parent type of what the value

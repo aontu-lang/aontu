@@ -94,6 +94,8 @@ class AontuContext {
 
   _fixroot: any
 
+  _armAt?: Map<string, Val>
+
   budget: {
     passes: number, revisits: number, depth: number, alias: number,
     trials: number
@@ -192,6 +194,13 @@ class AontuContext {
       ctx._pathidx = undefined
     }
 
+    return ctx
+  }
+
+  holdArm(path: string[], arm: Val): AontuContext {
+    const ctx = Object.create(this)
+    ctx._armAt = new Map(this._armAt)
+    ctx._armAt.set(path.join('\u0000'), arm)
     return ctx
   }
 

@@ -72,28 +72,23 @@ func (p *PrefVal) stand(met, gate Val) Val {
 	return stood
 }
 
-// Scalar defaults meet as the disjunctions they stand for: each
-// stands only where the other's override space admits it, so a value
-// either one has already met survives the other's rank.
+// Scalar defaults of one rank meet as the disjunctions they stand
+// for: each stands only where the other's override space admits it.
 func (p *PrefVal) meetPref(pp *PrefVal, ctx *Ctx) Val {
-	strong, weak := p, pp
-	if pp.rank < p.rank {
-		strong, weak = pp, p
-	}
 	path := cp(p.path)
 
-	gate := trialUnify(ctx, clonePath(strong.superpeg, path),
-		clonePath(weak.superpeg, path))
+	gate := trialUnify(ctx, clonePath(p.superpeg, path),
+		clonePath(pp.superpeg, path))
 	if nil == gate {
 		return makeNilErr(ctx, "empty", p, pp)
 	}
 
-	strongMet := trialUnify(ctx, clonePath(prefInnerPeg(strong), path),
-		clonePath(weak.superpeg, path))
-	weakMet := trialUnify(ctx, clonePath(strong.superpeg, path),
-		clonePath(prefInnerPeg(weak), path))
+	strongMet := trialUnify(ctx, clonePath(prefInnerPeg(p), path),
+		clonePath(pp.superpeg, path))
+	weakMet := trialUnify(ctx, clonePath(p.superpeg, path),
+		clonePath(prefInnerPeg(pp), path))
 
-	if strong.rank == weak.rank && nil != strongMet && nil != weakMet {
+	if nil != strongMet && nil != weakMet {
 		peg := trialUnify(ctx, clonePath(prefInnerPeg(p), path), prefInnerPeg(pp))
 		if nil == peg {
 			return makeNilErr(ctx, "pref_rank_clash", p, pp)
@@ -103,9 +98,9 @@ func (p *PrefVal) meetPref(pp *PrefVal, ctx *Ctx) Val {
 
 	switch {
 	case nil != strongMet:
-		return strong.stand(strongMet, gate)
+		return p.stand(strongMet, gate)
 	case nil != weakMet:
-		return weak.stand(weakMet, gate)
+		return pp.stand(weakMet, gate)
 	}
 	return gate
 }
@@ -156,15 +151,14 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 		out = p
 		waits = p.peg.Dc() != DONE
 	case *PrefVal:
+		if p.rank != pp.rank {
+			return meetRanked(ctx, p, pp)
+		}
 		_, ps := prefInnerPeg(p).(*ScalarVal)
 		_, qs := prefInnerPeg(pp).(*ScalarVal)
 		switch {
 		case ps && qs:
 			out = p.meetPref(pp, ctx)
-		case p.rank < pp.rank:
-			out = p
-		case pp.rank < p.rank:
-			out = pp
 		default:
 			peg := trialUnify(ctx, clonePath(prefInnerPeg(p), cp(p.path)),
 				prefInnerPeg(pp))
@@ -174,6 +168,8 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 				out = p.overMet(ctx, pp, p.restand(peg))
 			}
 		}
+	case *DisjunctVal:
+		return meetRanked(ctx, p, pp)
 	default:
 		if isTop(peer) {
 			out = p
