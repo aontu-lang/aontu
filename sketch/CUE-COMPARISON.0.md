@@ -1,6 +1,6 @@
 # aontu and CUE, feature by feature
 
-**Status:** Survey, 2026-11-20. Compares aontu at `main` (`e172972`,
+**Status:** Survey, 2026-11-20. Compares aontu at `main` (`ebd6557`,
 both ports; the latest release is 0.76.3) with CUE v0.17.1, the latest
 release, and v0.18.0-rc.4, the release candidate of 2026-11-11. Every
 difference in meaning below was checked by running both aontu engines
@@ -770,7 +770,7 @@ again, write its two sources to `p.aontu` and `p.cue`, then run
   `encoding/` and `internal/filetypes`.
 - The two CUE binaries, built with `go install cuelang.org/go/cmd/cue@v0.17.1`
   and `@v0.18.0-rc.4`, which answered every probe.
-- aontu at `e172972`: both CLIs built from this commit, the
+- aontu at `ebd6557`: both CLIs built from this commit, the
   [language reference](../docs/reference-language.md), the
   [API reference](../docs/reference-api.md), the
   [LSP page](../docs/lsp.md) and the
