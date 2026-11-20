@@ -107,6 +107,10 @@ function markedChild(v, part) {
     }
     return undefined;
 }
+// The arm a disjunction holds (Decls.armChosen) answers only for its own members.
+function heldChild(arm, part) {
+    return undefined === arm || undefined === markedChild(arm, part) ? undefined : arm;
+}
 const CANONICAL_LIST_INDEX = /^(0|[1-9][0-9]*)$/;
 function member(v, part) {
     if (true === v.isList && !CANONICAL_LIST_INDEX.test(String(part))) {
@@ -339,6 +343,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
             if (!offtop && null != node) {
                 for (; pI < refpath.length; pI++) {
                     let part = refpath[pI];
+                    node = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part) ?? node;
                     node = (0, RecurseVal_1.throughRider)(node);
                     if (node.isMap) {
                         node = node.peg[part];

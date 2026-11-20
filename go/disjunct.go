@@ -61,8 +61,6 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	if f, ok := peer.(*FuncVal); ok && ridesCall(f.name) && DONE != f.Dc() { //coverage:ignore unite drives a rider call before a disjunction meets it, where TypeScript's pass shortcut can leave it undriven
 		peer = f.Unify(top(), ctx)
 	}
-	_, peerIsPref := peer.(*PrefVal)
-
 	// The peer's annotations ride the result once, not each member, so a
 	// disjunction met with itself is itself.
 	member := peer
@@ -77,6 +75,16 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			member = c
 		}
 	}
+
+	_, peerIsPref := member.(*PrefVal)
+	pd, peerIsDisjunct := member.(*DisjunctVal)
+	if peerIsPref || peerIsDisjunct && (0 < leadRank(d) || 0 < leadRank(pd)) {
+		out := meetRanked(ctx, d, member)
+		if annotated {
+			ride(out, nil, peer)
+		}
+		return out
+	}
 	oval := make([]Val, len(d.peg))
 	for i, m := range d.peg {
 		// Try the member against peer in isolation: a failed trial
@@ -88,7 +96,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		ctx.err = trial
 		ctx.trial = true
 		ctx.slot = slot
-		r := unite(ctx, m, member)
+		r := ctx.holdArm(d.path, prefInnerPeg(m), func() Val { return unite(ctx, m, member) })
 		failed := len(ctx.err) > 0 || r.Nil()
 		ctx.err = saved
 		ctx.trial = savedTrial
@@ -99,7 +107,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			if r.Dc() != DONE {
 				done = false
 			}
-			if _, ok := m.(*PrefVal); ok && !peerIsPref && !isTop(peer) {
+			if _, ok := m.(*PrefVal); ok && !isTop(peer) {
 				// A candidate for the admission gate below: a non-pref,
 				// non-top peer met a preference inside this disjunction.
 				gate = append(gate, i)
@@ -121,30 +129,6 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	if pp, ok := peer.(*PrefVal); ok {
-		want := prefInnerPeg(pp)
-		for vI, got := range oval {
-			if nil == got || got.Nil() {
-				continue
-			}
-			if _, isPref := got.(*PrefVal); isPref {
-				continue
-			}
-			if !valSame(got, want) {
-				continue
-			}
-			//coverage:ignore-block the meet returns the preference itself; see above
-			wrapped := newPref(got)
-			wrapped.rank = pp.rank
-			wrapped.site.sp = pp.site.sp
-			wrapped.site.spu = pp.site.spu
-			wrapped.site.url = pp.site.url
-			wrapped.site.src = pp.site.src
-			wrapped.path = cp(got.vpath())
-			oval[vI] = wrapped
-		}
-	}
-
 	// Flatten nested disjuncts, drop failed members, dedup.
 	var res []Val
 	for _, v := range oval {
@@ -157,7 +141,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			res = append(res, v)
 		}
 	}
-	res = dedup(res)
+	res = dedup(res, false)
 
 	switch len(res) {
 	case 1:
@@ -258,34 +242,35 @@ func (d *DisjunctVal) forGen(ctx *Ctx) (Val, bool) {
 }
 
 func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
-	// The kept index per rank, so an equal-rank twin folds into the arm
-	// already standing for that rank.
-	atRank := map[int]int{}
-
+	prefs := []int{}
+	lead := -1
 	for vI := 0; vI < len(d.peg); vI++ {
-		var pref *PrefVal
-
-		switch v := d.peg[vI].(type) {
-		case *PrefVal:
-			pref = v
-		case *DisjunctVal:
+		if v, ok := d.peg[vI].(*DisjunctVal); ok {
 			sub := v.rankPrefs(ctx)
 			if nil != sub && sub.Nil() {
 				return sub
 			}
 			if sp, ok := sub.(*PrefVal); ok {
 				d.peg[vI] = sp
-				pref = sp
 			}
 		}
+		if p, ok := d.peg[vI].(*PrefVal); ok {
+			prefs = append(prefs, vI)
+			if -1 == lead || p.rank < lead {
+				lead = p.rank
+			}
+		}
+	}
 
-		if nil == pref {
+	// Only the defaults the rank rule picks fold: foldArms in spec/Aontu/Meet.lean.
+	at := -1
+	for _, vI := range prefs {
+		pref, ok := d.peg[vI].(*PrefVal)
+		if !ok || lead != pref.rank {
 			continue
 		}
-
-		at, seen := atRank[pref.rank]
-		if !seen {
-			atRank[pref.rank] = vI
+		if -1 == at {
+			at = vI
 			continue
 		}
 
@@ -358,7 +343,7 @@ func (d *DisjunctVal) genSame(ctx *Ctx, plain bool) (any, bool) {
 	return first, true
 }
 
-func dedup(vals []Val) []Val {
+func dedup(vals []Val, ranked bool) []Val {
 	var out []Val
 	for _, v := range vals {
 		dup := false
@@ -373,6 +358,17 @@ func dedup(vals []Val) []Val {
 			if eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) && sameRec(e, v) {
 				dup = true
 				if vp.rank < ep.rank {
+					out[eI] = keepRiders(v, e, true)
+				} else {
+					out[eI] = keepRiders(e, v, true)
+				}
+				break
+			}
+			// A plain arm the ranked meet makes beside a preferred one of the
+			// same value adds nothing to it.
+			if ranked && eok != vok && valSame(prefInnerPeg(e), prefInnerPeg(v)) && sameRec(e, v) {
+				dup = true
+				if vok {
 					out[eI] = keepRiders(v, e, true)
 				} else {
 					out[eI] = keepRiders(e, v, true)
@@ -535,4 +531,175 @@ func valSame(a, b Val) bool {
 		return true
 	}
 	return false
+}
+
+// THE RANKED MEET (meetNodes in spec/Aontu/Meet.lean): where a default
+// meets another term, the side with the stronger rank goes outermost and
+// the other meets each of its arms, so a weaker default stands under a
+// stronger one (rulings 41 and 42), and two that lead with one rank meet
+// as nodeTie does (decision 43). An arm's rank counts its stars.
+type rankedArm struct {
+	rank int
+	val  Val
+}
+
+func meetRanked(ctx *Ctx, a, b Val) Val {
+	arms := meetArms(ctx, a, b)
+	if 0 == len(arms) {
+		return makeNilErr(ctx, "empty", a, b)
+	}
+	return armsVal(a, arms)
+}
+
+func nodeOf(v Val) bool {
+	switch v.(type) {
+	case *DisjunctVal, *PrefVal:
+		return true
+	}
+	return false
+}
+
+func armOf(v Val) []rankedArm {
+	switch n := v.(type) {
+	case *PrefVal:
+		return []rankedArm{{n.rank + 1, prefInnerPeg(n)}}
+	case *DisjunctVal:
+		out := []rankedArm{}
+		for _, m := range n.peg {
+			out = append(out, armOf(m)...)
+		}
+		return out
+	}
+	return []rankedArm{{0, v}}
+}
+
+// A lone preference `*x` is `x | super(x)`.
+func armsOf(v Val) []rankedArm {
+	if p, ok := v.(*PrefVal); ok {
+		return []rankedArm{{p.rank + 1, prefInnerPeg(p)}, {0, p.superpeg}}
+	}
+	return armOf(v)
+}
+
+func leadRank(v Val) int {
+	lead := 0
+	for _, a := range armsOf(v) {
+		if 0 < a.rank && (0 == lead || a.rank < lead) {
+			lead = a.rank
+		}
+	}
+	return lead
+}
+
+func meetArms(ctx *Ctx, a, b Val) []rankedArm {
+	if !nodeOf(a) && !nodeOf(b) {
+		met := trialUnify(ctx, a, b)
+		if nil == met {
+			return nil
+		}
+		return armsOf(met)
+	}
+	ra, rb := leadRank(a), leadRank(b)
+	if 0 < ra && ra == rb {
+		return tieArms(ctx, ra, a, b)
+	}
+	if 0 < ra && (0 == rb || ra < rb) || 0 == rb && nodeOf(a) {
+		return spreadArms(a, armsOf(a), func(x Val) []rankedArm { return meetArms(ctx, x, b) })
+	}
+	return spreadArms(a, armsOf(b), func(y Val) []rankedArm { return meetArms(ctx, a, y) })
+}
+
+func spreadArms(home Val, arms []rankedArm, meet func(Val) []rankedArm) []rankedArm {
+	out := []rankedArm{}
+	for _, a := range arms {
+		out = append(out, rankArms(home, a.rank, meet(a.val))...)
+	}
+	return out
+}
+
+func rankArms(home Val, r int, arms []rankedArm) []rankedArm {
+	if 0 == len(arms) {
+		return nil
+	}
+	if 0 == r {
+		return arms
+	}
+	return []rankedArm{{r, armsVal(home, arms)}}
+}
+
+func tieArms(ctx *Ctx, r int, a, b Val) []rankedArm {
+	at := func(v Val, want bool) []rankedArm {
+		out := []rankedArm{}
+		for _, p := range armsOf(v) {
+			if want == (p.rank == r) {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+	pairs := [][]rankedArm{}
+	live := false
+	for _, p := range at(a, true) {
+		for _, q := range at(b, true) {
+			m := meetArms(ctx, p.val, q.val)
+			live = live || 0 < len(m)
+			pairs = append(pairs, m)
+		}
+	}
+	k := r
+	if live {
+		k = r + 1
+	}
+	arms := []rankedArm{}
+	for _, m := range pairs {
+		arms = append(arms, rankArms(a, r, m)...)
+	}
+	for _, p := range at(a, true) {
+		arms = append(arms, rankArms(a, k, spreadArms(a, at(b, false),
+			func(y Val) []rankedArm { return meetArms(ctx, p.val, y) }))...)
+	}
+	for _, q := range at(b, true) {
+		arms = append(arms, rankArms(a, k, spreadArms(a, at(a, false),
+			func(x Val) []rankedArm { return meetArms(ctx, x, q.val) }))...)
+	}
+	rest := meetArms(ctx, armsVal(a, at(a, false)), armsVal(a, at(b, false)))
+	if live {
+		arms = rankArms(a, r, arms)
+	}
+	return append(arms, rest...)
+}
+
+func armsVal(home Val, arms []rankedArm) Val {
+	pegs := make([]Val, len(arms))
+	done := true
+	for i, a := range arms {
+		v := a.val
+		done = done && DONE == v.Dc()
+		for rI := 0; rI < a.rank; rI++ {
+			p := newPref(v)
+			rankedPlace(v, &p.base)
+			v = p
+		}
+		pegs[i] = v
+	}
+	if pegs = dedup(pegs, true); 1 == len(pegs) {
+		return prefInnerPeg(pegs[0])
+	}
+	out := newDisjunct(pegs)
+	rankedPlace(home, &out.base)
+	if done {
+		out.setDc(DONE)
+	} else {
+		out.setDc(home.Dc() + 1)
+	}
+	return out
+}
+
+// What the ranked meet makes stands where the meet does, as TypeScript's
+// Val.place sets it.
+func rankedPlace(home Val, b *base) {
+	b.path = cp(home.vpath())
+	b.site.sp, b.site.spu, b.site.url, b.site.src = home.pos(), home.posu(), home.srcurl(), home.srctext()
+	b.fwrt = home.written()
+	b.finner = home.innerOf()
 }

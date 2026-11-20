@@ -146,6 +146,12 @@ function markedChild(v: any, part: any): Val | undefined {
 }
 
 
+// The arm a disjunction holds (Decls.armChosen) answers only for its own members.
+function heldChild(arm: Val | undefined, part: any): Val | undefined {
+  return undefined === arm || undefined === markedChild(arm, part) ? undefined : arm
+}
+
+
 const CANONICAL_LIST_INDEX = /^(0|[1-9][0-9]*)$/
 
 function member(v: any, part: any): any {
@@ -435,6 +441,7 @@ class RefVal extends FeatureVal {
         for (; pI < refpath.length; pI++) {
           let part = refpath[pI]
 
+          node = heldChild(ctx._armAt?.get(refpath.slice(0, pI).join('\u0000')), part) ?? node
           node = throughRider(node)
 
           if (node.isMap) {

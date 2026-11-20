@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DisjunctVal = void 0;
+exports.meetRanked = meetRanked;
 const type_1 = require("../type");
 const err_1 = require("../err");
 const exactjson_1 = require("../exactjson");
@@ -11,6 +12,7 @@ const utility_1 = require("../utility");
 const top_1 = require("./top");
 const NilVal_1 = require("../val/NilVal");
 const PrefVal_1 = require("../val/PrefVal");
+const FuncBaseVal_1 = require("../val/FuncBaseVal");
 const admission_1 = require("../val/admission");
 const JunctionVal_1 = require("../val/JunctionVal");
 const PathVal_1 = require("../val/PathVal");
@@ -59,6 +61,15 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             member.via = undefined;
             member.reldecl = undefined;
         }
+        if (member instanceof PrefVal_1.PrefVal ||
+            member instanceof DisjunctVal && undefined !== (leadRank(this) ?? leadRank(member))) {
+            const out = meetRanked(ctx, this, member);
+            if (annotated) {
+                (0, unify_1.ride)(out, undefined, peer);
+            }
+            (0, utility_1.explainClose)(te, out);
+            return out;
+        }
         const savedErr = ctx.err;
         const savedTrialMode = ctx._trialMode;
         const ownErr = Object.prototype.hasOwnProperty.call(ctx, 'err');
@@ -70,12 +81,12 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 const v = this.peg[vI];
                 const trialErr = [];
                 ctx.err = trialErr;
-                oval[vI] = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx, v, member, 'dj-peer');
+                oval[vI] = (0, unify_1.unite)((te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx)
+                    .holdArm(this.path, (0, PrefVal_1.prefInnerPeg)(v)), v, member, 'dj-peer');
                 if (0 < trialErr.length) {
                     oval[vI] = NilVal_1.TRIAL_NIL;
                 }
-                else if (v instanceof PrefVal_1.PrefVal &&
-                    !peer.isPref && !peer.isTop) {
+                else if (v instanceof PrefVal_1.PrefVal && !peer.isTop) {
                     // A candidate for the admission gate below: a non-pref,
                     // non-top peer met a preference inside this disjunction.
                     ;
@@ -113,18 +124,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 delete ctx.err;
             }
         }
-        if (true === peer.isPref) {
-            const want = (0, PrefVal_1.prefInnerPeg)(peer);
-            for (let vI = 0; vI < oval.length; vI++) {
-                const got = oval[vI];
-                if (!got.isNil && true !== got.isPref && got.same(want)) {
-                    const wrapped = new PrefVal_1.PrefVal({ peg: got }, ctx);
-                    wrapped.rank = peer.rank;
-                    peer.place(wrapped);
-                    oval[vI] = wrapped;
-                }
-            }
-        }
         // Remove duplicates, and normalize
         if (1 < oval.length) {
             for (let vI = 0; vI < oval.length; vI++) {
@@ -132,32 +131,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     oval.splice(vI, 1, ...oval[vI].peg);
                 }
             }
-            // Dedup: duplicate Vals in the disjunct are replaced with the
-            // trial sentinel, which is filtered out a few lines below.
-            // (No need for a fresh NilVal — any isNil value gets filtered.)
-            for (let vI = 0; vI < oval.length; vI++) {
-                for (let kI = vI + 1; kI < oval.length; kI++) {
-                    if (oval[kI].same(oval[vI]) && (0, rider_1.sameRec)(oval[kI], oval[vI])) {
-                        oval[vI] = keepRiders(ctx, oval[vI], oval[kI]);
-                        oval[kI] = NilVal_1.TRIAL_NIL;
-                        continue;
-                    }
-                    const a = oval[vI];
-                    const b = oval[kI];
-                    if (true === a.isPref && true === b.isPref
-                        && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b)) && (0, rider_1.sameRec)(a, b)) {
-                        if (a.rank <= b.rank) {
-                            oval[vI] = keepRiders(ctx, a, b);
-                            oval[kI] = NilVal_1.TRIAL_NIL;
-                        }
-                        else {
-                            oval[kI] = keepRiders(ctx, b, a);
-                            oval[vI] = NilVal_1.TRIAL_NIL;
-                            break;
-                        }
-                    }
-                }
-            }
+            dedupArms(ctx, oval, false);
         }
         // Outside the 1<length block: a SINGLE-member disjunction (e.g. a
         // rankPrefs collapse) whose one member fails the trial or the
@@ -183,40 +157,39 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         return out;
     }
     rankPrefs(ctx) {
-        // The kept index per rank, so an equal-rank twin folds into the
-        // arm already standing for that rank.
-        const atRank = {};
+        const prefs = [];
         for (let vI = 0; vI < this.peg.length; vI++) {
             const v = this.peg[vI];
-            let pref = undefined;
-            if (v instanceof PrefVal_1.PrefVal) {
-                pref = v;
-            }
-            else if (v.isDisjunct) {
+            if (v.isDisjunct) {
                 const subrank = v.rankPrefs(ctx);
                 if (null != subrank && subrank.isNil) {
                     return subrank;
                 }
                 if (subrank instanceof PrefVal_1.PrefVal) {
                     this.peg[vI] = subrank;
-                    pref = subrank;
                 }
             }
-            if (undefined !== pref) {
-                const at = atRank[pref.rank];
-                if (undefined === at) {
-                    atRank[pref.rank] = vI;
+            if (this.peg[vI] instanceof PrefVal_1.PrefVal) {
+                prefs.push(vI);
+            }
+        }
+        // Only the defaults the rank rule picks fold: foldArms in spec/Aontu/Meet.lean.
+        const lead = Math.min(...prefs.map((vI) => this.peg[vI].rank));
+        let at = undefined;
+        for (const vI of prefs) {
+            const pref = this.peg[vI];
+            if (lead === pref.rank && undefined === at) {
+                at = vI;
+            }
+            else if (lead === pref.rank) {
+                // Twins that differ in their output records do not fold into one.
+                const folded = (0, rider_1.sameRec)(pref, this.peg[at]) ? pref.unify(this.peg[at], ctx) :
+                    (0, err_1.makeNilErr)(ctx, 'pref_rank_clash', pref, this.peg[at], 'unify');
+                if (folded.isNil) {
+                    return folded;
                 }
-                else {
-                    // Twins that differ in their output records do not fold into one.
-                    const folded = (0, rider_1.sameRec)(pref, this.peg[at]) ? pref.unify(this.peg[at], ctx) :
-                        (0, err_1.makeNilErr)(ctx, 'pref_rank_clash', pref, this.peg[at], 'unify');
-                    if (folded.isNil) {
-                        return folded;
-                    }
-                    this.peg[at] = folded;
-                    this.peg[vI] = null;
-                }
+                this.peg[at] = folded;
+                this.peg[vI] = null;
             }
         }
         this.peg = this.peg.filter((p) => null != p);
@@ -277,6 +250,110 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.DisjunctVal = DisjunctVal;
+function dedupArms(ctx, oval, ranked) {
+    // Dedup: duplicate Vals in the disjunct are replaced with the
+    // trial sentinel, which is filtered out a few lines below.
+    // (No need for a fresh NilVal — any isNil value gets filtered.)
+    for (let vI = 0; vI < oval.length; vI++) {
+        for (let kI = vI + 1; kI < oval.length; kI++) {
+            if (oval[kI].same(oval[vI]) && (0, rider_1.sameRec)(oval[kI], oval[vI])) {
+                oval[vI] = keepRiders(ctx, oval[vI], oval[kI]);
+                oval[kI] = NilVal_1.TRIAL_NIL;
+                continue;
+            }
+            const a = oval[vI];
+            const b = oval[kI];
+            if (true === a.isPref && true === b.isPref
+                && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b)) && (0, rider_1.sameRec)(a, b)) {
+                if (a.rank <= b.rank) {
+                    oval[vI] = keepRiders(ctx, a, b);
+                    oval[kI] = NilVal_1.TRIAL_NIL;
+                }
+                else {
+                    oval[kI] = keepRiders(ctx, b, a);
+                    oval[vI] = NilVal_1.TRIAL_NIL;
+                    break;
+                }
+            }
+            // A plain arm the ranked meet makes beside a preferred one of the
+            // same value adds nothing to it.
+            else if (ranked && (true === a.isPref) !== (true === b.isPref)
+                && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b)) && (0, rider_1.sameRec)(a, b)) {
+                oval[vI] = true === a.isPref ? keepRiders(ctx, a, b) : keepRiders(ctx, b, a);
+                oval[kI] = NilVal_1.TRIAL_NIL;
+            }
+        }
+    }
+}
+function meetRanked(ctx, a, b) {
+    const arms = meetArms(ctx, a, b);
+    return 0 === arms.length ? (0, err_1.makeNilErr)(ctx, 'empty', a, b) : armsVal(ctx, a, arms);
+}
+function nodeOf(v) {
+    return v instanceof DisjunctVal || v instanceof PrefVal_1.PrefVal;
+}
+function armOf(v) {
+    return v instanceof PrefVal_1.PrefVal ? [[v.rank + 1, (0, PrefVal_1.prefInnerPeg)(v)]] :
+        v instanceof DisjunctVal ? v.peg.flatMap(armOf) : [[0, v]];
+}
+// A lone preference `*x` is `x | super(x)`.
+function armsOf(v) {
+    return v instanceof PrefVal_1.PrefVal ? [[v.rank + 1, (0, PrefVal_1.prefInnerPeg)(v)], [0, v.superpeg]] : armOf(v);
+}
+function leadRank(v) {
+    const ranks = armsOf(v).map((p) => p[0]).filter((r) => 0 < r);
+    return 0 === ranks.length ? undefined : Math.min(...ranks);
+}
+function meetArms(ctx, a, b) {
+    if (!nodeOf(a) && !nodeOf(b)) {
+        const met = (0, FuncBaseVal_1.trialUnify)(ctx, a, b);
+        return undefined === met ? [] : armsOf(met);
+    }
+    const ra = leadRank(a);
+    const rb = leadRank(b);
+    if (undefined !== ra && ra === rb) {
+        return tieArms(ctx, ra, a, b);
+    }
+    return undefined !== ra && (undefined === rb || ra < rb) || undefined === rb && nodeOf(a) ?
+        spread(ctx, a, armsOf(a), (x) => meetArms(ctx, x, b)) :
+        spread(ctx, a, armsOf(b), (y) => meetArms(ctx, a, y));
+}
+function spread(ctx, home, arms, meet) {
+    return arms.flatMap(([r, v]) => ranked(ctx, home, r, meet(v)));
+}
+function ranked(ctx, home, r, arms) {
+    return 0 === arms.length ? [] : 0 === r ? arms : [[r, armsVal(ctx, home, arms)]];
+}
+function tieArms(ctx, r, a, b) {
+    const at = (v) => armsOf(v).filter((p) => p[0] === r);
+    const off = (v) => armsOf(v).filter((p) => p[0] !== r);
+    const pairs = at(a).flatMap((p) => at(b).map((q) => meetArms(ctx, p[1], q[1])));
+    const live = pairs.some((m) => 0 < m.length);
+    const k = live ? r + 1 : r;
+    const arms = [
+        ...pairs.flatMap((m) => ranked(ctx, a, r, m)),
+        ...at(a).flatMap((p) => ranked(ctx, a, k, spread(ctx, a, off(b), (y) => meetArms(ctx, p[1], y)))),
+        ...at(b).flatMap((q) => ranked(ctx, a, k, spread(ctx, a, off(a), (x) => meetArms(ctx, x, q[1])))),
+    ];
+    const rest = meetArms(ctx, armsVal(ctx, a, off(a)), armsVal(ctx, a, off(b)));
+    return [...(live ? ranked(ctx, a, r, arms) : arms), ...rest];
+}
+function armsVal(ctx, home, arms) {
+    const pegs = arms.map(([r, v]) => {
+        for (let rI = 0; rI < r; rI++) {
+            v = v.place(new PrefVal_1.PrefVal({ peg: v }, ctx));
+        }
+        return v;
+    });
+    dedupArms(ctx, pegs, true);
+    const kept = pegs.filter((v) => !v.isNil);
+    if (1 === kept.length) {
+        return (0, PrefVal_1.prefInnerPeg)(kept[0]);
+    }
+    const out = home.place(new DisjunctVal({ peg: kept }, ctx));
+    out.dc = arms.every((p) => type_1.DONE === p[1].dc) ? type_1.DONE : home.dc + 1;
+    return out;
+}
 // Generated output with the number KINDS the JSON loses: `1` and
 // `1.0` generate the same digits, and are still different values.
 // A member dropped as a duplicate leaves its riders on the survivor, at

@@ -705,8 +705,10 @@ function capture(fn) {
         Assert.equal(pkg.peg.p.peg.name.peg, '@tabnas/jsonic');
         const none = new lang_1.Lang().parse('a:@');
         Assert.equal(none.canon, 'nil');
-        Assert.match(none.err[0].msg, /source not found/);
-        Assert.throws(() => new lang_1.Lang().parse('a:@1'));
+        Assert.equal(none.err[0].why, 'include_operand');
+        const num = new lang_1.Lang().parse('a:@1');
+        Assert.equal(num.canon, 'nil');
+        Assert.equal(num.err[0].why, 'include_operand');
         const host = new lang_1.Lang({
             resolver: () => ({
                 found: true, path: 'x.csv', full: '/nowhere/x.csv',
@@ -785,9 +787,10 @@ function capture(fn) {
     });
     (0, node_test_1.test)('conflict-message-with-both-operands', () => {
         const ds = (0, lsp_1.computeDiagnostics)('a:{b:1&"s"} c:$.a');
-        const plain = ds.filter((d) => d.message.startsWith('Cannot '));
-        Assert.equal(plain.length, 1);
-        Assert.equal(plain[0].message.split('\n')[0], 'Cannot unify value: "s" with value: 1');
+        Assert.ok(0 < ds.length);
+        for (const d of ds) {
+            Assert.equal(d.message.split('\n')[0], 'Cannot unify value: "s" with value: 1');
+        }
     });
     (0, node_test_1.test)('parse-error-positions', () => {
         // A throw carrying 1-based line/col places the diagnostic there.
@@ -825,9 +828,9 @@ function capture(fn) {
             Assert.ok(h, 'no hover for ' + src);
             return h.contents.value;
         };
-        // The unguarded self-reference is a RESIDUAL now (RECURSION.0.md):
-        // hover shows the symbolic fixpoint, not an error.
-        Assert.match(label('a:$.a', 2), /\*recurse\*/);
+        // A self-reference is a cycle unless a container guards it.
+        Assert.match(label('a:$.a', 2), /\*error\*/);
+        Assert.match(label('a:{b:$.a}', 5), /\*recurse\*/);
         Assert.match(label('a:$.nope', 2), /\*error\*/);
         Assert.match(label('a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:$.l l:1', 2), /\*reference\*/);
         Assert.match(label('n:1.5', 2), /\*float\*/);

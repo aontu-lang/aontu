@@ -3742,7 +3742,34 @@ meets them into one arm of that rank, so `*1 & *integer` has the one
 default `1`, and keeps the arms it stands for at rank 0, so that the
 disjunction admits what it did. Where the meet admits nothing, as for
 `*1 & *7`, the arms stay, and two defaults of one rank that disagree
-are a clash, an error. A preference alone is
+are a clash, an error.
+
+Both engines meet ranks this way. Write `layers.aontu`:
+
+<!-- test: scenario layers -->
+<!-- test: file layers.aontu -->
+```aontu
+x: *1 & **7
+y: *1 & **7 & neq(1)
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c layers.aontu
+{"x":*1|**7|integer,"y":**7|integer&neq(1)}
+$ aontu layers.aontu
+{
+  "x": 1,
+  "y": 7
+}
+```
+
+`*1 & **7` keeps both layers, and where `neq(1)` overrides the stronger
+default the weaker one comes back.
+
+A preference alone is
 `x | super(x)`, as step 12 reads it, so `*8080 & min(1024)` is
 `*8080 | (integer & min(1024))`. Two maps merge key by key in
 `meetMap`: a key both declare holds the meet of the two values and is

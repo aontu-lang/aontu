@@ -57,6 +57,7 @@ declare class AontuContext {
         n: number;
     };
     _fixroot: any;
+    _armAt?: Map<string, Val>;
     budget: {
         passes: number;
         revisits: number;
@@ -86,6 +87,7 @@ declare class AontuContext {
         collect?: boolean;
         explain?: any[] | boolean | null;
     }): AontuContext;
+    holdArm(path: string[], arm: Val): AontuContext;
     descend(key: string): AontuContext;
     addopts(opts?: AontuOptions): void;
     adderr(err: NilVal): void;
