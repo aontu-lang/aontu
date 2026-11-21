@@ -1694,3 +1694,9 @@ Add the guide for cue users and the comparison examples to the plan; add the lan
 ```text
 Continue
 ```
+
+## 2026-11-21 18:41:55 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Ask me for rulings
+```
