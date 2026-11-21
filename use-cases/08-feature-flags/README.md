@@ -127,11 +127,11 @@ than its value.
 
 ```mermaid
 graph TD
-  top(("top"))
+  any(("any"))
   c0["***0<br/>spread | flags.aontu:32:14"]
   c1["**5<br/>pref | layers.aontu:20:43"]
   c2["*25<br/>pref | layers.aontu:26:42"]
-  val{{"*25"}}
+  val{{"*25#124;**5#124;***0#124;integer"}}
   any --> c0
   c0 --> c1
   c1 --> c2
@@ -141,14 +141,17 @@ graph TD
 The meet ladder for one path, drawn by `aontu view ladder --at
 '$.effective.prod.megacorp.checkout_v2.rollout'` from the `why` record
 alone and pinned as a golden by `check.sh`. Each rung is one contribution, carrying its
-canon, its role and its source position; the descent runs from `top` to
+canon, its role and its source position; the descent runs from `any` to
 the resolved value.
 
 **Fewer stars win**, so the rungs read weakest-first and the winner is
 the last rung before the value: the org catalog's `***0`, then the prod
 environment's `**5`, then the megacorp tenant's `*25`, which is the
-answer. `aontu model why` prints the same three facts as three lines; what
-the ladder adds is that the arbitration is a shape.
+answer. The value keeps the weaker rungs behind the winner,
+`*25|**5|***0|integer`, as preferences of different ranks meet in
+layers, and it generates 25. `aontu model why` prints the same three
+facts as three lines; what the ladder adds is that the arbitration is a
+shape.
 
 `why` returns its conjuncts in source order, not rank order, so the
 verb sorts them by `rank` (the engine's own number on each
