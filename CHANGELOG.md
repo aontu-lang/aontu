@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a conflict anywhere in a trial's eager argument
+
+Decision 62 of `sketch/DEFINITION.0.md` (#535). No engine changes.
+
+- **A conflict anywhere in an argument both engines read as they build
+  a trial makes the document an error**, where the definition looked
+  only at the argument's top. `must({b?: 1 & 2}, "m")`, with a conflict
+  at an optional member, and `must(len(1) & [1, 2], "m")`, whose list
+  is too long for its size, are errors, as both engines answer. The
+  same reading covers a size, the count of `nof` and of `contains`, the
+  source of `filter` and the scrutinee of `match`.
+- **`Decls.clashes` reads the argument's staged normal form whole**
+  (`Val.staged`, `Val.illFormed`). A conflict in a spread still refuses
+  only a member it's tried on, an arm that holds one drops, and a
+  written `nil` stands.
+- **Rows td0 on of `test/spec/def-trial.tsv`** hold both engines to it,
+  beside the arguments both read later, which a conflict below their top
+  doesn't make an error.
+- **Rows td93 to td95 enter the ledger under #892.** Both engines read
+  a conflict below the top of a `nof` branch as a branch that admits
+  nothing, where the definition reads it where it stands. Decision 74
+  records the question, which awaits a ruling, and the ledger's bound
+  rises to 201.
+
 ### Rows hold both engines to a destructure over a term that isn't a load
 
 P10 of `sketch/DEFINITION.0.md`. No engine changes.

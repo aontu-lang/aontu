@@ -6165,16 +6165,17 @@ whose value no argument decides. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
 as a bound over one is (`bndOf`), so that both refuse at the meet. A
 trial both ports build as they read it is `nil` where an argument they
-read then is a conflict (`Decls.clashes`): a size, `must`'s condition
-and the count of `nof` and of `contains`; and so is a `filter` whose
-source and a selection whose scrutinee are dead, written `nil` or not.
-So such a trial is an error where it stands, an arm holding it drops,
+read then holds a conflict anywhere (`Decls.clashes`): a size, `must`'s
+condition and the count of `nof` and of `contains`; and so are a
+`filter` whose source and a selection whose scrutinee holds one, or is
+dead, written `nil` or not. So such a trial is an error where it stands, an arm holding it drops,
 and a spread holding it refuses each member it's tried on. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
+    if ds.clashes s' then .nil else
     match genD ds s' with
     | some x =>
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
@@ -6183,6 +6184,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
+    if ds.clashes s' then .nil else
     if here.isNone && c.holdsKey then .filter s' c else
     if ds.filterWaits s' then
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
@@ -6250,9 +6252,28 @@ member it's tried on. The arguments both read later, against a value,
 are read as before: `when(1 & 2, 1)` stands, and `nof(1, 1 & 2)`
 refuses `1` (#525).
 
-A conflict is an argument that's dead in normal form but not written as
-`nil`. Both engines read a size, a condition of `must` or a count
-written as `nil` as a value that admits nothing, so `must(nil, "m")`
+A conflict anywhere in such an argument makes the trial one too, not
+only at its top, by decision 62. So `must({b?: 1 & 2}, "m")`, with a
+conflict at an optional member, is an `error`, and so is
+`must(len(1) & [1, 2], "m")`, whose list is too long for its size: a
+conflict the meet finds, which the staged normal form reads as `nil`
+(`Val.staged`). A preference clash, a size that holds a choice and a
+call the reading couldn't make count too, as anywhere in a schema:
+the argument's staged normal form doesn't stand (`Val.illFormed`).
+The conflict in a spread still refuses only a member it's tried on, so
+`must({&: 1 & 2}, "m")` refuses `{"x": 1}` and admits `{}`, and an arm
+that holds one drops, so `must({x: 1} | {x: 1, b?: 1 & 2}, "m")`
+admits `{"x": 1}`. Both engines still read the other arguments later,
+so `when({b?: 1 & 2}, {x: 1})` stands. Rows `td0` on of
+`test/spec/def-trial.tsv` hold both engines to it. Below the top of a
+later argument the engines and the definition part: both engines make
+the whole argument admit nothing, so `nof(1, {b?: 1 & 2}, {x: 1})`
+admits `{"x": 1}`, where the definition reads the conflict at the
+optional member and refuses it. Rows `td93` to `td95` sit in the
+ledger under #892, which awaits a ruling (decision 74).
+
+A written `nil` stands there. Both engines read a size, a condition of
+`must` or a count written as `nil` as a value that admits nothing, so `must(nil, "m")`
 and `len(nil)` refuse `1`. So does `must(nil & 1, "m")`: a written
 `nil` met with a value is still one, by ruling 54. A bound or a size
 around it in the argument changes nothing, so
@@ -6265,9 +6286,7 @@ or scrutinee is:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Decls.clashes (ds : Decls) : Val → Bool
-  | .nil => false
-  | v => !(normaliseD ds v).isVoid && (normaliseD ds v).dead
+def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds).illFormed
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -6324,13 +6343,14 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- A `filter` read at a position over a list keeps the elements its
-condition takes as the terms they are, in their order, but a marked one
-and absence, the condition read for each element it tries, at the index
-the element takes among those kept, carrying the moves its source
-holds. -/
+/-- A `filter` read at a position over a list that holds no conflict
+keeps the elements its condition takes as the terms they are, in their
+order, but a marked one and absence, the condition read for each
+element it tries, at the index the element takes among those kept,
+carrying the moves its source holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
     {items : List Val} {sp : Option Val} {cl : Bool}
+    (hc : ds.clashes (resolveD ds b (some pos) s) = false)
     (hw : ds.filterWaits (resolveD ds b (some pos) s) = false)
     (hl : (normaliseD ds (resolveD ds b (some pos) s)).unride = .list items sp cl) :
     resolveD ds b (some pos) (.filter s c) =
@@ -6338,7 +6358,7 @@ theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s 
         filterTakes ds (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c) v) 0 (filterItems items))
         none false).rideMoves (resolveD ds b (some pos) s).moves := by
   rw [resolveD.eq_def]
-  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw, hl]
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hc, hw, hl]
 ```
 
 So `vet` decides a document that selects:

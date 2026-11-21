@@ -1691,13 +1691,199 @@ def keptElems (nf : Val) (keep : ℕ → Data → Bool) (xs : List Data) : Val :
     else (Data.list (keptTerms keep 0 xs)).term
   | _ => (Data.list (keptTerms keep 0 xs)).term
 
-/-- Whether an argument both ports read as they build a trial is a
-conflict: dead in normal form, though not a written `nil`, which both
-read there as a value that admits nothing, met with whatever it meets
-(`Val.void`, ruling 54). -/
-def Decls.clashes (ds : Decls) : Val → Bool
-  | .nil => false
-  | v => !(normaliseD ds v).isVoid && (normaliseD ds v).dead
+/-! ## Terms that do not stand -/
+
+/-- Whether the arms the rank rule picks single out two different
+values: a preference clash, where a positive rank is picked. -/
+def clash (arms : List (ℕ × Val)) : Bool :=
+  match pickRank arms with
+  | none => false
+  | some _ =>
+    match (arms.filter (picked arms)).filterMap fun p => gen p.2 with
+    | [] => false
+    | x :: rest => rest.any fun y => decide (y ≠ x)
+
+/-- The members a container literal generates: each position of a list,
+each required key of a map, and each optional key whose value generates
+something but an empty map or list, as the reference's `len` counts what
+generates. -/
+def Val.genCount : Val → Option ℕ
+  | .list items _ _ => some items.length
+  | .map fs _ _ => some (fs.countP fun f => !f.2.1 || (gen f.2.2).any fun x => !x.emptyBag)
+  | _ => none
+
+mutual
+/-- A size with its lower ends dropped and an exact size read as its
+upper end: the half the meet decides against a literal's count, since
+members only accumulate. -/
+def Val.upperHalf : Val → Val
+  | .min _ | .above _ => .any
+  | .lit (.num x) => .max (.num x)
+  | .meet a b => .meet a.upperHalf b.upperHalf
+  | .or arms => .or (upperArms arms)
+  | v => v
+
+def upperArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.upperHalf) :: upperArms arms
+end
+
+/-- Whether a term is a map or a list, through its riders: a member the
+meet counts whatever it holds, as both ports count a container. -/
+def Val.bagLike : Val → Bool
+  | .map _ _ _ | .list _ _ _ => true
+  | .ride _ v _ => v.bagLike
+  | .link v _ => v.bagLike
+  | _ => false
+
+/-- The members a container literal holds where the meet reads it, as
+both ports read them there: each position of a list and each key of a
+map but a marked one, and an optional key only where its value
+generates something but an empty map or list, each read under the
+declarations `ds`. None where a member it requires is no container and
+generates nothing yet, whose reading waits for it. -/
+def Val.meetMembers (ds : Decls) : Val → Option (List Val)
+  | .list items _ _ =>
+    (items.filter fun v => !v.marked).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
+  | .map fs _ _ =>
+    ((fs.filter fun f => !f.2.2.marked && (!f.2.1 || (genD ds f.2.2).any fun x => !x.emptyBag)).map
+      (·.2.2)).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
+  | _ => none
+
+/-- Whether two of the members are written alike (`Val.beq`). -/
+def dupAlike : List Val → Bool
+  | [] => false
+  | x :: xs => xs.any x.beq || dupAlike xs
+
+/-- A map's member at the key `k`, through its riders. -/
+def Val.keyVal (k : String) : Val → Option Val
+  | .map fs _ _ => (fs.find? (·.1 == k)).map (·.2.2)
+  | .ride _ v _ => v.keyVal k
+  | .link v _ => v.keyVal k
+  | _ => none
+
+/-- Whether an atom refuses, where the meet reads them, the members of a
+container literal: a size whose upper half refuses their count,
+`unique()` where two are written alike, `unique("k")` where one is no
+map holding `k` or two hold it alike, and `contains(c, n)` where `n`'s
+upper half refuses the count of those that generate a value `c` admits,
+each read under the declarations `ds`, so that a name `c` holds reads
+as its body. -/
+def Val.refusesAtMeet (ds : Decls) (ms : List Val) : Val → Bool
+  | .len c => if h : IntegerLeaf ms.length then !checkR ds c.upperHalf (.num (.integer ⟨ms.length, h⟩)) else false
+  | .unique none => dupAlike ms
+  | .unique (some k) => ms.any (fun m => (m.keyVal k).isNone) || dupAlike (ms.filterMap (·.keyVal k))
+  | .contains c n =>
+    if h : IntegerLeaf (ms.countP fun m => (genD ds m).any (checkR ds c)) then
+      !checkR ds n.upperHalf (.num (.integer ⟨ms.countP fun m => (genD ds m).any (checkR ds c), h⟩))
+    else false
+  | _ => false
+
+/-- Whether the conjuncts of a meet hold an atom that refuses the members
+of their container literals, met, where the meet reads them
+(`Val.meetMembers`), as both ports refuse at the meet: a literal too
+long for its size (decision 9 of the design note's §7), two members
+alike under `unique`, and more members than `contains` counts. A literal
+short of its size is tried at generation, after the fills. -/
+def meetClash (ds : Decls) (cs : List Val) : Bool :=
+  match ((cs.filter fun v => v.genCount.isSome).foldl meet .any).meetMembers ds with
+  | none => false
+  | some ms => cs.any (·.refusesAtMeet ds ms)
+
+/-- Whether a size, the argument of `len`, holds a choice once in normal
+form: `len` takes a conjunction of integers, bounds, exclusions and
+multiples, as both ports read it, so that `len(1 | 3)`, `len(*1)` and
+`len(type(1 | 3))` are ill-formed, and a choice the meet or a dead arm
+settles to one arm, `len(1 & (1 | 3))` or `len(1 | (1 & 2))`, is that
+arm's size (decision 16 of the design note's §7). -/
+def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
+
+mutual
+/-- Whether a term in normal form does not stand: a `nil` anywhere but
+in a spread, which the engines read only against a member, and the one
+a document writes, which stands (`Val.void`, ruling 54), a
+preference clash, a size that holds a disjunction or a preference, and
+a call the reading could not make. A `+`, a `join` and a `pref` that
+the reading leaves as written stand where their arguments do and they
+have as many as they take. A hole that nothing binds is read before
+this (`Decls.illFormedR`). The verdict reads it of a term staged
+(`Val.staged`), so that a conflict the meet finds is a `nil`. -/
+def Val.illFormed : Val → Bool
+  | .nil => true
+  | .len c => c.sizeIll
+  | .map fs _ _ => illFields fs
+  | .list items _ _ => illItems items
+  | .or arms => clash arms || illArms arms
+  | .pref _ x => x.illFormed
+  | .meet a b => a.illFormed || b.illFormed
+  | .ride .void _ _ => false
+  | .ride _ v _ => v.illFormed
+  | .link v _ => v.illFormed
+  | .call .plus args => args.length != 2 || illItems args
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
+  | .call .pref args => args.length != 1 || illItems args
+  | .call _ _ => true
+  | .select _ arms _ => illPats arms
+  | _ => false
+
+def illFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.illFormed || illFields fs
+
+def illItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.illFormed || illItems vs
+
+def illArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.illFormed || illArms arms
+
+def illPats : List (Val × Val) → Bool
+  | [] => false
+  | (p, _) :: ps => p.illFormed || illPats ps
+end
+
+mutual
+/-- A term in normal form with each meet whose conjuncts clash
+(`meetClash`) read as `nil`, and each arm so read dropped (`mkOr`), as
+is each arm that does not stand (`Val.illFormed`): the conflicts both
+ports find at the meet, an arm's the arm's alone, and a member's its
+container's, and an arm that does not stand the arm's alone too, as
+both ports drop it. An arm is read with the arms it stands for
+flattened in (`flattenArm`), so that a preference clash between them
+stays the disjunction's. -/
+def Val.staged (ds : Decls) : Val → Val
+  | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
+  | .map fs spread closed => .map (stagedFields ds fs) spread closed
+  | .list items spread closed => .list (stagedItems ds items) spread closed
+  | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
+  | .pref r x => .pref r (x.staged ds)
+  | .ride k v r => .ride k (v.staged ds) r
+  | .link v lt => .link (v.staged ds) lt
+  | v => v
+
+def stagedFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.staged ds) :: stagedFields ds fs
+
+def stagedItems (ds : Decls) : List Val → List Val
+  | [] => []
+  | v :: vs => v.staged ds :: stagedItems ds vs
+
+def stagedArms (ds : Decls) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.staged ds) :: stagedArms ds arms
+end
+
+/-- Whether an argument both ports read as they build a trial holds a
+conflict: its normal form, staged, does not stand (`Val.illFormed`),
+so that a conflict anywhere in it but in a spread is the schema's
+error, at an optional member and among the conflicts the meet finds
+alike, as both ports answer (decision 62 of the design note's §7). An
+arm that holds one drops, and a written `nil` stands, which both read
+as a value that admits nothing, met with whatever it meets (`Val.void`,
+ruling 54). -/
+def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds).illFormed
 
 /-- Whether a list's marked element is a conflict, under the riders it
 carries, met with the list's spread `s`: both ports read the element
@@ -1809,16 +1995,17 @@ whose value no argument decides. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
 as a bound over one is (`bndOf`), so that both refuse at the meet. A
 trial both ports build as they read it is `nil` where an argument they
-read then is a conflict (`Decls.clashes`): a size, `must`'s condition
-and the count of `nof` and of `contains`; and so is a `filter` whose
-source and a selection whose scrutinee are dead, written `nil` or not.
-So such a trial is an error where it stands, an arm holding it drops,
+read then holds a conflict anywhere (`Decls.clashes`): a size, `must`'s
+condition and the count of `nof` and of `contains`; and so are a
+`filter` whose source and a selection whose scrutinee holds one, or is
+dead, written `nil` or not. So such a trial is an error where it stands, an arm holding it drops,
 and a spread holding it refuses each member it's tried on. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
+    if ds.clashes s' then .nil else
     match genD ds s' with
     | some x =>
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
@@ -1827,6 +2014,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
+    if ds.clashes s' then .nil else
     if here.isNone && c.holdsKey then .filter s' c else
     if ds.filterWaits s' then
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
@@ -1904,8 +2092,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       else if f.holdsArg then callTerm ds f (resolveItems ds b here args)
       else (callTerm ds f (resolveItems ds b here args)).rideMoves ((resolveItems ds b here args).flatMap Val.moves)
   | .len c =>
-    if (normaliseD ds (resolveD ds b here c)).unsized then .nothing
-    else if ds.clashes (resolveD ds b here c) then .nil else .len (resolveD ds b here c)
+    if ds.clashes (resolveD ds b here c) then .nil
+    else if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c)
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
@@ -3501,9 +3689,9 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ih := @And.left _ _ ih
     simp only [resolveD]; split
-    · exact .nothing
-    split
     · exact .nil
+    split
+    · exact .nothing
     · exact .len (ih hb)
   | @map fs spread closed _ _ ihf ihs =>
     refine ⟨fun {b here} hb => ?_, ?_⟩
@@ -3616,6 +3804,8 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace ihr := fun p r hm => @And.left _ _ (ihr p r hm)
     replace ihd := fun e he => @And.left _ _ (ihd e he)
     simp only [resolveD]
+    split
+    · exact .nil
     show (match genD ds .key with
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select .key (resolvePairs ds b here arms)
@@ -3643,6 +3833,8 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace ihr := fun p r hm => @And.left _ _ (ihr p r hm)
     replace ihd := fun e he => @And.left _ _ (ihd e he)
     simp only [resolveD]
+    split
+    · exact .nil
     show (match genD ds (.lit sc) with
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select (.lit sc) (resolvePairs ds b here arms)
@@ -3876,13 +4068,14 @@ theorem selectArm_next {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × 
 none the selection is `nil`: an error, not an empty answer. -/
 theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
 
-/-- A `filter` read at a position over a list keeps the elements its
-condition takes as the terms they are, in their order, but a marked one
-and absence, the condition read for each element it tries, at the index
-the element takes among those kept, carrying the moves its source
-holds. -/
+/-- A `filter` read at a position over a list that holds no conflict
+keeps the elements its condition takes as the terms they are, in their
+order, but a marked one and absence, the condition read for each
+element it tries, at the index the element takes among those kept,
+carrying the moves its source holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
     {items : List Val} {sp : Option Val} {cl : Bool}
+    (hc : ds.clashes (resolveD ds b (some pos) s) = false)
     (hw : ds.filterWaits (resolveD ds b (some pos) s) = false)
     (hl : (normaliseD ds (resolveD ds b (some pos) s)).unride = .list items sp cl) :
     resolveD ds b (some pos) (.filter s c) =
@@ -3890,7 +4083,7 @@ theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s 
         filterTakes ds (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c) v) 0 (filterItems items))
         none false).rideMoves (resolveD ds b (some pos) s).moves := by
   rw [resolveD.eq_def]
-  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw, hl]
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hc, hw, hl]
 
 /-- A `filter` read at a position over a scalar, which has no members, is
 `nil`: an error. -/
@@ -3902,7 +4095,9 @@ theorem resolveD_filter_scalar {ds : Decls} {b : Option Val} {pos : List Step} {
     simp [Decls.filterWaits, h]
   rw [resolveD.eq_def]
   simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw, hn, h]
-  cases x <;> rfl
+  split
+  · rfl
+  · cases x <;> rfl
 
 /-! ## The folds
 
@@ -4033,111 +4228,6 @@ theorem Number.greatest_highest {xs : List Number} {x y : Number} (h : Number.gr
 
 /-! ## Ill-formed terms -/
 
-/-- Whether the arms the rank rule picks single out two different
-values: a preference clash, where a positive rank is picked. -/
-def clash (arms : List (ℕ × Val)) : Bool :=
-  match pickRank arms with
-  | none => false
-  | some _ =>
-    match (arms.filter (picked arms)).filterMap fun p => gen p.2 with
-    | [] => false
-    | x :: rest => rest.any fun y => decide (y ≠ x)
-
-/-- The members a container literal generates: each position of a list,
-each required key of a map, and each optional key whose value generates
-something but an empty map or list, as the reference's `len` counts what
-generates. -/
-def Val.genCount : Val → Option ℕ
-  | .list items _ _ => some items.length
-  | .map fs _ _ => some (fs.countP fun f => !f.2.1 || (gen f.2.2).any fun x => !x.emptyBag)
-  | _ => none
-
-mutual
-/-- A size with its lower ends dropped and an exact size read as its
-upper end: the half the meet decides against a literal's count, since
-members only accumulate. -/
-def Val.upperHalf : Val → Val
-  | .min _ | .above _ => .any
-  | .lit (.num x) => .max (.num x)
-  | .meet a b => .meet a.upperHalf b.upperHalf
-  | .or arms => .or (upperArms arms)
-  | v => v
-
-def upperArms : List (ℕ × Val) → List (ℕ × Val)
-  | [] => []
-  | (r, a) :: arms => (r, a.upperHalf) :: upperArms arms
-end
-
-/-- Whether a term is a map or a list, through its riders: a member the
-meet counts whatever it holds, as both ports count a container. -/
-def Val.bagLike : Val → Bool
-  | .map _ _ _ | .list _ _ _ => true
-  | .ride _ v _ => v.bagLike
-  | .link v _ => v.bagLike
-  | _ => false
-
-/-- The members a container literal holds where the meet reads it, as
-both ports read them there: each position of a list and each key of a
-map but a marked one, and an optional key only where its value
-generates something but an empty map or list, each read under the
-declarations `ds`. None where a member it requires is no container and
-generates nothing yet, whose reading waits for it. -/
-def Val.meetMembers (ds : Decls) : Val → Option (List Val)
-  | .list items _ _ =>
-    (items.filter fun v => !v.marked).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
-  | .map fs _ _ =>
-    ((fs.filter fun f => !f.2.2.marked && (!f.2.1 || (genD ds f.2.2).any fun x => !x.emptyBag)).map
-      (·.2.2)).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
-  | _ => none
-
-/-- Whether two of the members are written alike (`Val.beq`). -/
-def dupAlike : List Val → Bool
-  | [] => false
-  | x :: xs => xs.any x.beq || dupAlike xs
-
-/-- A map's member at the key `k`, through its riders. -/
-def Val.keyVal (k : String) : Val → Option Val
-  | .map fs _ _ => (fs.find? (·.1 == k)).map (·.2.2)
-  | .ride _ v _ => v.keyVal k
-  | .link v _ => v.keyVal k
-  | _ => none
-
-/-- Whether an atom refuses, where the meet reads them, the members of a
-container literal: a size whose upper half refuses their count,
-`unique()` where two are written alike, `unique("k")` where one is no
-map holding `k` or two hold it alike, and `contains(c, n)` where `n`'s
-upper half refuses the count of those that generate a value `c` admits,
-each read under the declarations `ds`, so that a name `c` holds reads
-as its body. -/
-def Val.refusesAtMeet (ds : Decls) (ms : List Val) : Val → Bool
-  | .len c => if h : IntegerLeaf ms.length then !checkR ds c.upperHalf (.num (.integer ⟨ms.length, h⟩)) else false
-  | .unique none => dupAlike ms
-  | .unique (some k) => ms.any (fun m => (m.keyVal k).isNone) || dupAlike (ms.filterMap (·.keyVal k))
-  | .contains c n =>
-    if h : IntegerLeaf (ms.countP fun m => (genD ds m).any (checkR ds c)) then
-      !checkR ds n.upperHalf (.num (.integer ⟨ms.countP fun m => (genD ds m).any (checkR ds c), h⟩))
-    else false
-  | _ => false
-
-/-- Whether the conjuncts of a meet hold an atom that refuses the members
-of their container literals, met, where the meet reads them
-(`Val.meetMembers`), as both ports refuse at the meet: a literal too
-long for its size (decision 9 of the design note's §7), two members
-alike under `unique`, and more members than `contains` counts. A literal
-short of its size is tried at generation, after the fills. -/
-def meetClash (ds : Decls) (cs : List Val) : Bool :=
-  match ((cs.filter fun v => v.genCount.isSome).foldl meet .any).meetMembers ds with
-  | none => false
-  | some ms => cs.any (·.refusesAtMeet ds ms)
-
-/-- Whether a size, the argument of `len`, holds a choice once in normal
-form: `len` takes a conjunction of integers, bounds, exclusions and
-multiples, as both ports read it, so that `len(1 | 3)`, `len(*1)` and
-`len(type(1 | 3))` are ill-formed, and a choice the meet or a dead arm
-settles to one arm, `len(1 & (1 | 3))` or `len(1 | (1 & 2))`, is that
-arm's size (decision 16 of the design note's §7). -/
-def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
-
 mutual
 /-- Whether a term holds a hole that nothing binds where it is written,
 `h` naming the declarations whose bodies hold one (`Decls.holeNames`):
@@ -4243,83 +4333,6 @@ def tmplPairs (h : String → Bool) : List (Val × Val) → Bool
 def tmplCovers (h : String → Bool) : List Cover → Bool
   | [] => false
   | (c, k, m) :: cs => tmplOpt h c || tmplOpt h k || tmplOpt h m || tmplCovers h cs
-end
-
-mutual
-/-- Whether a term in normal form does not stand: a `nil` anywhere but
-in a spread, which the engines read only against a member, and the one
-a document writes, which stands (`Val.void`, ruling 54), a
-preference clash, a size that holds a disjunction or a preference, and
-a call the reading could not make. A `+`, a `join` and a `pref` that
-the reading leaves as written stand where their arguments do and they
-have as many as they take. A hole that nothing binds is read before
-this (`Decls.illFormedR`). The verdict reads it of a term staged
-(`Val.staged`), so that a conflict the meet finds is a `nil`. -/
-def Val.illFormed : Val → Bool
-  | .nil => true
-  | .len c => c.sizeIll
-  | .map fs _ _ => illFields fs
-  | .list items _ _ => illItems items
-  | .or arms => clash arms || illArms arms
-  | .pref _ x => x.illFormed
-  | .meet a b => a.illFormed || b.illFormed
-  | .ride .void _ _ => false
-  | .ride _ v _ => v.illFormed
-  | .link v _ => v.illFormed
-  | .call .plus args => args.length != 2 || illItems args
-  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
-  | .call .pref args => args.length != 1 || illItems args
-  | .call _ _ => true
-  | .select _ arms _ => illPats arms
-  | _ => false
-
-def illFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.illFormed || illFields fs
-
-def illItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.illFormed || illItems vs
-
-def illArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.illFormed || illArms arms
-
-def illPats : List (Val × Val) → Bool
-  | [] => false
-  | (p, _) :: ps => p.illFormed || illPats ps
-end
-
-mutual
-/-- A term in normal form with each meet whose conjuncts clash
-(`meetClash`) read as `nil`, and each arm so read dropped (`mkOr`), as
-is each arm that does not stand (`Val.illFormed`): the conflicts both
-ports find at the meet, an arm's the arm's alone, and a member's its
-container's, and an arm that does not stand the arm's alone too, as
-both ports drop it. An arm is read with the arms it stands for
-flattened in (`flattenArm`), so that a preference clash between them
-stays the disjunction's. -/
-def Val.staged (ds : Decls) : Val → Val
-  | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
-  | .map fs spread closed => .map (stagedFields ds fs) spread closed
-  | .list items spread closed => .list (stagedItems ds items) spread closed
-  | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
-  | .pref r x => .pref r (x.staged ds)
-  | .ride k v r => .ride k (v.staged ds) r
-  | .link v lt => .link (v.staged ds) lt
-  | v => v
-
-def stagedFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
-  | [] => []
-  | (k, o, v) :: fs => (k, o, v.staged ds) :: stagedFields ds fs
-
-def stagedItems (ds : Decls) : List Val → List Val
-  | [] => []
-  | v :: vs => v.staged ds :: stagedItems ds vs
-
-def stagedArms (ds : Decls) : List (ℕ × Val) → List (ℕ × Val)
-  | [] => []
-  | (r, a) :: arms => (r, a.staged ds) :: stagedArms ds arms
 end
 
 theorem mem_stagedFields {ds : Decls} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val}
@@ -4882,6 +4895,8 @@ theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {pos : List Ste
     simp [Decls.filterWaits, hx]
   rw [resolveD.eq_def]
   simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw]
+  split
+  · exact .nil
   split
   · next fs sp cl heq =>
     rw [heq] at hn
