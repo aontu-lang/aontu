@@ -1586,6 +1586,8 @@ continue
 
 ```text
 Merge, report status of the lean spec
+```
+
 ## 2026-11-20 23:25:29 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
 
 ```text
