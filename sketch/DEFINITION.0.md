@@ -11,7 +11,8 @@ generated fragment, `test/spec/def-bounds.tsv`, on which both ports
 agree with the definition on every row, and `re` and `format` the same
 day as the opaque predicates of a `Host` the definition names and never
 defines; the read modes wait on the verdicts (P5), and how each reads
-a number is ruled (decisions 70 and 71). P2 PARTIAL: `|`
+a number the data writes is built (decisions 70 and 71), a literal past
+the exactness budget remaining. P2 PARTIAL: `|`
 with each arm's rank, `*` alone as `x | super(x)` with `super` a
 function on terms, the positional reading as the reader's, and sealed
 lists landed 2026-10-18, probed against both ports first and run as the
@@ -433,7 +434,7 @@ documents only.
 | Phase | Lands | Exit |
 |---|---|---|
 | **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job, `build.yml`'s `spec`, applied 2026-10-18 from `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about two minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
-| **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`; on 2026-10-18 aontu's own data: numbers in the four leaves, strings, maps and lists with unique keys, paths), and the two read modes, which stay parameters (§7, decision 5): the data holds every leaf either mode reads, and stating each mode's reading remains; the four numeric leaves (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`; `float`, `biginteger`, and `bigdecimal` **LANDED 2026-10-18**, as kinds and literals); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, numbers of every leaf **LANDED 2026-10-18**); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `mulof`, `unique` (`min`, `max`, and `mulof` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
+| **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`; on 2026-10-18 aontu's own data: numbers in the four leaves, strings, maps and lists with unique keys, paths), and the two read modes, which stay parameters (§7, decision 5): the data holds every leaf either mode reads, and each mode's reading of a number the data writes is stated, `NumText.read` in `spec/Aontu/Read.lean` (decisions 70 and 71, built 2026-11-21), a literal past the exactness budget remaining; the four numeric leaves (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`; `float`, `biginteger`, and `bigdecimal` **LANDED 2026-10-18**, as kinds and literals); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, numbers of every leaf **LANDED 2026-10-18**); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `mulof`, `unique` (`min`, `max`, and `mulof` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17, but for a preference arm over a map or a list, which both engines let fall back to its parent type until 2026-11-05, #637 and #365); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite. On 2026-10-22 a path resolves in the schema read with its calls made (`Decls.Resolves` over `Decls.readU`, the root the paths read from), so that a path into a call's output resolves, as both ports read it; rows pc0 on in `test/spec/def-path.tsv`. The same day the definition reads the roots in rounds (`Decls.rounds`, `Decls.rootsS`, `Decls.rootsD`), each round declaring each path as the term at it in the first root before that reaches it (`Decls.pathIn`), as many rounds as the document writes paths, so that a path into what a call over a path makes resolves, as both ports read it; rows rn0 on | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | **LANDED 2026-10-19**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; `nof` and `must` inside values, with ADR-055 and ADR-049's `not` as theorems, as the eighth generated fragment, `test/spec/def-trial.tsv`, **landed 2026-10-19**; refusal at generation, decision 8 of §7, **landed 2026-10-19**; `when` inside values, with ADR-050 as theorems (`judge_when_iff`, `when_nil_refuses`), **landed 2026-10-19**; `contains` inside values, with ADR-051 as theorems (`judge_contains_empty`, `contains_refuses_scalar`), **landed 2026-10-19**; `rest` inside values, with ADR-058 as theorems (`rest_admits_scalar`, `rest_nil_closes`), **landed 2026-10-19**; `match` and `filter` as selections made once a document is read (`resolveD`, `Decls.readR`), with the language's rules as theorems (`selectArm_first`, `selectArm_next`, `selectArm_default`, `resolveD_filter_list`, `resolveD_filter_scalar`), **landed 2026-10-19** | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
@@ -449,8 +450,8 @@ documents only.
 The phases from P8 on, drafted 2026-10-20, take the definition from
 the value language to the whole of it, each placed after what it rests
 on. The open items of P1 to P5 come before them:
-each read mode's reading of a number (P1, ruled 2026-11-21 as
-decisions 70 and 71), `open()` and the way out of
+a literal past the exactness budget (P1, decision 70; how each read
+mode reads a number the data writes was built 2026-11-21), `open()` and the way out of
 a `type()` seal it gives (P2), two
 recursions of one shape under different names (P5), decisions 16 to
 18 and 21 to 28, each ruled on 2026-10-23 and to be built as §7 records
@@ -2792,8 +2793,14 @@ until the phase that encodes it lands.
    project's owner): the definition carries it.** A `bigdecimal` past
    the budget is no value: a literal or a computed result past it is a
    conflict, and data that `--exact-numbers` reads past it is refused,
-   `invalid`, as both ports answer. **Not yet built**: the definition
-   moves; neither port does.
+   `invalid`, as both ports answer. **Built for the data 2026-11-21**:
+   `NumText.readExact` in `spec/Aontu/Read.lean` refuses a number past
+   the budget, `vetText` in `spec/Aontu/Verdict.lean` reads data that
+   writes one as `invalid`, and rows from n0 on of
+   `test/spec/def-verdict.tsv` hold both ports to it; `Fn.onDecimals`
+   in `spec/Aontu/Arith.lean` already refused a computed result past
+   it. **Not yet built**: a literal past the budget, which the
+   definition still reads as a value. Neither port moves.
 71. **How the default mode reads a number.** Raised 2026-11-21 with
    decision 70. Without `--exact-numbers`, both ports read a number in
    the data as these cases show: `1e2`, `2^53` and `1e-5000`, whose
@@ -2803,9 +2810,11 @@ until the phase that encodes it lands.
    `lossy_integer_literal`, and `1e400`, beyond the double's range, as
    `not_number`, each `invalid`. Under `--exact-numbers` each reads
    exactly, within decision 70's budget. **Ruled 2026-11-21 (the
-   project's owner): as the ports read.** **Not yet built**: the
-   definition states each mode's reading, the last item of P1; neither
-   port moves.
+   project's owner): as the ports read.** **Built 2026-11-21**:
+   `NumText.read` in `spec/Aontu/Read.lean` states both readings, and
+   `vetText` in `spec/Aontu/Verdict.lean` reads data as written by
+   them, with rows from n0 on of `test/spec/def-verdict.tsv`, on which
+   both ports answer as the definition does. Neither port moved.
 72. **The edges a default brings.** Raised 2026-11-21 by P11's graph
    atoms. Both ports check `acyclic()` and `inverse(k)` on the value
    evaluation ends with, before generation takes a default, so

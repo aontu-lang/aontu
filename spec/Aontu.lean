@@ -10,6 +10,7 @@ import Aontu.Subsume
 import Aontu.Meet
 import Aontu.Output
 import Aontu.Written
+import Aontu.Read
 import Aontu.Verdict
 import Aontu.Trial
 import Aontu.Check
