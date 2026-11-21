@@ -490,7 +490,7 @@ each is now an issue.
   binds a value from the command line with `-t name=value` into a field
   marked `@tag(name)`.
 
-Three defects surfaced too, and each is an issue:
+Four defects surfaced too, and each is an issue:
 
 - a `match` whose pattern is a relative reference overflows the
   TypeScript stack, and one whose pattern is a bound over it is
@@ -500,6 +500,11 @@ Three defects surfaced too, and each is an issue:
   inside a trial, in both ports: `filter($.xs, length(3))`, with the
   retired name, answers `[]`
   ([#870](https://github.com/aontu-lang/aontu/issues/870));
+- in TypeScript, a `maybe` of a relative reference never resolves as a
+  second or later argument of a call in a written field, where Go
+  answers: `x: { b: 2, d: sub(5, maybe(.b)) }` is `mapval_no_gen`
+  there, where Go answers `d: 3`
+  ([#871](https://github.com/aontu-lang/aontu/issues/871));
 - `llms.txt` and the language-server page count 68 built-ins, where the
   declarations hold 72
   ([#869](https://github.com/aontu-lang/aontu/issues/869)).

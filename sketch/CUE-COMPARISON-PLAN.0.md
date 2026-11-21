@@ -76,7 +76,7 @@ Sizes use the register's scale: S, M and L.
 | C3 | `index(up?)`: a position as an integer | built-in | C0 | S |
 | C4 | `range(n)`: a loop driven by a number, under a budget | built-in | C0 | S |
 | C5 | `outer(up?)`: the member of an enclosing generator | built-in | C0, C1 | M |
-| C6 | Fix the four defects on these routes: [#754](https://github.com/aontu-lang/aontu/issues/754), [#850](https://github.com/aontu-lang/aontu/issues/850), [#868](https://github.com/aontu-lang/aontu/issues/868), [#870](https://github.com/aontu-lang/aontu/issues/870) | fix | nothing | M |
+| C6 | Fix the five defects on these routes: [#754](https://github.com/aontu-lang/aontu/issues/754), [#850](https://github.com/aontu-lang/aontu/issues/850), [#868](https://github.com/aontu-lang/aontu/issues/868), [#870](https://github.com/aontu-lang/aontu/issues/870), [#871](https://github.com/aontu-lang/aontu/issues/871) | fix | nothing | M |
 | C7 | Pin today's routes as shared rows, so each addition is held to the answer its route gives now | guard | nothing | S |
 | C8 | A how-to guide that maps each comprehension idiom to aontu, every entry executed | docs | C7 | M |
 
@@ -110,7 +110,10 @@ key `k` spells, in a list the member at the index it spells. More keys
 step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key is read
 as its value, so it can be computed: a relative path, `key()`, a sum,
 another `at`. The answer is a copy, as a reference's is. A step that
-names nothing is refused as a path's is, and `maybe(at(…))` is absence.
+names nothing is refused as a path's is. `maybe` forgives a reference
+at the top of its argument and no call, so `maybe(upper($.gone))` is
+`no_path` today. `at` counts as a reference there, and `maybe(at(…))`
+is absence where a step names nothing.
 
 This one built-in is both a field of the member, `at(_, port)`, and a
 lookup, `at($.teams, .team)`.
@@ -238,14 +241,16 @@ pairs: each($.ks, { k: _, y: at($.ys, key()) })
    it as a call. `member` and `get` are the others; `get` is already
    two verbs of the command line.
 2. **A member that isn't there.** Recommended: refused as `no_path`, and
-   absence under `maybe`, as a path is. The other reading is absence
-   outright.
+   absence under `maybe`, as a path is. That makes `at` a reference
+   under `maybe`'s rule, which `maybeOf` in the definition would then
+   say. The other reading is absence outright.
 3. **A marked member.** Recommended: `at` reads a `hide()` or `type()`
    member as a path does. The other reading skips it, as a bag reader
    does.
-4. **An index from the end.** Recommended: `at(xs, -1)` is refused, and
-   a count with `sub` reaches the last member. The other reading counts
-   from the end.
+4. **An index from the end.** Recommended: `at(xs, -1)` names nothing
+   and is `no_path`, as the path `$.xs.-1` is today, and a count with
+   `sub` reaches the last member. The other reading counts from the
+   end.
 
 ## C2: a key for each child of `pack`
 
@@ -429,8 +434,15 @@ nodes: each(range($.n), "node-" + _)
     `range(n, max)`, where the document writes its own bound and a
     larger `n` is refused, or keeping the refusal, with the written
     list as the documented route.
-11. **The budget.** Its name, its size, and whether it is one of
-    `trust.budget`'s numbers that a host may raise.
+11. **The budget.** Recommended: a fourth number of `trust.budget`,
+    `range`, that counts the members every `range` of one evaluation
+    makes, as `trials` counts trials. It defaults to 100000, as
+    `trials` does, a host may raise it, and past it the code is
+    `range_budget`, pinned from both sides in `test/spec/budget.tsv`.
+    For scale, `each` over a written list of 100000 numbers took 3.6
+    seconds in TypeScript and 1.7 in Go on the machine that ran the
+    probes. The other readings are a smaller default, or a count for
+    each call.
 
 ## C5: the member of an enclosing generator
 
@@ -492,7 +504,7 @@ byteam: pack($.xs, pick(filter($.xs, { team: at(outer(), team) }), name), at(_, 
 
 ## C6: the defects on these routes
 
-Four open issues sit on the routes above. They are defects, so they
+Five open issues sit on the routes above. They are defects, so they
 are issues and not designs:
 
 - [#754](https://github.com/aontu-lang/aontu/issues/754): in a member a
@@ -508,12 +520,18 @@ are issues and not designs:
   refused at parse, an unknown name or a wrong count, is silent inside
   a trial, in both ports. `filter($.xs, length(3))`, with the retired
   name, answers `[]`.
+- [#871](https://github.com/aontu-lang/aontu/issues/871): in
+  TypeScript, a `maybe` of a relative reference never resolves as a
+  second or later argument of a call in a written field, where Go
+  answers. `x: { b: 2, d: sub(5, maybe(.b)) }` is `mapval_no_gen`
+  there, and with a climb the answer is a silent absence.
 
 Each fix lands with the shared row that pins it. They matter more once
 C1 and C5 make conditions inside generated members common. #870 bears
 on every built-in here: until it is fixed, a name that becomes a
 built-in changes the answer of any document that holds it in a trial
-today, with no finding before or after.
+today, with no finding before or after. #871 sits where C1 and C3 put
+an optional lookup, a `maybe` as a later argument of a call.
 
 ## C7: pin today's routes
 
