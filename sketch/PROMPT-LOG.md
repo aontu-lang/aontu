@@ -1593,3 +1593,9 @@ Merge, report status of the lean spec
 ```text
 Prepare a plan to improve aontu based on the analysis of the latest version of cue  - instead of filing issues define tasks in the plan - include the suggestions above. Do file GitHub issues fit actual defects. To start, only plan for the improvers needed to provide similar functionality to comprehensions. Include actual code examples in both cue and aontu - show them here
 ```
+
+## 2026-11-21 05:51:49 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+List the other differences again
+```
