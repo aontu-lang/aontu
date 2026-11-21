@@ -1564,6 +1564,18 @@ The answers to the agent's questions, each question followed by the option chose
 start phase 2
 ```
 
+## 2026-11-20 17:50:04 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+work in aontu, and [redacted: session set-up]; review the current version of the cue language https://cuelang.org/ and compare its features to aontu
+```
+
+## 2026-11-20 19:36:52 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+file issues for the three gaps; what can cue do with comprehensions that aontu cannot without them
+```
+
 ## 2026-11-20 17:55:34 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 ```text
@@ -1574,4 +1586,8 @@ continue
 
 ```text
 Merge, report status of the lean spec
+## 2026-11-20 23:25:29 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Prepare a plan to improve aontu based on the analysis of the latest version of cue  - instead of filing issues define tasks in the plan - include the suggestions above. Do file GitHub issues fit actual defects. To start, only plan for the improvers needed to provide similar functionality to comprehensions. Include actual code examples in both cue and aontu - show them here
 ```
