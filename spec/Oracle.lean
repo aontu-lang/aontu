@@ -5162,6 +5162,129 @@ theorem eager_verdict_exact : ∀ c ∈ eagerCases, ∀ (m : Mode) (v : Verdict)
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (eagerCases_checkable c hc).1 (eagerCases_checkable c hc).2 v
 
+/-- The same arguments holding a conflict below their top, which both
+ports read as the schema's error too (decision 62 of the design note's
+§7, #535): at an optional member, a nested one and a position; the
+conflicts the meet finds, a list too long for its size and two members
+alike under `unique()`, at the top and at an optional member; a
+preference clash and a size that holds a choice; a call the reading
+could not make; and a trial that holds one. So `must`'s condition, a
+size, the counts of `nof` and `contains`, a selection's scrutinee and a
+`filter`'s source, and a list's marked element; beside an arm holding
+one, which drops, in an argument and holding the trial; a spread
+holding one, which refuses only a member it's tried on; a body nothing
+reads and an optional key, which are errors too; the arguments both
+read later, `when`'s condition, a branch of `nof` and the condition of
+`contains`, which a conflict below their top doesn't make an error; and
+a written `nil` there, which stands. -/
+def deepEagerCases : List (Decls × Val × Data) :=
+  let c12 : Val := .meet (int 1) (int 2)
+  let mu (c : Val) : Val := .must c "m"
+  let opt (v : Val) : Val := mo [("b", true, v)]
+  let long : Val := .meet (.len (int 1)) (lst [int 1, int 2])
+  let twins : Val := .meet (.unique none) (lst [int 1, int 1])
+  let clash2 : Val := .or [(1, int 1), (1, int 2)]
+  let x1 : Val := m [("x", int 1)]
+  let dx : Data := .map [("v", .map [("x", .integer 1)])]
+  let d0 : Data := .map [("v", .map [])]
+  let dv : Data := .map [("v", .integer 1)]
+  [([], m [("v", mu (opt c12))], dx),
+    ([], m [("v", mu (opt (opt c12)))], dx),
+    ([], m [("v", mu (lst [c12]))], dx),
+    ([], m [("v", mu long)], dx),
+    ([], m [("v", mu twins)], dx),
+    ([], m [("v", mu (opt twins))], dx),
+    ([], m [("v", mu clash2)], dx),
+    ([], m [("v", mu (opt clash2))], dx),
+    ([], m [("v", mu (mo [("x", true, .len (.or [(0, int 1), (0, int 3)]))]))], dx),
+    ([], m [("v", mu (mo [("x", true, .call .add [str "a", int 1])]))], dx),
+    ([], m [("v", mu (mu c12))], dx),
+    ([], m [("v", mu (opt (mu c12)))], dx),
+    ([], m [("v", .len (opt c12))], dx),
+    ([], m [("v", .len twins)], dx),
+    ([], m [("v", .nof twins [x1])], dx),
+    ([], m [("v", .contains x1 long)], dx),
+    ([], m [("v", .select (opt c12) [(m [], int 3)] none)], dv),
+    ([], m [("v", .select long [(lst [], int 3)] (some (int 4)))], dv),
+    ([], m [("v", .filter (mo [("a", false, int 1), ("b", true, c12)]) (int 1))],
+      .map [("v", .map [("a", .integer 1)])]),
+    ([], m [("v", .filter twins (int 1))], dx),
+    ([], m [("v", lst [type (opt c12), int 1])], dx),
+    ([], m [("v", mu (.or [(0, x1), (0, mo [("x", false, int 1), ("b", true, c12)])]))], dx),
+    ([], m [("v", .or [(0, mu (opt c12)), (0, int 4)])], .map [("v", .integer 4)]),
+    ([], m [("v", .map [] (some (mu (opt c12))) false)], d0),
+    ([], m [("v", .map [] (some (mu (opt c12))) false)], .map [("v", .map [("a", .integer 1)])]),
+    ([], m [("v", mu (.map [] (some c12) false))], dx),
+    ([], m [("v", mu (.map [] (some c12) false))], d0),
+    ([("T", mu (opt c12))], m [("v", int 1)], dv),
+    ([], m [("v", mo [("a", true, mu (opt c12))])], d0),
+    ([], m [("v", .call .each [lst [int 1], mu (opt c12)])], .map [("v", .list [.integer 1])]),
+    ([], m [("v", .when (opt c12) x1 none)], dx),
+    ([], m [("v", .nof (int 1) [opt c12, x1])], dx),
+    ([], m [("v", .contains (opt c12) (int 1))], dx),
+    ([], m [("v", mu (mo [("b", false, Val.void)]))], dx),
+    ([], m [("v", mu (lst [Val.void]))], dx)]
+
+set_option maxRecDepth 8192 in
+theorem deepEagerCases_checkable : ∀ c ∈ deepEagerCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem deep_eager_verdict_exact : ∀ c ∈ deepEagerCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (deepEagerCases_checkable c hc).1 (deepEagerCases_checkable c hc).2 v
+
+/-- A written `nil` below the top of `must`'s condition, which ruling 54
+reads where it stands: at an optional member, a `b` the value must
+leave out, against data without it, with nothing and with it; in an
+arm, which refuses every value; and met with a value, which stays a
+written `nil`; beside one in a branch of `nof`. Both ports refuse
+every value where the condition holds one, so the rows they answer
+otherwise are in the ledger under #894. -/
+def voidBelowCases : List (Decls × Val × Data) :=
+  let mu (c : Val) : Val := .must c "m"
+  let opt (v : Val) : Val := mo [("b", true, v)]
+  let dx : Data := .map [("v", .map [("x", .integer 1)])]
+  [([], m [("v", mu (opt Val.void))], dx),
+    ([], m [("v", mu (opt Val.void))], .map [("v", .map [])]),
+    ([], m [("v", mu (opt Val.void))], .map [("v", .map [("b", .integer 1)])]),
+    ([], m [("v", mu (.or [(0, m [("x", int 1)]), (0, m [("x", Val.void)])]))], dx),
+    ([], m [("v", mu (opt (.meet Val.void (int 1))))], dx),
+    ([], m [("v", .nof (int 0) [opt Val.void])], dx)]
+
+theorem voidBelowCases_checkable : ∀ c ∈ voidBelowCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem void_below_verdict_exact : ∀ c ∈ voidBelowCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (voidBelowCases_checkable c hc).1 (voidBelowCases_checkable c hc).2 v
+
+/-- A path in `must`'s condition into the value under trial, `$.v.x`
+under `v`, which names nothing in the schema alone: through a call,
+which the reading can't make, a conflict in the argument, against
+data that agrees and data that doesn't; beside a required member the
+data leaves out; and alone; beside a path to a field of the schema's
+own. Both ports leave such a path unread, and the rows they answer
+otherwise are in the ledger under #895. -/
+def selfPathCases : List (Decls × Val × Data) :=
+  let mu (c : Val) : Val := .must c "m"
+  let vx : Val := .path [.key "v", .key "x"]
+  let vn : Val := .path [.key "v", .key "name"]
+  let dn (x : String) : Data := .map [("v", .map [("x", .str x), ("name", .str "a")])]
+  let dx : Data := .map [("v", .map [("x", .integer 1)])]
+  [([], m [("v", mu (m [("x", .call .upper [vn])]))], dn "A"),
+    ([], m [("v", mu (m [("x", .call .upper [vn])]))], dn "B"),
+    ([], m [("v", mu (m [("x", int 1), ("y", vx)]))], dx),
+    ([], m [("v", mu (m [("x", vx)]))], dx),
+    ([], m [("v", mu (m [("x", int 1), ("y", .path [.key "w"])])), ("w", int 1)],
+      .map [("v", .map [("x", .integer 1)]), ("w", .integer 1)])]
+
+theorem selfPathCases_checkable : ∀ c ∈ selfPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem self_path_verdict_exact : ∀ c ∈ selfPathCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (selfPathCases_checkable c hc).1 (selfPathCases_checkable c hc).2 v
+
 /-- `contains` over a recursive name met with a list, which the meet
 counts reading the name as its body, as both ports do: a member that
 matches, beside a count that admits it and one that refuses it, against
@@ -8683,12 +8806,18 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# the position of the item, follows in rows y0 on, contains over a recursive"
     IO.println "# name, which the meet reads as its body, in rows tc0 on, and a trial with a"
     IO.println "# dead argument both ports read as they build it in rows te0 on. A trial over a"
-    IO.println "# disjunction admits what any arm admits, whatever its rank, in rows ta0 on."
+    IO.println "# disjunction admits what any arm admits, whatever its rank, in rows ta0 on, and"
+    IO.println "# an argument both ports read as they build it, with a conflict below its top, in"
+    IO.println "# rows td0 on. A written nil below the top of must's condition follows in rows"
+    IO.println "# tn0 on, and a path in must's condition into the value under trial in rows tq0 on."
     trialRows "t"
     trialRows "y" keyCases
     trialRows "tc" meetNameCases
     trialRows "te" eagerCases
     trialRows "ta" armTrialCases
+    trialRows "td" deepEagerCases
+    trialRows "tn" voidBelowCases
+    trialRows "tq" selfPathCases
     return 0
   | ["calls"] =>
     IO.println "# Generated by `lake exe oracle calls` (spec/Oracle.lean) from the definition"
