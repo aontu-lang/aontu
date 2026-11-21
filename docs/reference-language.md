@@ -498,6 +498,16 @@ approximated.
 `biginteger` has no scale and no coefficient bound: a whole number of
 ten thousand digits is an ordinary value.
 
+In the definition the budget is part of the type: `BigDecimal` in
+[`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) holds only the big
+decimals within it, so a big decimal past the budget is no value. A
+computed answer past the budget is none (`BigDecimal.normal` in
+[`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean)), and so is a
+number the data writes that `--exact-numbers` reads past it
+(`NumText.readExact` in [`spec/Aontu/Read.lean`](../spec/Aontu/Read.lean)).
+A literal's check against its source as written, before normalisation,
+is its reader's, as the rest of the text is.
+
 ### Unification rules
 
 - **kind & matching scalar → the scalar.** `number & 2` → `2`;

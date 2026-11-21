@@ -32,7 +32,7 @@ def Number.inLeafOf (x : Number) (c e : ℤ) : Option Number :=
   | .float _ =>
     (if 0 ≤ e then Float.nearest (c * 10 ^ e.toNat) 1
       else Float.nearest c (10 ^ (-e).toNat)).map .float
-  | .bigdecimal _ => some (.bigdecimal (BigDecimal.normal c (-e)))
+  | .bigdecimal _ => (BigDecimal.normal c (-e)).map .bigdecimal
   | .biginteger _ => some (.biginteger ⟨c * 10 ^ e.toNat⟩)
   | .integer _ =>
     if h : IntegerLeaf (c * 10 ^ e.toNat) then some (.integer ⟨c * 10 ^ e.toNat, h⟩)
@@ -56,9 +56,11 @@ theorem Number.significant_of_le {n : ℕ} {x : Number} (h : ndigits x.digits.1.
   unfold Number.significant
   exact if_pos h
 
-/-- Every leaf but `float` holds the number asked of it. -/
-theorem Number.inLeafOf_isSome (x : Number) (c e : ℤ) (h : ∀ f, x ≠ .float f) :
-    (x.inLeafOf c e).isSome = true := by
+/-- Every leaf but `float` and `bigdecimal` holds the number asked of
+it: a float stops at the double's range, and a big decimal at the
+exactness budget. -/
+theorem Number.inLeafOf_isSome (x : Number) (c e : ℤ) (h : ∀ f, x ≠ .float f)
+    (hb : ∀ d, x ≠ .bigdecimal d) : (x.inLeafOf c e).isSome = true := by
   cases x with
   | float f => exact absurd rfl (h f)
   | integer i =>
@@ -67,17 +69,18 @@ theorem Number.inLeafOf_isSome (x : Number) (c e : ℤ) (h : ∀ f, x ≠ .float
       else some (Number.biginteger ⟨c * 10 ^ e.toNat⟩)).isSome = true
     split <;> rfl
   | biginteger b => rfl
-  | bigdecimal b => rfl
+  | bigdecimal d => exact absurd rfl (hb d)
 
-/-- Only a float has a rounding that its leaf does not hold. -/
-theorem Number.significant_isSome (n : ℕ) (x : Number) (h : ∀ f, x ≠ .float f) :
-    (x.significant n).isSome = true := by
+/-- Only a float or a big decimal has a rounding that its leaf may not
+hold. -/
+theorem Number.significant_isSome (n : ℕ) (x : Number) (h : ∀ f, x ≠ .float f)
+    (hb : ∀ d, x ≠ .bigdecimal d) : (x.significant n).isSome = true := by
   unfold Number.significant
   by_cases hd : ndigits x.digits.1.natAbs ≤ n
   · rw [if_pos hd]
     rfl
   · rw [if_neg hd]
-    exact Number.inLeafOf_isSome x _ _ h
+    exact Number.inLeafOf_isSome x _ _ h hb
 
 /-- How many digits a rounding drops from the decimal a number shows:
 enough to leave `sig` significant digits, or `places` digits after the
@@ -160,14 +163,15 @@ theorem Number.rounded_significant (n : ℕ) (x : Number) :
       Nat.sub_ne_zero_of_lt (Nat.lt_of_not_le hd)
     rw [if_neg hne, if_neg hd, if_neg hne]
 
-/-- Only a float has a rounding that its leaf does not hold. -/
-theorem Number.rounded_isSome (sig places : Option ℕ) (x : Number) (h : ∀ f, x ≠ .float f) :
-    (x.rounded sig places).isSome = true := by
+/-- Only a float or a big decimal has a rounding that its leaf may not
+hold. -/
+theorem Number.rounded_isSome (sig places : Option ℕ) (x : Number) (h : ∀ f, x ≠ .float f)
+    (hb : ∀ d, x ≠ .bigdecimal d) : (x.rounded sig places).isSome = true := by
   unfold Number.rounded
   by_cases hd : x.dropOf sig places = 0
   · rw [if_pos hd]
     rfl
   · rw [if_neg hd]
-    exact Number.inLeafOf_isSome x _ _ h
+    exact Number.inLeafOf_isSome x _ _ h hb
 
 end Aontu
