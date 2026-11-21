@@ -1700,3 +1700,9 @@ Continue
 ```text
 Ask me for rulings
 ```
+
+## 2026-11-21 21:07:15 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Where is the written plan?
+```
