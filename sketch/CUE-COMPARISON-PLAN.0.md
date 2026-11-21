@@ -1,10 +1,11 @@
 # A plan from the CUE comparison
 
-**Status:** Proposal, 2026-11-20. Nothing here is decided or scheduled.
-Each task that adds to the language waits on a ruling, and the rulings
-are the first task. A built-in that is adopted becomes a phase of a gap
-document under `sketch/capability-review/` and a row of the register,
-under the same-commit rule
+**Status:** Ruled, 2026-11-21. The thirteen questions were put to the
+maintainer that day, and each has its ruling beside it and in
+[The rulings](#the-rulings): all five built-ins are adopted. Nothing
+is scheduled. An adopted built-in becomes a phase of a gap document
+under `sketch/capability-review/` and a row of the register, under the
+same-commit rule
 ([capability-review.md](../docs/contributing/capability-review.md)).
 **Basis:** [CUE-COMPARISON.0.md](CUE-COMPARISON.0.md), which compares
 aontu with CUE v0.17.1 and v0.18.0-rc.4, and its section
@@ -21,11 +22,11 @@ v0.18.0-rc.4, and the code under "aontu today" through both engines at
 `main` (`967c5f3`). Each pair gave the same answer, which is printed
 once. Code under "aontu, proposed" is a proposal and doesn't give its
 answer today. Each proposed line was run as well, to see what it does
-now. Ten are refused: as `unknown_function`, as `func_arity` for a
+now. Twelve are refused: as `unknown_function`, as `func_arity` for a
 third argument to `pack`, or as `invalid-arg`, `each_data` or
-`listval_no_gen` where the unknown call is an argument. Two evaluate
-and answer an empty list, because an unknown call in a `filter`
-condition or under `maybe` is silent today
+`listval_no_gen` where the unknown call is an argument. One evaluates
+and answers an empty list, because an unknown call in a `filter`
+condition is silent today
 ([#870](https://github.com/aontu-lang/aontu/issues/870)).
 
 ## What is missing
@@ -64,6 +65,33 @@ key-selector argument" the option not taken: C2 asks for that argument.
 Its question on `_` under nesting left "an explicit depth argument
 mirroring `key(n)`" open as an additive option: C5 is that option.
 
+## The rulings
+
+Ruled by the maintainer on 2026-11-21. Twelve follow the
+recommendation. Question 4 does not: the recommendation was a miss,
+and the ruling counts from the end.
+
+| | Question | Ruling |
+|---|---|---|
+| 1 | The name of the lookup | `at` |
+| 2 | A member that isn't there | refused as `no_path`, and absent under `maybe` |
+| 3 | A marked member | read, as a path reads it |
+| 4 | An index from the end | it counts from the end: `at(xs, -1)` is the last member |
+| 5 | G8's settled question on keying `pack` | reopened: `pack` makes each child's key |
+| 6 | The spelling of the key | an optional third argument |
+| 7 | What the key template may read | `_` and `key(0)` only |
+| 8 | The key's kind | a string only |
+| 9 | A position as a number | `index(up?)` |
+| 10 | A counted loop | `range(n)`, under a new budget |
+| 11 | The budget | `trust.budget.range`, 100000 unless a host raises it, and `range_budget` past it |
+| 12 | G8's open question on nesting | `_` stays innermost, and `outer(up?)` is added |
+| 13 | What counts as a level | every construct that binds `_` |
+
+Three rulings change a decision on record, and each lands with the
+record it changes: ruling 5 reverses the refusal that G8 settled,
+rulings 10 and 11 add a budget to clause 2 of the trust contract, and
+ruling 2 has `maybeOf` in the definition count `at` as a reference.
+
 ## The tasks
 
 Sizes use the register's scale: S, M and L.
@@ -80,8 +108,9 @@ Sizes use the register's scale: S, M and L.
 | C7 | Pin today's routes as shared rows, so each addition is held to the answer its route gives now | guard | nothing | S |
 | C8 | A how-to guide that maps each comprehension idiom to aontu, every entry executed | docs | C7 | M |
 
-C6 and C7 need no ruling and can start now. C1 comes first among the
-built-ins, because C2 and C5 are written with it.
+C0 was done on 2026-11-21, so C1 to C5 no longer wait on it. C6 and
+C7 needed no ruling. C1 comes first among the built-ins, because C2
+and C5 are written with it.
 
 ### What a built-in task delivers
 
@@ -113,7 +142,10 @@ another `at`. The answer is a copy, as a reference's is. A step that
 names nothing is refused as a path's is. `maybe` forgives a reference
 at the top of its argument and no call, so `maybe(upper($.gone))` is
 `no_path` today. `at` counts as a reference there, and `maybe(at(…))`
-is absence where a step names nothing.
+is absence where a step names nothing. A negative position counts
+from the end of a list, which a path step does not: `at(xs, -1)` is
+the last member, and a position before the first member or past the
+last names nothing.
 
 This one built-in is both a field of the member, `at(_, port)`, and a
 lookup, `at($.teams, .team)`.
@@ -237,20 +269,21 @@ pairs: each($.ks, { k: _, y: at($.ys, key()) })
 
 ### Questions for the ruling
 
-1. **The name.** `at` is recommended: it is short, and no document uses
-   it as a call. `member` and `get` are the others; `get` is already
-   two verbs of the command line.
-2. **A member that isn't there.** Recommended: refused as `no_path`, and
-   absence under `maybe`, as a path is. That makes `at` a reference
-   under `maybe`'s rule, which `maybeOf` in the definition would then
-   say. The other reading is absence outright.
-3. **A marked member.** Recommended: `at` reads a `hide()` or `type()`
-   member as a path does. The other reading skips it, as a bag reader
-   does.
-4. **An index from the end.** Recommended: `at(xs, -1)` names nothing
-   and is `no_path`, as the path `$.xs.-1` is today, and a count with
-   `sub` reaches the last member. The other reading counts from the
-   end.
+1. **The name.** Ruled 2026-11-21: `at`. It is short, and no document
+   uses it as a call. `member` and `get` were the others; `get` is
+   already two verbs of the command line.
+2. **A member that isn't there.** Ruled 2026-11-21: refused as
+   `no_path`, and absence under `maybe`, as a path is. That makes `at`
+   a reference under `maybe`'s rule, which `maybeOf` in the definition
+   then says. The other reading was absence outright.
+3. **A marked member.** Ruled 2026-11-21: `at` reads a `hide()` or
+   `type()` member as a path does. The other reading skipped it, as a
+   bag reader does.
+4. **An index from the end.** Ruled 2026-11-21: it counts from the
+   end, so `at(xs, -1)` is the last member and `at(xs, -2)` the one
+   before it. The recommendation was the other reading, a miss as the
+   path `$.xs.-1` is today. A position further back than the first
+   member is still a miss.
 
 ## C2: a key for each child of `pack`
 
@@ -305,18 +338,19 @@ key(0))`, and an inverted map once each member carries its key.
 
 ### Questions for the ruling
 
-5. **Reopen G8's settled question?** Recommended: yes. Six probes (k10,
-   k11 and k14 to k17) reach a keyed result only by packing over picked
-   keys and looking each member up again. Keeping the refusal leaves
-   that route, documented in C8.
-6. **The spelling.** Recommended: the optional third argument, so
-   there is one keyed generator. The other is a new built-in that takes
+5. **Reopen G8's settled question?** Ruled 2026-11-21: reopened, and
+   `pack` makes each child's key. Six probes (k10, k11 and k14 to k17)
+   reach a keyed result only by packing over picked keys and looking
+   each member up again. Keeping the refusal would have left that
+   route, documented in C8.
+6. **The spelling.** Ruled 2026-11-21: the optional third argument, so
+   there is one keyed generator. The other was a new built-in that took
    the key before the value, as CUE writes `(key): value`.
-7. **What `k` may read.** Recommended: `_` and `key(0)` only. The other
-   reading lets a relative path in `k` name the member's field, as it
-   does in a spread's template.
-8. **The key's kind.** Recommended: a string only, as `pack_key` holds
-   today. The other reading takes a number by its text.
+7. **What `k` may read.** Ruled 2026-11-21: `_` and `key(0)` only. The
+   other reading let a relative path in `k` name the member's field,
+   as it does in a spread's template.
+8. **The key's kind.** Ruled 2026-11-21: a string only, as `pack_key`
+   holds today. The other reading took a number by its text.
 
 ## C3: a position as an integer
 
@@ -365,22 +399,20 @@ aontu, proposed:
 nodes: each($.hosts, { host: _, port: add(8000, index()) })
 ```
 
-With C1 it also gives a member's neighbour, which the comparison's
-probe k36 reaches through five helper fields. CUE writes
-`[for i, x in xs if i > 0 {x - xs[i-1]}]`, and the proposed spelling
-is one line, where the first member's missing neighbour is an absence
-that drops its element:
+With C1, and positions counted from the end, it also reverses a list,
+which the comparison's probe k34 does through a written list of
+numbers:
 
 ```aontu
-steps: each($.xs, sub(_, maybe(at($.xs, sub(index(0), 1)))))
+back: each($.xs, at($.xs, sub(-1, index(0))))
 ```
 
 ### Question for the ruling
 
-9. **A position as a number at all.** Recommended: `index(up?)`, the
-   sibling of `key(up?)`. The others are a conversion from text to a
-   number, which raises which numeric leaf a text names, or leaving
-   positions as text.
+9. **A position as a number at all.** Ruled 2026-11-21: `index(up?)`,
+   the sibling of `key(up?)`. The others were a conversion from text
+   to a number, which raises which numeric leaf a text names, or
+   leaving positions as text.
 
 ## C4: a loop driven by a number
 
@@ -388,7 +420,7 @@ steps: each($.xs, sub(_, maybe(at($.xs, sub(index(0), 1)))))
 
 `range(n)` is the list of the integers from `0` up to, and not
 including, `n`. `range(0)` is `[]`. A negative `n` is refused, and so
-is an `n` past a budget that the trust contract names, with a code of
+is an `n` past the budget `trust.budget.range`, as `range_budget`, of
 class `budget`. It is never cut short.
 
 This is the one comprehension idiom with no spelling today (k30), and
@@ -427,22 +459,36 @@ aontu, proposed:
 nodes: each(range($.n), "node-" + _)
 ```
 
+With C1 it also sets each member against the one before it, which
+probe k36 reaches through five helper fields. CUE writes
+`[for i, x in xs if i > 0 {x - xs[i-1]}]`, and the proposed spelling
+walks the positions before the last:
+
+```aontu
+steps: each(range(sub(sum(each($.xs, 1)), 1)), sub(at($.xs, add(_, 1)), at($.xs, _)))
+```
+
+Before the ruling on question 4 this note spelled it with a miss,
+`sub(_, maybe(at($.xs, sub(index(0), 1))))`. A negative position now
+counts from the end, so that line would set the first member against
+the last.
+
 ### Questions for the ruling
 
-10. **A counted loop at all.** Recommended: `range(n)` under a new
-    budget in clause 2 of the trust contract. The others are
+10. **A counted loop at all.** Ruled 2026-11-21: `range(n)` under a new
+    budget in clause 2 of the trust contract. The others were
     `range(n, max)`, where the document writes its own bound and a
     larger `n` is refused, or keeping the refusal, with the written
     list as the documented route.
-11. **The budget.** Recommended: a fourth number of `trust.budget`,
-    `range`, that counts the members every `range` of one evaluation
-    makes, as `trials` counts trials. It defaults to 100000, as
-    `trials` does, a host may raise it, and past it the code is
-    `range_budget`, pinned from both sides in `test/spec/budget.tsv`.
-    For scale, `each` over a written list of 100000 numbers took 3.6
-    seconds in TypeScript and 1.7 in Go on the machine that ran the
-    probes. The other readings are a smaller default, or a count for
-    each call.
+11. **The budget.** Ruled 2026-11-21: a fourth number of
+    `trust.budget`, `range`, that counts the members every `range` of
+    one evaluation makes, as `trials` counts trials. It defaults to
+    100000, as `trials` does, a host may raise it, and past it the code
+    is `range_budget`, pinned from both sides in
+    `test/spec/budget.tsv`. For scale, `each` over a written list of
+    100000 numbers took 3.6 seconds in TypeScript and 1.7 in Go on the
+    machine that ran the probes. The other readings were a smaller
+    default, or a count for each call.
 
 ## C5: the member of an enclosing generator
 
@@ -495,12 +541,13 @@ byteam: pack($.xs, pick(filter($.xs, { team: at(outer(), team) }), name), at(_, 
 
 ### Questions for the ruling
 
-12. **G8's open question.** Recommended: innermost binding stands for
-    `_`, and the depth form arrives as the function `outer(up?)`. The
-    other is to leave nested loops to climbs, as k7 and k8 write them.
-13. **What counts as a level.** Recommended: each construct that binds
-    `_`: `each`, `pack`, an `emit` body, a `filter` condition and
-    `apply`.
+12. **G8's open question.** Ruled 2026-11-21: innermost binding stands
+    for `_`, and the depth form arrives as the function `outer(up?)`.
+    The other was to leave nested loops to climbs, as k7 and k8 write
+    them.
+13. **What counts as a level.** Ruled 2026-11-21: each construct that
+    binds `_`: `each`, `pack`, an `emit` body, a `filter` condition and
+    `apply`. The other reading counted only `each`, `pack` and `emit`.
 
 ## C6: the defects on these routes
 
@@ -609,13 +656,16 @@ order and CUE in source order:
 | groups by a field | k12, k13 | C2 and C5, with C1 |
 | pairs every member of two lists, keyed by both | k17 | C2 and C5 |
 | reads the outer member in an inner loop | k7, k8 | C5, with C1 |
-| uses a position as a number | k33 to k36 | C3, with C1 |
+| takes the last member | k33 | C1 |
+| reverses a list | k34 | C3, with C1 |
+| slices a list, or sets a member against the one before | k35, k36 | C4, with C1 |
 | loops over a number | k30 to k32 | C4 |
 
 ## Order
 
-1. C0, the rulings. C6 and C7 beside it, since neither waits on one.
-2. C1, then C2. Together they make nine of the thirteen rows above
+1. C0, the rulings, done on 2026-11-21. C6 and C7 beside it, since
+   neither waited on one.
+2. C1, then C2. Together they make ten of the fifteen rows above
    direct or shorter.
 3. C5, then C3.
 4. C4, last, because it alone changes a trust number.
@@ -630,7 +680,7 @@ order and CUE in source order:
 | A relative path in an `each` or `pack` template that reads the member's field | it reads the instance today, and documents rely on that |
 | A built-in that flattens | an `emit` body's lists splice, and `+` joins two lists |
 | A built-in that groups members into lists | CUE has none either. The grouping above takes C2 and C5. |
-| A built-in that counts | `sum(each(d, 1))` counts today. It can be revisited when `at` makes the last member a common ask. |
+| A built-in that counts | `sum(each(d, 1))` counts today. The ruling on question 4 gives the last member as `at(xs, -1)`, which was the usual reason to want a count. |
 | A finding for a `filter` condition that reads nothing | it would change answers that rows pin. C7 pins the silent answer instead, and C1 removes the usual reason to write one. |
 
 ## Done when

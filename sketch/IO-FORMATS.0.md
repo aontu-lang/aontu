@@ -1,7 +1,8 @@
 # What aontu reads and writes, and what tabnas now writes
 
-**Status:** Investigation, 2026-11-21. Nothing here is decided. It
-answers one question: aontu loads many formats through the tabnas
+**Status:** Investigation, 2026-11-21, ruled the same day: see
+[The rulings](#the-rulings). Nothing is scheduled. It answers one
+question: aontu loads many formats through the tabnas
 parsers, and the tabnas stack can now write many formats too, so what
 does aontu read and write today, and what stands between it and the
 writers?
@@ -295,7 +296,8 @@ at their latest versions gave the same bytes as TypeScript's.
 
 ## Options, for a ruling
 
-None of these is decided. Each is a candidate for the maintainer.
+Each was a candidate for the maintainer, who ruled on them on
+2026-11-21: see [The rulings](#the-rulings).
 
 | | Option | What it gives | What it costs |
 |---|---|---|---|
@@ -311,6 +313,52 @@ B, which is the smallest thing a user sees, then C. D and E are
 rulings of their own. M1's bundled model stays the route for any
 format whose spelling aontu wants to own, since the tabnas writers'
 style is fixed.
+
+## The rulings
+
+Ruled by the maintainer on 2026-11-21.
+
+| Option | Ruling |
+|---|---|
+| A, the pins | raise them now, as a change of its own, ahead of anything that uses the writers |
+| B and C, writing | both, the flag first: an output flag on the bare command and on `model get`, and then a built-in that writes a value as text |
+| D, more readers | an include also reads `.csv`, `.jsonl` and `.xml`, and input whose format an ABNF grammar defines |
+| E, operands | a verb reads a data file by its extension, by the table an include uses |
+| F, the pipe alone | not taken |
+
+Three of these change a decision on record, and each lands with the
+record it changes:
+
+- **The flag and ADR-038.** An output flag writes the value that the
+  bare command prints as JSON, in another spelling. It is ruled not to
+  be a second output road, and
+  [ADR-038](../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
+  says so when the flag lands.
+- **The readers and ADR-012.** Its table gains three rows, and its own
+  example of a refusal, `rows.csv`, becomes a file that is read.
+- **The operands.** The reference says what a verb's operand is, and
+  it changes with the first verb that reads one by extension.
+
+**Input that an ABNF grammar defines** was the maintainer's own
+addition to option D. Two steps read it today, and both ports agree
+on them: an include of the text, and `parse` over it with the grammar.
+
+```aontu
+G: hide(abnf(`
+rec = "{" pair *( ";" pair ) "}"   ; @array
+pair = key "=" val   ; @object key val
+key = 1*ALPHA
+val = 1*( ALPHA / DIGIT )
+`))
+v: parse($.G, @"./rec.txt")
+```
+
+With `{host=h1;port=80}` in `rec.txt`, `v` is a list of two maps,
+`{ "key": "host", "val": "h1" }` and `{ "key": "port", "val": "80" }`.
+The text must be in a `.txt` file, or one whose extension `--text-ext`
+names. The ruling asks for the include to do this itself. How a
+project names the grammar for an extension is the first question of
+that task.
 
 ## Found along the way
 
