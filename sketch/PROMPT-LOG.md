@@ -1712,3 +1712,9 @@ Where is the written plan?
 ```text
 Status?
 ```
+
+## 2026-11-21 21:16:10 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Rename it to lang refinement plan
+```
