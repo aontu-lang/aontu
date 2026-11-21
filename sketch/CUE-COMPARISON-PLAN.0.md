@@ -1,32 +1,54 @@
 # A plan from the CUE comparison
 
-**Status:** Proposal, 2026-11-20. Nothing here is decided or scheduled.
-Each task that adds to the language waits on a ruling, and the rulings
-are the first task. A built-in that is adopted becomes a phase of a gap
-document under `sketch/capability-review/` and a row of the register,
-under the same-commit rule
+**Status:** Part 1 is ruled, 2026-11-21. Its thirteen questions were
+put to the maintainer that day, and each has its ruling beside it and
+in [The rulings](#the-rulings): all five built-ins are adopted. Parts 2
+to 7 were added the same day, and their fifteen questions, 14 to 28,
+are not ruled. Nothing is scheduled. An adopted built-in becomes a
+phase of a gap document under `sketch/capability-review/` and a row of
+the register, under the same-commit rule
 ([capability-review.md](../docs/contributing/capability-review.md)).
 **Basis:** [CUE-COMPARISON.0.md](CUE-COMPARISON.0.md), which compares
 aontu with CUE v0.17.1 and v0.18.0-rc.4, and its section
 [What comprehensions do that the built-ins do not](CUE-COMPARISON.0.md#what-comprehensions-do-that-the-built-ins-do-not).
-**Scope:** Part 1 only: what gives aontu the functionality that
-comprehensions give CUE. The comparison's other findings (interchange,
-the language server, the package repository, and the issues
-[#860](https://github.com/aontu-lang/aontu/issues/860) and
-[#862](https://github.com/aontu-lang/aontu/issues/862)) are for later
-parts.
+**Scope:** Seven parts, listed under [The parts](#the-parts). Part 1 is
+what gives aontu the functionality that comprehensions give CUE. Parts
+2 to 7 take six more of the comparison's findings. Input and output
+have a note and rulings of their own,
+[IO-FORMATS.0.md](IO-FORMATS.0.md). The rest is listed under
+[What stays outside](#what-stays-outside).
 
 Every example below was run. The CUE code ran through `cue` v0.17.1 and
 v0.18.0-rc.4, and the code under "aontu today" through both engines at
-`main` (`967c5f3`). Each pair gave the same answer, which is printed
-once. Code under "aontu, proposed" is a proposal and doesn't give its
-answer today. Each proposed line was run as well, to see what it does
-now. Ten are refused: as `unknown_function`, as `func_arity` for a
-third argument to `pack`, or as `invalid-arg`, `each_data` or
-`listval_no_gen` where the unknown call is an argument. Two evaluate
-and answer an empty list, because an unknown call in a `filter`
-condition or under `maybe` is silent today
-([#870](https://github.com/aontu-lang/aontu/issues/870)).
+`main` (`967c5f3` for part 1, `7da884f` for parts 2 to 7). Each pair
+gave the same answer, which is printed once. Code under "aontu,
+proposed" is a proposal and doesn't give its answer today. Each
+proposed line was run as well, to see what it does now. Of part 1's,
+twelve are refused: as `unknown_function`, as `func_arity` for a third
+argument to `pack`, or as `invalid-arg`, `each_data` or
+`listval_no_gen` where the unknown call is an argument. One evaluates
+and answers an empty list, because an unknown call in a `filter`
+condition is silent today
+([#870](https://github.com/aontu-lang/aontu/issues/870)). Parts 2 to 7
+say beside each proposed line what it does today.
+
+## The parts
+
+| Part | Subject | Tasks | Questions |
+|---|---|---|---|
+| 1 | What comprehensions give: five built-ins, the defects on their routes, the rows that pin today's routes, and a guide to the idioms. It runs from [What is missing](#what-is-missing) to [Done when](#done-when) | C0 to C8 | 1 to 13, ruled |
+| 2 | [The guide for CUE users, and the comparison's examples](#part-2-the-guide-for-cue-users-and-the-comparisons-examples) | CG1 to CG5 | 14, 15 |
+| 3 | [The language server](#part-3-the-language-server) | LS1 to LS9 | 16, 17 |
+| 4 | [A short form for a key pattern](#part-4-a-short-form-for-a-key-pattern) | KP1, KP2 | 18, 19 |
+| 5 | [OpenAPI](#part-5-openapi) | OA1 to OA6 | 20, 21 |
+| 6 | [Host values on the command line](#part-6-host-values-on-the-command-line) | HV1 to HV4 | 22 to 24 |
+| 7 | [Binary types: bytes, sized numbers and multipliers](#part-7-binary-types-bytes-sized-numbers-and-multipliers) | BT1 to BT5 | 25 to 28 |
+
+One task comes before the rest of parts 2 to 7. **P0** puts questions
+14 to 28 to the maintainer and records each ruling beside its
+question, as C0 did for part 1. A task below waits on P0 where a
+question governs it. The parts' tasks are ordered together under
+[The order across parts](#the-order-across-parts).
 
 ## What is missing
 
@@ -64,6 +86,33 @@ key-selector argument" the option not taken: C2 asks for that argument.
 Its question on `_` under nesting left "an explicit depth argument
 mirroring `key(n)`" open as an additive option: C5 is that option.
 
+## The rulings
+
+Ruled by the maintainer on 2026-11-21. Twelve follow the
+recommendation. Question 4 does not: the recommendation was a miss,
+and the ruling counts from the end.
+
+| | Question | Ruling |
+|---|---|---|
+| 1 | The name of the lookup | `at` |
+| 2 | A member that isn't there | refused as `no_path`, and absent under `maybe` |
+| 3 | A marked member | read, as a path reads it |
+| 4 | An index from the end | it counts from the end: `at(xs, -1)` is the last member |
+| 5 | G8's settled question on keying `pack` | reopened: `pack` makes each child's key |
+| 6 | The spelling of the key | an optional third argument |
+| 7 | What the key template may read | `_` and `key(0)` only |
+| 8 | The key's kind | a string only |
+| 9 | A position as a number | `index(up?)` |
+| 10 | A counted loop | `range(n)`, under a new budget |
+| 11 | The budget | `trust.budget.range`, 100000 unless a host raises it, and `range_budget` past it |
+| 12 | G8's open question on nesting | `_` stays innermost, and `outer(up?)` is added |
+| 13 | What counts as a level | every construct that binds `_` |
+
+Three rulings change a decision on record, and each lands with the
+record it changes: ruling 5 reverses the refusal that G8 settled,
+rulings 10 and 11 add a budget to clause 2 of the trust contract, and
+ruling 2 has `maybeOf` in the definition count `at` as a reference.
+
 ## The tasks
 
 Sizes use the register's scale: S, M and L.
@@ -80,8 +129,9 @@ Sizes use the register's scale: S, M and L.
 | C7 | Pin today's routes as shared rows, so each addition is held to the answer its route gives now | guard | nothing | S |
 | C8 | A how-to guide that maps each comprehension idiom to aontu, every entry executed | docs | C7 | M |
 
-C6 and C7 need no ruling and can start now. C1 comes first among the
-built-ins, because C2 and C5 are written with it.
+C0 was done on 2026-11-21, so C1 to C5 no longer wait on it. C6 and
+C7 needed no ruling. C1 comes first among the built-ins, because C2
+and C5 are written with it.
 
 ### What a built-in task delivers
 
@@ -113,7 +163,10 @@ another `at`. The answer is a copy, as a reference's is. A step that
 names nothing is refused as a path's is. `maybe` forgives a reference
 at the top of its argument and no call, so `maybe(upper($.gone))` is
 `no_path` today. `at` counts as a reference there, and `maybe(at(…))`
-is absence where a step names nothing.
+is absence where a step names nothing. A negative position counts
+from the end of a list, which a path step does not: `at(xs, -1)` is
+the last member, and a position before the first member or past the
+last names nothing.
 
 This one built-in is both a field of the member, `at(_, port)`, and a
 lookup, `at($.teams, .team)`.
@@ -237,20 +290,21 @@ pairs: each($.ks, { k: _, y: at($.ys, key()) })
 
 ### Questions for the ruling
 
-1. **The name.** `at` is recommended: it is short, and no document uses
-   it as a call. `member` and `get` are the others; `get` is already
-   two verbs of the command line.
-2. **A member that isn't there.** Recommended: refused as `no_path`, and
-   absence under `maybe`, as a path is. That makes `at` a reference
-   under `maybe`'s rule, which `maybeOf` in the definition would then
-   say. The other reading is absence outright.
-3. **A marked member.** Recommended: `at` reads a `hide()` or `type()`
-   member as a path does. The other reading skips it, as a bag reader
-   does.
-4. **An index from the end.** Recommended: `at(xs, -1)` names nothing
-   and is `no_path`, as the path `$.xs.-1` is today, and a count with
-   `sub` reaches the last member. The other reading counts from the
-   end.
+1. **The name.** Ruled 2026-11-21: `at`. It is short, and no document
+   uses it as a call. `member` and `get` were the others; `get` is
+   already two verbs of the command line.
+2. **A member that isn't there.** Ruled 2026-11-21: refused as
+   `no_path`, and absence under `maybe`, as a path is. That makes `at`
+   a reference under `maybe`'s rule, which `maybeOf` in the definition
+   then says. The other reading was absence outright.
+3. **A marked member.** Ruled 2026-11-21: `at` reads a `hide()` or
+   `type()` member as a path does. The other reading skipped it, as a
+   bag reader does.
+4. **An index from the end.** Ruled 2026-11-21: it counts from the
+   end, so `at(xs, -1)` is the last member and `at(xs, -2)` the one
+   before it. The recommendation was the other reading, a miss as the
+   path `$.xs.-1` is today. A position further back than the first
+   member is still a miss.
 
 ## C2: a key for each child of `pack`
 
@@ -305,18 +359,19 @@ key(0))`, and an inverted map once each member carries its key.
 
 ### Questions for the ruling
 
-5. **Reopen G8's settled question?** Recommended: yes. Six probes (k10,
-   k11 and k14 to k17) reach a keyed result only by packing over picked
-   keys and looking each member up again. Keeping the refusal leaves
-   that route, documented in C8.
-6. **The spelling.** Recommended: the optional third argument, so
-   there is one keyed generator. The other is a new built-in that takes
+5. **Reopen G8's settled question?** Ruled 2026-11-21: reopened, and
+   `pack` makes each child's key. Six probes (k10, k11 and k14 to k17)
+   reach a keyed result only by packing over picked keys and looking
+   each member up again. Keeping the refusal would have left that
+   route, documented in C8.
+6. **The spelling.** Ruled 2026-11-21: the optional third argument, so
+   there is one keyed generator. The other was a new built-in that took
    the key before the value, as CUE writes `(key): value`.
-7. **What `k` may read.** Recommended: `_` and `key(0)` only. The other
-   reading lets a relative path in `k` name the member's field, as it
-   does in a spread's template.
-8. **The key's kind.** Recommended: a string only, as `pack_key` holds
-   today. The other reading takes a number by its text.
+7. **What `k` may read.** Ruled 2026-11-21: `_` and `key(0)` only. The
+   other reading let a relative path in `k` name the member's field,
+   as it does in a spread's template.
+8. **The key's kind.** Ruled 2026-11-21: a string only, as `pack_key`
+   holds today. The other reading took a number by its text.
 
 ## C3: a position as an integer
 
@@ -365,22 +420,20 @@ aontu, proposed:
 nodes: each($.hosts, { host: _, port: add(8000, index()) })
 ```
 
-With C1 it also gives a member's neighbour, which the comparison's
-probe k36 reaches through five helper fields. CUE writes
-`[for i, x in xs if i > 0 {x - xs[i-1]}]`, and the proposed spelling
-is one line, where the first member's missing neighbour is an absence
-that drops its element:
+With C1, and positions counted from the end, it also reverses a list,
+which the comparison's probe k34 does through a written list of
+numbers:
 
 ```aontu
-steps: each($.xs, sub(_, maybe(at($.xs, sub(index(0), 1)))))
+back: each($.xs, at($.xs, sub(-1, index(0))))
 ```
 
 ### Question for the ruling
 
-9. **A position as a number at all.** Recommended: `index(up?)`, the
-   sibling of `key(up?)`. The others are a conversion from text to a
-   number, which raises which numeric leaf a text names, or leaving
-   positions as text.
+9. **A position as a number at all.** Ruled 2026-11-21: `index(up?)`,
+   the sibling of `key(up?)`. The others were a conversion from text
+   to a number, which raises which numeric leaf a text names, or
+   leaving positions as text.
 
 ## C4: a loop driven by a number
 
@@ -388,7 +441,7 @@ steps: each($.xs, sub(_, maybe(at($.xs, sub(index(0), 1)))))
 
 `range(n)` is the list of the integers from `0` up to, and not
 including, `n`. `range(0)` is `[]`. A negative `n` is refused, and so
-is an `n` past a budget that the trust contract names, with a code of
+is an `n` past the budget `trust.budget.range`, as `range_budget`, of
 class `budget`. It is never cut short.
 
 This is the one comprehension idiom with no spelling today (k30), and
@@ -427,22 +480,36 @@ aontu, proposed:
 nodes: each(range($.n), "node-" + _)
 ```
 
+With C1 it also sets each member against the one before it, which
+probe k36 reaches through five helper fields. CUE writes
+`[for i, x in xs if i > 0 {x - xs[i-1]}]`, and the proposed spelling
+walks the positions before the last:
+
+```aontu
+steps: each(range(sub(sum(each($.xs, 1)), 1)), sub(at($.xs, add(_, 1)), at($.xs, _)))
+```
+
+Before the ruling on question 4 this note spelled it with a miss,
+`sub(_, maybe(at($.xs, sub(index(0), 1))))`. A negative position now
+counts from the end, so that line would set the first member against
+the last.
+
 ### Questions for the ruling
 
-10. **A counted loop at all.** Recommended: `range(n)` under a new
-    budget in clause 2 of the trust contract. The others are
+10. **A counted loop at all.** Ruled 2026-11-21: `range(n)` under a new
+    budget in clause 2 of the trust contract. The others were
     `range(n, max)`, where the document writes its own bound and a
     larger `n` is refused, or keeping the refusal, with the written
     list as the documented route.
-11. **The budget.** Recommended: a fourth number of `trust.budget`,
-    `range`, that counts the members every `range` of one evaluation
-    makes, as `trials` counts trials. It defaults to 100000, as
-    `trials` does, a host may raise it, and past it the code is
-    `range_budget`, pinned from both sides in `test/spec/budget.tsv`.
-    For scale, `each` over a written list of 100000 numbers took 3.6
-    seconds in TypeScript and 1.7 in Go on the machine that ran the
-    probes. The other readings are a smaller default, or a count for
-    each call.
+11. **The budget.** Ruled 2026-11-21: a fourth number of
+    `trust.budget`, `range`, that counts the members every `range` of
+    one evaluation makes, as `trials` counts trials. It defaults to
+    100000, as `trials` does, a host may raise it, and past it the code
+    is `range_budget`, pinned from both sides in
+    `test/spec/budget.tsv`. For scale, `each` over a written list of
+    100000 numbers took 3.6 seconds in TypeScript and 1.7 in Go on the
+    machine that ran the probes. The other readings were a smaller
+    default, or a count for each call.
 
 ## C5: the member of an enclosing generator
 
@@ -495,12 +562,13 @@ byteam: pack($.xs, pick(filter($.xs, { team: at(outer(), team) }), name), at(_, 
 
 ### Questions for the ruling
 
-12. **G8's open question.** Recommended: innermost binding stands for
-    `_`, and the depth form arrives as the function `outer(up?)`. The
-    other is to leave nested loops to climbs, as k7 and k8 write them.
-13. **What counts as a level.** Recommended: each construct that binds
-    `_`: `each`, `pack`, an `emit` body, a `filter` condition and
-    `apply`.
+12. **G8's open question.** Ruled 2026-11-21: innermost binding stands
+    for `_`, and the depth form arrives as the function `outer(up?)`.
+    The other was to leave nested loops to climbs, as k7 and k8 write
+    them.
+13. **What counts as a level.** Ruled 2026-11-21: each construct that
+    binds `_`: `each`, `pack`, an `emit` body, a `filter` condition and
+    `apply`. The other reading counted only `each`, `pack` and `emit`.
 
 ## C6: the defects on these routes
 
@@ -547,7 +615,9 @@ engines answer alike. As shared rows they hold three things:
 
 Every expectation comes from the parity probe. The probes are also the
 seed of the differential corpus that
-[CONFIG-LANGUAGES-PLAN.0.md](CONFIG-LANGUAGES-PLAN.0.md) lists as L6.
+[CONFIG-LANGUAGES-PLAN.0.md](CONFIG-LANGUAGES-PLAN.0.md) lists as L6,
+which [part 2](#part-2-the-guide-for-cue-users-and-the-comparisons-examples)
+takes up as CG1 to CG3.
 
 ## C8: the guide
 
@@ -556,7 +626,8 @@ to aontu, in the order a CUE user reaches for them, with every example
 executed by the documentation tests. It starts from what is direct
 today, and each of C1 to C5 shortens its entries in the change that
 lands it. This is the pattern catalogue that the same plan lists as M8,
-and part of its H3.
+and part of its H3. The rest of H3, the guide for CUE users, is CG4 of
+[part 2](#part-2-the-guide-for-cue-users-and-the-comparisons-examples).
 
 What is direct today, for the guide's first entries:
 
@@ -609,13 +680,16 @@ order and CUE in source order:
 | groups by a field | k12, k13 | C2 and C5, with C1 |
 | pairs every member of two lists, keyed by both | k17 | C2 and C5 |
 | reads the outer member in an inner loop | k7, k8 | C5, with C1 |
-| uses a position as a number | k33 to k36 | C3, with C1 |
+| takes the last member | k33 | C1 |
+| reverses a list | k34 | C3, with C1 |
+| slices a list, or sets a member against the one before | k35, k36 | C4, with C1 |
 | loops over a number | k30 to k32 | C4 |
 
 ## Order
 
-1. C0, the rulings. C6 and C7 beside it, since neither waits on one.
-2. C1, then C2. Together they make nine of the thirteen rows above
+1. C0, the rulings, done on 2026-11-21. C6 and C7 beside it, since
+   neither waited on one.
+2. C1, then C2. Together they make ten of the fifteen rows above
    direct or shorter.
 3. C5, then C3.
 4. C4, last, because it alone changes a trust number.
@@ -630,7 +704,7 @@ order and CUE in source order:
 | A relative path in an `each` or `pack` template that reads the member's field | it reads the instance today, and documents rely on that |
 | A built-in that flattens | an `emit` body's lists splice, and `+` joins two lists |
 | A built-in that groups members into lists | CUE has none either. The grouping above takes C2 and C5. |
-| A built-in that counts | `sum(each(d, 1))` counts today. It can be revisited when `at` makes the last member a common ask. |
+| A built-in that counts | `sum(each(d, 1))` counts today. The ruling on question 4 gives the last member as `at(xs, -1)`, which was the usual reason to want a count. |
 | A finding for a `filter` condition that reads nothing | it would change answers that rows pin. C7 pins the silent answer instead, and C1 removes the usual reason to write one. |
 
 ## Done when
@@ -639,3 +713,752 @@ Each row of the table under
 [Which task makes which idiom direct](#which-task-makes-which-idiom-direct)
 has a spelling of one call, or of calls nested without a helper field,
 that answers what its route answers today.
+
+## Part 2: the guide for CUE users, and the comparison's examples
+
+"The comparison's examples" is read here as its 154 probes. Each was
+written once in each language, and run through both engines and two
+CUE releases.
+
+### What there is today
+
+- The probes are a table in a sketch,
+  [The probes](CUE-COMPARISON.0.md#the-probes). No test reads it, so
+  nothing holds an answer once the page is written. C7 pins the 38
+  that are about comprehensions, and only their aontu half.
+- No published page tells a CUE user what differs. The pages under
+  `docs/` name CUE as the language aontu follows, and link its
+  documentation for further reading.
+- [CONFIG-LANGUAGES-PLAN.0.md](CONFIG-LANGUAGES-PLAN.0.md) lists the
+  guide as H3, the pattern catalogue as M8 and the differential corpus
+  as L6. L6 comes from
+  [G1](capability-review/g1-constraint-algebra.md), which says that
+  nothing in the repository runs a real `cue`.
+
+### What the guide holds
+
+Four sections, in the order a CUE user meets them:
+
+1. **The same thing, written differently.** A table from each CUE form
+   to its aontu spelling. The sample below is its first rows.
+2. **The same text, a different answer.** The 22 rows of
+   [Where the same text means different things](CUE-COMPARISON.0.md#where-the-same-text-means-different-things),
+   each with both answers.
+3. **What aontu has no form of.** Operators for constraints,
+   interpolation, comprehension keywords, user-defined functions and
+   workflows, each with the decision that rules it out and the nearest
+   spelling.
+4. **The commands.** `cue vet`, `export`, `eval`, `def`, `fmt`, `trim`
+   and `mod`, each beside the `aontu` verb that does its work.
+
+The comprehension idioms stay on C8's page, which the guide links.
+
+A sample of the first section, one row to a line:
+
+```cue
+#Port:   int & >=1 & <=65535
+_region: "eu"
+svc: {
+	name:     =~"^[a-z]+$" & "web"
+	port:     #Port & 8080
+	replicas: *1 | int
+	note?:    string
+	tags:     [...string] & ["a", _region]
+	limits: [string]: int
+	limits: cpu:      2
+	addr: "\(name):\(port)"
+}
+```
+
+```aontu
+Port: type(integer & min(1) & max(65535))
+region: hide("eu")
+svc: {
+  name: re("^[a-z]+$") & web
+  port: $.Port & 8080
+  replicas: *1 | integer
+  note?: string
+  tags: [&: string] & [a, $.region]
+  limits: &: integer
+  limits: cpu: 2
+  addr: .name + ":" + .port
+}
+```
+
+Both answer:
+
+```json
+{ "svc": { "name": "web", "port": 8080, "replicas": 1,
+           "tags": ["a", "eu"], "limits": { "cpu": 2 },
+           "addr": "web:8080" } }
+```
+
+One row of that table changes with the CUE release. The key as a
+value is `[N=string]: name: N` in v0.17.1, and v0.18.0-rc.4 refuses the
+`=` alias at its own language version. aontu writes `&: name: key(1)`,
+with `key(1)` because `key(0)` inside the template reads `name`. The
+guide gives a row like this both CUE spellings.
+
+### How the examples are held
+
+- **Two files for each probe**, its CUE source and its aontu source,
+  with an index of what each answers and how the two relate: the same,
+  different by design, or refused by one.
+- **The aontu half runs on every push**, in both suites, each answer
+  written by the parity probe. C7's rows are its first 38.
+- **The CUE half runs in the daily workflow**, against two pinned `cue`
+  binaries, the latest release and the newest candidate. v0.18 moved
+  two probes, g12 and x8, and the run would have reported both.
+- **The guide quotes the files.** Its CUE code is printed with the
+  `test: quote` directive, so every CUE line a reader sees is one the
+  daily run holds. Its aontu code is executed by
+  `ts/test/docs.test.ts`, as on every other page.
+
+### The tasks of part 2
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| CG1 | Commit the 154 probes as a corpus: a CUE file and an aontu file for each, and an index of what each answers | guard | nothing | M |
+| CG2 | Hold the aontu half in both suites on every push, each answer written by the parity probe | guard | CG1 | S |
+| CG3 | Hold the CUE half in the daily workflow against two pinned `cue` binaries | guard | P0, CG1 | S |
+| CG4 | The guide, `docs/how-to/aontu-for-cue-users.md`, in the four sections above | docs | CG1, CG2 | M |
+| CG5 | The site's comparisons page, drawn from the guide, in `aontu-lang/web` | docs | CG4 | S |
+
+C7 and CG2 are one mechanism: whichever starts first writes the rows
+of the other. CG3 edits `.github/workflows/`, so its push needs an
+account with the `workflow` scope. H3 also asks for a guide for JSON
+Schema users, which this part leaves to that plan.
+
+### Questions for the ruling on part 2
+
+14. **Whether CI runs CUE.** Recommended: yes, in the daily workflow
+    only, each binary pinned by version and checksum. The other choice
+    records CUE's answers by hand at each CUE release, as the
+    comparison did, and then nothing reports a release that moves one.
+15. **What a moved CUE answer does.** Recommended: a move in the
+    release fails the daily run until the row and the guide are
+    revised in one change, and a move in the candidate is reported
+    only. The other choice reports both and fails neither.
+
+## Part 3: the language server
+
+The comparison calls this the widest of the gaps, and the other plan
+lists it as M5.
+
+### What each server answers
+
+One document, written in each language:
+
+```cue
+package p
+
+base: {port: 8080, host: "h1"}
+web: base & {name: "web"}
+db: {port: base.port, name: "db"}
+#Svc: {port: int, name: string, tier?: string}
+api: #Svc & {port: 1, name: "api"}
+```
+
+```aontu
+base: { port: 8080, host: "h1" }
+web: $.base & { name: "web" }
+db: { port: $.base.port, name: "db" }
+Svc: type({ port: integer, name: string, tier?: string })
+api: $.Svc & { port: 1, name: "api" }
+```
+
+Both evaluate to:
+
+```json
+{ "base": { "port": 8080, "host": "h1" },
+  "web": { "port": 8080, "host": "h1", "name": "web" },
+  "db": { "port": 8080, "name": "db" },
+  "api": { "port": 1, "name": "api" } }
+```
+
+Eight requests were sent to `cue lsp` of each release and to both
+aontu servers, TypeScript and Go, which answered alike:
+
+| Request | CUE v0.17.1 | CUE v0.18.0-rc.4 | aontu, both servers |
+|---|---|---|---|
+| hover on the reference to `base.port` | nothing | `Unified with: 8080` | nothing |
+| definition of that reference | the key `port` of `base` | the same | nothing |
+| references to the key `port` of `base` | the key and the reference | the same | `-32601`, method not found |
+| rename of that key to `listen` | one edit of both sites | the same | `-32601` |
+| document symbols | the tree of fields | the same | `-32601` |
+| completion inside `api` | the document's top-level names | `name`, `port` and `tier`, the fields of the schema | the built-ins, kinds and literals, wherever the cursor is |
+| code actions | `Organize Imports` | the same | `-32601` |
+| formatting | nothing | the edits `cue fmt` would make | `-32601` |
+
+aontu's servers advertise hover, completion, definition and signature
+help, and their definition answers for an alias name only
+([lsp.md](../docs/lsp.md#limitations-and-extension-points)).
+
+### What the engine already has
+
+The answers are in the engine. The servers don't ask for them.
+
+- **The sites of a path.** `aontu model why db.port` prints every site
+  that wrote the path, across includes, and marks a reference as one.
+  Both engines print the same two lines for the document above:
+  `8080  doc.aontu:1:15` and `$.base.port  doc.aontu:3:13  (ref)`.
+- **The agreed form.** `aontu fmt` writes it in both ports.
+- **A repair.** `aontu trim --check` names each entry whose removal
+  changes nothing, which is a code action with its edit already
+  decided.
+
+What is missing is the step `docs/lsp.md` names: a mapping from a
+cursor to a path. Every feature below but formatting stands on it.
+
+### The tasks of part 3
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| LS1 | Cursor to path, and path to sites, in the analysis layer of both ports: the path of the key, value or reference under a cursor, and the sites that write a path, from the provenance `model why` reads. A shared-row mode for a request at a position holds both servers to one answer | library | nothing | M |
+| LS2 | Definition and hover on a key and on a path, across includes | server | LS1 | S |
+| LS3 | Key completion: the keys a type or a spread's template declares and the map hasn't written, and the members of a path after `$.` and `.` | server | LS1 | M |
+| LS4 | Formatting, by the text `aontu fmt` writes | server | nothing | S |
+| LS5 | Document symbols: the outline of a document's keys | server | LS1 | S |
+| LS6 | References and highlights: every reference that reads the path under the cursor | server | LS1 | M |
+| LS7 | Rename: a key and every reference to it, as one edit | server | P0, LS6 | M |
+| LS8 | Code actions, starting with the one whose edit is already decided: remove an entry that `trim --check` reports. Others follow as findings gain repairs | server | LS1 | M |
+| LS9 | A JetBrains client through LSP4IJ, as thin as the three under `editors/` | client | nothing | S |
+
+Each feature lands in both servers with the same answer, and in
+`docs/lsp.md` and
+[wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same
+change. The order of the table is the recommended order: LS2 to LS4
+are what a writer feels first.
+
+### Questions for the ruling on part 3
+
+16. **How far across files.** A definition or a reference can sit in
+    an included file. Recommended: the server answers from the
+    evaluation it already runs for diagnostics, so it reads what the
+    document's includes read under the same capability, and nothing
+    more. The other choice keeps every answer inside the open
+    document, as the alias features are kept today.
+17. **What rename refuses.** Recommended: it edits only files under
+    the workspace root, and refuses, naming the site, where no edit of
+    text keeps the document true: a key a generator makes, a key read
+    through `key()`, a key a pattern matches, and a site in a package.
+    The other choice renames what it can and lists the rest.
+
+## Part 4: a short form for a key pattern
+
+CUE holds every key that a pattern admits to a schema, as
+`[=~"^env_"]: string`. aontu says the same with a guarded spread. The
+other plan lists a short form as L2, and
+[G1](capability-review/g1-constraint-algebra.md) records the first
+proposal for one, N3, as deferred on 2026-08-28.
+
+### The pattern today
+
+```cue
+cfg: {
+	[=~"^env_"]:  string
+	[=~"_port$"]: int & >0
+}
+cfg: {
+	env_name:  "prod"
+	http_port: 8080
+	other:     true
+}
+```
+
+```aontu
+cfg: {
+  &: match(key(0), re("^env_"), string, any)
+  &: match(key(0), re("_port$"), integer & above(0), any)
+}
+cfg: {
+  env_name: prod
+  http_port: 8080
+  other: true
+}
+```
+
+Both answer:
+
+```json
+{ "cfg": { "env_name": "prod", "http_port": 8080, "other": true } }
+```
+
+Three things hold in both languages and both engines:
+
+- A key that two patterns admit is held to both. `env_port: "x"` is
+  refused by each.
+- A key that no pattern admits is left alone, as `other` is.
+- The JSON Schema importer already writes `patternProperties` as this
+  guarded spread, and `additionalProperties: false` beside it as a
+  spread whose last argument is `nil`.
+
+### A seal differs
+
+In CUE a pattern in a definition admits the keys it matches. In aontu
+a spread declares no key. An instance of a `type()` refuses even a key
+that its own pattern admits, as `closed`. So a type that takes
+patterned keys is held open, and closed again by the spread's last
+argument:
+
+```cue
+#Env: {[=~"^env_"]: string}
+cfg: #Env & {env_name: "prod"}
+```
+
+```aontu
+Env: type(open({ &: match(key(0), re("^env_"), string, nil) }))
+cfg: $.Env & { env_name: prod }
+```
+
+Both answer:
+
+```json
+{ "cfg": { "env_name": "prod" } }
+```
+
+Both refuse `other: 1` there, CUE as `field not allowed` and aontu as
+`literal_nil`.
+
+### The short form
+
+aontu, proposed:
+
+```aontu
+short: { &: keyed(re("^env_"), string), env_name: prod }
+only: { &: keyed(re("^env_"), string, nil), env_name: prod }
+```
+
+`keyed(p, t, e?)` is `match(key(0), p, t, e)`, with `any` where `e` is
+left out. It is rewritten as it is read, so canon, the text of a
+refusal and the JSON Schema exporter all write the guarded spread, and
+the two spellings have one canonical form. That is L2's condition, and
+it is how the short form avoids the cost ADR-008 names for a second
+spelling. Today each line is `unknown_function` in both engines.
+
+The other spelling proposed is N3's, a pattern in the key:
+
+```aontu
+form: { &re("^env_"): string, env_name: prod }
+```
+
+It is the shortest, and it is syntax. Today it is a parse error,
+`unexpected`, in both engines, and it would change the key production
+of the four published grammars and of both parsers.
+
+### The tasks of part 4
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| KP1 | `keyed(p, t, e?)`: the guarded spread as one call, read as the `match` it means | built-in | P0 | S |
+| KP2 | Its section of the reference, a how-to on holding keys to a pattern, and its row of the guide for CUE users | docs | KP1 | S |
+
+KP1 delivers what
+[a built-in task delivers](#what-a-built-in-task-delivers), and
+records in G1 that N3 is taken up.
+
+### Questions for the ruling on part 4
+
+18. **The spelling.** Recommended: a call named `keyed`. L2 asks for a
+    named form, and G8 prefers a function to a token. `keys` was
+    passed over because it reads as the list of a map's keys. The
+    others: N3's key form, `&p: t`, or no short form, with the guarded
+    spread taught as the idiom.
+19. **A seal.** Recommended: unchanged. The short form means exactly
+    the guarded spread, so a sealed map and a type's instance still
+    refuse a key that only a pattern admits, and the guide for CUE
+    users says so. The other choice follows CUE: a key that a pattern
+    admits counts as declared. That is a new rule of the seal in the
+    definition, and the short form would stop being a spelling.
+
+## Part 5: OpenAPI
+
+The other plan lists this as L3, a layer over the JSON Schema
+importer that [G12](capability-review/g12-jsonschema-fidelity.md)
+built.
+
+### What CUE does with a document
+
+`cue import openapi+yaml: api.yaml` reads this document, and
+`cue def --out openapi+yaml` writes one back:
+
+```yaml
+openapi: 3.0.3
+info: {title: Pets, version: 1.0.0}
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        tag: {type: string, nullable: true}
+        photo: {type: string, format: byte}
+        owner: {$ref: '#/components/schemas/Owner'}
+    Owner:
+      type: object
+      required: [email]
+      properties:
+        email: {type: string, format: email}
+```
+
+- **The import** makes each member of `components.schemas` a
+  definition, `#Pet` and `#Owner`, and `info` a pair of defaults. It
+  reads no operation: a document with a path and a response imports to
+  its schemas alone.
+- **The export** writes OpenAPI 3.0.0: each definition as a member of
+  `components.schemas`, a reference between two as a `$ref`, and
+  `paths: {}`.
+
+### What aontu does with one today
+
+No verb reads the document. `aontu jsonschema import` reads one
+component of it, through a one-line schema that refers into it. With
+the document as `api.json` and `{"$ref":"api.json#/components/schemas/Pet"}`
+as `pet.json`, both engines write:
+
+```sh
+$ aontu jsonschema import --doc api.json api.json pet.json
+id: meta(number & mulof(1), { format:"int64" })
+name: empty()
+tag?: meta(empty(), { nullable:true })
+photo?: meta(empty(), { format:"byte" })
+owner?: email: meta(empty(), { format:"email" })
+```
+
+Keyword by keyword:
+
+| In the document | CUE's import | aontu today |
+|---|---|---|
+| `nullable: true` | `null \| string` | carried as `meta()` and not applied, so `tag: null` is refused |
+| `format: int64` | `int64` | carried as `meta()` |
+| `format: byte` | `string` | carried as `meta()`: any string is admitted |
+| a `$ref` to another component | a reference to its definition | followed, and written inline |
+| the operations under `paths` | not read | not read |
+| the document as YAML | read | refused, `jsonschema_schema`: the importer reads JSON |
+| the whole document as the schema | n/a | `meta(any, …)`: every key is an unknown keyword, and anything is admitted |
+
+The other way, `aontu jsonschema --at Pet` writes one 2020-12 schema
+with its references inline, and leaves a `type()` entry out unless
+`--at` names it. OpenAPI 3.1 takes a 2020-12 schema as it is. OpenAPI
+3.0 doesn't, and G12 lists export to an older draft as a non-goal.
+
+### The tasks of part 5
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| OA1 | The OpenAPI 3.0 dialect in the importer, as a rewrite into 2020-12 like the earlier drafts': `nullable`, the boolean `exclusiveMinimum` and `exclusiveMaximum`, and the OpenAPI formats, `int32` and `int64` as bounds and `byte` as base64 text. 3.1's base dialect is 2020-12 with four annotation keywords | importer | P0 | M |
+| OA2 | `aontu openapi import <file>`: each member of `components.schemas` as a `type()` under one key, a reference between two kept as a reference, the losses reported as the JSON Schema importer reports them. It reads JSON and YAML | verb | OA1 | M |
+| OA3 | `aontu openapi <file>`: a document's `type()` entries as the `components.schemas` of an OpenAPI 3.1 document, a reference between two written as a `$ref` | verb | P0 | M |
+| OA4 | The operations as a model: paths, parameters, and request and response bodies. Its shape is settled when the task starts, with `voxgig/apidef`, which L3 names, as the reference | verb | P0, OA2 | L |
+| OA5 | Kubernetes custom resource definitions: the `openAPIV3Schema` of each version, with the `x-kubernetes-*` family applied | importer | OA1 | M |
+| OA6 | A how-to and a use case: check data against the schema of a published API | docs | OA2 | S |
+
+OA1's `byte` stands on BT2 of part 7. OA2's YAML stands on ruling E
+of [IO-FORMATS.0.md](IO-FORMATS.0.md#the-rulings), a verb that reads
+a data file by its extension. OA4 meets ADR-001 early: `voxgig/apidef`
+is an npm package, so its model either gets a Go port or is written
+as an aontu document that both engines read.
+
+One defect sits on this route. A `vet` finding for a value read from
+an included JSON or YAML file names a different file in each port, and
+neither gives its place
+([#887](https://github.com/aontu-lang/aontu/issues/887)). OA6's use
+case is the first to meet it.
+
+### Questions for the ruling on part 5
+
+20. **How far support goes.** Recommended: schemas first, in both
+    directions, OA1 to OA3. That is all CUE has. The operations, OA4,
+    follow as a step of their own. The other choices: schemas only, or
+    the operations from the start.
+21. **The export to 3.0.** CUE writes 3.0.0 and nothing newer.
+    Recommended: aontu writes 3.1 only, and G12's non-goal stands. The
+    other choice adds a writer for the older dialect, which the
+    importer's rewrite can't be run backwards to give.
+
+## Part 6: host values on the command line
+
+[#862](https://github.com/aontu-lang/aontu/issues/862) is the gap: a
+document that reads a `$name` can be evaluated from a program and not
+from a shell.
+
+### What CUE does with a tag
+
+With `env: string @tag(env)` and `replicas: int @tag(n, type=int)` in
+`v.cue`, both releases answer:
+
+```sh
+$ cue export v.cue -t env=prod -t n=3
+{
+    "env": "prod",
+    "replicas": 3
+}
+```
+
+- A value is text unless its tag declares a type, so `n` needs
+  `type=int`, and `-t n=x` is refused as an invalid number.
+- A tag that no file declares is refused: `no tag for "nope"`.
+- Without the tags the export is refused, `env: incomplete value
+  string`.
+
+### What aontu does with a variable today
+
+With `env: $env` and `replicas: integer & $n` in `v.aontu`, both
+engines answer:
+
+```sh
+$ aontu v.aontu
+[aontu/unknown_var]: Cannot unify values at path $.env
+$ aontu --var env=prod --var n=3 v.aontu
+aontu: unknown option --var (try --help)
+```
+
+`vet`, `hash`, `trim --check` and `model get` refuse the document
+with the same code. Both APIs bind the names, `ctx.vars` in TypeScript and
+`UnifyVars` in Go, and the trust contract counts the bindings as the
+third input of an evaluation
+([trust.md](../docs/trust.md#clause-1-hermeticity)). A flag adds no
+kind of input.
+
+### The options
+
+aontu, proposed:
+
+```sh
+$ aontu --var env=prod --var n=3 v.aontu
+{
+  "env": "prod",
+  "replicas": 3
+}
+```
+
+- **`--var name=value`** reads the value as aontu source, as
+  `aontu model set` reads the value it is given. `n=3` is an integer,
+  `env=prod` a string and `'tags=[a, b]'` a list.
+- **`--var-text name=value`** reads the value as text whatever it looks
+  like. A step that passes a short commit hash needs it:
+  `--var sha=1234567` would bind an integer on the day the hash is all
+  digits.
+- **`--vars <file>`** binds every top-level key of a document, for a
+  set of values that is kept under review.
+
+There is no reading of the environment, the clock or the host's name,
+which CUE gives with `-T`. The trust contract refuses each, and a
+shell passes one where it is wanted, as `--var-text user="$USER"`.
+
+### The tasks of part 6
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| HV1 | `--var` and `--var-text` on every verb that evaluates a document, in both commands, with one help text | CLI | P0 | M |
+| HV2 | `--vars <file>`: the bindings from a document whose keys are the names | CLI | HV1 | S |
+| HV3 | The same bindings in the REPL and in the tools of the MCP server | CLI | HV1 | S |
+| HV4 | The command line in [inject-host-values.md](../docs/how-to/inject-host-values.md) and [validate-in-ci.md](../docs/how-to/validate-in-ci.md), and the options in the reference | docs | HV1 | S |
+
+HV1 closes #862. Its options come under the review of every argument
+that [#340](https://github.com/aontu-lang/aontu/issues/340) asks for.
+
+### Questions for the ruling on part 6
+
+22. **The options.** Recommended: the three above, with `--var`
+    reading aontu source. The other choice follows CUE: `--var` reads
+    text, and a second option reads source. Either way both readings
+    are needed, since no built-in turns text into a number.
+23. **A binding that no document reads.** CUE refuses it.
+    Recommended: accepted, as both APIs accept one today, so one set
+    of options serves several documents. The other choice refuses it
+    as a usage error, which catches a misspelt name where the right
+    name has a default.
+24. **Pinning under bindings.** A hash taken under bindings is the
+    hash of one deployment and not of the model. Recommended: `hash`
+    and `breaking` take the options and name the bindings in their
+    reports, and `publish` and the package verbs refuse them, since a
+    package is published with no host. The other choice keeps the
+    options off `hash` and `breaking` as well.
+
+## Part 7: binary types: bytes, sized numbers and multipliers
+
+"Binary types" is read here as one row of the comparison: bytes, the
+sized numeric types such as `uint8`, and multipliers such as `1Ki`. If
+only bytes were meant, the first section and BT1 to BT3 stand alone.
+
+### Bytes
+
+```cue
+import "encoding/base64"
+
+key:  bytes & 'k\x01\xff'
+text: base64.Encode(null, "hello")
+back: "\(base64.Decode(null, "aGVsbG8="))"
+```
+
+```aontu
+B64: hide(string & re("^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"))
+key: $.B64 & "awH/"
+```
+
+Both answer, for `key`:
+
+```json
+{ "key": "awH/" }
+```
+
+CUE writes bytes to JSON as base64 text, so the two agree at the
+output. aontu holds that text and can check its alphabet. It has no
+spelling for `text` or `back`, which CUE answers as `"aGVsbG8="` and
+`"hello"`: no built-in encodes or decodes.
+
+Three more things hold today, in both engines:
+
+- `'…'` is a string, and `'k\x01\xff'` is three characters: `k`,
+  U+0001 and `ÿ`.
+- An include of a binary file is refused, `include_extension`. Named
+  by `--text-ext`, the file is read as text, with each byte that is
+  not UTF-8 replaced, and the two ports count the replacements
+  differently
+  ([#889](https://github.com/aontu-lang/aontu/issues/889)).
+- The JSON Schema importer carries `contentEncoding` as an annotation.
+
+aontu, proposed:
+
+```aontu
+text: esc("hello", base64)
+back: usc("aGVsbG8=", base64)
+code: esc("k", hex)
+```
+
+They would answer `"aGVsbG8="`, `"hello"` and `"6b"`. Today each is
+`esc_variant` in both engines. An encoding acts on a string's UTF-8
+bytes, as the `uri` convention does already. `usc` refuses text that
+decodes to bytes that are not UTF-8, because a string holds
+characters, so binary data stays in its encoded form from the file to
+the output.
+
+### Sized numbers
+
+```cue
+a: uint8 & 200
+b: int64 & 9223372036854775807
+```
+
+```aontu
+Num: type({
+  uint8: integer & min(0) & max(255)
+  int64: (integer | biginteger) & min(-0d9223372036854775808) & max(0d9223372036854775807)
+})
+a: $.Num.uint8 & 200
+b: $.Num.int64 & 0d9223372036854775807
+```
+
+Both answer:
+
+```json
+{ "a": 200, "b": 9223372036854775807 }
+```
+
+[G1](capability-review/g1-constraint-algebra.md) records sized kinds as
+not being built, because a `type()` block of named constraints says
+them, and
+[name-a-reusable-constraint.md](../docs/how-to/name-a-reusable-constraint.md)
+shows the block. The 64-bit name shows what the block costs to get
+right: two kinds, both bounds as exact literals, and the lower one
+spelled `-0d…`. A 64-bit bound written as a plain literal is refused,
+`invalid-arg`, and `0d-…` is a bare string.
+
+### Multipliers
+
+CUE reads `1Ki` as `1024` and `2M` as `2000000`. aontu reads each as a
+bare string, which is what a Kubernetes quantity is: `memory: 1Gi`
+reaches the manifest as text.
+
+### The tasks of part 7
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| BT1 | `base64`, `base64url` and `hex` as conventions of `esc` and `usc`, over a string's UTF-8 bytes | built-in | P0 | S |
+| BT2 | The same three as names `format()` reads, each a grammar of RFC 4648 under `grammar/format/`, so `format(base64)` admits the text | constraint | P0 | S |
+| BT3 | An include reads a file's bytes as base64 text, for the extensions an option names, as `--text-ext` names text | include | BT1 | M |
+| BT4 | The sized numbers as a bundled model, `@"aontu:num"`: the integer names CUE predeclares, and `Float32`, each a `type()` | model | P0 | S |
+| BT5 | A how-to on carrying binary data, and a pointer to the bundled names from `name-a-reusable-constraint.md` | docs | BT1, BT4 | S |
+
+Two of these change a decision on record, and each lands with the
+record it changes: BT2 adds names beside the nineteen JSON Schema
+formats of
+[ADR-059](../ADR.md#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself),
+and BT3 adds a row to ADR-012's table of extensions.
+
+### Questions for the ruling on part 7
+
+25. **Bytes: a kind, or text.** Recommended: text in a named encoding.
+    JSON has no bytes, CUE's own output is base64 text, and JSON
+    Schema says it with `contentEncoding`. A kind would be a new
+    scalar in the lattice, canon, the four grammars, the definition
+    and both ports.
+26. **Where the encodings are spelled.** Recommended: as conventions
+    of `esc` and `usc`, BT1. The other choice is a pair of built-ins,
+    `encode(s, name)` and `decode(t, name)`, which reads better for
+    base64 and adds two names.
+27. **Sized numbers.** Recommended: a bundled model, BT4. It keeps
+    G1's decision: no keyword, `a: int8` still a string, and each name
+    an ordinary value that a project can narrow. The others: each
+    project writes its own block, as today, or the names are
+    predeclared as CUE's are, which reverses G1.
+28. **Multipliers.** Recommended: not adopted, since a bare `1Ki` is a
+    string that documents rely on. The other choice puts the constants
+    in the bundled model, as `mul(4, $.aontu.Num.Gi)`.
+
+## The order across parts
+
+1. **P0**, the fifteen questions. Until then, what waits on no ruling
+   can start: C6 and C7 of part 1, CG1 and CG2, and LS1, LS4 and LS9.
+2. **The small and visible.** HV1, then KP1, then BT1. Each is one
+   change in both ports, and each answers a question a CUE user asks
+   in the first hour.
+3. **The language server on LS1**, in the order of its table.
+4. **The guide, CG4**, once the corpus holds its examples. Every other
+   part's documentation task then adds its row to it.
+5. **OpenAPI last.** OA1 stands on BT2, and OA2 on the rulings of
+   [IO-FORMATS.0.md](IO-FORMATS.0.md#the-rulings), whose first task is
+   the tabnas pins.
+
+Part 1 keeps its own [order](#order).
+
+## What stays outside
+
+These findings of the comparison are in no part of this plan:
+
+| Finding | Where it stands |
+|---|---|
+| YAML, TOML and the other formats, in and out | ruled on 2026-11-21, in [IO-FORMATS.0.md](IO-FORMATS.0.md#the-rulings) |
+| A package repository that serves | M6 of [CONFIG-LANGUAGES-PLAN.0.md](CONFIG-LANGUAGES-PLAN.0.md) |
+| Type generation for a host language | L9 of that plan |
+| Bindings beyond TypeScript and Go | L7 of that plan |
+| A guide for JSON Schema users | the second half of its H3 |
+| A `trim` that rewrites | [#860](https://github.com/aontu-lang/aontu/issues/860) |
+| Protobuf | in no plan. tabnas reads `.proto`, so reading could follow the readers that ruling D adds |
+| A standard library: time, network addresses, hashes, number and text conversion | in no plan |
+| A language version for each module, and a tool that migrates | in no plan |
+| A package of several files as the unit | in no plan |
+
+The decisions that rule out CUE's other features are listed in the
+comparison, under
+[What this suggests for aontu](CUE-COMPARISON.0.md#what-this-suggests-for-aontu).
+
+## Done when, for parts 2 to 7
+
+- **Part 2:** every probe is held on both sides, and the guide prints
+  no line that a test doesn't hold.
+- **Part 3:** each request in the table of part 3 gets an answer from
+  both servers, and the same one.
+- **Part 4:** the pattern example has a spelling of one call whose
+  canon is today's.
+- **Part 5:** the sample document imports whole, `tag: null` is
+  admitted, and a model's types export to a document that an OpenAPI
+  3.1 reader takes.
+- **Part 6:** the document of #862 evaluates, vets and hashes from the
+  command line in both ports.
+- **Part 7:** `text` and `back` have spellings, and a 64-bit integer
+  has a name.
