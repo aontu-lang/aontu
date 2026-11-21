@@ -1682,3 +1682,9 @@ A broken graph in an incomplete document: with the cycle a→b→a plus an unfil
 ```text
 et the latest version of [redacted: session set-up];
 ```
+
+## 2026-11-21 17:06:06 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Add the guide for cue users and the comparison examples to the plan; add the language server to the plan; a short form for key patterns; openapi support; cmd line host values; binary types;
+```
