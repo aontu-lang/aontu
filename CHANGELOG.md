@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### Rows hold both engines to the alias shorthand
+
+P10 of `sketch/DEFINITION.0.md`. No engine changes.
+
+- **Rows sh0 to sh17 of `test/spec/def-alias.tsv`** write a schema with
+  the shorthand `{ %a %b }`. The definition reads the set as the map
+  that binds each name under its own key, and both engines answer every
+  row as it does. The names are apart by spaces or by commas, one
+  stands alone, and one set sits under a key, each in the three modes
+  of `vet`.
+- **P2's status in the design note is corrected**: `open()` and
+  ADR-045, 046 and 053 were already built, so P2 waits only on the
+  engines.
+
 ### A big decimal past the exactness budget is no value in the definition
 
 The rest of decision 70 of `sketch/DEFINITION.0.md` §7. No engine
