@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### Rows hold both engines to a written `nil` and a path in `must`'s condition
+
+Findings of decision 62's build. No engine changes.
+
+- **Rows tn0 to tn17 of `test/spec/def-trial.tsv`** put a written `nil`
+  below the top of `must`'s condition. The definition reads it where it
+  stands, by ruling 54, so `must({b?: nil}, "m")` admits `{"x": 1}`.
+  Both engines refuse every such value with `invalid-arg`, and the
+  twelve rows they answer otherwise enter the ledger under #894.
+- **Rows tq0 to tq14** put a path in `must`'s condition into the value
+  under trial. Both engines leave it unread and pass the check, where
+  the definition reads `error` through a call and `invalid` beside a
+  missing member. The nine rows that differ enter the ledger under #895,
+  which awaits a ruling, and the ledger's bound rises to 222.
+
 ### The definition reads a conflict anywhere in a trial's eager argument
 
 Decision 62 of `sketch/DEFINITION.0.md` (#535). No engine changes.

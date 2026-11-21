@@ -2866,6 +2866,27 @@ until the phase that encodes it lands.
    refuses `{"x": 1}` and `nof(0, {b?: 1 & 2})` admits it. Rows td93
    to td95 of `test/spec/def-trial.tsv`, in the ledger under #892, its
    bound rising to 201. **Not yet ruled.**
+75. **A written `nil` below the top of `must`'s condition.** Raised
+   2026-11-21 by building decision 62 (#894): both ports refuse every
+   value where `must`'s condition holds a written `nil` below its top,
+   `invalid-arg`, from a check in `must`'s builder that came with
+   #686, before ruling 54. The definition reads the `nil` where it
+   stands, by ruling 54, so `must({b?: nil}, "m")` admits `{"x": 1}`
+   and refuses `{"b": 1}`, and an arm that holds one refuses. Both
+   ports read the same `nil` where it stands in a branch of `nof`.
+   Rows tn0 to tn17 of `test/spec/def-trial.tsv`, twelve of them in
+   the ledger under #894. **Not yet built**: both ports, unless the
+   owner rules `must` apart.
+76. **A path in `must`'s condition into the value under trial.**
+   Raised 2026-11-21 by building decision 62 (#895): both ports leave
+   a path such as `$.v.name` in `v: must(…)` unread, and pass the
+   check where it sits in a call or beside another member, so
+   `must({x: 1, y: $.v.x}, "m")` admits a value with no `y`. The
+   definition reads it in the schema alone, where it names nothing, so
+   a call over it is one the reading can't make, an `error` by
+   decision 62. Decision 63 ruled the same shape for `match`. Rows tq0
+   to tq14, nine of them in the ledger under #895, its bound rising to
+   222. **Not yet ruled.**
 
 ## 8. Risks
 

@@ -6299,6 +6299,17 @@ def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds)
     if ds.clashes (resolveD ds b here n) then .nil else .contains (resolveD ds b here c) (resolveD ds b here n)
 ```
 
+Below the top of `must`'s condition a written `nil` stands as it does
+anywhere, so `must({b?: nil}, "m")` admits `{"x": 1}` and refuses
+`{"b": 1}`, where both engines refuse every value with `invalid-arg`.
+Rows `tn0` on hold it, and the ones the engines answer otherwise sit in
+the ledger under #894. A path in the condition into the value under
+trial, `$.v.name` under `v`, names nothing in the schema alone, so the
+reading can't make a call over it, and `must({x: upper($.v.name)}, "m")`
+is an `error`. Both engines leave such a path unread and pass the
+check: rows `tq0` on, the ones that differ in the ledger under #895,
+which awaits a ruling.
+
 Read with no position, as the schema's own tree is, a call whose
 arguments hold a `key(n)` stays as written, so that a path copies it to
 be read where it lands. A `relate` is made all the same,

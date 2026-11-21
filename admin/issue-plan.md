@@ -192,9 +192,9 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-10 issues (2 S, 8 M), 15 ledger rows.
+12 issues (2 S, 10 M), 36 ledger rows.
 
-Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and #892, a conflict below the top of a trial argument read against a value, which awaits a ruling.
+Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and three findings of decision 62's build: #892, a conflict below the top of a trial argument read against a value, and #895, a path in `must`'s condition into the value under trial, which await rulings, and #894, a written `nil` below the top of `must`'s condition, which ruling 54 answers.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -208,6 +208,8 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#743](https://github.com/aontu-lang/aontu/issues/743) | def | M | 12 | A `match` over an open scrutinee is refused before data; ruling 49 says wait for the data. |
 | [#527](https://github.com/aontu-lang/aontu/issues/527) | def | S |  | neq over a nested list written in place expands it twice; path form expands once |
 | [#892](https://github.com/aontu-lang/aontu/issues/892) | def | M | 3 | A conflict below the top of a trial argument read against a value: both ports make the argument admit nothing, the definition reads it in place. Awaits a ruling. |
+| [#894](https://github.com/aontu-lang/aontu/issues/894) | def | M | 12 | A written `nil` below the top of `must`'s condition refuses every value in both ports (`invalid-arg`), where ruling 54 reads it where it stands. |
+| [#895](https://github.com/aontu-lang/aontu/issues/895) | def | M | 9 | A path in `must`'s condition into the value under trial: both ports leave it unread and pass the check, the definition reads `error` or `invalid`. Awaits a ruling. |
 
 ### Declarations, loads, includes and built-in models
 
