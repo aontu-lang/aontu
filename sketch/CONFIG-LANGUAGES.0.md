@@ -8,6 +8,9 @@ public discussion stated them on that date. Adoption tiers are
 judgements.
 **Plan:** [CONFIG-LANGUAGES-PLAN.0.md](CONFIG-LANGUAGES-PLAN.0.md)
 proposes how to close the gaps this survey finds.
+**CUE in depth:** [CUE-COMPARISON.0.md](CUE-COMPARISON.0.md), of
+2026-11-20, compares aontu with CUE v0.17.1 and v0.18.0-rc.4 feature by
+feature, each difference checked by running both.
 
 ## Scope and sources
 
