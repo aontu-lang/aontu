@@ -24,14 +24,14 @@ by how many rows of `spec/ledger.tsv` it clears.
 
 Seven questions held up code. The project's owner ruled on all of them
 on 2026-11-19, as rulings 59 to 68 of section 7 of
-[`sketch/DEFINITION.0.md`](../sketch/DEFINITION.0.md), and none is
-built yet:
+[`sketch/DEFINITION.0.md`](../sketch/DEFINITION.0.md), and only 62
+is built, on 2026-11-21:
 
 | # | the question | ruled | unblocks |
 |---|---|---|---|
 | [#738](https://github.com/aontu-lang/aontu/issues/738) | does a declaration have a place, or is its body read at each use as a template is? (five decisions) | 59 to 61: no place, the body read at each use; a call or a bound over a kind that fits its slot is a residual; a template is held to a declaration's check | the copies workstream, [#692](https://github.com/aontu-lang/aontu/issues/692), [#733](https://github.com/aontu-lang/aontu/issues/733), [#746](https://github.com/aontu-lang/aontu/issues/746) |
 | [#818](https://github.com/aontu-lang/aontu/issues/818) | what a `match()` met with the map whose field it reads answers | 63: it reads the field | [#818](https://github.com/aontu-lang/aontu/issues/818), the trials in the generators workstream |
-| [#535](https://github.com/aontu-lang/aontu/issues/535) | a conflict below an eager argument's top: `error`, as the ports answer, or `invalid`, as the definition reads | 62: `error`, and the definition moves | [#535](https://github.com/aontu-lang/aontu/issues/535) |
+| [#535](https://github.com/aontu-lang/aontu/issues/535) | a conflict below an eager argument's top: `error`, as the ports answer, or `invalid`, as the definition reads | 62: `error`; the definition moved on 2026-11-21 | [#535](https://github.com/aontu-lang/aontu/issues/535) |
 | [#457](https://github.com/aontu-lang/aontu/issues/457) | does a call's refusal show an argument as written or as driven? | 64: as written; with [#327](https://github.com/aontu-lang/aontu/issues/327), 65: a value is sited at its own span | [#457](https://github.com/aontu-lang/aontu/issues/457), and with [#327](https://github.com/aontu-lang/aontu/issues/327) every refusal inside a call |
 | [#819](https://github.com/aontu-lang/aontu/issues/819) | the subsumption rule for a relation's members | 66: it subsumes where the range admits | [#819](https://github.com/aontu-lang/aontu/issues/819), `breaking` over relations |
 | [#770](https://github.com/aontu-lang/aontu/issues/770) | case 1: a `type()` block declared empty and filled by statements | 67: as written whole | [#770](https://github.com/aontu-lang/aontu/issues/770) |
@@ -192,9 +192,9 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-10 issues (2 S, 8 M), 12 ledger rows.
+10 issues (2 S, 8 M), 15 ledger rows.
 
-Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), and the trial questions of #818 and #535, ruled as 63 and 62.
+Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and #892, a conflict below the top of a trial argument read against a value, which awaits a ruling.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -207,7 +207,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#818](https://github.com/aontu-lang/aontu/issues/818) | def | M |  | `match()` met with the map whose field it reads never settles: incomplete in ports, error in definition. |
 | [#743](https://github.com/aontu-lang/aontu/issues/743) | def | M | 12 | A `match` over an open scrutinee is refused before data; ruling 49 says wait for the data. |
 | [#527](https://github.com/aontu-lang/aontu/issues/527) | def | S |  | neq over a nested list written in place expands it twice; path form expands once |
-| [#535](https://github.com/aontu-lang/aontu/issues/535) | def | M |  | Trial eager arguments: nil questions settled; conflict below argument top is error in ports, invalid in definition |
+| [#892](https://github.com/aontu-lang/aontu/issues/892) | def | M | 3 | A conflict below the top of a trial argument read against a value: both ports make the argument admit nothing, the definition reads it in place. Awaits a ruling. |
 
 ### Declarations, loads, includes and built-in models
 

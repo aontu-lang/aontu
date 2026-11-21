@@ -7707,7 +7707,16 @@ can retract it. On failure the author's message is attached to the nil
 subsumption, and any report including one states that the check was
 evaluate-only: the channel for domain rules beyond the algebra.
 
-`must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
+A conflict anywhere in `c` makes the document an error, as one
+anywhere in a schema does, since both engines read `c` as they build
+the check: `must({b?: 1 & 2}, "m")`, with a conflict at an optional
+member, and `must(len(1) & [1, 2], "m")`, whose list is too long for
+its size. A conflict in a spread of `c` refuses only a member it's
+tried on, and an arm that holds one drops. A size, the count of `nof`
+and of `contains`, the source of `filter` and the scrutinee of `match`
+read the same way.
+
+`must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). The reading makes a trial `nil` where an argument both engines read as they build it holds a conflict anywhere, its staged normal form not standing: `Decls.clashes` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), held to both engines by rows `td0` on of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv).
 
 ### Band B: `nof`
 
