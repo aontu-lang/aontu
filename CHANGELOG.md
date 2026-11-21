@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### A big decimal past the exactness budget is no value in the definition
+
+The rest of decision 70 of `sketch/DEFINITION.0.md` §7. No engine
+changes, and no generated row moves.
+
+- **The budget is part of `BigDecimal`'s type** in
+  `spec/Aontu/Data.lean`: at most 4096 coefficient digits and a scale
+  of at most 4096 either way. A literal, a computed answer or a number
+  the data writes can't be a big decimal past it.
+- **`BigDecimal.normal` answers none past the budget.** A big decimal's
+  arithmetic reads its arguments whatever their size and holds only its
+  answer to the budget, as both engines do.
+- **Three theorems of `spec/Aontu/Written.lean` now set big decimals
+  aside alongside floats**: a big decimal's rounding can pass the
+  budget, as `0d1e8192` would.
+- **P1 of the definition has landed.**
+
+### The definition reads a number the data writes, in each read mode
+
+Decisions 70 and 71 of `sketch/DEFINITION.0.md` §7. No engine changes.
+
+- **`NumText.read` in `spec/Aontu/Read.lean` reads a number as JSON
+  writes it.** Without `--exact-numbers` it goes through the nearest
+  double: `1e2` is an integer and `1.0` a float, while
+  `9007199254740993` and `1e400` are no number. Under
+  `--exact-numbers` it reads the exact value within the exactness
+  budget: `1.0` is an integer and `1e400` a big integer, while
+  `1e-4097` is past the budget and no number.
+- **`vetText` reads data as written**: `error` where the schema doesn't
+  stand, `invalid` where the mode reads a number as no number, and
+  `vet` otherwise. `vetText_iff` proves it computes `VetText`.
+- **Rows n0 to n203 of `test/spec/def-verdict.tsv`** read 20 numbers
+  against each number kind, and a fraction of 4096 digits and one of
+  4097 against `number`, in both modes. Both engines answer every row
+  as the definition does.
+
 ### A preferred arm keeps its records through a ranked meet
 
 Both ports, fixing what #863 broke.

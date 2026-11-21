@@ -189,6 +189,10 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.vet_iff
 
+/-- info: 'Aontu.vetText_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.vetText_iff
+
 /-- info: 'Aontu.vet_strict_valid_instance' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.vet_strict_valid_instance

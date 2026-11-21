@@ -5,8 +5,10 @@ What an aontu value admits or refuses: the data, a value of the
 language with nothing left open. The scalars come first: the numbers,
 in the language's four leaves, then the strings, the booleans, and
 null. Maps and lists are built from them. The definition says what
-values mean, and nothing about text: how a text is read into a value,
-and which leaf a number is read into, is a reader's business.
+values mean, and little about text: how a text is read into a value is
+a reader's business, and so is which leaf a number is read into, but
+for a number the data writes, which `NumText.read` in `Aontu/Read.lean`
+reads in each of `vet`'s modes.
 -/
 
 namespace Aontu
@@ -173,19 +175,23 @@ structure BigInteger where
 /-! ### Big decimals -/
 
 /-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
-coefficient with no zero trailing it. Scale is presentation, not
-identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1` are
-both `⟨1, 1, _⟩`. -/
+coefficient with no zero trailing it, within the exactness budget of at
+most 4096 coefficient digits and a scale of at most 4096 either way: a
+big decimal past it is no value (decision 70). Scale is presentation,
+not identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1`
+are both `⟨1, 1, _, _⟩`. -/
 structure BigDecimal where
   coef : ℤ
   scale : ℤ
   canon : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0)
+  budget : ndigits coef.natAbs ≤ 4096 ∧ scale.natAbs ≤ 4096
   deriving DecidableEq
 
-/-- The big decimal `coef * 10 ^ (-scale)`, given with no trailing zero:
-`BigDecimal.of 15 1` is one and a half. -/
-def BigDecimal.of (coef scale : ℤ) (h : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0) := by decide) :
-    BigDecimal := ⟨coef, scale, h⟩
+/-- The big decimal `coef * 10 ^ (-scale)`, given with no trailing zero
+and within the budget: `BigDecimal.of 15 1` is one and a half. -/
+def BigDecimal.of (coef scale : ℤ) (h : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0) := by decide)
+    (hb : ndigits coef.natAbs ≤ 4096 ∧ scale.natAbs ≤ 4096 := by decide) : BigDecimal :=
+  ⟨coef, scale, h, hb⟩
 
 /-! ### The four leaves -/
 

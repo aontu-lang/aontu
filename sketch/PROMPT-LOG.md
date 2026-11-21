@@ -1629,3 +1629,50 @@ Lost the other things in cue that we have not dealt with in the plan
 ```text
 Continue the lean work
 ```
+
+## 2026-11-19 14:39:25 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+[redacted: session set-up]
+```
+
+## 2026-11-19 14:42:29 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+you are explicity instructed in [redacted: session set-up] not to mention it or its processes anywhere in your own repo - why are you trying to change aontus agents.md? no changes are needed
+```
+
+## 2026-11-19 15:07:29 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+merge [redacted: session set-up] prs
+```
+
+## 2026-11-20 00:16:52 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+do the quick wins
+[redacted: session set-up]
+[redacted: session set-up]
+```
+
+## 2026-11-21 12:10:38 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Exactness budget: both engines refuse a bigdecimal with more than 4096 coefficient digits or an absolute scale over 4096 (decimal_budget, class conflict). The error registry already calls this 'a fixed language rule about the value'. The Lean definition has no budget, so its decimals are unbounded. Should the definition carry the budget?
+→ Carry it (Recommended)
+Default-mode numbers (without --exact-numbers): today both engines read a whole number in JSON data exactly, or refuse it (2^53+1 is invalid, lossy_integer_literal). A fraction or exponent reads as the nearest double, so a 5000-digit fraction rounds and 1e-5000 reads as 0. A number beyond the double range (1e400) is refused (not_number). Which reading should the definition state?
+→ As the engines read (Recommended)
+Edges a default brings: in `a: d: relate() & acyclic() & (*[path($.b)] | [path($.c)])` with `b: d: relate() & [path($.a)]`, both engines generate the default arm, giving the cycle a→b→a, with no relation_cycle. `aontu relations` says pass, because acyclic() and inverse(k) are checked before generation takes defaults. Which edges should the two atoms judge?
+→ The generated edges (Recommended)
+A broken graph in an incomplete document: with the cycle a→b→a plus an unfilled `n: integer` elsewhere, both engines answer `vet` incomplete (because of the hole) and `vet --partial` valid. A missing inverse(k) behaves the same way. Should acyclic() and inverse(k) refuse as soon as the edges they read are settled, even while another part of the document is incomplete?
+→ Wait for generation (Recommended)
+```
+
+## 2026-11-21 16:59:24 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+[redacted: session set-up]; continue
+```

@@ -1,6 +1,7 @@
 import Aontu.Output
 import Aontu.Alias
 import Aontu.Text
+import Aontu.Read
 
 /-!
 # The verdicts
@@ -36,12 +37,14 @@ inductive Verdict where
   | error
   deriving DecidableEq, Repr
 
-/-- The modes of `vet`: whether the schema fills the data, the default,
-and whether what is left unresolved passes, which is `--partial`,
-`lax` here since Lean keeps the word. -/
+/-- The modes of `vet`: whether the schema fills the data, the default;
+whether what is left unresolved passes, which is `--partial`, `lax`
+here since Lean keeps the word; and whether the data's numbers are read
+exactly, which is `--exact-numbers` (`NumText.read`). -/
 structure Mode where
   fill : Bool := true
   lax : Bool := false
+  exact : Bool := false
 
 /-! ## The data as a term -/
 
@@ -5023,6 +5026,64 @@ theorem vet_error_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} :
     simp only [Bool.and_true, Bool.and_false, Bool.not_true, Bool.not_false, Bool.false_eq_true,
       ↓reduceIte, not_true_eq_false, not_false_eq_true, or_true, or_false, iff_false] <;>
     (repeat' split) <;> simp
+
+/-! ## Data as written -/
+
+/-- The verdict `vet` gives data as written (`DataText`): `error` where
+the schema doesn't stand, whatever the data; `invalid` where the mode
+reads a number the data writes as no number (`DataText.read`, decisions
+70 and 71); and otherwise `Vet` on the data read. -/
+def VetText (m : Mode) (ds : Decls) (S : Val) (t : DataText) : Verdict → Prop :=
+  match t.read m.exact with
+  | some j => Vet m ds S j
+  | none => fun v =>
+    (v = .error ∧ (¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true)) ∨
+      (v = .invalid ∧ ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false)
+
+/-- The verdict on data as written, computed. -/
+def vetText (m : Mode) (ds : Decls) (S : Val) (t : DataText) : Verdict :=
+  match t.read m.exact with
+  | some j => vet m ds S j
+  | none => if vet m ds S .null = .error then .error else .invalid
+
+/-- `vetText` computes `VetText`. -/
+theorem vetText_iff {m : Mode} {ds : Decls} {S : Val} {t : DataText}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : (ds.readR S).CheckableA) (v : Verdict) :
+    vetText m ds S t = v ↔ VetText m ds S t v := by
+  unfold vetText VetText
+  cases t.read m.exact with
+  | some j => exact vet_iff hb hS v
+  | none =>
+    dsimp only
+    have he : vet m ds S .null = .error ↔
+        (¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true) := vet_error_iff
+    by_cases h : vet m ds S .null = .error
+    · have hE := he.mp h
+      rw [if_pos h]
+      constructor
+      · intro hv
+        exact .inl ⟨hv.symm, hE⟩
+      · rintro (⟨rfl, -⟩ | ⟨rfl, hd, hg, hi⟩)
+        · rfl
+        · rcases hE with h' | h' | h'
+          · exact absurd hd h'
+          · exact absurd hg h'
+          · rw [hi] at h'
+            exact absurd h' (by decide)
+    · have hE : ¬ (¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true) :=
+        fun h' => h (he.mpr h')
+      rw [if_neg h]
+      constructor
+      · intro hv
+        refine .inr ⟨hv.symm, ?_, ?_, ?_⟩
+        · exact Decidable.byContradiction fun hd => hE (.inl hd)
+        · exact Decidable.byContradiction fun hg => hE (.inr (.inl hg))
+        · cases hi : ds.illFormedR S
+          · rfl
+          · exact absurd (.inr (.inr hi)) hE
+      · rintro (⟨rfl, h'⟩ | ⟨rfl, -⟩)
+        · exact absurd h' hE
+        · rfl
 
 /-! ## What the verdicts say -/
 

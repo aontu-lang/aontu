@@ -439,9 +439,23 @@ aontu file, so both are floats. `--exact-numbers` reads each number by
 its value instead: a whole number the `integer` leaf holds as an
 integer, any other whole number as a big integer, and a fraction as a
 big decimal, so `1.5` is `0d1.5` and `1.0` the integer `1`. The
-definition says what each kind admits, and which leaf a number lands in
-is the reader's business, which the flag changes. No other transcript
-on this page reads JSON.
+definition says what each kind admits, and, for the data `vet` reads,
+which leaf each number lands in under either reading:
+
+<!-- test: quote spec/Aontu/Read.lean -->
+```lean
+/-- A number the data writes, read exactly under `--exact-numbers` and
+otherwise through the nearest double; none where the mode reads it as
+no number. -/
+def NumText.read (exact : Bool) (t : NumText) : Option Number :=
+  if exact then t.readExact else t.readDouble
+```
+
+Through the nearest double, a whole number written with no point that
+no double holds is no number, and `vet` reads data that writes one as
+`invalid`, where `--exact-numbers` reads it as a big integer. The exact
+reading refuses a number past the exactness budget instead. No other
+transcript on this page reads JSON.
 
 ### Big integers and big decimals
 
@@ -457,17 +471,23 @@ structure BigInteger where
 /-! ### Big decimals -/
 
 /-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
-coefficient with no zero trailing it. Scale is presentation, not
-identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1` are
-both `⟨1, 1, _⟩`. -/
+coefficient with no zero trailing it, within the exactness budget of at
+most 4096 coefficient digits and a scale of at most 4096 either way: a
+big decimal past it is no value (decision 70). Scale is presentation,
+not identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1`
+are both `⟨1, 1, _, _⟩`. -/
 structure BigDecimal where
   coef : ℤ
   scale : ℤ
   canon : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0)
+  budget : ndigits coef.natAbs ≤ 4096 ∧ scale.natAbs ≤ 4096
 ```
 
 The coefficient carries no trailing zero, so `0d0.10` and `0d0.1` are
-one value: scale is presentation, not identity. Each leaf has its kind:
+one value: scale is presentation, not identity. The budget is part of
+the type, so a literal can't be a big decimal past it, and neither can
+a computed answer or a number the data writes: `0d1e-4097` is no value,
+and both engines refuse it. Each leaf has its kind:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -4956,16 +4976,19 @@ The first run is `incomplete`: `{}` meets `{x: integer}` in a map
 that is alive, `x` could still be any integer, and singles out
 nothing. `--partial` lets that pass. The third is `error`: the schema
 does not stand on its own, so the data is never blamed for it.
-`spec/Aontu/Verdict.lean` reads the modes as two switches:
+`spec/Aontu/Verdict.lean` reads the modes as three switches, the third
+the reading of the data's numbers that `--exact-numbers` changes:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- The modes of `vet`: whether the schema fills the data, the default,
-and whether what is left unresolved passes, which is `--partial`,
-`lax` here since Lean keeps the word. -/
+/-- The modes of `vet`: whether the schema fills the data, the default;
+whether what is left unresolved passes, which is `--partial`, `lax`
+here since Lean keeps the word; and whether the data's numbers are read
+exactly, which is `--exact-numbers` (`NumText.read`). -/
 structure Mode where
   fill : Bool := true
   lax : Bool := false
+  exact : Bool := false
 ```
 
 and the verdict as a relation on the four answers, under the
@@ -7509,7 +7532,7 @@ def Number.round (up : Bool) (x : Number) : Option Number :=
   match x with
   | .integer _ | .biginteger _ => some x
   | .float _ => (Float.nearest k 1).map .float
-  | .bigdecimal _ => some (.bigdecimal (BigDecimal.normal k 0))
+  | .bigdecimal _ => (BigDecimal.normal k 0).map .bigdecimal
 ```
 
 A range argument is an integer, or a big integer that 64 bits hold,
@@ -10572,8 +10595,7 @@ doesn't yet.
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
-[language reference](reference-language.md) states the rest: the
-two readings of a number that `--exact-numbers` switches between,
+[language reference](reference-language.md) states the rest:
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
 steps 20 to 26 and 33 to 37 don't walk through, the named tables and
@@ -10586,8 +10608,9 @@ suite in [`test/spec/`](../test/spec/) holds both engines to them.
 Nor does the definition say anything about text. The
 [grammar](../grammar/aontu.abnf) says how to parse an aontu file, and
 each engine how it reads a JSON file into aontu's values: the leaf of
-each number, its escapes, and a key it repeats. The shared test suite holds both readers to one
-answer.
+each number a document writes, its escapes, and a key it repeats. The
+one exception is a number the data `vet` reads, whose leaf `NumText.read`
+states. The shared test suite holds both readers to one answer.
 
 Nor does it name JSON Schema, which isn't a concept of the language.
 The language needs only the power to represent a JSON Schema: what
