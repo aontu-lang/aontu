@@ -953,6 +953,73 @@ def verdictRows (tag : String) (cases : List (Val × Data) := vetCases) : IO Uni
     let (S, D) := vetDoc c
     i ← verdictLines tag i ("v: " ++ ssrc) ("v: " ++ dsrc) fun m => vet m [] S D
 
+/-- A number as JSON writes it: a minus sign for a negative one, its
+digits with the point `places` from the right and a zero before a point
+that would lead, and its exponent where it has one. -/
+def Aontu.NumText.text (t : NumText) : String :=
+  let ds := toString t.digits
+  let body :=
+    if t.places = 0 then ds else
+    let ds := zeros (t.places + 1 - ds.length) ++ ds
+    let k := ds.length - t.places
+    String.mk (ds.toList.take k) ++ "." ++ String.mk (ds.toList.drop k)
+  (if t.neg then "-" else "") ++ body ++ (if t.exp = 0 then "" else "e" ++ toString t.exp)
+
+/-- The numbers of decisions 70 and 71, each as the data writes it:
+whole numbers each side of the integer leaf's window and of the
+double's reach, a fraction, the negative zeros, a whole number written
+with a fraction and with a negative exponent, and the exactness
+budget's edges, a scale of 4096 either way and one past it. -/
+def readNums : List NumText :=
+  [⟨false, 1, 0, 2⟩, ⟨false, 1, 0, -5000⟩, ⟨false, 10, 1, 0⟩, ⟨false, 18446744073709551616, 0, 0⟩,
+    ⟨false, 9007199254740993, 0, 0⟩, ⟨false, 9007199254740992, 0, 0⟩, ⟨false, 1, 0, 400⟩,
+    ⟨false, 1, 1, 0⟩, ⟨false, 20, 0, -1⟩, ⟨true, 0, 0, 0⟩, ⟨true, 0, 1, 0⟩,
+    ⟨true, 9223372036854775808, 0, 0⟩, ⟨false, 9223372036854775807, 0, 0⟩, ⟨false, 1, 0, 300⟩,
+    ⟨false, 1, 0, -4096⟩, ⟨false, 1, 0, -4097⟩, ⟨false, 1, 0, 4096⟩, ⟨false, 1, 0, 4097⟩,
+    ⟨false, 10, 0, 4096⟩, ⟨true, 15, 1, 0⟩]
+
+/-- The exactness budget's other half, the digits of a fraction: 4096
+of them and 4097, read against `number` alone. -/
+def readLongNums : List NumText :=
+  [⟨false, (10 ^ 4096 - 1) / 9, 4096, 0⟩, ⟨false, (10 ^ 4097 - 1) / 9, 4097, 0⟩]
+
+/-- The kinds each number is read against, under the key `v`. -/
+def readKinds : List Val := [.number, .integer, .float, .biginteger, .bigdecimal]
+
+/-- A kind under the key `v`. -/
+def readSchema (k : Val) : Val := .map [("v", false, k)] none false
+
+/-- A kind under the key `v`, and a number written under it. -/
+def readDoc (k : Val) (t : NumText) : Val × DataText := (readSchema k, .map [("v", .num t)])
+
+theorem readKinds_checkable : ∀ k ∈ readKinds, (readSchema k).CheckableA := by decide
+
+/-- Each reading row's verdict is `VetText`'s, by `vetText_iff`. -/
+theorem read_verdict_exact : ∀ k ∈ readKinds, ∀ (t : NumText) (m : Mode) (v : Verdict),
+    vetText m [] (readDoc k t).1 (readDoc k t).2 = v ↔
+      VetText m [] (readDoc k t).1 (readDoc k t).2 v :=
+  fun k hk _ _ v => vetText_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (readKinds_checkable k hk)) v
+
+/-- The two read modes a reading row is printed in, with the options
+each row writes. -/
+def readModes : List (Mode × String) :=
+  [(({} : Mode), ""), (({ exact := true } : Mode), ",\"opts\":{\"exactNumbers\":true}")]
+
+/-- The reading rows: each number against each kind, the long fractions
+against `number` alone, in both read modes, with the one class
+`vetText` gives. -/
+def readRows (tag : String) : IO Unit := do
+  let mut i := 0
+  let cases := readKinds.flatMap (fun k => readNums.map (k, ·)) ++ readLongNums.map (.number, ·)
+  for (k, t) in cases do
+    let some ksrc := k.cell | throw (IO.userError "a kind of the reading rows has no text")
+    let (S, D) := readDoc k t
+    for (m, opts) in readModes do
+      IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ ksrc ++ "\tv: " ++ t.text
+        ++ "\t{\"verdict\":\"" ++ verdictName (vetText m [] S D) ++ "\"" ++ opts ++ "}")
+      i := i + 1
+
 /-- The cases of the `alias` fragment: declarations, a schema and a
 document, the last two under the key `v`: names that are not recursive,
 replaced as the document reads, and recursive ones, left as residuals
@@ -8229,6 +8296,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# higher one's still constrains (ruling 41) and its default fills in under"
     IO.println "# the lower one's (ruling 42). An arm that was not a default stays one,"
     IO.println "# whichever side of the meet holds it (decision 43), in rows rk0 on."
+    IO.println "# Each read mode's reading of a number the data writes follows in rows n0 on"
+    IO.println "# (decisions 70 and 71), against each number kind: under --exact-numbers"
+    IO.println "# (exactNumbers) its exact value, within the exactness budget, and otherwise"
+    IO.println "# the double nearest it, a whole number no double holds and one beyond the"
+    IO.println "# double's range refused, so the data is invalid."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases
@@ -8238,6 +8310,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "na" armCases
     verdictRows "pa" prefArmCases
     verdictRows "rk" rankFoldCases
+    readRows "n"
     return 0
   | ["alias"] =>
     IO.println "# Generated by `lake exe oracle alias` (spec/Oracle.lean) from the definition"

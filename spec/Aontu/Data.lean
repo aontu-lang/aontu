@@ -5,8 +5,10 @@ What an aontu value admits or refuses: the data, a value of the
 language with nothing left open. The scalars come first: the numbers,
 in the language's four leaves, then the strings, the booleans, and
 null. Maps and lists are built from them. The definition says what
-values mean, and nothing about text: how a text is read into a value,
-and which leaf a number is read into, is a reader's business.
+values mean, and little about text: how a text is read into a value is
+a reader's business, and so is which leaf a number is read into, but
+for a number the data writes, which `NumText.read` in `Aontu/Read.lean`
+reads in each of `vet`'s modes.
 -/
 
 namespace Aontu

@@ -222,7 +222,14 @@ value lands in `integer` where that leaf holds it exactly and in
 [exactness budget](reference-language.md#the-exactness-budget). So
 `1.0`, `1` and `1e0` are one integer, `0.1` keeps its digits, and a
 twenty-digit identifier is not rounded. Without it a data number reads
-exactly as it does in a document.
+exactly as it does in a document: through the double nearest it, so
+the reading refuses a whole number written with no point that no double
+holds, `9007199254740993`, and one past the double's range, `1e400`,
+and the data is `invalid`. The definition states both readings,
+`NumText.read` in [`spec/Aontu/Read.lean`](../spec/Aontu/Read.lean), and
+the rows from n0 on of
+[`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) hold both
+engines to them.
 
 **A data file that will not parse is the data's fault**, and is
 reported as one `parse`-class finding with a site in that file: not as
