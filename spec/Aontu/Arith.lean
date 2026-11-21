@@ -129,41 +129,47 @@ def Fn.onFracs : Fn → ℤ × ℕ → ℤ × ℕ → Option (ℤ × ℕ)
   | _, _, _ => none
 
 /-- The big decimal `c * 10 ^ (-s)` with its trailing zeros dropped, the
-one each value has. -/
-def BigDecimal.normal (c s : ℤ) : BigDecimal :=
-  go c s c.natAbs
+one each value has, and none past the exactness budget, where the value
+is no big decimal. -/
+def BigDecimal.normal (c s : ℤ) : Option BigDecimal :=
+  let (c, s) := go c s c.natAbs
+  if h : c % 10 ≠ 0 ∨ (c = 0 ∧ s = 0) then
+    if hb : ndigits c.natAbs ≤ 4096 ∧ s.natAbs ≤ 4096 then some ⟨c, s, h, hb⟩ else none
+  else none
 where
-  go (c s : ℤ) : ℕ → BigDecimal
-    | 0 => if h : c % 10 ≠ 0 ∨ (c = 0 ∧ s = 0) then ⟨c, s, h⟩ else ⟨0, 0, .inr ⟨rfl, rfl⟩⟩
+  go (c s : ℤ) : ℕ → ℤ × ℤ
+    | 0 => if c = 0 then (0, 0) else (c, s)
     | fuel + 1 =>
-      if c = 0 then ⟨0, 0, .inr ⟨rfl, rfl⟩⟩
-      else if h : c % 10 ≠ 0 then ⟨c, s, .inl h⟩
+      if c = 0 then (0, 0)
+      else if c % 10 ≠ 0 then (c, s)
       else go (c / 10) (s - 1) fuel
 
-/-- A big decimal within the exactness budget: at most 4096 coefficient
-digits and a scale of at most 4096 either way. -/
-def BigDecimal.inBudget (x : BigDecimal) : Bool :=
-  ndigits x.coef.natAbs ≤ 4096 && x.scale.natAbs ≤ 4096
+/-- Zero is the big decimal zero, whatever scale it is written at. -/
+theorem BigDecimal.normal_zero (s : ℤ) :
+    (BigDecimal.normal 0 s).map (fun x => (x.coef, x.scale)) = some (0, 0) := by
+  simp [BigDecimal.normal, BigDecimal.normal.go, ndigits, ndigits.go]
 
-/-- A number's exact value as a big decimal, for the exact leaves. -/
-def Number.toDecimal : Number → BigDecimal
-  | .integer x => BigDecimal.normal x.value 0
-  | .biginteger x => BigDecimal.normal x.value 0
-  | .bigdecimal x => x
-  | .float _ => BigDecimal.normal 0 0
+/-- A number's exact value as a coefficient and a scale, for the exact
+leaves, whatever their size: a big decimal's arithmetic reads them so,
+and holds only its answer to the budget. -/
+def Number.toDecimal : Number → ℤ × ℤ
+  | .integer x => (x.value, 0)
+  | .biginteger x => (x.value, 0)
+  | .bigdecimal x => (x.coef, x.scale)
+  | .float _ => (0, 0)
 
-/-- A function on big decimals: exact, within the budget, and never a
-division, which has no finite decimal form in general. -/
-def Fn.onDecimals (f : Fn) (x y : BigDecimal) : Option BigDecimal :=
-  let s := max x.scale y.scale
-  let cx := x.coef * 10 ^ (s - x.scale).toNat
-  let cy := y.coef * 10 ^ (s - y.scale).toNat
-  let r? : Option BigDecimal := match f with
-    | .add => some (BigDecimal.normal (cx + cy) s)
-    | .sub => some (BigDecimal.normal (cx - cy) s)
-    | .mul => some (BigDecimal.normal (x.coef * y.coef) (x.scale + y.scale))
-    | _ => none
-  r?.bind fun r => if r.inBudget then some r else none
+/-- A function on exact decimals, each a coefficient and a scale: exact,
+its answer within the budget, and never a division, which has no finite
+decimal form in general. -/
+def Fn.onDecimals (f : Fn) (x y : ℤ × ℤ) : Option BigDecimal :=
+  let s := max x.2 y.2
+  let cx := x.1 * 10 ^ (s - x.2).toNat
+  let cy := y.1 * 10 ^ (s - y.2).toNat
+  match f with
+  | .add => BigDecimal.normal (cx + cy) s
+  | .sub => BigDecimal.normal (cx - cy) s
+  | .mul => BigDecimal.normal (x.1 * y.1) (x.2 + y.2)
+  | _ => none
 
 /-- The float of the opposite sign; zero stays zero. -/
 def Float.negate (x : Float) : Float :=
@@ -190,7 +196,7 @@ def Number.arith : Fn → List Number → Option Number
   | .neg, [.integer a] => Number.ofIntegerLeaf (-a.value)
   | .neg, [.float a] => some (.float a.negate)
   | .neg, [.biginteger a] => some (.biginteger ⟨-a.value⟩)
-  | .neg, [.bigdecimal a] => some (.bigdecimal (BigDecimal.normal (-a.coef) a.scale))
+  | .neg, [.bigdecimal a] => (BigDecimal.normal (-a.coef) a.scale).map .bigdecimal
   | .neg, _ => none
   | f, [x, y] => Number.binary f x y
   | _, _ => none
@@ -226,7 +232,7 @@ def Number.round (up : Bool) (x : Number) : Option Number :=
   match x with
   | .integer _ | .biginteger _ => some x
   | .float _ => (Float.nearest k 1).map .float
-  | .bigdecimal _ => some (.bigdecimal (BigDecimal.normal k 0))
+  | .bigdecimal _ => (BigDecimal.normal k 0).map .bigdecimal
 
 /-! ## A number as text
 

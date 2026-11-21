@@ -471,17 +471,23 @@ structure BigInteger where
 /-! ### Big decimals -/
 
 /-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
-coefficient with no zero trailing it. Scale is presentation, not
-identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1` are
-both `⟨1, 1, _⟩`. -/
+coefficient with no zero trailing it, within the exactness budget of at
+most 4096 coefficient digits and a scale of at most 4096 either way: a
+big decimal past it is no value (decision 70). Scale is presentation,
+not identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1`
+are both `⟨1, 1, _, _⟩`. -/
 structure BigDecimal where
   coef : ℤ
   scale : ℤ
   canon : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0)
+  budget : ndigits coef.natAbs ≤ 4096 ∧ scale.natAbs ≤ 4096
 ```
 
 The coefficient carries no trailing zero, so `0d0.10` and `0d0.1` are
-one value: scale is presentation, not identity. Each leaf has its kind:
+one value: scale is presentation, not identity. The budget is part of
+the type, so a literal can't be a big decimal past it, and neither can
+a computed answer or a number the data writes: `0d1e-4097` is no value,
+and both engines refuse it. Each leaf has its kind:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -7526,7 +7532,7 @@ def Number.round (up : Bool) (x : Number) : Option Number :=
   match x with
   | .integer _ | .biginteger _ => some x
   | .float _ => (Float.nearest k 1).map .float
-  | .bigdecimal _ => some (.bigdecimal (BigDecimal.normal k 0))
+  | .bigdecimal _ => (BigDecimal.normal k 0).map .bigdecimal
 ```
 
 A range argument is an integer, or a big integer that 64 bits hold,

@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A big decimal past the exactness budget is no value in the definition
+
+The rest of decision 70 of `sketch/DEFINITION.0.md` §7. No engine
+changes, and no generated row moves.
+
+- **The budget is part of `BigDecimal`'s type** in
+  `spec/Aontu/Data.lean`: at most 4096 coefficient digits and a scale
+  of at most 4096 either way. A literal, a computed answer or a number
+  the data writes can't be a big decimal past it.
+- **`BigDecimal.normal` answers none past the budget.** A big decimal's
+  arithmetic reads its arguments whatever their size and holds only its
+  answer to the budget, as both engines do.
+- **Three theorems of `spec/Aontu/Written.lean` now set big decimals
+  aside alongside floats**: a big decimal's rounding can pass the
+  budget, as `0d1e8192` would.
+- **P1 of the definition has landed.**
+
 ### The definition reads a number the data writes, in each read mode
 
 Decisions 70 and 71 of `sketch/DEFINITION.0.md` §7. No engine changes.

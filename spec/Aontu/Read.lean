@@ -77,8 +77,7 @@ def NumText.readExact (t : NumText) : Option Number :=
     if 4096 < -s then none else
     let w := n * 10 ^ (-s).toNat
     some ((Number.ofIntegerLeaf w).getD (.biginteger ⟨w⟩))
-  else if 4096 < s ∨ 4096 < ndigits u then none
-  else some (.bigdecimal (BigDecimal.normal n s))
+  else (BigDecimal.normal n s).map .bigdecimal
 
 /-- A number the data writes, read exactly under `--exact-numbers` and
 otherwise through the nearest double; none where the mode reads it as

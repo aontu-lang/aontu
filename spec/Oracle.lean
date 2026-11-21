@@ -445,7 +445,7 @@ def significantCases : List (Number × ℕ) :=
   let flt (a : ℤ) (d : ℕ) : Option Number := (Float.nearest a d).map .float
   let int (n : ℤ) : Option Number := Number.ofIntegerLeaf n
   let big (n : ℤ) : Option Number := some (.biginteger ⟨n⟩)
-  let dec (c s : ℤ) : Option Number := some (.bigdecimal (BigDecimal.normal c s))
+  let dec (c s : ℤ) : Option Number := (BigDecimal.normal c s).map .bigdecimal
   [(flt 314159 100000, 2), (flt 12345 10, 2), (flt 12345 1000000000, 2),
     (flt (-314159) 100000, 3), (flt 9996 100, 3), (flt 15 10, 5), (flt 125 100, 3),
     (flt 25 100, 1), (flt 35 100, 1), (flt 15 100, 1), (flt 125 1000, 2), (flt 25 10, 1),
@@ -488,7 +488,7 @@ def writtenCases : List (Number × Option ℕ × Option ℕ × Bool) :=
   let flt (a : ℤ) (d : ℕ) : Option Number := (Float.nearest a d).map .float
   let int (n : ℤ) : Option Number := Number.ofIntegerLeaf n
   let big (n : ℤ) : Option Number := some (.biginteger ⟨n⟩)
-  let dec (c s : ℤ) : Option Number := some (.bigdecimal (BigDecimal.normal c s))
+  let dec (c s : ℤ) : Option Number := (BigDecimal.normal c s).map .bigdecimal
   let places (x : Option Number) (p : ℕ) := (x, (none : Option ℕ), some p, false)
   let both (x : Option Number) (n p : ℕ) := (x, some n, some p, false)
   let text (x : Option Number) (n : Option ℕ) := (x, n, (none : Option ℕ), true)
@@ -5690,8 +5690,12 @@ def callCases : List (Val × Data) :=
     | none => .null
   let big (n : ℤ) : Val := .lit (.num (.biginteger ⟨n⟩))
   let jbig (n : ℤ) : Data := .num (.biginteger ⟨n⟩)
-  let dec (c e : ℤ) : Val := .lit (.num (.bigdecimal (BigDecimal.normal c e)))
-  let jdec (c e : ℤ) : Data := .num (.bigdecimal (BigDecimal.normal c e))
+  let dec (c e : ℤ) : Val := match BigDecimal.normal c e with
+    | some x => .lit (.num (.bigdecimal x))
+    | none => .nil
+  let jdec (c e : ℤ) : Data := match BigDecimal.normal c e with
+    | some x => .num (.bigdecimal x)
+    | none => .null
   let p (a b : Val) : Val := .call .plus [a, b]
   let kv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Val := mp [("k", int k h), ("v", str s)]
   let jkv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Data := jm [("k", j k h), ("v", js s)]
