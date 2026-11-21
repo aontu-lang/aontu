@@ -591,7 +591,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 
 	switch node.(type) {
 	case *RefVal, *FuncVal:
-		if rv.detectRefCycle(ctx) {
+		if rv.detectRefCycle(ctx) { //coverage:ignore the alias-cycle rule refuses a cycle of paths before evaluation
 			return makeNilErr(ctx, "path_cycle", rv, nil)
 		}
 	}
@@ -685,7 +685,7 @@ func (rv *RefVal) chaseRefCycle(ctx *Ctx, ancestors map[string]bool) bool {
 		return false
 	}
 	key := strings.Join(rp, " ")
-	if ancestors[key] {
+	if ancestors[key] { //coverage:ignore the alias-cycle rule refuses a cycle of paths before evaluation
 		return true
 	}
 
@@ -718,7 +718,7 @@ func (rv *RefVal) chaseRefCycle(ctx *Ctx, ancestors map[string]bool) bool {
 		return n.chaseRefCycle(ctx, ancestors)
 	case *FuncVal:
 		for _, arg := range n.peg {
-			if aref, ok := arg.(*RefVal); ok && aref.chaseRefCycle(ctx, ancestors) {
+			if aref, ok := arg.(*RefVal); ok && aref.chaseRefCycle(ctx, ancestors) { //coverage:ignore the alias-cycle rule refuses a cycle of paths before evaluation
 				return true
 			}
 		}

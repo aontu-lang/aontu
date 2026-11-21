@@ -295,7 +295,7 @@ function norm(terms: Val[], carried: Val[]): Val[] {
       true === t.isMatchFunc && true !== t.done ? t.canon : undefined
     return undefined === key || seen.size !== seen.add(key).size
   })
-} /* node:coverage ignore next 7 */
+}
 
 
 // A spread's template meets each member without the marks written around
@@ -321,7 +321,7 @@ function unmarkedTemplate(cj: Val, ctx: AontuContext): Val {
     }
   }
   return t._unmarked
-}
+} /* node:coverage ignore next 7 */
 
 
 export {

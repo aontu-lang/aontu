@@ -2082,9 +2082,7 @@ function makeModelResolver(options: any) {
     ? { ...(capability as any).mem }
     : { ...(options.resolver?.mem || {}) })
 
-  let fileResolver = makeFileResolver((spec: any) => {
-    return 'string' === typeof spec ? spec : spec?.peg
-  })
+  let fileResolver = makeFileResolver()
 
   let pkgResolver = makePkgResolver({
     require: useRequire,
@@ -2198,14 +2196,14 @@ function makeModelResolver(options: any) {
   ) {
 
     // The aontu val rule's ac has already wrapped every raw string node
-    // as a StringVal, so spec is a Val here (or a raw object from a
-    // .json/.js include, whose peg is undefined -> not found).
+    // as a StringVal, and `@` takes only the string right after it, so
+    // spec is a StringVal here.
     let path = spec?.peg
 
-    // A bare `@` with no path (`a:@`) has nothing to resolve; report
-    // not-found instead of crashing in the underlying resolvers.
-    if (null == path || '' === path) {
-      return { found: false, path: '' + (path ?? ''), search: [] }
+    // An empty path, `@""`, names nothing: report it not found instead
+    // of crashing in the underlying resolvers.
+    if ('' === path) {
+      return { found: false, path, search: [] }
     }
 
     if ('none' === capability || emptyRoot) {

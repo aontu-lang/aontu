@@ -177,7 +177,7 @@ function trialArgs(v: any): any[] {
     ...('contains' === atom ? args.slice(1) :
       'rest' === atom ? args.slice(1).filter((c: any) => true === c?.isMap)
         .map((c: any) => c.peg.if) : args),
-    ...(v.musts ?? []).map((m: any) => m.v),
+    ...v.musts.map((m: any) => m.v),
   ]
 }
 

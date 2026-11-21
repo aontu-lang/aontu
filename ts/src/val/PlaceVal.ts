@@ -174,32 +174,29 @@ function partsOf(v: any): any[] {
 }
 
 
-// A hole at any depth, but in a nested generator's template.
-function hasPlace(v: any): boolean {
+// A hole at any depth, but in a nested generator's template; with bags
+// false none a container holds, as a call waits on its own arguments' holes.
+function holeIn(v: any, bags: boolean): boolean {
   if (true === v?.isPlace) {
     return true
   }
-  const peg: any = v?.peg
-  const kids: any[] = Array.isArray(peg) ? peg.slice(0, boundArgStart(v)) :
-    true === peg?.isVal ? [peg] : null != peg && 'object' === typeof peg ? Object.values(peg) : []
-  return kids.some((c: any) => true === c?.isVal && hasPlace(c))
-}
-
-
-// A call waits on a hole among its own arguments, not one a container
-// argument holds.
-function waitsOnHole(v: any): boolean {
-  if (true === v?.isPlace) {
-    return true
-  }
-  if (true === v?.isMap || true === v?.isList) {
+  if (!bags && (true === v?.isMap || true === v?.isList)) {
     return false
   }
   const peg: any = v?.peg
-  if (Array.isArray(peg)) {
-    return peg.slice(0, boundArgStart(v)).some((c: any) => true === c?.isVal && waitsOnHole(c))
-  }
-  return true === peg?.isVal && waitsOnHole(peg)
+  const kids: any[] = Array.isArray(peg) ? peg.slice(0, boundArgStart(v)) :
+    true === peg?.isVal ? [peg] : bags && null != peg && 'object' === typeof peg ? Object.values(peg) : []
+  return kids.some((c: any) => true === c?.isVal && holeIn(c, bags))
+}
+
+
+function hasPlace(v: any): boolean {
+  return holeIn(v, true)
+}
+
+
+function waitsOnHole(v: any): boolean {
+  return holeIn(v, false)
 }
 
 

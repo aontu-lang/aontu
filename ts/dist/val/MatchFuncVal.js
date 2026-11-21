@@ -84,6 +84,6 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
             tried: tried.join(' '),
         });
     }
-} /* node:coverage ignore next 5 */
+} /* node:coverage ignore next 6 */
 exports.MatchFuncVal = MatchFuncVal;
 //# sourceMappingURL=MatchFuncVal.js.map
