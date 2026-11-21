@@ -525,9 +525,10 @@ None of this is decided. Each item is a candidate for the maintainer.
    five additions under
    [What would shorten them](#what-would-shorten-them), the defects on
    their routes, the rows that pin today's routes and the guide. Its
-   parts 2 to 7, added on 2026-11-21, make tasks of items 3 and 4
-   below, of the language server, the key pattern and OpenAPI in item
-   6, and of #862 in item 1, and add bytes and sized numbers.
+   parts 2 to 7, added and ruled on 2026-11-21, make tasks of items 3
+   and 4 below, of the language server and the key pattern in item 6,
+   and of #862 in item 1, and add bytes and sized numbers. The ruling
+   defers OpenAPI, which is to be added separately.
 3. **The CUE guide that the plan's H3 asks for now has its table.** The
    table in
    [Where the same text means different things](#where-the-same-text-means-different-things),

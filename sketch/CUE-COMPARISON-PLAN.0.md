@@ -1,12 +1,14 @@
 # A plan from the CUE comparison
 
-**Status:** Part 1 is ruled, 2026-11-21. Its thirteen questions were
-put to the maintainer that day, and each has its ruling beside it and
-in [The rulings](#the-rulings): all five built-ins are adopted. Parts 2
-to 7 were added the same day, and their fifteen questions, 14 to 28,
-are not ruled. Nothing is scheduled. An adopted built-in becomes a
-phase of a gap document under `sketch/capability-review/` and a row of
-the register, under the same-commit rule
+**Status:** Ruled, 2026-11-21. Part 1's thirteen questions were put to
+the maintainer that day, and each has its ruling beside it and in
+[The rulings](#the-rulings): all five built-ins are adopted. Parts 2
+to 7 were added the same day and ruled the same day: questions 14 to
+29 have their rulings beside them and in
+[The rulings on parts 2 to 7](#the-rulings-on-parts-2-to-7). Part 5,
+OpenAPI, is deferred. Nothing is scheduled. An adopted built-in
+becomes a phase of a gap document under `sketch/capability-review/`
+and a row of the register, under the same-commit rule
 ([capability-review.md](../docs/contributing/capability-review.md)).
 **Basis:** [CUE-COMPARISON.0.md](CUE-COMPARISON.0.md), which compares
 aontu with CUE v0.17.1 and v0.18.0-rc.4, and its section
@@ -37,18 +39,51 @@ say beside each proposed line what it does today.
 | Part | Subject | Tasks | Questions |
 |---|---|---|---|
 | 1 | What comprehensions give: five built-ins, the defects on their routes, the rows that pin today's routes, and a guide to the idioms. It runs from [What is missing](#what-is-missing) to [Done when](#done-when) | C0 to C8 | 1 to 13, ruled |
-| 2 | [The guide for CUE users, and the comparison's examples](#part-2-the-guide-for-cue-users-and-the-comparisons-examples) | CG1 to CG5 | 14, 15 |
-| 3 | [The language server](#part-3-the-language-server) | LS1 to LS9 | 16, 17 |
-| 4 | [A short form for a key pattern](#part-4-a-short-form-for-a-key-pattern) | KP1, KP2 | 18, 19 |
-| 5 | [OpenAPI](#part-5-openapi) | OA1 to OA6 | 20, 21 |
-| 6 | [Host values on the command line](#part-6-host-values-on-the-command-line) | HV1 to HV4 | 22 to 24 |
-| 7 | [Binary types: bytes, sized numbers and multipliers](#part-7-binary-types-bytes-sized-numbers-and-multipliers) | BT1 to BT5 | 25 to 28 |
+| 2 | [The guide for CUE users, and the comparison's examples](#part-2-the-guide-for-cue-users-and-the-comparisons-examples) | CG1 to CG5 | 14, 15, ruled |
+| 3 | [The language server](#part-3-the-language-server) | LS1 to LS9 | 16, 17, ruled |
+| 4 | [A short form for a key pattern](#part-4-a-short-form-for-a-key-pattern) | KP1, KP2 | 18, 19, ruled |
+| 5 | [OpenAPI](#part-5-openapi) | OA1 to OA6, deferred | 20, 21, ruled |
+| 6 | [Host values on the command line](#part-6-host-values-on-the-command-line) | HV1 to HV4 | 22 to 24 and 29, ruled |
+| 7 | [Binary types: bytes, sized numbers and multipliers](#part-7-binary-types-bytes-sized-numbers-and-multipliers) | BT1 to BT5 | 25 to 28, ruled |
 
-One task comes before the rest of parts 2 to 7. **P0** puts questions
-14 to 28 to the maintainer and records each ruling beside its
-question, as C0 did for part 1. A task below waits on P0 where a
-question governs it. The parts' tasks are ordered together under
+One task came before the rest of parts 2 to 7. **P0** put their
+questions to the maintainer and recorded each ruling beside its
+question, as C0 did for part 1. It was done on 2026-11-21, so no task
+below waits on a ruling. The parts' tasks are ordered together under
 [The order across parts](#the-order-across-parts).
+
+### The rulings on parts 2 to 7
+
+Ruled by the maintainer on 2026-11-21. Of the first fifteen, eleven
+follow the recommendation. Two do not: on question 23 the
+recommendation was to accept, and on 26 it was `esc` and `usc`. Two,
+20 and 21, defer part 5. Question 29 was put after the ruling on 23,
+which raised it, and follows the recommendation.
+
+| | Question | Ruling |
+|---|---|---|
+| 14 | Whether CI runs CUE | yes: the daily workflow, with two pinned binaries |
+| 15 | A CUE answer that moves | a move in the release fails the daily run, and a move in the candidate is reported |
+| 16 | The language server across files | it answers from the evaluation it already runs |
+| 17 | What rename refuses | the whole rename, naming the site, and it edits only files under the workspace root |
+| 18 | The short form for a key pattern | a call, `keyed(p, t, e?)` |
+| 19 | A seal and a patterned key | unchanged: the short form means exactly the guarded spread |
+| 20 | How far OpenAPI goes | deferred: OpenAPI is to be added separately |
+| 21 | The export to OpenAPI 3.0 | deferred with it |
+| 22 | The options for host values | `--var` reads aontu source, `--var-text` reads text, and `--vars` reads a file |
+| 23 | A `--var` that no document reads | refused, as a usage error |
+| 24 | Pinning under bindings | `hash` and `breaking` take the options, and `publish` and the package verbs refuse them |
+| 25 | Bytes | text in a named encoding, and no kind |
+| 26 | Where the encodings are spelled | two built-ins, `encode(s, name)` and `decode(t, name)` |
+| 27 | Sized numbers | a bundled model, `@"aontu:num"` |
+| 28 | Multipliers | not adopted |
+| 29 | A key of a `--vars` file that no document reads | accepted |
+
+Two rulings touch a decision that
+[G1](capability-review/g1-constraint-algebra.md) records, and G1 now
+points at each. Ruling 18 takes up N3, which G1 holds as deferred, and
+that record changes when KP1 lands. Ruling 27 keeps G1's decision on
+sized kinds, since a bundled model adds no keyword.
 
 ## What is missing
 
@@ -820,7 +855,7 @@ guide gives a row like this both CUE spellings.
 |---|---|---|---|---|
 | CG1 | Commit the 154 probes as a corpus: a CUE file and an aontu file for each, and an index of what each answers | guard | nothing | M |
 | CG2 | Hold the aontu half in both suites on every push, each answer written by the parity probe | guard | CG1 | S |
-| CG3 | Hold the CUE half in the daily workflow against two pinned `cue` binaries | guard | P0, CG1 | S |
+| CG3 | Hold the CUE half in the daily workflow against two pinned `cue` binaries. A move in the release fails the run, and a move in the candidate is reported | guard | CG1 | S |
 | CG4 | The guide, `docs/how-to/aontu-for-cue-users.md`, in the four sections above | docs | CG1, CG2 | M |
 | CG5 | The site's comparisons page, drawn from the guide, in `aontu-lang/web` | docs | CG4 | S |
 
@@ -831,14 +866,16 @@ Schema users, which this part leaves to that plan.
 
 ### Questions for the ruling on part 2
 
-14. **Whether CI runs CUE.** Recommended: yes, in the daily workflow
-    only, each binary pinned by version and checksum. The other choice
-    records CUE's answers by hand at each CUE release, as the
-    comparison did, and then nothing reports a release that moves one.
-15. **What a moved CUE answer does.** Recommended: a move in the
+14. **Whether CI runs CUE.** Ruled 2026-11-21: yes, in the daily
+    workflow only, each binary pinned by version and checksum. The
+    other choice recorded CUE's answers by hand at each CUE release, as
+    the comparison did, and then nothing reports a release that moves
+    one.
+15. **What a moved CUE answer does.** Ruled 2026-11-21: a move in the
     release fails the daily run until the row and the guide are
     revised in one change, and a move in the candidate is reported
-    only. The other choice reports both and fails neither.
+    only. The other choices reported both and failed neither, or
+    failed on both.
 
 ## Part 3: the language server
 
@@ -920,7 +957,7 @@ cursor to a path. Every feature below but formatting stands on it.
 | LS4 | Formatting, by the text `aontu fmt` writes | server | nothing | S |
 | LS5 | Document symbols: the outline of a document's keys | server | LS1 | S |
 | LS6 | References and highlights: every reference that reads the path under the cursor | server | LS1 | M |
-| LS7 | Rename: a key and every reference to it, as one edit | server | P0, LS6 | M |
+| LS7 | Rename: a key and every reference to it, as one edit, or a refusal that names the site it can't rewrite | server | LS6 | M |
 | LS8 | Code actions, starting with the one whose edit is already decided: remove an entry that `trim --check` reports. Others follow as findings gain repairs | server | LS1 | M |
 | LS9 | A JetBrains client through LSP4IJ, as thin as the three under `editors/` | client | nothing | S |
 
@@ -933,16 +970,17 @@ are what a writer feels first.
 ### Questions for the ruling on part 3
 
 16. **How far across files.** A definition or a reference can sit in
-    an included file. Recommended: the server answers from the
+    an included file. Ruled 2026-11-21: the server answers from the
     evaluation it already runs for diagnostics, so it reads what the
     document's includes read under the same capability, and nothing
-    more. The other choice keeps every answer inside the open
-    document, as the alias features are kept today.
-17. **What rename refuses.** Recommended: it edits only files under
-    the workspace root, and refuses, naming the site, where no edit of
-    text keeps the document true: a key a generator makes, a key read
-    through `key()`, a key a pattern matches, and a site in a package.
-    The other choice renames what it can and lists the rest.
+    more. The other choice kept every answer inside the open document,
+    as the alias features are kept today.
+17. **What rename refuses.** Ruled 2026-11-21: it edits only files
+    under the workspace root, and refuses the whole rename, naming the
+    site, where no edit of text keeps the document true: a key a
+    generator makes, a key read through `key()`, a key a pattern
+    matches, and a site in a package. The other choice renamed what it
+    could and listed the rest.
 
 ## Part 4: a short form for a key pattern
 
@@ -1036,7 +1074,8 @@ the two spellings have one canonical form. That is L2's condition, and
 it is how the short form avoids the cost ADR-008 names for a second
 spelling. Today each line is `unknown_function` in both engines.
 
-The other spelling proposed is N3's, a pattern in the key:
+The other spelling proposed was N3's, a pattern in the key, which
+ruling 18 did not take:
 
 ```aontu
 form: { &re("^env_"): string, env_name: prod }
@@ -1050,7 +1089,7 @@ of the four published grammars and of both parsers.
 
 | ID | Task | Kind | Waits on | Size |
 |---|---|---|---|---|
-| KP1 | `keyed(p, t, e?)`: the guarded spread as one call, read as the `match` it means | built-in | P0 | S |
+| KP1 | `keyed(p, t, e?)`: the guarded spread as one call, read as the `match` it means | built-in | nothing | S |
 | KP2 | Its section of the reference, a how-to on holding keys to a pattern, and its row of the guide for CUE users | docs | KP1 | S |
 
 KP1 delivers what
@@ -1059,23 +1098,30 @@ records in G1 that N3 is taken up.
 
 ### Questions for the ruling on part 4
 
-18. **The spelling.** Recommended: a call named `keyed`. L2 asks for a
-    named form, and G8 prefers a function to a token. `keys` was
+18. **The spelling.** Ruled 2026-11-21: a call named `keyed`. L2 asks
+    for a named form, and G8 prefers a function to a token. `keys` was
     passed over because it reads as the list of a map's keys. The
-    others: N3's key form, `&p: t`, or no short form, with the guarded
-    spread taught as the idiom.
-19. **A seal.** Recommended: unchanged. The short form means exactly
-    the guarded spread, so a sealed map and a type's instance still
-    refuse a key that only a pattern admits, and the guide for CUE
-    users says so. The other choice follows CUE: a key that a pattern
-    admits counts as declared. That is a new rule of the seal in the
-    definition, and the short form would stop being a spelling.
+    others were N3's key form, `&p: t`, and no short form, with the
+    guarded spread taught as the idiom.
+19. **A seal.** Ruled 2026-11-21: unchanged. The short form means
+    exactly the guarded spread, so a sealed map and a type's instance
+    still refuse a key that only a pattern admits, and the guide for
+    CUE users says so. The other choice followed CUE: a key that a
+    pattern admits would count as declared. That is a new rule of the
+    seal in the definition, and the short form would stop being a
+    spelling.
 
 ## Part 5: OpenAPI
 
 The other plan lists this as L3, a layer over the JSON Schema
 importer that [G12](capability-review/g12-jsonschema-fidelity.md)
 built.
+
+**Deferred.** Ruled 2026-11-21, on questions 20 and 21: OpenAPI
+support is to be added separately. None of this part's tasks is taken
+up under this plan, and none is in
+[The order across parts](#the-order-across-parts). What the part found
+stands as the record for that work.
 
 ### What CUE does with a document
 
@@ -1147,6 +1193,8 @@ with its references inline, and leaves a `type()` entry out unless
 
 ### The tasks of part 5
 
+Deferred by ruling. They are listed as they were proposed.
+
 | ID | Task | Kind | Waits on | Size |
 |---|---|---|---|---|
 | OA1 | The OpenAPI 3.0 dialect in the importer, as a rewrite into 2020-12 like the earlier drafts': `nullable`, the boolean `exclusiveMinimum` and `exclusiveMaximum`, and the OpenAPI formats, `int32` and `int64` as bounds and `byte` as base64 text. 3.1's base dialect is 2020-12 with four annotation keywords | importer | P0 | M |
@@ -1170,13 +1218,15 @@ case is the first to meet it.
 
 ### Questions for the ruling on part 5
 
-20. **How far support goes.** Recommended: schemas first, in both
-    directions, OA1 to OA3. That is all CUE has. The operations, OA4,
-    follow as a step of their own. The other choices: schemas only, or
-    the operations from the start.
-21. **The export to 3.0.** CUE writes 3.0.0 and nothing newer.
-    Recommended: aontu writes 3.1 only, and G12's non-goal stands. The
-    other choice adds a writer for the older dialect, which the
+20. **How far support goes.** Ruled 2026-11-21: deferred. OpenAPI
+    support is to be added separately. The recommendation was schemas
+    first, in both directions, OA1 to OA3, which is all CUE has, with
+    the operations, OA4, as a step of their own. The other choices
+    were schemas only, and the operations from the start.
+21. **The export to 3.0.** Ruled 2026-11-21: deferred with question
+    20. CUE writes 3.0.0 and nothing newer. The recommendation was
+    that aontu write 3.1 only, so that G12's non-goal stands. The
+    other choice added a writer for the older dialect, which the
     importer's rewrite can't be run backwards to give.
 
 ## Part 6: host values on the command line
@@ -1244,6 +1294,10 @@ $ aontu --var env=prod --var n=3 v.aontu
   digits.
 - **`--vars <file>`** binds every top-level key of a document, for a
   set of values that is kept under review.
+- **A `--var` or `--var-text` that no document of the run reads is
+  refused**, as a usage error, as CUE refuses a tag that no file
+  declares. A key of a `--vars` file that nothing reads is accepted,
+  so one file of values serves several documents.
 
 There is no reading of the environment, the clock or the host's name,
 which CUE gives with `-T`. The trust contract refuses each, and a
@@ -1253,37 +1307,50 @@ shell passes one where it is wanted, as `--var-text user="$USER"`.
 
 | ID | Task | Kind | Waits on | Size |
 |---|---|---|---|---|
-| HV1 | `--var` and `--var-text` on every verb that evaluates a document, in both commands, with one help text | CLI | P0 | M |
-| HV2 | `--vars <file>`: the bindings from a document whose keys are the names | CLI | HV1 | S |
+| HV1 | `--var` and `--var-text` on every verb that evaluates a document, in both commands, with one help text, and the refusal of one that no document reads | CLI | nothing | M |
+| HV2 | `--vars <file>`: the bindings from a document whose keys are the names, a key that nothing reads being accepted | CLI | HV1 | S |
 | HV3 | The same bindings in the REPL and in the tools of the MCP server | CLI | HV1 | S |
 | HV4 | The command line in [inject-host-values.md](../docs/how-to/inject-host-values.md) and [validate-in-ci.md](../docs/how-to/validate-in-ci.md), and the options in the reference | docs | HV1 | S |
 
 HV1 closes #862. Its options come under the review of every argument
 that [#340](https://github.com/aontu-lang/aontu/issues/340) asks for.
+By ruling 24, `hash` and `breaking` are among HV1's verbs and name the
+bindings in their reports, and `publish` and the package verbs refuse
+the options.
 
 ### Questions for the ruling on part 6
 
-22. **The options.** Recommended: the three above, with `--var`
-    reading aontu source. The other choice follows CUE: `--var` reads
-    text, and a second option reads source. Either way both readings
-    are needed, since no built-in turns text into a number.
-23. **A binding that no document reads.** CUE refuses it.
-    Recommended: accepted, as both APIs accept one today, so one set
-    of options serves several documents. The other choice refuses it
-    as a usage error, which catches a misspelt name where the right
-    name has a default.
+22. **The options.** Ruled 2026-11-21: the three above, with `--var`
+    reading aontu source. The other choices followed CUE, with `--var`
+    reading text and a second option reading source, or gave `--var`
+    alone. Both readings are needed either way, since no built-in
+    turns text into a number.
+23. **A binding that no document reads.** Ruled 2026-11-21: a `--var`
+    or `--var-text` that no document reads is refused as a usage
+    error, as CUE refuses one. It catches a misspelt name where the
+    right name has a default. The recommendation was to accept it, as
+    both APIs accept one today, so that one set of options serves
+    several documents.
 24. **Pinning under bindings.** A hash taken under bindings is the
-    hash of one deployment and not of the model. Recommended: `hash`
-    and `breaking` take the options and name the bindings in their
-    reports, and `publish` and the package verbs refuse them, since a
-    package is published with no host. The other choice keeps the
-    options off `hash` and `breaking` as well.
+    hash of one deployment and not of the model. Ruled 2026-11-21:
+    `hash` and `breaking` take the options and name the bindings in
+    their reports, and `publish` and the package verbs refuse them,
+    since a package is published with no host. The other choice kept
+    the options off `hash` and `breaking` as well.
+
+One question followed from the ruling on 23:
+
+29. **A key of a `--vars` file that no document reads.** Ruled
+    2026-11-21: accepted, so one file of values serves several
+    documents, and the refusal stays with the options written on the
+    command line. The other choices refused it too, or accepted it
+    with a notice.
 
 ## Part 7: binary types: bytes, sized numbers and multipliers
 
 "Binary types" is read here as one row of the comparison: bytes, the
-sized numeric types such as `uint8`, and multipliers such as `1Ki`. If
-only bytes were meant, the first section and BT1 to BT3 stand alone.
+sized numeric types such as `uint8`, and multipliers such as `1Ki`.
+The rulings took each in turn.
 
 ### Bytes
 
@@ -1325,17 +1392,18 @@ Three more things hold today, in both engines:
 aontu, proposed:
 
 ```aontu
-text: esc("hello", base64)
-back: usc("aGVsbG8=", base64)
-code: esc("k", hex)
+text: encode("hello", base64)
+back: decode("aGVsbG8=", base64)
+code: encode("k", hex)
 ```
 
 They would answer `"aGVsbG8="`, `"hello"` and `"6b"`. Today each is
-`esc_variant` in both engines. An encoding acts on a string's UTF-8
-bytes, as the `uri` convention does already. `usc` refuses text that
-decodes to bytes that are not UTF-8, because a string holds
-characters, so binary data stays in its encoded form from the file to
-the output.
+`unknown_function` in both engines. An encoding acts on a string's
+UTF-8 bytes, as the `uri` convention of `esc` does already. `decode`
+refuses text that decodes to bytes that are not UTF-8, because a
+string holds characters, so binary data stays in its encoded form from
+the file to the output. The proposal was first written over `esc` and
+`usc`, and ruling 26 gave the encodings built-ins of their own.
 
 ### Sized numbers
 
@@ -1378,60 +1446,65 @@ reaches the manifest as text.
 
 | ID | Task | Kind | Waits on | Size |
 |---|---|---|---|---|
-| BT1 | `base64`, `base64url` and `hex` as conventions of `esc` and `usc`, over a string's UTF-8 bytes | built-in | P0 | S |
-| BT2 | The same three as names `format()` reads, each a grammar of RFC 4648 under `grammar/format/`, so `format(base64)` admits the text | constraint | P0 | S |
+| BT1 | `encode(s, name)` and `decode(t, name)`, for `base64`, `base64url` and `hex`, over a string's UTF-8 bytes | built-in | nothing | M |
+| BT2 | The same three as names `format()` reads, each a grammar of RFC 4648 under `grammar/format/`, so `format(base64)` admits the text | constraint | nothing | S |
 | BT3 | An include reads a file's bytes as base64 text, for the extensions an option names, as `--text-ext` names text | include | BT1 | M |
-| BT4 | The sized numbers as a bundled model, `@"aontu:num"`: the integer names CUE predeclares, and `Float32`, each a `type()` | model | P0 | S |
+| BT4 | The sized numbers as a bundled model, `@"aontu:num"`: the integer names CUE predeclares, and `Float32`, each a `type()` | model | nothing | S |
 | BT5 | A how-to on carrying binary data, and a pointer to the bundled names from `name-a-reusable-constraint.md` | docs | BT1, BT4 | S |
 
-Two of these change a decision on record, and each lands with the
-record it changes: BT2 adds names beside the nineteen JSON Schema
-formats of
+BT1 delivers what
+[a built-in task delivers](#what-a-built-in-task-delivers) for each of
+its two names, with a code for a name that is no encoding and a code
+for text that doesn't decode. Two of the others change a decision on
+record, and each lands with the record it changes: BT2 adds names
+beside the nineteen JSON Schema formats of
 [ADR-059](../ADR.md#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself),
 and BT3 adds a row to ADR-012's table of extensions.
 
 ### Questions for the ruling on part 7
 
-25. **Bytes: a kind, or text.** Recommended: text in a named encoding.
-    JSON has no bytes, CUE's own output is base64 text, and JSON
-    Schema says it with `contentEncoding`. A kind would be a new
-    scalar in the lattice, canon, the four grammars, the definition
-    and both ports.
-26. **Where the encodings are spelled.** Recommended: as conventions
-    of `esc` and `usc`, BT1. The other choice is a pair of built-ins,
-    `encode(s, name)` and `decode(t, name)`, which reads better for
-    base64 and adds two names.
-27. **Sized numbers.** Recommended: a bundled model, BT4. It keeps
-    G1's decision: no keyword, `a: int8` still a string, and each name
-    an ordinary value that a project can narrow. The others: each
-    project writes its own block, as today, or the names are
-    predeclared as CUE's are, which reverses G1.
-28. **Multipliers.** Recommended: not adopted, since a bare `1Ki` is a
-    string that documents rely on. The other choice puts the constants
-    in the bundled model, as `mul(4, $.aontu.Num.Gi)`.
+25. **Bytes: a kind, or text.** Ruled 2026-11-21: text in a named
+    encoding. JSON has no bytes, CUE's own output is base64 text, and
+    JSON Schema says it with `contentEncoding`. A kind would have been
+    a new scalar in the lattice, canon, the four grammars, the
+    definition and both ports.
+26. **Where the encodings are spelled.** Ruled 2026-11-21: a pair of
+    built-ins, `encode(s, name)` and `decode(t, name)`, which reads
+    better for base64 and adds two names. The recommendation was the
+    other choice, three conventions of `esc` and `usc`.
+27. **Sized numbers.** Ruled 2026-11-21: a bundled model, BT4. It
+    keeps G1's decision: no keyword, `a: int8` still a string, and
+    each name an ordinary value that a project can narrow. The others
+    left each project to write its own block, as today, or predeclared
+    the names as CUE's are, which would reverse G1.
+28. **Multipliers.** Ruled 2026-11-21: not adopted, since a bare `1Ki`
+    is a string that documents rely on. The other choices put the
+    constants in a bundled model, as `mul(4, $.aontu.Num.Gi)`, or read
+    `1Ki` as a number, as CUE does.
 
 ## The order across parts
 
-1. **P0**, the fifteen questions. Until then, what waits on no ruling
-   can start: C6 and C7 of part 1, CG1 and CG2, and LS1, LS4 and LS9.
+1. **P0**, the questions, done on 2026-11-21. Nothing in parts 2 to 7
+   waits on a ruling now.
 2. **The small and visible.** HV1, then KP1, then BT1. Each is one
    change in both ports, and each answers a question a CUE user asks
    in the first hour.
-3. **The language server on LS1**, in the order of its table.
-4. **The guide, CG4**, once the corpus holds its examples. Every other
+3. **The corpus, CG1 to CG3**, beside them, with C6 and C7 of part 1.
+4. **The language server on LS1**, in the order of its table. LS4 and
+   LS9 stand on nothing and can go at any time.
+5. **The guide, CG4**, once the corpus holds its examples. Every other
    part's documentation task then adds its row to it.
-5. **OpenAPI last.** OA1 stands on BT2, and OA2 on the rulings of
-   [IO-FORMATS.0.md](IO-FORMATS.0.md#the-rulings), whose first task is
-   the tabnas pins.
 
-Part 1 keeps its own [order](#order).
+Part 5 has no place in this order: OpenAPI is deferred by ruling. Part
+1 keeps its own [order](#order).
 
 ## What stays outside
 
-These findings of the comparison are in no part of this plan:
+These findings of the comparison are not taken up by this plan:
 
 | Finding | Where it stands |
 |---|---|
+| OpenAPI import and export | deferred by ruling on 2026-11-21, to be added separately. [Part 5](#part-5-openapi) holds what was found |
 | YAML, TOML and the other formats, in and out | ruled on 2026-11-21, in [IO-FORMATS.0.md](IO-FORMATS.0.md#the-rulings) |
 | A package repository that serves | M6 of [CONFIG-LANGUAGES-PLAN.0.md](CONFIG-LANGUAGES-PLAN.0.md) |
 | Type generation for a host language | L9 of that plan |
@@ -1455,9 +1528,7 @@ comparison, under
   both servers, and the same one.
 - **Part 4:** the pattern example has a spelling of one call whose
   canon is today's.
-- **Part 5:** the sample document imports whole, `tag: null` is
-  admitted, and a model's types export to a document that an OpenAPI
-  3.1 reader takes.
+- **Part 5:** deferred by ruling, so nothing here is owed.
 - **Part 6:** the document of #862 evaluates, vets and hashes from the
   command line in both ports.
 - **Part 7:** `text` and `back` have spellings, and a 64-bit integer
