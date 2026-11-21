@@ -1,4 +1,4 @@
-# A plan from the CUE comparison
+# The lang refinement plan
 
 **Status:** Ruled, 2026-11-21. Part 1's thirteen questions were put to
 the maintainer that day, and each has its ruling beside it and in
@@ -13,6 +13,8 @@ and a row of the register, under the same-commit rule
 **Basis:** [CUE-COMPARISON.0.md](CUE-COMPARISON.0.md), which compares
 aontu with CUE v0.17.1 and v0.18.0-rc.4, and its section
 [What comprehensions do that the built-ins do not](CUE-COMPARISON.0.md#what-comprehensions-do-that-the-built-ins-do-not).
+**Formerly:** `CUE-COMPARISON-PLAN.0.md`, "A plan from the CUE
+comparison". The maintainer renamed it on 2026-11-21.
 **Scope:** Seven parts, listed under [The parts](#the-parts). Part 1 is
 what gives aontu the functionality that comprehensions give CUE. Parts
 2 to 7 take six more of the comparison's findings. Input and output

@@ -12,7 +12,7 @@ from CUE's published module sources, listed under [Sources](#sources).
 2026-10-01, which compares nine languages more briefly. This note goes
 deeper on CUE alone and corrects that survey where either language has
 moved since.
-**Plan:** [CUE-COMPARISON-PLAN.0.md](CUE-COMPARISON-PLAN.0.md) proposes
+**Plan:** [LANG-REFINEMENT-PLAN.0.md](LANG-REFINEMENT-PLAN.0.md) proposes
 the tasks that answer this note, starting with what comprehensions do.
 
 ## In short
@@ -448,7 +448,7 @@ ten made (k32).
 ### What would shorten them
 
 None of these is decided, and none needs a comprehension keyword.
-[The plan](CUE-COMPARISON-PLAN.0.md) makes them tasks, each with the
+[The plan](LANG-REFINEMENT-PLAN.0.md) makes them tasks, each with the
 code in both languages:
 
 1. **The member of a bag at a key or a position**, `at(d, ...k)`. It is
@@ -521,7 +521,7 @@ None of this is decided. Each item is a candidate for the maintainer.
 1. **The three issues above**: [#860](https://github.com/aontu-lang/aontu/issues/860),
    [#861](https://github.com/aontu-lang/aontu/issues/861) and
    [#862](https://github.com/aontu-lang/aontu/issues/862).
-2. **[The plan](CUE-COMPARISON-PLAN.0.md)**, whose first part is the
+2. **[The plan](LANG-REFINEMENT-PLAN.0.md)**, whose first part is the
    five additions under
    [What would shorten them](#what-would-shorten-them), the defects on
    their routes, the rows that pin today's routes and the guide. Its

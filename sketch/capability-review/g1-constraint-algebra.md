@@ -896,7 +896,7 @@ admits `"zebra"` and refuses `"apple"`.
   Recorded so that a later reader finds a decision rather than an
   oversight, and so that nobody re-derives the dependency analysis to
   discover it was never the obstacle. (Taken up on 2026-11-21: ruling
-  18 of [the plan](../CUE-COMPARISON-PLAN.0.md#the-rulings-on-parts-2-to-7)
+  18 of [the plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
   adopts a named call, `keyed(p, t, e?)`, in place of the key form, to
   land as its task KP1.)
 - **Sized integer kinds** (`int8`, `uint16` as sugar for a bounded
@@ -914,7 +914,7 @@ admits `"zebra"` and refuses `"apple"`.
   `ts/test/docs.test.ts`. The idiom also exposes a trap a keyword would
   have hidden: bounds alone bound a *number*, so an alias must lead with
   `integer` or `1.5` satisfies it. (Kept on 2026-11-21: ruling 27 of
-  [the plan](../CUE-COMPARISON-PLAN.0.md#the-rulings-on-parts-2-to-7)
+  [the plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
   ships the names as a bundled model, `@"aontu:num"`, which adds no
   keyword, to land as its task BT4.)
 - **Row 7 — which turned out not to be a defect at all.** The note

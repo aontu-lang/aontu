@@ -638,7 +638,7 @@ combinators.
   field by convention, add a key-selector argument, or refuse
   list-of-maps data; the Terraform stable-keys lesson versus arity.)
   *(Reopened on 2026-11-21: ruling 5 of
-  [CUE-COMPARISON-PLAN.0.md](../CUE-COMPARISON-PLAN.0.md#the-rulings)
+  [LANG-REFINEMENT-PLAN.0.md](../LANG-REFINEMENT-PLAN.0.md#the-rulings)
   adds the key-selector, as an optional third argument. A `pack` with
   no key argument refuses as before, and so does every `pack` until
   that phase lands.)*
@@ -652,7 +652,7 @@ combinators.
   innermost-binder stands as the shipped presumption and the depth
   argument remains an open, additive option.)* *(Ruled on 2026-11-21,
   as rulings 12 and 13 of
-  [CUE-COMPARISON-PLAN.0.md](../CUE-COMPARISON-PLAN.0.md#the-rulings):
+  [LANG-REFINEMENT-PLAN.0.md](../LANG-REFINEMENT-PLAN.0.md#the-rulings):
   innermost binding stands for `_`, and the depth form arrives as the
   function `outer(up?)`.)*
 - **What `filter`'s trial observes.** Does `{replicas: *2|integer}`
