@@ -1605,3 +1605,9 @@ List the other differences again
 ```text
 Ask me for rulings
 ```
+
+## 2026-11-21 11:06:17 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Let's examine the input/output aspect - Aontu can load many formats into a json structure using the tabnas parsers, and should now be able to emit many formats using tabnas render - investigate
+```

@@ -325,6 +325,11 @@ close({
 })
 ```
 
+The tabnas packages that aontu reads these formats with can now write
+them too, in versions newer than the ones aontu pins.
+[IO-FORMATS.0.md](IO-FORMATS.0.md) has what they write, what they
+lose, and what stands between aontu and them.
+
 ### Modules and packages
 
 | Feature | aontu | CUE |

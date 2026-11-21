@@ -9,6 +9,9 @@ whose findings this plan answers.
 **Comprehensions:** [CUE-COMPARISON-PLAN.0.md](CUE-COMPARISON-PLAN.0.md),
 of 2026-11-20, makes M8 and the corpus of L6 tasks, and proposes the
 built-ins that M8 leaves as candidates.
+**Input and output:** [IO-FORMATS.0.md](IO-FORMATS.0.md), of
+2026-11-21, finds a second route to M1 in the tabnas writers, and what
+L3 and L4 would stand on.
 
 ## The decisions this plan keeps
 
