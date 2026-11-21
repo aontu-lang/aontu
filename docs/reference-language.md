@@ -2374,6 +2374,15 @@ sigil, because both are names; the left is what this file calls it and
 the right is what the other file publishes. Two files publishing one
 name is the case it answers, and nothing else does.
 
+**A destructure takes only from a load.** Over anything else, a map
+written in place, a number or a name, it has no file behind it to
+publish a name, so both engines refuse it with `import_not_exported`
+too. The definition reads it as a call the reading can't make, which no
+verdict lets stand (`Val.illFormed` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and rows from
+ds0 on of [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv) hold
+both engines to it.
+
 **A destructure may also sit under a key.** The values land where the
 head stands and the names it binds are the document's, so a file can be
 mounted at a path and still be taken from. Both forms read the same

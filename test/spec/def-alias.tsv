@@ -32,6 +32,9 @@
 # The shorthand { %a %b } follows in rows sh0 on (P10): a set of names stands
 # for the map that binds each one under its own key, its names apart by
 # spaces or by commas, alone or under a key.
+# A destructure over a term that isn't a load follows in rows ds0 on (P10):
+# a map, a number, a name, a name taken under another and two names, each an
+# error, since no source stands under it.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
 a1	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"noFill":true}}
 a2	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"partial":true}}
@@ -938,3 +941,18 @@ sh14	verdict	%a = 1\nv: { %a }	v: {"a": 1}	{"verdict":"valid","opts":{"partial":
 sh15	verdict	%a = 1\nv: { x: { %a } }	v: {"x": {"a": 1}}	{"verdict":"valid"}
 sh16	verdict	%a = 1\nv: { x: { %a } }	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 sh17	verdict	%a = 1\nv: { x: { %a } }	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+ds0	verdict	v: { %a } = {"a": 1}	v: 1	{"verdict":"error"}
+ds1	verdict	v: { %a } = {"a": 1}	v: 1	{"verdict":"error","opts":{"noFill":true}}
+ds2	verdict	v: { %a } = {"a": 1}	v: 1	{"verdict":"error","opts":{"partial":true}}
+ds3	verdict	v: { %a } = 1	v: 1	{"verdict":"error"}
+ds4	verdict	v: { %a } = 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+ds5	verdict	v: { %a } = 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+ds6	verdict	%m = {"a": 1}\nv: { %a } = %m	v: 1	{"verdict":"error"}
+ds7	verdict	%m = {"a": 1}\nv: { %a } = %m	v: 1	{"verdict":"error","opts":{"noFill":true}}
+ds8	verdict	%m = {"a": 1}\nv: { %a } = %m	v: 1	{"verdict":"error","opts":{"partial":true}}
+ds9	verdict	v: { %b: %a } = {"a": 1}	v: 1	{"verdict":"error"}
+ds10	verdict	v: { %b: %a } = {"a": 1}	v: 1	{"verdict":"error","opts":{"noFill":true}}
+ds11	verdict	v: { %b: %a } = {"a": 1}	v: 1	{"verdict":"error","opts":{"partial":true}}
+ds12	verdict	v: { %a, %b } = {"a": 1, "b": 2}	v: 1	{"verdict":"error"}
+ds13	verdict	v: { %a, %b } = {"a": 1, "b": 2}	v: 1	{"verdict":"error","opts":{"noFill":true}}
+ds14	verdict	v: { %a, %b } = {"a": 1, "b": 2}	v: 1	{"verdict":"error","opts":{"partial":true}}
