@@ -6270,7 +6270,7 @@ later argument the engines and the definition part: both engines make
 the whole argument admit nothing, so `nof(1, {b?: 1 & 2}, {x: 1})`
 admits `{"x": 1}`, where the definition reads the conflict at the
 optional member and refuses it. Rows `td93` to `td95` sit in the
-ledger under #892, which awaits a ruling (decision 74).
+ledger under #892, which decision 74 holds open for a ruling.
 
 A written `nil` stands there. Both engines read a size, a condition of
 `must` or a count written as `nil` as a value that admits nothing, so `must(nil, "m")`
