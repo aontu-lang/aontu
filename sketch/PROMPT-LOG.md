@@ -1617,3 +1617,9 @@ Let's examine the input/output aspect - Aontu can load many formats into a json 
 ```text
 Ask me for rulings
 ```
+
+## 2026-11-21 13:23:02 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Lost the other things in cue that we have not dealt with in the plan
+```
