@@ -311,6 +311,8 @@ def Val.src : Val → Option String
   | .call .load [.lit (.str p)] => some ("@" ++ quote p)
   | .call .load (.lit (.str p) :: names) => do
     pure ("{ " ++ ", ".intercalate (← takeNamesSrc names) ++ " } = @" ++ quote p)
+  | .call .load (t :: names@(_ :: _)) => do
+    pure ("{ " ++ ", ".intercalate (← takeNamesSrc names) ++ " } = " ++ (← t.src))
   | .call f args => do pure s!"{f.name}({", ".intercalate (← itemsSrc args)})"
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"
