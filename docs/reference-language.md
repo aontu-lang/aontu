@@ -2285,7 +2285,9 @@ defaults: { %kind %limit }
 
 The sigil is what makes the sugar unambiguous, so `{ a, b }` stays the
 parse error it has always been, and a set may still separate its names
-with commas. Canon expands the shorthand, so a document written short and the
+with commas. The definition reads the set as the map it stands for, and
+rows from sh0 on of [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv)
+hold both engines to reading it so. Canon expands the shorthand, so a document written short and the
 same document written long are one `aon1-` digest, which is what makes
 this sugar rather than a second way to say something else.
 
