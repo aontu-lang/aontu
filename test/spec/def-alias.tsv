@@ -29,6 +29,9 @@
 # are read first; a disjunction's arm and a spread's template are places of
 # their own, and a directive beside one disjunction or lone preference
 # reaches each of its arms, read with the terms beside it.
+# The shorthand { %a %b } follows in rows sh0 on (P10): a set of names stands
+# for the map that binds each one under its own key, its names apart by
+# spaces or by commas, alone or under a key.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
 a1	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"noFill":true}}
 a2	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"partial":true}}
@@ -917,3 +920,21 @@ dir212	verdict	v: [{"y": 1}, &: (close()) & ({"x": 1})]	v: [{"x": 1, "y": 1}]	{"
 dir213	verdict	v: [{"y": 1}, &: (close()) & ({"x": 1})]	v: [{"x": 1, "y": 1}, {"x": 1, "y": 1}]	{"verdict":"invalid"}
 dir214	verdict	v: [{"y": 1}, &: (close()) & ({"x": 1})]	v: [{"x": 1, "y": 1}, {"x": 1, "y": 1}]	{"verdict":"invalid","opts":{"noFill":true}}
 dir215	verdict	v: [{"y": 1}, &: (close()) & ({"x": 1})]	v: [{"x": 1, "y": 1}, {"x": 1, "y": 1}]	{"verdict":"invalid","opts":{"partial":true}}
+sh0	verdict	%a = 1\n%b = "x"\nv: { %a %b }	v: {"a": 1, "b": "x"}	{"verdict":"valid"}
+sh1	verdict	%a = 1\n%b = "x"\nv: { %a %b }	v: {"a": 1, "b": "x"}	{"verdict":"valid","opts":{"noFill":true}}
+sh2	verdict	%a = 1\n%b = "x"\nv: { %a %b }	v: {"a": 1, "b": "x"}	{"verdict":"valid","opts":{"partial":true}}
+sh3	verdict	%a = 1\n%b = "x"\nv: { %a %b }	v: {"a": 2, "b": "x"}	{"verdict":"invalid"}
+sh4	verdict	%a = 1\n%b = "x"\nv: { %a %b }	v: {"a": 2, "b": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+sh5	verdict	%a = 1\n%b = "x"\nv: { %a %b }	v: {"a": 2, "b": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+sh6	verdict	%a = integer\n%b = *("y") | (string)\nv: { %a %b }	v: {"a": 1}	{"verdict":"valid"}
+sh7	verdict	%a = integer\n%b = *("y") | (string)\nv: { %a %b }	v: {"a": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+sh8	verdict	%a = integer\n%b = *("y") | (string)\nv: { %a %b }	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+sh9	verdict	%a = 1\n%b = "x"\nv: { %a, %b }	v: {"a": 1, "b": "x"}	{"verdict":"valid"}
+sh10	verdict	%a = 1\n%b = "x"\nv: { %a, %b }	v: {"a": 1, "b": "x"}	{"verdict":"valid","opts":{"noFill":true}}
+sh11	verdict	%a = 1\n%b = "x"\nv: { %a, %b }	v: {"a": 1, "b": "x"}	{"verdict":"valid","opts":{"partial":true}}
+sh12	verdict	%a = 1\nv: { %a }	v: {"a": 1}	{"verdict":"valid"}
+sh13	verdict	%a = 1\nv: { %a }	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+sh14	verdict	%a = 1\nv: { %a }	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+sh15	verdict	%a = 1\nv: { x: { %a } }	v: {"x": {"a": 1}}	{"verdict":"valid"}
+sh16	verdict	%a = 1\nv: { x: { %a } }	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+sh17	verdict	%a = 1\nv: { x: { %a } }	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
