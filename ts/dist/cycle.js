@@ -146,7 +146,7 @@ function trialArgs(v) {
         ...('contains' === atom ? args.slice(1) :
             'rest' === atom ? args.slice(1).filter((c) => true === c?.isMap)
                 .map((c) => c.peg.if) : args),
-        ...(v.musts ?? []).map((m) => m.v),
+        ...v.musts.map((m) => m.v),
     ];
 }
 // Every place the document writes, in the order it writes them.

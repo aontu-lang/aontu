@@ -37,11 +37,8 @@ func (p *PlaceVal) Unify(peer Val, ctx *Ctx) Val {
 	return peer
 }
 
-func boundArgStart(v Val) int {
-	if fv, ok := v.(*FuncVal); ok {
-		return boundFrom(fv.name)
-	}
-	return int(^uint(0) >> 1) // max int
+func boundArgStart(fv *FuncVal) int {
+	return boundFrom(fv.name)
 }
 
 // The calls whose arguments from the second on are templates.

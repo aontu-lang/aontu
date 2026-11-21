@@ -1674,9 +1674,7 @@ function makeModelResolver(options) {
     let memResolver = (0, mem_1.makeMemResolver)(memCapability
         ? { ...capability.mem }
         : { ...(options.resolver?.mem || {}) });
-    let fileResolver = (0, file_1.makeFileResolver)((spec) => {
-        return 'string' === typeof spec ? spec : spec?.peg;
-    });
+    let fileResolver = (0, file_1.makeFileResolver)();
     let pkgResolver = (0, pkg_1.makePkgResolver)({
         require: useRequire,
         ...(options.resolver?.pkg || {})
@@ -1768,13 +1766,13 @@ function makeModelResolver(options) {
     };
     return function ModelResolver(spec, popts, rule, ctx, jsonic) {
         // The aontu val rule's ac has already wrapped every raw string node
-        // as a StringVal, so spec is a Val here (or a raw object from a
-        // .json/.js include, whose peg is undefined -> not found).
+        // as a StringVal, and `@` takes only the string right after it, so
+        // spec is a StringVal here.
         let path = spec?.peg;
-        // A bare `@` with no path (`a:@`) has nothing to resolve; report
-        // not-found instead of crashing in the underlying resolvers.
-        if (null == path || '' === path) {
-            return { found: false, path: '' + (path ?? ''), search: [] };
+        // An empty path, `@""`, names nothing: report it not found instead
+        // of crashing in the underlying resolvers.
+        if ('' === path) {
+            return { found: false, path, search: [] };
         }
         if ('none' === capability || emptyRoot) {
             deny(path);

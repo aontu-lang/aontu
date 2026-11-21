@@ -804,7 +804,7 @@ func subOverKind(st *subState, path []string, g, s Val, refused bool,
 // answers "" to be compared as residue.
 func subsumeRecursion(st *subState, path []string, g0, s0, g, s Val) string {
 	key := [2]Val{g0, s0}
-	if st.pairs.unfolding[key] {
+	if st.pairs.unfolding[key] { //coverage:ignore the alias-cycle rule refuses a recursion that meets itself with no bag between
 		return ""
 	}
 	gb, sb := g0, s0

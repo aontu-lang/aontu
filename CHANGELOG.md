@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### The coverage gate passes again in both engines
+
+ADR-002 holds both engines at 100% coverage, and the daily run's gate
+had failed every night since 2026-11-09. No behaviour changes.
+
+- **Two shared rows** cover what no row reached: `a:@""`, an empty
+  include path, which both engines refuse as `multisource_not_found`,
+  and a path written before the list element it reads, which holds a
+  path of its own.
+- **Code that can no longer run is gone.** A non-string spec in
+  TypeScript's file resolver and a null one in its include guard cannot
+  arrive since `@` takes only the string right after it, and a
+  constraint's `musts` is never absent. Go's `boundArgStart` takes only
+  the call it is always given.
+- **TypeScript's two hole walks are one**, `holeIn`, as Go's are.
+- **Unit tests** cover Go's `HasUnknownFunction`, a wrapper whose
+  other arguments wait, and the recursion guard in TypeScript's
+  `subsume`, handed a recursion that is its own definition, which no
+  parsed document holds. Go's twin of that guard and its path-cycle
+  checks carry justified ignore markers: the alias-cycle rule refuses
+  what they catch before evaluation.
+- Two TypeScript files hid the wrong lines from the report: a function
+  added before the export list had taken the export list's ignore
+  comment, and a longer list outgrew its count.
+
 ### Rows hold both engines to a written `nil` and a path in `must`'s condition
 
 Findings of decision 62's build. No engine changes.

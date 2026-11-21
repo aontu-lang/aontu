@@ -247,4 +247,5 @@ load-operand-parenthesis-refused	errc	a:@("__FIXTURES__/foo.aontu")	include_oper
 load-operand-number-refused	errc	a:@3	include_operand
 load-operand-map-refused	errc	a:@{f:1}	include_operand
 load-operand-nothing-refused	errc	a:@	include_operand
+load-operand-empty-string-not-found	errc	a:@""	multisource_not_found
 load-operand-refusal-says-why	err	a:@3	@ takes the string right after it

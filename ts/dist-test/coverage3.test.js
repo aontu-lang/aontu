@@ -1047,6 +1047,17 @@ function capture(fn) {
         Assert.equal(state.findings.length, 1);
         Assert.equal(state.findings[0].code, 'sub_unresolved');
     });
+    // A recursion whose definition is itself, with no bag between, which
+    // the alias-cycle rule refuses in any parsed document, ends the walk.
+    (0, node_test_1.test)('subsume-recursion-met-again-before-a-bag', () => {
+        const rec = new aontu_1.Aontu().unify('T: {next?: $.T}').peg.T.peg.next;
+        const root = new MapVal_1.MapVal({ peg: { T: rec } });
+        const state = {
+            profile: 'values', findings: [], pairs: (0, subsume_1.newPairs)(),
+            generalUrl: 'general', specificUrl: 'specific', groot: root, sroot: root,
+        };
+        Assert.equal((0, subsume_1.subsumeNode)(state, ['x'], rec, rec), 'yes');
+    });
 });
 (0, node_test_1.describe)('coverage3-trim', () => {
     // The trim internals no source reaches (G3 phase 6): the candidate
