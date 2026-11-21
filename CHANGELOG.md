@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### Rows hold both engines to a destructure over a term that isn't a load
+
+P10 of `sketch/DEFINITION.0.md`. No engine changes.
+
+- **The oracle's printer writes a destructure over any term**, as
+  `{ %a } = { "a": 1 }`, where it wrote only one over a load.
+- **Rows ds0 to ds14 of `test/spec/def-alias.tsv`** destructure a map, a
+  number, a name, a name taken under another, and two names. The
+  definition reads each as a call the reading never makes, an `error`,
+  and both engines refuse each with `import_not_exported`.
+
 ### Rows hold both engines to the alias shorthand
 
 P10 of `sketch/DEFINITION.0.md`. No engine changes.
