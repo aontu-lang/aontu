@@ -177,7 +177,7 @@ structure BigInteger where
 /-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
 coefficient with no zero trailing it, within the exactness budget of at
 most 4096 coefficient digits and a scale of at most 4096 either way: a
-big decimal past it is no value (decision 70). Scale is presentation,
+big decimal past it is no value. Scale is presentation,
 not identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1`
 are both `⟨1, 1, _, _⟩`. -/
 structure BigDecimal where

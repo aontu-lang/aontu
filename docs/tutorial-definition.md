@@ -473,7 +473,7 @@ structure BigInteger where
 /-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
 coefficient with no zero trailing it, within the exactness budget of at
 most 4096 coefficient digits and a scale of at most 4096 either way: a
-big decimal past it is no value (decision 70). Scale is presentation,
+big decimal past it is no value. Scale is presentation,
 not identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1`
 are both `⟨1, 1, _, _⟩`. -/
 structure BigDecimal where
@@ -6253,7 +6253,7 @@ are read as before: `when(1 & 2, 1)` stands, and `nof(1, 1 & 2)`
 refuses `1` (#525).
 
 A conflict anywhere in such an argument makes the trial one too, not
-only at its top, by decision 62. So `must({b?: 1 & 2}, "m")`, with a
+only at its top. So `must({b?: 1 & 2}, "m")`, with a
 conflict at an optional member, is an `error`, and so is
 `must(len(1) & [1, 2], "m")`, whose list is too long for its size: a
 conflict the meet finds, which the staged normal form reads as `nil`
@@ -6270,7 +6270,7 @@ later argument the engines and the definition part: both engines make
 the whole argument admit nothing, so `nof(1, {b?: 1 & 2}, {x: 1})`
 admits `{"x": 1}`, where the definition reads the conflict at the
 optional member and refuses it. Rows `td93` to `td95` sit in the
-ledger under #892, which decision 74 holds open for a ruling.
+ledger under #892, which waits on a ruling.
 
 A written `nil` stands there. Both engines read a size, a condition of
 `must` or a count written as `nil` as a value that admits nothing, so `must(nil, "m")`
