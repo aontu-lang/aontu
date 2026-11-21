@@ -1718,3 +1718,9 @@ Status?
 ```text
 Rename it to lang refinement plan
 ```
+
+## 2026-11-21 22:18:32 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Now review all of the GitHub issues and incorporate them into the plan, so that they can be resolved. Keep the resolutions and the plan consistent. Ask me for rulings where you need them
+```
