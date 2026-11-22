@@ -1962,3 +1962,9 @@ Eight small open questions have an answer under the repository's standing rules,
 A follow-up that two of your rulings raise. You ruled that a new type's kind is its bare word, so in a file of the new version `uri`, `date`, `email` and `hex` are kinds, not strings. But those words are also written bare as names today: `esc(s, uri)` names a convention, and `format` takes a format's name. How do such names keep working?
 → Quote the name
 ```
+
+## 2026-11-22 12:27:18 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Status of the lean project?
+```
