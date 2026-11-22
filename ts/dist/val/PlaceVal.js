@@ -6,6 +6,7 @@ exports.boundArgStart = boundArgStart;
 exports.hasPlace = hasPlace;
 exports.rebuild = rebuild;
 exports.unboundHole = unboundHole;
+exports.unknownCall = unknownCall;
 exports.waitsOnHole = waitsOnHole;
 exports.fillPlace = fillPlace;
 const Val_1 = require("./Val");
@@ -67,6 +68,106 @@ function unboundHole(ctx, root) {
     const nil = (0, err_1.makeNilErr)(ctx, 'hole_unbound', found[0], undefined, 'parse');
     nil.path = found[1];
     return nil;
+}
+// An unknown name or a wrong count is decided as the document is read, so
+// it is refused wherever it stands (decision 77 of sketch/DEFINITION.0.md):
+// in a trial's argument, a disjunction's arm or under maybe it would
+// otherwise admit nothing in silence. A declaration's body is searched as
+// well, its call reported where it is declared, and of several the least
+// by path is reported, as parseNilIn picks a parse refusal.
+function unknownCall(root) {
+    const found = [];
+    const seen = new Set();
+    refusedCallIn(root, [], false, seen, found);
+    for (const [body, path] of declBodies(root)) {
+        refusedCallIn(body, path, true, seen, found);
+    }
+    let least = undefined;
+    for (const f of found) {
+        if (undefined === least || f[1].join('\x00') < least[1].join('\x00')) {
+            least = f;
+        }
+    }
+    if (undefined === least) {
+        return undefined;
+    }
+    const nil = least[0];
+    nil.path = least[1];
+    return nil;
+}
+// `maybe()` is how canon writes an absence, so it is read back as one.
+function refusedCall(v) {
+    return true === v.isNil && ('unknown_function' === v.why ||
+        ('func_arity' === v.why &&
+            !('maybe' === v.refusedCall?.name && 0 === v.refusedCall.args.length)));
+}
+// Both walks keep their own stack, as aliasCycle does: a document may nest
+// deeper than the host's stack, and the order is the recursive one.
+function refusedCallIn(start, startPath, startCalls, seen, found) {
+    const stack = [[start, startPath, startCalls]];
+    while (0 < stack.length) {
+        const [v, path, calls] = stack.pop();
+        if (true !== v?.isVal || seen.has(v)) {
+            continue;
+        }
+        seen.add(v);
+        if (refusedCall(v)) {
+            found.push([v, path]);
+            continue;
+        }
+        const next = [];
+        const call = callOf(v);
+        const peg = v.peg;
+        if (undefined !== call) {
+            call.args.forEach((arg) => next.push([arg, path, true]));
+        }
+        else {
+            if (Array.isArray(peg) || true === peg?.isVal) {
+                [peg].flat().forEach((item, i) => next.push([item,
+                    true === v.isList && !calls ? [...path, '' + i] : path,
+                    calls || true === v.isOp || true === v.isConstraint]));
+            }
+            else if (null != peg && 'object' === typeof peg) {
+                for (const k of Object.keys(peg)) {
+                    if (!(v.aliasKeys ?? []).includes(k)) {
+                        next.push([peg[k], calls ? path : [...path, k], calls]);
+                    }
+                }
+            }
+            next.push([v.spread?.cj, path, calls]);
+        }
+        stack.push(...next.reverse());
+    }
+}
+function declBodies(start) {
+    const out = [];
+    const seen = new Set();
+    const stack = [[start, []]];
+    while (0 < stack.length) {
+        const [v, path] = stack.pop();
+        if (true !== v?.isVal || seen.has(v)) {
+            continue;
+        }
+        seen.add(v);
+        for (const k of v.aliasKeys ?? []) {
+            out.push([v.peg[k], path]);
+        }
+        const next = [];
+        const peg = v.peg;
+        if (true === v.isMap && null != peg && 'object' === typeof peg) {
+            for (const k of Object.keys(peg)) {
+                if (!(v.aliasKeys ?? []).includes(k)) {
+                    next.push([peg[k], [...path, k]]);
+                }
+            }
+            next.push([v.spread?.cj, path]);
+        }
+        else {
+            partsOf(v).forEach((c) => next.push([c, path]));
+        }
+        stack.push(...next.reverse());
+    }
+    return out;
 }
 function declsIn(v, decls, seen) {
     if (true !== v?.isVal || seen.has(v)) {

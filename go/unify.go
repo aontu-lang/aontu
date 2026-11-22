@@ -458,6 +458,9 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if cyc := aliasCycle(ctx, root); nil != cyc {
 		return cyc
 	}
+	if call := unknownCall(ctx, root); nil != call {
+		return call
+	}
 	if nil == ctx.snapmap {
 		ctx.snapmap = map[string]Val{}
 	}

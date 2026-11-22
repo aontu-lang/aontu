@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### An unknown call is refused wherever it stands
+
+Decision 77 (#870), in both engines. A call to a name that is no
+built-in, `unknown_function`, or with the wrong count, `func_arity`, was
+refused where it stood alone and read in silence as a value that admits
+nothing elsewhere: `filter($.xs, length(3))`, with the retired name of
+`len`, answered `[]`, and `match`, `nof`, `when`, a disjunction's arm and
+`maybe` did the same. Both are decided when the document is read, so the
+document is now refused before evaluation, as an unbound `_` is.
+
+- **A document that held one in those places changes answer**, from a
+  value to a refusal. `vet` of such a schema answers `error`.
+- **A declaration's body is checked too**, used or not, and its call is
+  reported at the map that declares it. Of several calls, the one
+  reported is the least by path.
+- **`maybe()` with no argument is left to evaluation**, since it is how
+  canon writes an absence.
+- Rows x2250 to x2252 of `test/spec/def-call.tsv`, a wrong count in a
+  template nothing reaches, enter `spec/ledger.tsv`, whose bound rises
+  from 213 to 216: the definition reads that template as nothing and
+  moves.
+- The JSON Schema export row for an uncollected nil uses `-"x"` in
+  place of a call that the check now refuses.
+
 ### `must` reads a written `nil` in its condition where it stands
 
 Decision 75 (#894), in both engines. `must`'s builder refused every

@@ -94,6 +94,115 @@ function unboundHole(ctx: AontuContext, root: Val): Val | undefined {
 }
 
 
+// An unknown name or a wrong count is decided as the document is read, so
+// it is refused wherever it stands (decision 77 of sketch/DEFINITION.0.md):
+// in a trial's argument, a disjunction's arm or under maybe it would
+// otherwise admit nothing in silence. A declaration's body is searched as
+// well, its call reported where it is declared, and of several the least
+// by path is reported, as parseNilIn picks a parse refusal.
+function unknownCall(root: Val): Val | undefined {
+  const found: [Val, string[]][] = []
+  const seen = new Set<Val>()
+  refusedCallIn(root, [], false, seen, found)
+  for (const [body, path] of declBodies(root)) {
+    refusedCallIn(body, path, true, seen, found)
+  }
+  let least: [Val, string[]] | undefined = undefined
+  for (const f of found) {
+    if (undefined === least || f[1].join('\x00') < least[1].join('\x00')) {
+      least = f
+    }
+  }
+  if (undefined === least) {
+    return undefined
+  }
+  const nil: any = least[0]
+  nil.path = least[1]
+  return nil
+}
+
+
+// `maybe()` is how canon writes an absence, so it is read back as one.
+function refusedCall(v: any): boolean {
+  return true === v.isNil && ('unknown_function' === v.why ||
+    ('func_arity' === v.why &&
+      !('maybe' === v.refusedCall?.name && 0 === v.refusedCall.args.length)))
+}
+
+
+// Both walks keep their own stack, as aliasCycle does: a document may nest
+// deeper than the host's stack, and the order is the recursive one.
+function refusedCallIn(start: any, startPath: string[], startCalls: boolean,
+  seen: Set<Val>, found: [Val, string[]][]): void {
+  const stack: [any, string[], boolean][] = [[start, startPath, startCalls]]
+  while (0 < stack.length) {
+    const [v, path, calls] = stack.pop() as [any, string[], boolean]
+    if (true !== v?.isVal || seen.has(v)) {
+      continue
+    }
+    seen.add(v)
+    if (refusedCall(v)) {
+      found.push([v, path])
+      continue
+    }
+    const next: [any, string[], boolean][] = []
+    const call = callOf(v)
+    const peg: any = v.peg
+    if (undefined !== call) {
+      call.args.forEach((arg: any) => next.push([arg, path, true]))
+    }
+    else {
+      if (Array.isArray(peg) || true === peg?.isVal) {
+        [peg].flat().forEach((item: any, i: number) => next.push([item,
+          true === v.isList && !calls ? [...path, '' + i] : path,
+          calls || true === v.isOp || true === v.isConstraint]))
+      }
+      else if (null != peg && 'object' === typeof peg) {
+        for (const k of Object.keys(peg)) {
+          if (!(v.aliasKeys ?? []).includes(k)) {
+            next.push([peg[k], calls ? path : [...path, k], calls])
+          }
+        }
+      }
+      next.push([v.spread?.cj, path, calls])
+    }
+    stack.push(...next.reverse())
+  }
+}
+
+
+function declBodies(start: any): [Val, string[]][] {
+  const out: [Val, string[]][] = []
+  const seen = new Set<Val>()
+  const stack: [any, string[]][] = [[start, []]]
+  while (0 < stack.length) {
+    const [v, path] = stack.pop() as [any, string[]]
+    if (true !== v?.isVal || seen.has(v)) {
+      continue
+    }
+    seen.add(v)
+    for (const k of v.aliasKeys ?? []) {
+      out.push([v.peg[k], path])
+    }
+    const next: [any, string[]][] = []
+    const peg: any = v.peg
+    if (true === v.isMap && null != peg && 'object' === typeof peg) {
+      for (const k of Object.keys(peg)) {
+        if (!(v.aliasKeys ?? []).includes(k)) {
+          next.push([peg[k], [...path, k]])
+        }
+      }
+      next.push([v.spread?.cj, path])
+    }
+    else {
+      partsOf(v).forEach((c: any) => next.push([c, path]))
+    }
+    stack.push(...next.reverse())
+  }
+  return out
+}
+
+
 function declsIn(v: any, decls: Map<string, Val>, seen: Set<Val>): void {
   if (true !== v?.isVal || seen.has(v)) {
     return
@@ -263,6 +372,7 @@ export {
   hasPlace,
   rebuild,
   unboundHole,
+  unknownCall,
   waitsOnHole,
   fillPlace,
   PlaceVal,

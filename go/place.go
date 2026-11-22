@@ -2,7 +2,10 @@
 
 package aontu
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // PlaceVal is the hole.
 type PlaceVal struct {
@@ -78,6 +81,147 @@ func unboundHole(ctx *Ctx, root Val) *NilVal {
 	n := makeNilErrFull(ctx, "hole_unbound", hole, nil, "parse", nil)
 	n.path = path
 	return n
+}
+
+// An unknown name or a wrong count is decided as the document is read, so
+// it is refused wherever it stands (decision 77 of sketch/DEFINITION.0.md):
+// in a trial's argument, a disjunction's arm or under maybe it would
+// otherwise admit nothing in silence. A declaration's body is searched as
+// well, its call reported where it is declared, and of several the least
+// by path is reported, as parseNilIn picks a parse refusal.
+func unknownCall(ctx *Ctx, root Val) *NilVal {
+	var found []refusedAt
+	seen := map[Val]bool{}
+	refusedCallIn(root, nil, false, seen, &found)
+	for _, d := range declBodies(root) {
+		refusedCallIn(d.body, d.path, true, seen, &found)
+	}
+	var least *refusedAt
+	for i := range found {
+		if nil == least || strings.Join(found[i].path, "\x00") < strings.Join(least.path, "\x00") {
+			least = &found[i]
+		}
+	}
+	if nil == least {
+		return nil
+	}
+	least.nil.path = least.path
+	ctx.adderr(least.nil)
+	return least.nil
+}
+
+type refusedAt struct {
+	nil  *NilVal
+	path []string
+}
+
+// `maybe()` is how canon writes an absence, so it is read back as one.
+func refusedCall(n *NilVal) bool {
+	return "unknown_function" == n.why || ("func_arity" == n.why &&
+		!(nil != n.refusedCall && "maybe" == n.refusedCall.name && 0 == len(n.refusedCall.peg)))
+}
+
+type callStep struct {
+	v     Val
+	path  []string
+	calls bool
+}
+
+// Both walks keep their own stack, as the TypeScript port must: a document
+// may nest deeper than the host's stack, and the order is the recursive one.
+func refusedCallIn(start Val, startPath []string, startCalls bool, seen map[Val]bool, found *[]refusedAt) {
+	stack := []callStep{{start, startPath, startCalls}}
+	for 0 < len(stack) {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		v, path, calls := top.v, top.path, top.calls
+		if nil == v || seen[v] {
+			continue
+		}
+		seen[v] = true
+		step := func(k string) []string {
+			if calls {
+				return path
+			}
+			return append(path[:len(path):len(path)], k)
+		}
+		var next []callStep
+		switch n := v.(type) {
+		case *NilVal:
+			if refusedCall(n) {
+				*found = append(*found, refusedAt{n, path})
+			} else if nil != n.refusedCall {
+				next = append(next, callStep{n.refusedCall, path, calls})
+			}
+		case *FuncVal:
+			for _, a := range n.peg {
+				next = append(next, callStep{a, path, true})
+			}
+		case *MapVal:
+			for _, k := range n.keys {
+				if !slices.Contains(n.aliasKeys, k) {
+					next = append(next, callStep{n.peg[k], step(k), calls})
+				}
+			}
+			next = append(next, callStep{n.spread, path, calls})
+		case *ListVal:
+			for i, e := range n.peg {
+				next = append(next, callStep{e, step(itoa(i)), calls})
+			}
+			next = append(next, callStep{n.spread, path, calls})
+		default:
+			switch v.(type) {
+			case *ConstraintVal, *PlusOpVal:
+				calls = true
+			}
+			for _, c := range partsOf(v) {
+				next = append(next, callStep{c, path, calls})
+			}
+		}
+		for i := len(next) - 1; 0 <= i; i-- {
+			stack = append(stack, next[i])
+		}
+	}
+}
+
+type declBody struct {
+	body Val
+	path []string
+}
+
+func declBodies(start Val) []declBody {
+	var out []declBody
+	seen := map[Val]bool{}
+	stack := []declBody{{start, nil}}
+	for 0 < len(stack) {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		v, path := top.body, top.path
+		if nil == v || seen[v] {
+			continue
+		}
+		seen[v] = true
+		var next []declBody
+		if m, ok := v.(*MapVal); ok {
+			for _, k := range m.aliasKeys {
+				out = append(out, declBody{m.peg[k], path})
+			}
+			for _, k := range m.keys {
+				if !slices.Contains(m.aliasKeys, k) {
+					next = append(next, declBody{m.peg[k], append(path[:len(path):len(path)], k)})
+				}
+			}
+			next = append(next, declBody{m.spread, path})
+		} else {
+			for _, c := range partsOf(v) {
+				next = append(next, declBody{c, path})
+			}
+		}
+		for i := len(next) - 1; 0 <= i; i-- {
+			stack = append(stack, next[i])
+		}
+	}
+	return out
 }
 
 func declsIn(v Val, decls map[string]Val, seen map[Val]bool) {

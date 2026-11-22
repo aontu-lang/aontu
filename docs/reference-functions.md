@@ -71,6 +71,31 @@ written terms, so a list literal counts as one: `add([1 2])` misses
 `add`'s interval of two, while `neq([1 2])` meets `neq`'s minimum of one
 ([Errors](reference-language.md#errors)).
 
+A wrong count, and a name that is no built-in (`unknown_function`), is
+refused wherever the call stands, since both are decided when the
+document is read. That includes the places that would otherwise read a
+call that can't be made as a value that admits nothing: a `filter`
+condition, a `match` pattern or result, a branch of `nof` or `when`, an
+arm of a disjunction, and the argument of `maybe`, which forgives a
+missing referent and never an unknown function. A retired name such as
+`length`, inside a condition, is refused and not read as one that admits
+nothing:
+
+<!-- test: run -->
+```sh
+$ printf 'xs: ["abc", "ab"]\nold: filter($.xs, length(3))\n' | aontu
+[aontu/unknown_function]: Cannot resolve value at path $.old
+...
+$ echo $?
+1
+```
+
+A call written in a declaration's body is checked whether or not the
+name is used, and is reported at the map that declares it. Where a
+document holds several, the one reported is the least by path. `maybe()`
+with no argument is left to evaluation, since it is how canon writes an
+absence, and a canon text must read back.
+
 Kinds are checked at evaluation, after every argument has settled and
 before the function resolves. The signature gate walks the declared
 slots, stops at a rest slot, and reads only a slot whose mode is `value`

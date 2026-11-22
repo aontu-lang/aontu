@@ -176,7 +176,7 @@ class Aontu {
             // and a document too big to evaluate must be turned away there
             // too.
             const over = (0, alias_1.aliasBudget)(ac, pval) ?? (0, PlaceVal_1.unboundHole)(ac, pval) ??
-                (0, cycle_1.aliasCycle)(ac, pval);
+                (0, cycle_1.aliasCycle)(ac, pval) ?? (0, PlaceVal_1.unknownCall)(pval);
             if (undefined !== over) {
                 out = over;
                 errs = [over];

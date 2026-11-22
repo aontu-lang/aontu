@@ -198,6 +198,29 @@ func-lower-map-arg	errc	a:lower({})	func_arg
 func-call-on-call	errc	a:f(1)(2)	unknown_function
 func-call-on-group	errc	a:(1)(2)	unknown_function
 func-call-on-known-call	errc	a:upper("x")(2)	unknown_function
+# --- an unknown call inside a trial (#870, decision 77) ---
+# A call to no built-in, or with the wrong count, is decided as the
+# document is read, so it is refused wherever it stands. In a trial's
+# argument, a disjunction's arm or under `maybe` both engines read it as a
+# value that admits nothing, so a retired name filtered to `[]` in
+# silence. A declaration's body is searched too, and reported where the
+# name is declared.
+call-unknown-in-filter	errc	xs:["abc","ab"] old:filter($.xs,length(3))	unknown_function
+call-unknown-in-filter-msg	err	xs:["abc","ab"] old:filter($.xs,length(3))	Cannot resolve value at path $.old
+call-arity-in-filter	errc	xs:[{a:1}] big:filter($.xs,{a:above()})	func_arity
+call-unknown-in-match	errc	m:match(1,nosuch(1),"yes","no")	unknown_function
+call-unknown-in-nof	errc	ok:nof(1,nosuch(1),integer)&1	unknown_function
+call-unknown-in-when	errc	ok:when(nosuch(1),string)&1	unknown_function
+call-unknown-in-arm	errc	d:nosuch(1)|2	unknown_function
+call-unknown-under-maybe	errc	c:[1,maybe(nosuch(1)),2]	unknown_function
+call-unknown-in-declaration	errc	%C=length(3) xs:["abc"] old:filter($.xs,%C)	unknown_function
+call-unknown-in-declaration-msg	err	%C=length(3) xs:["abc"] old:filter($.xs,%C)	Cannot resolve value at path $
+call-unknown-unused-declaration	errc	%T=nosuch(1) k:1	unknown_function
+call-known-in-filter	gens	xs:["abc","ab"] new:filter($.xs,len(3))	{"new":["abc"],"xs":["abc","ab"]}
+call-unknown-least-by-path	err	b:filter([1],nosuch(1)) a:filter([1],other(2))	Cannot resolve value at path $.a
+call-arity-maybe-with-two	errc	x:[1,maybe(1,2)]	func_arity
+call-maybe-none-reads-back	canon	x:maybe()	{"x":nil}
+call-unknown-in-filter-vets	verdict	old: filter($.xs, length(3))	{"xs": ["abc"]}	{"verdict":"error"}
 func-group-single-term	gen	a:(1+2)	{"a":3}
 func-group-scalar	gen	a:(1)	{"a":1}
 func-group-map	gen	a:({b:1})	{"a":{"b":1}}
