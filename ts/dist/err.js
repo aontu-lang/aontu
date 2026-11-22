@@ -166,6 +166,9 @@ function resolveSrc(v, errctx) {
     // When many NilVals share the same source file (common during batch
     // descErr after unify), this avoids re-reading the same file N times.
     const cache = errctx ? (errctx._srcCache ??= new Map()) : null;
+    if (undefined !== errctx?.texts?.[url]) {
+        return errctx.texts[url];
+    }
     if (null != url) {
         if (cache && cache.has(url)) {
             src = cache.get(url);

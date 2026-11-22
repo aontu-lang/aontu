@@ -9,6 +9,7 @@ const unify_1 = require("./unify");
 const ctx_1 = require("./ctx");
 Object.defineProperty(exports, "AontuContext", { enumerable: true, get: function () { return ctx_1.AontuContext; } });
 const MapVal_1 = require("./val/MapVal");
+const StringVal_1 = require("./val/StringVal");
 const Decimal_1 = require("./val/Decimal");
 Object.defineProperty(exports, "Decimal", { enumerable: true, get: function () { return Decimal_1.Decimal; } });
 const exactjson_1 = require("./exactjson");
@@ -92,6 +93,7 @@ class Aontu {
                         eval: undefined,
                         depth: (this.opts.mod?.depth ?? 0) + 1,
                     },
+                    hostVars: undefined,
                 });
                 const ctx = inner.ctx({ collect: true });
                 const val = inner.unify(src, { path }, ctx);
@@ -110,6 +112,11 @@ class Aontu {
         // budgets (G5, docs/trust.md).
         cfg.opts = cfg.opts ?? {};
         cfg.opts.trust = cfg.opts.trust ?? this.opts.trust;
+        if (undefined === cfg.vars && undefined !== this.opts.hostVars) {
+            const host = hostValues(this.opts.hostVars);
+            cfg.vars = host.vars;
+            cfg.texts = host.texts;
+        }
         const ac = new ctx_1.AontuContext(cfg);
         return ac;
     }
@@ -380,6 +387,21 @@ function runparse(src, lang, ctx) {
         val = new MapVal_1.MapVal({ peg: {} });
     }
     return val;
+}
+// A context makes its own values of the host bindings, as a Val tree is
+// single-use. A binding's source loads nothing, and its site is the
+// option that bound it, with its text kept for an error to quote.
+let BINDER;
+function hostValues(hostVars) {
+    const vars = {};
+    const texts = {};
+    for (const [name, b] of Object.entries(hostVars)) {
+        const url = (true === b.text ? '--var-text ' : '--var ') + name;
+        texts[url] = true === b.text ? new StringVal_1.StringVal({ peg: b.value }).canon : b.value;
+        vars[name] = (BINDER = BINDER ?? new Aontu({ trust: { include: 'none' } }))
+            .unify(texts[url], { path: url, collect: true });
+    }
+    return { vars, texts };
 }
 const util = {
     runparse,

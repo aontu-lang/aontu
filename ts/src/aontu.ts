@@ -3,12 +3,13 @@
 // FIX: 1+2+3
 
 
-import type { Val, AontuOptions } from './type'
+import type { Val, AontuOptions, HostVars } from './type'
 
 import { Lang } from './lang'
 import { Unify } from './unify'
 import { AontuContext, AontuContextConfig } from './ctx'
 import { MapVal } from './val/MapVal'
+import { StringVal } from './val/StringVal'
 import { Decimal } from './val/Decimal'
 import { exactJSON } from './exactjson'
 import { canonRiders, formatExplain } from './utility'
@@ -72,6 +73,7 @@ class Aontu {
             eval: undefined,
             depth: (((this.opts as any).mod?.depth ?? 0) as number) + 1,
           },
+          hostVars: undefined,
         } as any)
         const ctx = inner.ctx({ collect: true })
         const val = inner.unify(src, { path }, ctx)
@@ -93,6 +95,11 @@ class Aontu {
     // budgets (G5, docs/trust.md).
     cfg.opts = cfg.opts ?? {}
     ; (cfg.opts as any).trust = (cfg.opts as any).trust ?? this.opts.trust
+    if (undefined === cfg.vars && undefined !== this.opts.hostVars) {
+      const host = hostValues(this.opts.hostVars)
+      cfg.vars = host.vars
+      cfg.texts = host.texts
+    }
     const ac = new AontuContext(cfg)
     return ac
   }
@@ -424,6 +431,25 @@ function runparse(src: string, lang: Lang, ctx: AontuContext): Val {
   }
 
   return val
+}
+
+
+// A context makes its own values of the host bindings, as a Val tree is
+// single-use. A binding's source loads nothing, and its site is the
+// option that bound it, with its text kept for an error to quote.
+let BINDER: Aontu | undefined
+
+function hostValues(hostVars: HostVars):
+  { vars: Record<string, Val>, texts: Record<string, string> } {
+  const vars: Record<string, Val> = {}
+  const texts: Record<string, string> = {}
+  for (const [name, b] of Object.entries(hostVars)) {
+    const url = (true === b.text ? '--var-text ' : '--var ') + name
+    texts[url] = true === b.text ? new StringVal({ peg: b.value }).canon : b.value
+    vars[name] = (BINDER = BINDER ?? new Aontu({ trust: { include: 'none' } }))
+      .unify(texts[url], { path: url, collect: true })
+  }
+  return { vars, texts }
 }
 
 

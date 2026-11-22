@@ -209,6 +209,9 @@ function resolveSrc(v: Val, errctx: ErrContext | undefined) {
   // descErr after unify), this avoids re-reading the same file N times.
   const cache = errctx ? ((errctx as any)._srcCache ??= new Map<string, string>()) : null
 
+  if (undefined !== errctx?.texts?.[url]) {
+    return errctx.texts[url]
+  }
   if (null != url) {
     if (cache && cache.has(url)) {
       src = cache.get(url)

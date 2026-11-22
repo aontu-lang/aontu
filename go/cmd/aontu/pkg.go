@@ -128,7 +128,7 @@ func nameOldLayout(dir string, stderr io.Writer) {
 }
 
 func runPkg(argv []string, srv servers, stdout, stderr io.Writer) int {
-	argv, trust, trustOK := takeTrust(argv, stderr)
+	argv, trust, trustOK := takeTrust(argv, stderr, noHost)
 	if !trustOK {
 		return 2
 	}
@@ -454,7 +454,7 @@ const modelHelp = "aontu model get|why|set ... (try --help)"
 func modelSubAt(argv []string) int {
 	for i := 0; i < len(argv); i++ {
 		switch argv[i] {
-		case "--trust", "--include-root", "--text-ext":
+		case "--trust", "--include-root", "--text-ext", "--var", "--var-text":
 			i++
 			continue
 		case "get", "why", "set":

@@ -6,7 +6,7 @@ import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { Aontu } from './aontu'
 import { failureFinding, engineFinding, anchorAt, throughResidue } from './vet'
 import type { VetFinding } from './vet'
-import type { TrustOptions } from './type'
+import type { HostVars, TrustOptions } from './type'
 import { declsOf, graphOf } from './graph'
 import type { Graph, RelDecl } from './graph'
 import { cmpCodePoint } from './keyorder'
@@ -141,6 +141,7 @@ export type ViewOptions = {
   // (docs/trust.md).
   trust?: TrustOptions
   textExt?: string[]
+  hostVars?: HostVars
   // Restrict the figure to nodes (or paths) under this path. For the
   // ladder it is the path drawn, and required; for the poset it is
   // where the documents are compared.
@@ -2660,7 +2661,10 @@ function drawLadder(
     }
   }
   const rep = why(src, options.at,
-    { path: options.path, trust: options.trust, textExt: options.textExt })
+    {
+      path: options.path, trust: options.trust, textExt: options.textExt,
+      hostVars: options.hostVars,
+    })
   if (undefined === rep.record) {
     return { errors: rep.findings }
   }
@@ -2757,7 +2761,7 @@ const compareBySubsume: ViewCompare = (general, specific, options) => {
   const r = subsume(general.src, specific.src, {
     at: options.at, profile: options.profile,
     generalPath: general.path, specificPath: specific.path,
-    trust: options.trust, textExt: options.textExt,
+    trust: options.trust, textExt: options.textExt, hostVars: options.hostVars,
   })
   return { verdict: r.verdict, code: r.findings[0]?.code ?? 'undecided' }
 }
@@ -4760,7 +4764,7 @@ export function viewSet(
     // The style is the set's, since a declaration cannot name one.
     const each: ViewOptions = {
       ...plan.opts, path: options.path, trust: options.trust,
-      textExt: options.textExt, style: options.style,
+      textExt: options.textExt, hostVars: options.hostVars, style: options.style,
     }
     // A Val tree generates once: the declarations were generated from
     // this one, so a figure that generates draws from a fresh

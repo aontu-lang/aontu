@@ -1,4 +1,4 @@
-import type { TrustOptions, Val } from './type';
+import type { HostVars, TrustOptions, Val } from './type';
 export type VetVerdict = 'valid' | 'invalid' | 'incomplete' | 'error';
 export type VetRole = 'data' | 'schema';
 export type VetSite = {
@@ -52,6 +52,7 @@ export type VetOptions = {
     exactNumbers?: boolean;
     trust?: TrustOptions;
     textExt?: string[];
+    hostVars?: HostVars;
 };
 export declare const VET_MAX_ERRORS = 20;
 export declare function displayFile(url: string, label: string, path?: string): string;

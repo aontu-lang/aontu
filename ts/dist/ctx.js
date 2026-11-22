@@ -26,6 +26,7 @@ class AontuContext {
         this.vc = null == cfg.vc ? 1_000_000_000 : cfg.vc;
         this.cc = null == cfg.cc ? this.cc : cfg.cc;
         this.vars = cfg.vars ?? this.vars;
+        this.texts = cfg.texts;
         this.seenI = cfg.seenI ?? 0;
         this.seen = cfg.seen ?? {};
         this.srcpath = cfg.srcpath ?? undefined;

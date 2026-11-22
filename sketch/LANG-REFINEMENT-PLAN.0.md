@@ -1386,6 +1386,26 @@ By ruling 24, `hash` and `breaking` are among HV1's verbs and name the
 bindings in their reports, and `publish` and the package verbs refuse
 the options.
 
+Progress on 2026-11-22. HV1 is built in both commands, and the two
+answer alike on every case the parity probe put to them. Three choices
+were made in the building:
+
+- **What counts as read.** The documents named on the command line are
+  parsed, their includes with them, and a binding none of them reads is
+  refused. A template, a folder or a document that doesn't parse can't
+  say what it reads, so a run with one refuses no binding as unread.
+- **A binding is a value.** One whose source still reads a path or a
+  variable once evaluated alone is refused: the ports read `$.k` bound
+  through a variable differently, and a binding that points into the
+  document has no meaning the rulings give it.
+- **The REPL refuses the options** until HV3 gives it bindings of its
+  own, and `fmt` refuses them with the package verbs, since it
+  evaluates nothing.
+
+A bound value is sited at the option that bound it, `--var n`, with its
+text kept for an error frame to quote, in both engines. HV2 to HV4 are
+not started.
+
 ### Questions for the ruling on part 6
 
 22. **The options.** Ruled 2026-11-21: the three above, with `--var`

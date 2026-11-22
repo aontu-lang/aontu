@@ -159,7 +159,8 @@ func CompatOutcome(nextSrc, priorSrc string, opts *SubsumeOptions) OutcomeReport
 		specificSrc: priorSrc,
 	}
 	load := func(src, path string) Val {
-		a := aontuForPathTrust(path, options.Trust, options.TextExt)
+		a := aontuForPathTrust(path, options.Trust, options.TextExt,
+			options.HostVars)
 		v, err := a.Unify(src)
 		if err != nil || nil == v || v.Nil() {
 			return nil

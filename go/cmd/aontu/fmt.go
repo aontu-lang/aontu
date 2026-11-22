@@ -23,7 +23,7 @@ type fmtFlags struct {
 var fmtWriteFile = os.WriteFile
 
 func runFmt(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	argv, trust, trustOK := takeTrust(argv, stderr)
+	argv, trust, trustOK := takeTrust(argv, stderr, "fmt evaluates no document")
 	if !trustOK {
 		return 2
 	}

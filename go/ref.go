@@ -3,7 +3,9 @@
 package aontu
 
 import (
+	"maps"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -797,6 +799,46 @@ func varName(vv *VarVal) string {
 		}
 	}
 	return ""
+}
+
+// VarNames is every $name a parsed document reads, in order: the CLI
+// refuses a binding that none of them is.
+func VarNames(root Val) []string {
+	names := map[string]bool{}
+	eachPart(root, func(v Val) {
+		if vv, ok := v.(*VarVal); ok && "" != varName(vv) {
+			names[varName(vv)] = true
+		}
+	})
+	return slices.Sorted(maps.Keys(names))
+}
+
+// HoldsReference reports whether a value still reads a path or a
+// variable: the CLI refuses a binding that does.
+func HoldsReference(root Val) bool {
+	holds := false
+	eachPart(root, func(v Val) {
+		switch v.(type) {
+		case *RefVal, *VarVal:
+			holds = true
+		}
+	})
+	return holds
+}
+
+func eachPart(root Val, visit func(Val)) {
+	seen := map[Val]bool{}
+	stack := []Val{root}
+	for 0 < len(stack) {
+		v := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if nil == v || seen[v] {
+			continue
+		}
+		seen[v] = true
+		visit(v)
+		stack = append(stack, partsOf(v)...)
+	}
 }
 
 // reduceDots collapses parent-navigation markers ("."). It answers

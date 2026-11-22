@@ -1959,7 +1959,10 @@ function drawLadder(src, options, as, max) {
             errors: [finding('view_at_required', 'reference', '$', 'The ladder needs the path to draw; name it with --at.')],
         };
     }
-    const rep = (0, query_1.why)(src, options.at, { path: options.path, trust: options.trust, textExt: options.textExt });
+    const rep = (0, query_1.why)(src, options.at, {
+        path: options.path, trust: options.trust, textExt: options.textExt,
+        hostVars: options.hostVars,
+    });
     if (undefined === rep.record) {
         return { errors: rep.findings };
     }
@@ -2027,7 +2030,7 @@ const compareBySubsume = (general, specific, options) => {
     const r = (0, subsume_1.subsume)(general.src, specific.src, {
         at: options.at, profile: options.profile,
         generalPath: general.path, specificPath: specific.path,
-        trust: options.trust, textExt: options.textExt,
+        trust: options.trust, textExt: options.textExt, hostVars: options.hostVars,
     });
     return { verdict: r.verdict, code: r.findings[0]?.code ?? 'undecided' };
 };
@@ -3672,7 +3675,7 @@ function viewSet(src, opts, hooks) {
         // The style is the set's, since a declaration cannot name one.
         const each = {
             ...plan.opts, path: options.path, trust: options.trust,
-            textExt: options.textExt, style: options.style,
+            textExt: options.textExt, hostVars: options.hostVars, style: options.style,
         };
         // A Val tree generates once: the declarations were generated from
         // this one, so a figure that generates draws from a fresh

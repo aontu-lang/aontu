@@ -184,6 +184,12 @@ Options:
                   with or without dots (md,sql). .txt needs no flag; a
                   named format keeps its meaning, and .js stays
                   refused. The verbs that take --trust take it too
+  --var <n>=<v>   Bind $n to v read as aontu source: n=3 is an integer,
+                  env=prod a string. Repeatable, on every verb that
+                  evaluates a document; fmt, publish and the package
+                  verbs refuse it, and so does a run where no document
+                  reads $n
+  --var-text <n>=<v>  Bind $n to v as text, whatever it looks like
 
 Package verbs (a module is imported; a package is published):
   sync      Make the project correct: resolve by minimum version
@@ -714,22 +720,39 @@ function trustOpts(trust, entryRoot) {
     const text = 0 === trust.textExt.length ? {} : { textExt: trust.textExt };
     switch (trust.kind) {
         case 'none':
-            return { ...text, trust: { include: 'none' } };
+            return { ...text, ...hostOpts(trust), trust: { include: 'none' } };
         case 'root':
-            return { ...text, trust: { include: { root: trust.dir ?? entryRoot } } };
+            return {
+                ...text, ...hostOpts(trust), trust: { include: { root: trust.dir ?? entryRoot } },
+            };
         case 'system':
-            return { ...text };
+            return { ...text, ...hostOpts(trust) };
         default: // system-warn: today's default plus the warning window
-            return { ...text, trustWarn: makeTrustWarn(), trustWarnRoot: entryRoot };
+            return {
+                ...text, ...hostOpts(trust), trustWarn: makeTrustWarn(), trustWarnRoot: entryRoot,
+            };
     }
 }
-function takeTrust(argv, io = PROCESS_IO) {
+function hostOpts(trust) {
+    return undefined === trust.hostVars ? {} : { hostVars: trust.hostVars };
+}
+function takeTrust(argv, io = PROCESS_IO, noVars) {
     const rest = [];
     let trust = { kind: 'system-warn', textExt: [] };
     let textExt = [];
+    const bindings = [];
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
-        if ('--trust' === arg) {
+        if ('--var' === arg || '--var-text' === arg) {
+            if (undefined !== noVars) {
+                io.err(`aontu: ${arg} is refused here: ${noVars}\n`);
+                return undefined;
+            }
+            if (!takeBinding(arg, argv[++i], bindings, io)) {
+                return undefined;
+            }
+        }
+        else if ('--trust' === arg) {
             const parsed = null == argv[i + 1] ? undefined : parseTrustArg(argv[++i]);
             if (null == parsed) {
                 io.err('aontu: --trust needs system, none, or root[:dir]\n');
@@ -758,7 +781,119 @@ function takeTrust(argv, io = PROCESS_IO) {
             rest.push(arg);
         }
     }
-    return { argv: rest, trust: { ...trust, textExt } };
+    trust = { ...trust, textExt };
+    const hostVars = hostVarsOf(bindings, namesRead(rest, trust), io);
+    return null === hostVars ? undefined :
+        { argv: rest, trust: { ...trust, ...(undefined === hostVars ? {} : { hostVars }) } };
+}
+function takeBinding(arg, raw, out, io) {
+    const m = /^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/.exec(raw ?? '');
+    if (null == m) {
+        io.err(`aontu: ${arg} needs name=value\n`);
+        return false;
+    }
+    if (out.some((b) => m[1] === b.name)) {
+        io.err(`aontu: ${arg} binds $${m[1]} a second time\n`);
+        return false;
+    }
+    out.push({ name: m[1], value: m[2], text: '--var-text' === arg });
+    return true;
+}
+// A binding no document reads is refused (ruling 23 of
+// sketch/LANG-REFINEMENT-PLAN.0.md), unless a document can't be read on
+// its own to say: a template, a folder, or one that doesn't parse.
+function hostVarsOf(bindings, read, io) {
+    if (0 === bindings.length) {
+        return undefined;
+    }
+    const hostVars = {};
+    for (const b of bindings) {
+        const flag = b.text ? '--var-text' : '--var';
+        if (undefined !== read && !read.has(b.name)) {
+            io.err(`aontu: ${flag} binds $${b.name}, which no document reads\n`);
+            return null;
+        }
+        const bad = b.text ? undefined : bindingFailure(b.value);
+        if (undefined !== bad) {
+            io.err(`aontu: --var ${b.name}: ${bad}\n`);
+            return null;
+        }
+        hostVars[b.name] = b.text ? { value: b.value, text: true } : { value: b.value };
+    }
+    return hostVars;
+}
+function bindingFailure(src) {
+    let v;
+    try {
+        v = new aontu_1.Aontu({ trust: { include: 'none' } }).unify(src);
+    }
+    catch (err) {
+        return String(err.message).split('\n')[0];
+    }
+    let holds = false;
+    eachPart(v, (n) => { holds = holds || true === n.isRef || true === n.isVar; });
+    return holds ? 'a binding is a value, and reads no path or variable' : undefined;
+}
+// The names the documents named on the command line read, or undefined
+// where one of them can't be read on its own.
+function namesRead(args, trust) {
+    const read = new Set();
+    for (const arg of args) {
+        const doc = /[.]aontu$/.test(arg);
+        let dir = false;
+        try {
+            dir = (0, node_fs_1.statSync)(arg).isDirectory();
+        }
+        catch (_err) {
+            if (doc) {
+                return undefined;
+            }
+            continue;
+        }
+        if (dir || (!doc && !DATA_EXT.test(arg))) {
+            return undefined;
+        }
+        if (doc && !namesIn((0, node_fs_1.readFileSync)(arg, 'utf8'), (0, node_path_1.resolve)(arg), trust, read)) {
+            return undefined;
+        }
+    }
+    return read;
+}
+const DATA_EXT = /[.](json|jsonl|yaml|yml|txt|pem|tsv)$/;
+function namesIn(src, path, trust, read) {
+    let root;
+    try {
+        root = new aontu_1.Aontu({ path, ...verbOpts(trust, (0, node_path_1.dirname)(path)) }).parse(src);
+    }
+    catch (_err) {
+        return false;
+    }
+    eachPart(root, (v) => {
+        if (true === v.isVar && 'string' === typeof v.peg?.peg) {
+            read.add(v.peg.peg);
+        }
+    });
+    return true;
+}
+function eachPart(root, visit) {
+    const seen = new Set();
+    const stack = [root];
+    while (0 < stack.length) {
+        const v = stack.pop();
+        if (true !== v?.isVal || seen.has(v)) {
+            continue;
+        }
+        seen.add(v);
+        visit(v);
+        const peg = v.peg;
+        stack.push(...(Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
+            null != peg && 'object' === typeof peg ? Object.values(peg) : []));
+        stack.push(v.spread?.cj);
+    }
+}
+// The bindings a report names, as they were written.
+function bindingsOf(trust) {
+    return Object.entries(trust.hostVars ?? {}).map(([name, b]) => `${true === b.text ? '--var-text' : '--var'} ${name}=${b.value}`);
 }
 // `md,sql` or `.md,.sql` -- the dot is accepted and dropped, because a
 // reader who has just written `@"./notes.txt"` reaches for one. An empty
@@ -807,6 +942,7 @@ function verbOpts(trust, entryRoot) {
     return {
         ...(undefined === include ? {} : { trust: include }),
         ...(0 === trust.textExt.length ? {} : { textExt: trust.textExt }),
+        ...hostOpts(trust),
     };
 }
 // The directory a bare `--trust root` confines to for a verb: the
@@ -847,13 +983,19 @@ function runFile(file, mode, format, trust, exact) {
     });
     return emitEval(evalSource(aontu, src, mode), format);
 }
-function runStdin(mode, format, trust, exact) {
+function runStdin(mode, format, trust, exact, bindings) {
     return new Promise((resolve) => {
         let src = '';
         process.stdin.setEncoding('utf8');
         process.stdin.on('data', (d) => (src += d));
         process.stdin.on('end', () => {
-            const res = evalSource(new aontu_1.Aontu({ ...trustOpts(trust, process.cwd()), ...exactOpts(exact) }), src, mode);
+            const read = new Set();
+            const cwd = process.cwd();
+            const hostVars = hostVarsOf(bindings, namesIn(src, (0, node_path_1.join)(cwd, '<stdin>'), trust, read) ? read : undefined, PROCESS_IO);
+            if (null === hostVars) {
+                return resolve(2);
+            }
+            const res = evalSource(new aontu_1.Aontu({ ...trustOpts({ ...trust, hostVars }, cwd), ...exactOpts(exact) }), src, mode);
             resolve(emitEval(res, format));
         });
     });
@@ -1641,7 +1783,7 @@ function oldVersion(spec, file) {
 // a disjunction whose default is the declared mode. Undefined when the
 // key is absent or does not spell a mode.
 function policyCompat(newSrc, path, include) {
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == include.hostVars ? {} : { hostVars: include.hostVars });
     const ctx = aontu.ctx({ collect: true });
     const v = aontu.unify(newSrc, { path, ...(0, utility_1.includeOpts)(include) }, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
@@ -1734,8 +1876,8 @@ function runBreaking(argv) {
         // The document declares no compatibility promise: nothing to check.
         const report = { verdict: 'subsumes', findings: [] };
         const text = 'json' === args.format
-            ? renderBreakingJson(report, mode)
-            : renderBreakingText(report);
+            ? renderBreakingJson(report, mode, bindingsOf(trust))
+            : renderBreakingText(report, bindingsOf(trust));
         process.stdout.write(text + '\n');
         return 0;
     }
@@ -1804,24 +1946,26 @@ function runBreaking(argv) {
     }
     const report = { verdict: worst, findings };
     const text = 'json' === args.format
-        ? renderBreakingJson(report, mode)
-        : renderBreakingText(report);
+        ? renderBreakingJson(report, mode, bindingsOf(trust))
+        : renderBreakingText(report, bindingsOf(trust));
     process.stdout.write(text + '\n');
     if ('undecided' === worst && args.allowUndecided) {
         return 0;
     }
     return BREAKING_EXIT[worst];
 }
-function renderBreakingText(report) {
-    const head = `verdict: ${BREAKING_VERDICT[report.verdict]}`;
+function renderBreakingText(report, bindings) {
+    const head = `verdict: ${BREAKING_VERDICT[report.verdict]}` +
+        (0 === bindings.length ? '' : `\nunder: ${bindings.join(' ')}`);
     if (0 === report.findings.length) {
         return head;
     }
     return [head, ''].concat(report.findings.map(renderFinding)).join('\n');
 }
-function renderBreakingJson(report, mode) {
+function renderBreakingJson(report, mode, bindings) {
     return (0, aontu_1.exactJSON)({
         aontu: { version: version(), verb: 'breaking', mode },
+        ...(0 === bindings.length ? {} : { bindings }),
         verdict: BREAKING_VERDICT[report.verdict],
         findings: report.findings,
     }, 2);
@@ -2054,7 +2198,7 @@ function nameOldLayout(dir, io) {
 }
 function runPkg(argv, servers) {
     const io = servers.io ?? PROCESS_IO;
-    const trusted = takeTrust(argv, io);
+    const trusted = takeTrust(argv, io, NO_HOST);
     if (null == trusted) {
         return 2;
     }
@@ -2303,7 +2447,7 @@ const PACKAGE_HELP = {
 // reaches a repository, so every one runs behind the seam.
 async function runPackageVerb(verb, argv, servers) {
     const io = servers.io ?? PROCESS_IO;
-    const trusted = takeTrust(argv, io);
+    const trusted = takeTrust(argv, io, NO_HOST);
     if (null == trusted) {
         return 2;
     }
@@ -2458,7 +2602,7 @@ const MODEL_HELP = 'aontu model get|why|set ... (try --help)';
 // to be found past a flag AND past its value: in `--text-ext get` the
 // `get` is the extension list, not the subcommand.
 const MODEL_SUBS = ['get', 'why', 'set'];
-const GLOBAL_VALUED = ['--trust', '--include-root', '--text-ext'];
+const GLOBAL_VALUED = ['--trust', '--include-root', '--text-ext', '--var', '--var-text'];
 function modelSubAt(argv) {
     for (let i = 0; i < argv.length; i++) {
         if (GLOBAL_VALUED.includes(argv[i])) {
@@ -3915,13 +4059,18 @@ function runHash(argv) {
             renderFinding((0, query_1.evalFailure)(ctx, v)) + '\n');
         return 4;
     }
+    const bindings = bindingsOf(trust);
     const text = 'json' === format
         ? (0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'hash' },
+            ...(0 === bindings.length ? {} : { bindings }),
             hash: (0, aontu_1.canonHash)(v),
             form: (0, aontu_1.hcanon)(v),
         }, 2)
         : (form ? (0, aontu_1.hcanon)(v) : (0, aontu_1.canonHash)(v));
+    if ('json' !== format && 0 < bindings.length) {
+        process.stderr.write(`aontu: hashed under ${bindings.join(' ')}\n`);
+    }
     process.stdout.write(text + '\n');
     return 0;
 }
@@ -4474,7 +4623,7 @@ function runAgentsMd(argv) {
 const FMT_HELP = 'aontu fmt [-w|-l|--check|-d|--lint] [--marker <token>] ' +
     '[--profile <file>] <file>... (try --help)';
 function runFmt(argv) {
-    const trusted = takeTrust(argv);
+    const trusted = takeTrust(argv, PROCESS_IO, 'fmt evaluates no document');
     if (null == trusted) {
         return 2;
     }
@@ -4645,6 +4794,7 @@ const PROCESS_IO = {
     out: (s) => void process.stdout.write(s),
     err: (s) => void process.stderr.write(s),
 };
+const NO_HOST = 'a package is published with no host to bind its names';
 // `pkg serve` runs until the process is interrupted.
 function serveUntilInterrupted() {
     return new Promise((done) => process.once('SIGINT', () => done()));
@@ -5009,6 +5159,7 @@ function main(argv, servers = SERVERS) {
     // mode the REPL already has.
     let jsonl = false;
     let exact = false;
+    const bindings = [];
     // One spelling throughout the tools (ADR-042): every verb, one gate.
     const withdrawn = argv.slice(2).find((a) => !a.startsWith('-') && /\.aon$/i.test(a));
     if (undefined !== withdrawn) {
@@ -5097,6 +5248,11 @@ function main(argv, servers = SERVERS) {
         else if ('--exact-numbers' === arg) {
             exact = true;
         }
+        else if ('--var' === arg || '--var-text' === arg) {
+            if (!takeBinding(arg, args[++i], bindings, PROCESS_IO)) {
+                return finish(2);
+            }
+        }
         else if ('-h' === arg || '--help' === arg) {
             process.stdout.write(HELP);
             return finish(0);
@@ -5163,8 +5319,16 @@ function main(argv, servers = SERVERS) {
     }
     trust = { ...trust, textExt };
     const file = files[0];
+    if (0 < bindings.length && null == file && (jsonl || process.stdin.isTTY)) {
+        process.stderr.write('aontu: --var binds a document given as a file or on stdin\n');
+        return finish(2);
+    }
     if (null != file) {
-        finish(runFile(file, mode, format, trust, exact));
+        const hostVars = hostVarsOf(bindings, (0, node_fs_1.existsSync)(file) ? namesRead([file], trust) : undefined, PROCESS_IO);
+        if (null === hostVars) {
+            return finish(2);
+        }
+        finish(runFile(file, mode, format, { ...trust, hostVars }, exact));
     }
     // `--jsonl` overrides the TTY gate: the mode exists to be DRIVEN by
     // a harness over a pipe, so gating it on an interactive terminal
@@ -5174,7 +5338,7 @@ function main(argv, servers = SERVERS) {
         runRepl(mode, jsonl, trust, exact);
     }
     else {
-        runStdin(mode, format, trust, exact).then((code) => finish(code));
+        runStdin(mode, format, trust, exact, bindings).then((code) => finish(code));
     }
 } /* node:coverage ignore next 22 */
 //# sourceMappingURL=cli.js.map

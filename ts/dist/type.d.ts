@@ -36,9 +36,14 @@ type AontuOptions = {
     trust?: TrustOptions;
     textExt?: string[];
     exactNumbers?: boolean;
+    hostVars?: HostVars;
     trustWarn?: (kind: 'escape' | 'pkg', path: string) => void;
     trustWarnRoot?: string;
 };
+type HostVars = Record<string, {
+    value: string;
+    text?: boolean;
+}>;
 declare const DEFAULT_OPTS: () => AontuOptions;
 type ValMap = {
     [key: string]: Val;
@@ -48,6 +53,7 @@ type ErrContext = {
     src?: string;
     fs?: FST;
     errfs?: FST;
+    texts?: Record<string, string>;
 };
-export type { Val, ValMark, ValSpec, ValMap, ValList, AontuOptions, ErrContext, FST, TrustInclude, TrustBudget, TrustOptions, };
+export type { Val, ValMark, ValSpec, ValMap, ValList, AontuOptions, HostVars, ErrContext, FST, TrustInclude, TrustBudget, TrustOptions, };
 export { DONE, SPREAD, DEFAULT_OPTS, Resolver, };

@@ -1791,7 +1791,7 @@ type viewCompare func(general, specific viewPosetDoc) (string, string)
 func (a *Aontu) compareBySubsume(at, profile string) viewCompare {
 	return func(general, specific viewPosetDoc) (string, string) {
 		r := Subsume(general.src, specific.src, &SubsumeOptions{
-			Trust: a.Trust, Profile: profile, At: at,
+			Trust: a.Trust, HostVars: a.HostVars, Profile: profile, At: at,
 			GeneralPath: general.path, SpecificPath: specific.path,
 		})
 		code := "undecided"
@@ -2015,7 +2015,7 @@ func (a *Aontu) drawPoset(docs []viewPosetDoc, at, profile, as, style string, ma
 // viewDocFailure is why a poset could not be drawn: the documents that
 // do not stand up on their own, or the anchor a document lacks.
 func (a *Aontu) viewDocFailure(d viewPosetDoc, at string) []VetFinding {
-	b := aontuForPathTrust(d.path, a.Trust, a.TextExt)
+	b := aontuForPathTrust(d.path, a.Trust, a.TextExt, a.HostVars)
 	b.File = d.path
 	root, _, errs := b.viewLoad(d.src, nil)
 	if nil != errs {
@@ -2053,7 +2053,8 @@ func (a *Aontu) viewLoad(src string, prov *Provenance) (Val, *Ctx, []VetFinding)
 		}
 		prov.src = src
 		prov.writtenFrom(parsed)
-		ctx = &Ctx{root: parsed, src: src, file: a.File, prov: prov}
+		ctx = &Ctx{root: parsed, vars: hostVals(a.HostVars), src: src, file: a.File,
+			prov: prov}
 		if nil != a.Trust {
 			ctx.budgetPasses = a.Trust.Budget.Passes
 			ctx.budgetDepth = a.Trust.Budget.Depth

@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### Host values on the command line: `--var` and `--var-text`
+
+#862, task HV1 of the language plan, in both commands. A document that
+reads `$name` could be evaluated from a program and not from a shell.
+
+```sh
+$ aontu --var env=prod --var n=3 v.aontu
+```
+
+- **`--var name=value` reads the value as aontu source**, so `n=3` binds
+  an integer and `env=prod` a string; **`--var-text name=value` binds
+  the text as it stands**, for a short commit hash that may be all
+  digits.
+- **Every verb that evaluates a document takes them**: the bare command,
+  `vet`, `subsume`, `breaking`, `trim`, `model get`, `why` and `set`,
+  `hash`, `jsonschema`, `view`, `relations`, `reaches`, `trace`,
+  `render`, `template`, `allow` and `agentsmd`. An include reads them as
+  the document does; a package evaluates with none.
+- **A binding is refused as a usage error, exit 2**, when no document
+  named on the command line reads it, when it is malformed or bound
+  twice, when its source doesn't evaluate on its own or loads a file,
+  and when it still reads a path or a variable. A template, a folder or a
+  document that doesn't parse can't say what it reads, so a run with one
+  refuses no binding as unread.
+- **`fmt`, `publish` and the package verbs refuse the options**, and so
+  does the REPL until it takes bindings of its own.
+- **`hash` and `breaking` name the bindings**: a `bindings` list in the
+  JSON report, an `under:` line in `breaking`'s text, and a note on
+  stderr beside `hash`'s text, which stays the hash alone.
+- **A bound value is sited at the option that bound it**, so a conflict
+  frames `--> --var n:1:1` over the value's own text.
+- The engines take the bindings as an option: `hostVars` in TypeScript,
+  `HostVars` on Go's `Aontu`, `VetOptions`, `SubsumeOptions` and
+  `PatchOptions`. **Go's `PolicyCompatTrust` takes them as a fifth
+  argument.**
+
 ### A relative reference in a later argument reads from the call's place
 
 #871 and the second case of #868, in TypeScript. The parser pathed every
@@ -37,6 +73,9 @@ document is now refused before evaluation, as an unbound `_` is.
   reported is the least by path.
 - **`maybe()` with no argument is left to evaluation**, since it is how
   canon writes an absence.
+- **The JSON Schema how-to's example of `must` was itself such a call**:
+  `must((v) => 0 <= v, "…")` is six arguments, and exported as `{}`.
+  It is now `must(min(0), "…")`, which crosses as `allOf` of its trial.
 - Rows x2250 to x2252 of `test/spec/def-call.tsv`, a wrong count in a
   template nothing reaches, enter `spec/ledger.tsv`, whose bound rises
   from 219 to 222: the definition reads that template as nothing and

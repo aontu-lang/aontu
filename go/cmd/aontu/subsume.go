@@ -96,6 +96,7 @@ func renderSubsumeText(report aontu.SubsumeReport) string {
 // canonical emitter's order (see vetReportJSON).
 type subsumeReportJSON struct {
 	Aontu    subsumeProducerJSON `json:"aontu"`
+	Bindings []string            `json:"bindings,omitempty"`
 	Findings []aontu.VetFinding  `json:"findings"`
 	Verdict  string              `json:"verdict"`
 }
@@ -151,6 +152,7 @@ func runSubsume(argv []string, stdout, stderr io.Writer) int {
 		&aontu.SubsumeOptions{
 			Trust:        verbTrust(trust, entryRootOfFile(args.general)),
 			TextExt:      trust.textExt,
+			HostVars:     trust.hostVars,
 			Profile:      args.profile,
 			At:           args.at,
 			GeneralURL:   args.general,
@@ -375,8 +377,11 @@ var breakingVerdict = map[string]string{
 	aontu.SubsumeError:     "error",
 }
 
-func renderBreakingText(report aontu.SubsumeReport) string {
+func renderBreakingText(report aontu.SubsumeReport, bindings []string) string {
 	head := "verdict: " + breakingVerdict[report.Verdict]
+	if 0 < len(bindings) {
+		head += "\nunder: " + strings.Join(bindings, " ")
+	}
 	if 0 == len(report.Findings) {
 		return head
 	}
@@ -387,13 +392,14 @@ func renderBreakingText(report aontu.SubsumeReport) string {
 	return strings.Join(out, "\n")
 }
 
-func renderBreakingJSON(report aontu.SubsumeReport, mode string) string {
+func renderBreakingJSON(report aontu.SubsumeReport, mode string, bindings []string) string {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(subsumeReportJSON{
 		Aontu:    subsumeProducerJSON{Mode: mode, Verb: "breaking", Version: aontu.VERSION},
+		Bindings: bindings,
 		Findings: report.Findings,
 		Verdict:  breakingVerdict[report.Verdict],
 	})
@@ -436,7 +442,7 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 	mode := args.mode
 	if "" == mode {
 		mode = aontu.PolicyCompatTrust(newSrc, args.file, capability,
-			trust.textExt)
+			trust.textExt, trust.hostVars)
 	}
 	if "" == mode {
 		mode = "backward"
@@ -447,9 +453,9 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 		// check.
 		report := aontu.SubsumeReport{
 			Verdict: aontu.SubsumeYes, Findings: []aontu.VetFinding{}}
-		text := renderBreakingText(report)
+		text := renderBreakingText(report, bindingsOf(trust))
 		if "json" == args.format {
-			text = renderBreakingJSON(report, mode)
+			text = renderBreakingJSON(report, mode, bindingsOf(trust))
 		}
 		io.WriteString(stdout, text+"\n")
 		return 0
@@ -498,6 +504,7 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 				&aontu.SubsumeOptions{
 					Trust:        capability,
 					TextExt:      trust.textExt,
+					HostVars:     trust.hostVars,
 					At:           args.at,
 					GeneralURL:   check.generalURL,
 					SpecificURL:  check.specificURL,
@@ -532,9 +539,9 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 	}
 
 	report := aontu.SubsumeReport{Verdict: worst, Findings: findings}
-	text := renderBreakingText(report)
+	text := renderBreakingText(report, bindingsOf(trust))
 	if "json" == args.format {
-		text = renderBreakingJSON(report, mode)
+		text = renderBreakingJSON(report, mode, bindingsOf(trust))
 	}
 	io.WriteString(stdout, text+"\n")
 

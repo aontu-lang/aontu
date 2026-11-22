@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -54,6 +55,49 @@ type Aontu struct {
 	TextExt []string
 
 	ExactNumbers bool
+
+	// HostVars binds $name where an evaluation is given no vars: --var.
+	HostVars map[string]HostVar
+}
+
+// HostVar is aontu source, or with Text the text as it stands.
+type HostVar struct {
+	Value string
+	Text  bool
+}
+
+// A binding's source loads nothing, and its site is the option that
+// bound it, its text added to texts for an error to quote.
+func hostValues(hostVars map[string]HostVar, texts map[string]string) (
+	map[string]Val, map[string]string) {
+	if nil == hostVars {
+		return nil, texts
+	}
+	vars := map[string]Val{}
+	all := maps.Clone(texts)
+	if nil == all {
+		all = map[string]string{}
+	}
+	for name, b := range hostVars {
+		url, src := hostSite(name, b)
+		all[url] = src
+		vars[name], _ = (&Aontu{Trust: &TrustOptions{IncludeNone: true}}).Unify(src)
+		stampURL(vars[name], url)
+	}
+	return vars, all
+}
+
+// hostSite is the url a binding's value is sited at, and its source.
+func hostSite(name string, b HostVar) (string, string) {
+	if b.Text {
+		return "--var-text " + name, newString(b.Value).Canon()
+	}
+	return "--var " + name, b.Value
+}
+
+func hostVals(hostVars map[string]HostVar) map[string]Val {
+	vars, _ := hostValues(hostVars, nil)
+	return vars
 }
 
 // New creates a new Aontu instance. Relative @"file" loads resolve from
@@ -141,8 +185,12 @@ func (a *Aontu) unifyCtx(v Val, vars map[string]Val, src string) (Val, *Ctx, err
 
 func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 	reads map[string]bool) (Val, *Ctx, error) {
+	texts := a.IncludeText
+	if nil == vars {
+		vars, texts = hostValues(a.HostVars, texts)
+	}
 	ctx := &Ctx{root: v, vars: vars, src: src, file: a.File, reads: reads,
-		texts: a.IncludeText}
+		texts: texts}
 	if nil != a.Trust {
 		ctx.budgetPasses = a.Trust.Budget.Passes
 		ctx.budgetDepth = a.Trust.Budget.Depth

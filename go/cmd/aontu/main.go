@@ -129,6 +129,12 @@ Options:
                   with or without dots (md,sql). .txt needs no flag; a
                   named format keeps its meaning, and .js stays
                   refused. The verbs that take --trust take it too
+  --var <n>=<v>   Bind $n to v read as aontu source: n=3 is an integer,
+                  env=prod a string. Repeatable, on every verb that
+                  evaluates a document; fmt, publish and the package
+                  verbs refuse it, and so does a run where no document
+                  reads $n
+  --var-text <n>=<v>  Bind $n to v as text, whatever it looks like
 
 Package verbs (a module is imported; a package is published):
   sync      Make the project correct: resolve by minimum version
@@ -683,9 +689,11 @@ func vacuous(stderr io.Writer, what, why string) {
 }
 
 type trustArg struct {
-	kind    string // "system-warn", "system", "none", "root"
-	dir     string // root's directory ("" = the entry root)
-	textExt []string
+	kind     string // "system-warn", "system", "none", "root"
+	dir      string // root's directory ("" = the entry root)
+	textExt  []string
+	hostVars map[string]aontu.HostVar
+	bindings []varBinding
 }
 
 func parseTextExt(arg string) ([]string, bool) {
@@ -747,6 +755,7 @@ func applyTrust(a *aontu.Aontu, trust trustArg, entryRoot string, stderr io.Writ
 	// capability below reads text the same way, and only WHICH files
 	// are reachable differs.
 	a.TextExt = trust.textExt
+	a.HostVars = trust.hostVars
 	switch trust.kind {
 	case "none":
 		a.Trust = &aontu.TrustOptions{IncludeNone: true}
@@ -764,12 +773,22 @@ func applyTrust(a *aontu.Aontu, trust trustArg, entryRoot string, stderr io.Writ
 	}
 }
 
-func takeTrust(argv []string, stderr io.Writer) ([]string, trustArg, bool) {
+func takeTrust(argv []string, stderr io.Writer, noVars ...string) ([]string, trustArg, bool) {
 	rest := []string{}
 	trust := trustArg{kind: "system-warn"}
 	textExt := []string{}
+	bindings := []varBinding{}
 	for i := 0; i < len(argv); i++ {
 		switch {
+		case "--var" == argv[i] || "--var-text" == argv[i]:
+			if 0 < len(noVars) {
+				io.WriteString(stderr, "aontu: "+argv[i]+" is refused here: "+noVars[0]+"\n")
+				return nil, trustArg{}, false
+			}
+			i++
+			if !takeBinding(argv[i-1], argv[i:], &bindings, stderr) {
+				return nil, trustArg{}, false
+			}
 		case "--trust" == argv[i]:
 			i++
 			parsed, ok := trustArg{}, false
@@ -807,8 +826,138 @@ func takeTrust(argv []string, stderr io.Writer) ([]string, trustArg, bool) {
 		}
 	}
 	trust.textExt = textExt
+	if !bindHost(&trust, bindings, namesRead(rest, trust), stderr) {
+		return nil, trustArg{}, false
+	}
 	return rest, trust, true
 }
+
+type varBinding struct {
+	name, value string
+	text        bool
+}
+
+var bindingPattern = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$`)
+
+// takeBinding reads the name=value after arg, the head of rest.
+func takeBinding(arg string, rest []string, out *[]varBinding, stderr io.Writer) bool {
+	var m []string
+	if 0 < len(rest) {
+		m = bindingPattern.FindStringSubmatch(rest[0])
+	}
+	if nil == m {
+		io.WriteString(stderr, "aontu: "+arg+" needs name=value\n")
+		return false
+	}
+	for _, b := range *out {
+		if m[1] == b.name {
+			io.WriteString(stderr, "aontu: "+arg+" binds $"+m[1]+" a second time\n")
+			return false
+		}
+	}
+	*out = append(*out, varBinding{name: m[1], value: m[2], text: "--var-text" == arg})
+	return true
+}
+
+// bindHost refuses a binding no document reads (ruling 23 of
+// sketch/LANG-REFINEMENT-PLAN.0.md), unless a document can't be read on
+// its own to say: a template, a folder, or one that doesn't parse.
+func bindHost(trust *trustArg, bindings []varBinding, read map[string]bool,
+	stderr io.Writer) bool {
+	if 0 == len(bindings) {
+		return true
+	}
+	hostVars := map[string]aontu.HostVar{}
+	for _, b := range bindings {
+		flag := "--var"
+		if b.text {
+			flag = "--var-text"
+		}
+		if nil != read && !read[b.name] {
+			io.WriteString(stderr, "aontu: "+flag+" binds $"+b.name+", which no document reads\n")
+			return false
+		}
+		if bad := bindingFailure(b); "" != bad {
+			io.WriteString(stderr, "aontu: --var "+b.name+": "+bad+"\n")
+			return false
+		}
+		hostVars[b.name] = aontu.HostVar{Value: b.value, Text: b.text}
+	}
+	trust.hostVars = hostVars
+	trust.bindings = bindings
+	return true
+}
+
+func bindingFailure(b varBinding) string {
+	if b.text {
+		return ""
+	}
+	a := aontu.New()
+	a.Trust = &aontu.TrustOptions{IncludeNone: true}
+	v, err := a.Unify(b.value)
+	if nil != err {
+		return strings.SplitN(err.Error(), "\n", 2)[0]
+	}
+	if aontu.HoldsReference(v) {
+		return "a binding is a value, and reads no path or variable"
+	}
+	return ""
+}
+
+var dataExt = regexp.MustCompile(`[.](json|jsonl|yaml|yml|txt|pem|tsv)$`)
+
+// namesRead is the names the documents named on the command line read,
+// or nil where one of them can't be read on its own.
+func namesRead(args []string, trust trustArg) map[string]bool {
+	read := map[string]bool{}
+	for _, arg := range args {
+		doc := strings.HasSuffix(arg, ".aontu")
+		info, err := os.Stat(arg)
+		if nil != err {
+			if doc {
+				return nil
+			}
+			continue
+		}
+		if info.IsDir() || (!doc && !dataExt.MatchString(arg)) {
+			return nil
+		}
+		if !doc {
+			continue
+		}
+		src, rerr := os.ReadFile(arg)
+		if nil != rerr || !namesIn(string(src), arg, trust, read) {
+			return nil
+		}
+	}
+	return read
+}
+
+func namesIn(src, file string, trust trustArg, read map[string]bool) bool {
+	root, err := aontuForFileTrust(file, trust).Parse(src)
+	if nil != err {
+		return false
+	}
+	for _, name := range aontu.VarNames(root) {
+		read[name] = true
+	}
+	return true
+}
+
+// bindingsOf is the bindings a report names, as they were written.
+func bindingsOf(trust trustArg) []string {
+	out := []string{}
+	for _, b := range trust.bindings {
+		flag := "--var"
+		if b.text {
+			flag = "--var-text"
+		}
+		out = append(out, flag+" "+b.name+"="+b.value)
+	}
+	return out
+}
+
+const noHost = "a package is published with no host to bind its names"
 
 // verbTrust is the capability a verb's engine runs under. "system" and
 // the staged warning default both mean today's behaviour (no
@@ -848,6 +997,7 @@ func aontuForFileTrust(file string, trust trustArg) *aontu.Aontu {
 		abs = file
 	}
 	a.TextExt = trust.textExt
+	a.HostVars = trust.hostVars
 	if capability := verbTrust(trust, filepath.Dir(abs)); nil != capability {
 		a.Trust = capability
 	}
@@ -1029,6 +1179,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	var files []string
 	trust := trustArg{kind: "system-warn"}
 	textExt := []string{}
+	bindings := []varBinding{}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -1037,6 +1188,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 			mode = "canon"
 		case "--exact-numbers":
 			exact = true
+		case "--var", "--var-text":
+			i++
+			if !takeBinding(arg, args[i:], &bindings, stderr) {
+				return 2
+			}
 		case "--format":
 			i++
 			if len(args) <= i || ("text" != args[i] && "json" != args[i]) {
@@ -1109,7 +1265,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		file = files[0]
 	}
 
+	if 0 < len(bindings) && "" == file && (tty || jsonl) {
+		fmt.Fprintln(stderr, "aontu: --var binds a document given as a file or on stdin")
+		return 2
+	}
+
 	if file != "" {
+		var read map[string]bool
+		if _, serr := os.Stat(file); nil == serr {
+			read = namesRead([]string{file}, trust)
+		}
+		if !bindHost(&trust, bindings, read, stderr) {
+			return 2
+		}
 		src, err := os.ReadFile(file)
 		if err != nil {
 			if looksLikeVerb(file) {
@@ -1155,6 +1323,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 			fmt.Fprintf(stderr, "aontu: cannot read stdin: %v\n", err)
 			return 1
 		}
+		read := map[string]bool{}
+		if !namesIn(string(src), filepath.Join(cwd, "<stdin>"), trust, read) {
+			read = nil
+		}
+		if !bindHost(&trust, bindings, read, stderr) {
+			return 2
+		}
+		a.HostVars = trust.hostVars
 		return emit(a, string(src), mode, format, stdout, stderr)
 	}
 

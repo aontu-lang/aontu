@@ -1,4 +1,4 @@
-import type { TrustOptions } from './type';
+import type { HostVars, TrustOptions } from './type';
 import type { VetFinding, VetVerdict } from './vet';
 import type { WhyConjunct } from './provenance';
 export type PatchOptions = {
@@ -7,6 +7,7 @@ export type PatchOptions = {
     inPlace?: boolean;
     trust?: TrustOptions;
     textExt?: string[];
+    hostVars?: HostVars;
 };
 export type PatchReplacement = {
     col: number;
