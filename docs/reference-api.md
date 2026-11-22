@@ -105,11 +105,13 @@ the one it formats. `sync`, `add`, `get` and `remove` take them and
 then refuse a `root` capability, because a confined run cannot reach
 the package cache they write.
 
-Two options bind a document's `$name` for the run
-([Variables](#variables)): `--var name=value`, read as aontu source,
-and `--var-text name=value`, bound as text. Every verb that evaluates
-a document takes them, an include reads them as its document does,
-and a package evaluates with none. `fmt`, `publish`, the package verbs
+Three options bind a document's `$name` for the run
+([Variables](#variables)): `--var name=value`, read as aontu source;
+`--var-text name=value`, bound as text; and `--vars <file>`, which
+binds each top-level key of a document of values and accepts a key no
+document reads. Every verb that evaluates a document takes them, an
+include reads them as its document does, and a package evaluates with
+none. `fmt`, `publish`, the package verbs
 and the REPL refuse them. A binding is refused, exit `2`, when no
 document named on the command line reads it, when it is malformed or
 bound twice, and when its source doesn't evaluate alone, loads a file,

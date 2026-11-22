@@ -115,3 +115,26 @@ deployment rather than the model. `fmt`, `publish` and the package
 verbs refuse the options, as a package is published with no host.
 Nothing reads the environment: a shell passes a value where it is
 wanted, as `--var-text user="$USER"` does.
+
+A set of values kept under review goes in a file of its own, and
+`--vars` binds each of its top-level keys. A key that no document reads
+is accepted, so one file serves several documents. With `values.aontu`:
+
+<!-- test: file values.aontu -->
+```aontu
+env: "prod"
+n: 3
+region: "eu"
+```
+
+<!-- test: run -->
+```sh
+$ aontu --vars values.aontu v.aontu
+{
+  "env": "prod",
+  "replicas": 3
+}
+```
+
+The file is evaluated on its own and loads nothing, and a name it
+binds that a `--var` binds too is refused as bound twice.

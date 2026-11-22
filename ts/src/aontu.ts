@@ -444,7 +444,7 @@ function hostValues(hostVars: HostVars):
   const vars: Record<string, Val> = {}
   const texts: Record<string, string> = {}
   for (const [name, b] of Object.entries(hostVars)) {
-    const url = (true === b.text ? '--var-text ' : '--var ') + name
+    const url = (b.from ?? (true === b.text ? '--var-text' : '--var')) + ' ' + name
     texts[url] = true === b.text ? new StringVal({ peg: b.value }).canon : b.value
     vars[name] = (BINDER = BINDER ?? new Aontu({ trust: { include: 'none' } }))
       .unify(texts[url], { path: url, collect: true })

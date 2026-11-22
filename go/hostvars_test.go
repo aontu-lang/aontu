@@ -74,3 +74,20 @@ func TestHostVarsNamesAndReferences(t *testing.T) {
 		t.Fatal("HoldsReference")
 	}
 }
+
+func TestHostVarsMemberCanons(t *testing.T) {
+	v, _ := New().Unify("b: [1, \"x\"]\na: {c: true}\n")
+	keys, canons, ok := MemberCanons(v)
+	if !ok || "a,b" != strings.Join(keys, ",") || 2 != len(canons) {
+		t.Fatalf("%v %v %v", keys, canons, ok)
+	}
+	list, _ := New().Unify("[1]")
+	if _, _, ok := MemberCanons(list); ok {
+		t.Fatal("a list is no map")
+	}
+	a := New()
+	a.HostVars = map[string]HostVar{"n": {Value: "\"x\"", From: "--vars f.aontu"}}
+	if _, err := a.Generate("k: integer & $n\n"); nil == err || !strings.Contains(err.Error(), "--> --vars f.aontu n:1:1\n") {
+		t.Fatalf("%v", err)
+	}
+}

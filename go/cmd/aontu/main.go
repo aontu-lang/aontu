@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	aontu "github.com/aontu-lang/aontu/go"
@@ -135,6 +136,8 @@ Options:
                   verbs refuse it, and so does a run where no document
                   reads $n
   --var-text <n>=<v>  Bind $n to v as text, whatever it looks like
+  --vars <file>   Bind $n for each top-level key n of a document of
+                  values; a key no document reads is accepted
 
 Package verbs (a module is imported; a package is published):
   sync      Make the project correct: resolve by minimum version
@@ -789,6 +792,15 @@ func takeTrust(argv []string, stderr io.Writer, noVars ...string) ([]string, tru
 			if !takeBinding(argv[i-1], argv[i:], &bindings, stderr) {
 				return nil, trustArg{}, false
 			}
+		case "--vars" == argv[i]:
+			if 0 < len(noVars) {
+				io.WriteString(stderr, "aontu: --vars is refused here: "+noVars[0]+"\n")
+				return nil, trustArg{}, false
+			}
+			i++
+			if !takeVarsFile(argv[i:], &bindings, stderr) {
+				return nil, trustArg{}, false
+			}
 		case "--trust" == argv[i]:
 			i++
 			parsed, ok := trustArg{}, false
@@ -833,8 +845,8 @@ func takeTrust(argv []string, stderr io.Writer, noVars ...string) ([]string, tru
 }
 
 type varBinding struct {
-	name, value string
-	text        bool
+	name, value, from string
+	text              bool
 }
 
 var bindingPattern = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$`)
@@ -849,15 +861,64 @@ func takeBinding(arg string, rest []string, out *[]varBinding, stderr io.Writer)
 		io.WriteString(stderr, "aontu: "+arg+" needs name=value\n")
 		return false
 	}
-	for _, b := range *out {
-		if m[1] == b.name {
-			io.WriteString(stderr, "aontu: "+arg+" binds $"+m[1]+" a second time\n")
+	return addBinding(arg, varBinding{name: m[1], value: m[2], text: "--var-text" == arg},
+		out, stderr)
+}
+
+func addBinding(arg string, b varBinding, out *[]varBinding, stderr io.Writer) bool {
+	for _, o := range *out {
+		if b.name == o.name {
+			io.WriteString(stderr, "aontu: "+arg+" binds $"+b.name+" a second time\n")
 			return false
 		}
 	}
-	*out = append(*out, varBinding{name: m[1], value: m[2], text: "--var-text" == arg})
+	*out = append(*out, b)
 	return true
 }
+
+// takeVarsFile binds $key to each top-level key's canon, and loads
+// nothing, as a --var's source loads nothing.
+func takeVarsFile(rest []string, out *[]varBinding, stderr io.Writer) bool {
+	var src []byte
+	err := os.ErrNotExist
+	if 0 < len(rest) {
+		src, err = os.ReadFile(rest[0])
+	}
+	if nil != err {
+		named := ""
+		if 0 < len(rest) {
+			named = ": " + rest[0]
+		}
+		io.WriteString(stderr, "aontu: --vars needs a file it can read"+named+"\n")
+		return false
+	}
+	from := "--vars " + rest[0]
+	a := aontuForFile(rest[0])
+	a.Trust = &aontu.TrustOptions{IncludeNone: true}
+	v, uerr := a.Unify(string(src))
+	if nil != uerr {
+		io.WriteString(stderr, "aontu: "+from+": "+strings.SplitN(uerr.Error(), "\n", 2)[0]+"\n")
+		return false
+	}
+	keys, canons, ok := aontu.MemberCanons(v)
+	if !ok {
+		io.WriteString(stderr, "aontu: "+from+" holds no map of names\n")
+		return false
+	}
+	for i, name := range keys {
+		if !namePattern.MatchString(name) {
+			q, _ := json.Marshal(name)
+			io.WriteString(stderr, "aontu: "+from+": "+string(q)+" is no name $ can read\n")
+			return false
+		}
+		if !addBinding(from, varBinding{name: name, value: canons[i], from: from}, out, stderr) {
+			return false
+		}
+	}
+	return true
+}
+
+var namePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // bindHost refuses a binding no document reads (ruling 23 of
 // sketch/LANG-REFINEMENT-PLAN.0.md), unless a document can't be read on
@@ -873,7 +934,7 @@ func bindHost(trust *trustArg, bindings []varBinding, read map[string]bool,
 		if b.text {
 			flag = "--var-text"
 		}
-		if nil != read && !read[b.name] {
+		if nil != read && !read[b.name] && "" == b.from {
 			io.WriteString(stderr, "aontu: "+flag+" binds $"+b.name+", which no document reads\n")
 			return false
 		}
@@ -881,15 +942,17 @@ func bindHost(trust *trustArg, bindings []varBinding, read map[string]bool,
 			io.WriteString(stderr, "aontu: --var "+b.name+": "+bad+"\n")
 			return false
 		}
-		hostVars[b.name] = aontu.HostVar{Value: b.value, Text: b.text}
+		hostVars[b.name] = aontu.HostVar{Value: b.value, Text: b.text, From: b.from}
 	}
 	trust.hostVars = hostVars
 	trust.bindings = bindings
 	return true
 }
 
+// A file's values were evaluated with it, and a path or a name they
+// read would have refused it there.
 func bindingFailure(b varBinding) string {
-	if b.text {
+	if b.text || "" != b.from {
 		return ""
 	}
 	a := aontu.New()
@@ -948,11 +1011,16 @@ func namesIn(src, file string, trust trustArg, read map[string]bool) bool {
 func bindingsOf(trust trustArg) []string {
 	out := []string{}
 	for _, b := range trust.bindings {
-		flag := "--var"
+		it := "--var " + b.name + "=" + b.value
 		if b.text {
-			flag = "--var-text"
+			it = "--var-text " + b.name + "=" + b.value
 		}
-		out = append(out, flag+" "+b.name+"="+b.value)
+		if "" != b.from {
+			it = b.from
+		}
+		if !slices.Contains(out, it) {
+			out = append(out, it)
+		}
 	}
 	return out
 }
@@ -1191,6 +1259,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		case "--var", "--var-text":
 			i++
 			if !takeBinding(arg, args[i:], &bindings, stderr) {
+				return 2
+			}
+		case "--vars":
+			i++
+			if !takeVarsFile(args[i:], &bindings, stderr) {
 				return 2
 			}
 		case "--format":

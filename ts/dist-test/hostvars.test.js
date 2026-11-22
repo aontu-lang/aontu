@@ -258,6 +258,43 @@ const V = 'env: $env\nreplicas: integer & $n\n';
         const sync = await cliStdin(undefined, false, 'sync', '--var-text', 'n=3');
         Assert.match(sync.err, /--var-text is refused here: a package is published/);
     });
+    (0, node_test_1.test)('vars-binds-each-key-of-a-file', async () => {
+        const f = files({
+            'v.aontu': V,
+            'vals.aontu': 'env: "prod"\nn: 3\nregion: "eu"\n',
+            'bad.aontu': 'env: "prod"\nn: "three"\n',
+            'list.aontu': '[1, 2]\n',
+            'key.aontu': '"a-b": 1\n',
+            'inc.aontu': 'x: @"./vals.aontu"\n',
+        });
+        // A key no document reads, region, is accepted.
+        const a = cli('--vars', f('vals.aontu'), f('v.aontu'));
+        Assert.deepEqual(JSON.parse(a.out), { env: 'prod', replicas: 3 });
+        const b = cli('--vars', f('bad.aontu'), f('v.aontu'));
+        Assert.match(b.err, /--> --vars \S+bad.aontu n:1:1\n {2}1 \| "three"\n/);
+        const cases = [
+            [['--vars', f('vals.aontu'), '--var', 'n=4'], /--var binds \$n a second time/],
+            [['--var', 'n=4', '--vars', f('vals.aontu')], /--vars \S+vals.aontu binds \$n a second time/],
+            [['--vars', f('list.aontu')], /--vars \S+list.aontu holds no map of names/],
+            [['--vars', f('key.aontu')], /: "a-b" is no name \$ can read/],
+            [['--vars', f('inc.aontu')], /\[aontu\/include_denied\]/],
+            [['--vars', f('nosuch.aontu')], /--vars needs a file it can read: \S+nosuch.aontu/],
+        ];
+        for (const [args, want] of cases) {
+            const r = cli(...args, f('v.aontu'));
+            Assert.equal(r.code, 2, args.join(' '));
+            Assert.match(r.err, want);
+        }
+        Assert.match(cli(f('v.aontu'), '--vars').err, /--vars needs a file it can read\n/);
+        Assert.match(cli('vet', '--vars', f('list.aontu'), f('v.aontu'), f('v.aontu')).err, /holds no map of names/);
+        const hash = cli('hash', '--vars', f('vals.aontu'), '--var-text', 'env2=x', f('v.aontu'));
+        Assert.match(hash.err, /--var-text binds \$env2, which no document reads/);
+        const named = JSON.parse(cli('hash', '--format', 'json', '--vars', f('vals.aontu'), f('v.aontu')).out);
+        Assert.deepEqual(named.bindings, ['--vars ' + f('vals.aontu')]);
+        Assert.match(cli('pkg', 'tidy', '--vars', f('vals.aontu')).err, /--vars is refused here: a package is published/);
+        const piped = await cliStdin(V, false, '--vars', f('vals.aontu'));
+        Assert.deepEqual(JSON.parse(piped.out), { env: 'prod', replicas: 3 });
+    });
     (0, node_test_1.test)('the-engine-option-binds-for-every-context-given-no-vars', () => {
         const a = new aontu_1.Aontu({ hostVars: { n: { value: '3' }, s: { value: '3', text: true } } });
         Assert.deepEqual(a.generate('a: $n\nb: $s\n'), { a: 3, b: '3' });

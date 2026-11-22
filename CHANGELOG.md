@@ -32,6 +32,11 @@ $ aontu --var env=prod --var n=3 v.aontu
   and when it still reads a path or a variable. A template, a folder or a
   document that doesn't parse can't say what it reads, so a run with one
   refuses no binding as unread.
+- **`--vars <file>` binds each top-level key of a document of values**,
+  task HV2, as its value's canon. A key that no document reads is
+  accepted, by ruling 29, so one file serves several documents. The
+  file is evaluated on its own and loads nothing, and a name it binds
+  that a `--var` binds too is refused as bound twice.
 - **`fmt`, `publish` and the package verbs refuse the options**, and so
   does the REPL until it takes bindings of its own.
 - **`hash` and `breaking` name the bindings**: a `bindings` list in the
@@ -42,7 +47,8 @@ $ aontu --var env=prod --var n=3 v.aontu
 - The engines take the bindings as an option: `hostVars` in TypeScript,
   `HostVars` on Go's `Aontu`, `VetOptions`, `SubsumeOptions` and
   `PatchOptions`. **Go's `PolicyCompatTrust` takes them as a fifth
-  argument.**
+  argument**, and Go's new `VarNames`, `HoldsReference` and
+  `MemberCanons` are what its command reads documents and files with.
 
 ### A relative reference in a later argument reads from the call's place
 

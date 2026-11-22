@@ -43,6 +43,7 @@ type AontuOptions = {
 type HostVars = Record<string, {
     value: string;
     text?: boolean;
+    from?: string;
 }>;
 declare const DEFAULT_OPTS: () => AontuOptions;
 type ValMap = {

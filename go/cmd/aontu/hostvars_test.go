@@ -274,3 +274,58 @@ func TestHostVarsFmtAndThePackageVerbsRefuse(t *testing.T) {
 		t.Fatalf("sync: %+v", r)
 	}
 }
+
+func TestHostVarsFromAFile(t *testing.T) {
+	f := hvFiles(t, map[string]string{
+		"v.aontu":    hvV,
+		"vals.aontu": "env: \"prod\"\nn: 3\nregion: \"eu\"\n",
+		"bad.aontu":  "env: \"prod\"\nn: \"three\"\n",
+		"list.aontu": "[1, 2]\n",
+		"key.aontu":  "\"a-b\": 1\n",
+		"inc.aontu":  "x: @\"./vals.aontu\"\n",
+	})
+	// A key no document reads, region, is accepted.
+	if r := hvRun("", true, "--vars", f("vals.aontu"), f("v.aontu")); "{\n  \"env\": \"prod\",\n  \"replicas\": 3\n}\n" != r.out {
+		t.Fatalf("%+v", r)
+	}
+	if r := hvRun("", true, "--vars", f("bad.aontu"), f("v.aontu")); !regexp.MustCompile(`--> --vars \S+bad.aontu n:1:1\n  1 \| "three"\n`).MatchString(r.err) {
+		t.Fatalf("%+v", r)
+	}
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--vars", f("vals.aontu"), "--var", "n=4"}, `--var binds \$n a second time`},
+		{[]string{"--var", "n=4", "--vars", f("vals.aontu")}, `--vars \S+vals.aontu binds \$n a second time`},
+		{[]string{"--vars", f("list.aontu")}, `--vars \S+list.aontu holds no map of names`},
+		{[]string{"--vars", f("key.aontu")}, `: "a-b" is no name \$ can read`},
+		{[]string{"--vars", f("inc.aontu")}, `\[aontu/include_denied\]`},
+		{[]string{"--vars", f("nosuch.aontu")}, `--vars needs a file it can read: \S+nosuch.aontu`},
+	}
+	for _, c := range cases {
+		r := hvRun("", true, append(c.args, f("v.aontu"))...)
+		if 2 != r.code || !regexp.MustCompile(c.want).MatchString(r.err) {
+			t.Fatalf("%v: %+v", c.args, r)
+		}
+	}
+	if r := hvRun("", true, f("v.aontu"), "--vars"); !strings.Contains(r.err, "--vars needs a file it can read\n") {
+		t.Fatalf("%+v", r)
+	}
+	if r := hvRun("", true, "vet", "--vars", f("list.aontu"), f("v.aontu"), f("v.aontu")); !strings.Contains(r.err, "holds no map of names") {
+		t.Fatalf("%+v", r)
+	}
+	if r := hvRun("", true, "hash", "--vars", f("vals.aontu"), "--var-text", "env2=x", f("v.aontu")); !strings.Contains(r.err, "--var-text binds $env2, which no document reads") {
+		t.Fatalf("%+v", r)
+	}
+	var hj struct{ Bindings []string }
+	_ = json.Unmarshal([]byte(hvRun("", true, "hash", "--format", "json", "--vars", f("vals.aontu"), f("v.aontu")).out), &hj)
+	if 1 != len(hj.Bindings) || "--vars "+f("vals.aontu") != hj.Bindings[0] {
+		t.Fatalf("%v", hj)
+	}
+	if r := hvRun("", true, "pkg", "tidy", "--vars", f("vals.aontu")); !strings.Contains(r.err, "--vars is refused here: a package is published") {
+		t.Fatalf("%+v", r)
+	}
+	if r := hvRun(hvV, false, "--vars", f("vals.aontu")); "{\n  \"env\": \"prod\",\n  \"replicas\": 3\n}\n" != r.out {
+		t.Fatalf("%+v", r)
+	}
+}

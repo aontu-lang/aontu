@@ -1406,7 +1406,11 @@ A bound value is sited at the option that bound it, `--var n`, with its
 text kept for an error frame to quote, in both engines. HV4 is written
 the same day: the how-to on host values gains the command line, the CI
 how-to a line, and the API reference the options, `hostVars` and
-`HostVars`. HV2 and HV3 are not started.
+`HostVars`. HV2 is built the same day too: `--vars <file>` binds each
+top-level key as its value's canon, accepts a key no document reads,
+and refuses a name a `--var` binds as well, as bound twice; the rulings
+left that case open, and refusing it can be relaxed later where
+allowing it could not be withdrawn. HV3 is not started.
 
 ### Questions for the ruling on part 6
 

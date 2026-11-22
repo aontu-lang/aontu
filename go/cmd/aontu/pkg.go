@@ -454,7 +454,7 @@ const modelHelp = "aontu model get|why|set ... (try --help)"
 func modelSubAt(argv []string) int {
 	for i := 0; i < len(argv); i++ {
 		switch argv[i] {
-		case "--trust", "--include-root", "--text-ext", "--var", "--var-text":
+		case "--trust", "--include-root", "--text-ext", "--var", "--var-text", "--vars":
 			i++
 			continue
 		case "get", "why", "set":

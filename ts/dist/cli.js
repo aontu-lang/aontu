@@ -190,6 +190,8 @@ Options:
                   verbs refuse it, and so does a run where no document
                   reads $n
   --var-text <n>=<v>  Bind $n to v as text, whatever it looks like
+  --vars <file>   Bind $n for each top-level key n of a document of
+                  values; a key no document reads is accepted
 
 Package verbs (a module is imported; a package is published):
   sync      Make the project correct: resolve by minimum version
@@ -752,6 +754,15 @@ function takeTrust(argv, io = PROCESS_IO, noVars) {
                 return undefined;
             }
         }
+        else if ('--vars' === arg) {
+            if (undefined !== noVars) {
+                io.err(`aontu: ${arg} is refused here: ${noVars}\n`);
+                return undefined;
+            }
+            if (!takeVarsFile(argv[++i], bindings, io)) {
+                return undefined;
+            }
+        }
         else if ('--trust' === arg) {
             const parsed = null == argv[i + 1] ? undefined : parseTrustArg(argv[++i]);
             if (null == parsed) {
@@ -792,11 +803,49 @@ function takeBinding(arg, raw, out, io) {
         io.err(`aontu: ${arg} needs name=value\n`);
         return false;
     }
-    if (out.some((b) => m[1] === b.name)) {
-        io.err(`aontu: ${arg} binds $${m[1]} a second time\n`);
+    return addBinding(arg, { name: m[1], value: m[2], text: '--var-text' === arg }, out, io);
+}
+function addBinding(arg, b, out, io) {
+    if (out.some((o) => b.name === o.name)) {
+        io.err(`aontu: ${arg} binds $${b.name} a second time\n`);
         return false;
     }
-    out.push({ name: m[1], value: m[2], text: '--var-text' === arg });
+    out.push(b);
+    return true;
+}
+// Each top-level key of a file of values binds $key to its value's
+// canon, and loads nothing, as a --var's source loads nothing.
+function takeVarsFile(file, out, io) {
+    let src;
+    try {
+        src = (0, node_fs_1.readFileSync)(file ?? '', 'utf8');
+    }
+    catch (_err) {
+        io.err(`aontu: --vars needs a file it can read${null == file ? '' : ': ' + file}\n`);
+        return false;
+    }
+    const from = `--vars ${file}`;
+    let v;
+    try {
+        v = new aontu_1.Aontu({ path: (0, node_path_1.resolve)(file), trust: { include: 'none' } }).unify(src);
+    }
+    catch (err) {
+        io.err(`aontu: ${from}: ${String(err.message).split('\n')[0]}\n`);
+        return false;
+    }
+    if (true !== v.isMap) {
+        io.err(`aontu: ${from} holds no map of names\n`);
+        return false;
+    }
+    for (const name of Object.keys(v.peg).sort(keyorder_1.cmpCodePoint)) {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+            io.err(`aontu: ${from}: ${JSON.stringify(name)} is no name $ can read\n`);
+            return false;
+        }
+        if (!addBinding(from, { name, value: v.peg[name].canon, text: false, from }, out, io)) {
+            return false;
+        }
+    }
     return true;
 }
 // A binding no document reads is refused (ruling 23 of
@@ -809,16 +858,22 @@ function hostVarsOf(bindings, read, io) {
     const hostVars = {};
     for (const b of bindings) {
         const flag = b.text ? '--var-text' : '--var';
-        if (undefined !== read && !read.has(b.name)) {
+        if (undefined !== read && !read.has(b.name) && undefined === b.from) {
             io.err(`aontu: ${flag} binds $${b.name}, which no document reads\n`);
             return null;
         }
-        const bad = b.text ? undefined : bindingFailure(b.value);
+        // A file's values were evaluated with it, and a path or a name they
+        // read would have refused it there.
+        const bad = b.text || undefined !== b.from ? undefined : bindingFailure(b.value);
         if (undefined !== bad) {
             io.err(`aontu: --var ${b.name}: ${bad}\n`);
             return null;
         }
-        hostVars[b.name] = b.text ? { value: b.value, text: true } : { value: b.value };
+        hostVars[b.name] = {
+            value: b.value,
+            ...(b.text ? { text: true } : {}),
+            ...(undefined === b.from ? {} : { from: b.from }),
+        };
     }
     return hostVars;
 }
@@ -894,7 +949,14 @@ function eachPart(root, visit) {
 }
 // The bindings a report names, as they were written.
 function bindingsOf(trust) {
-    return Object.entries(trust.hostVars ?? {}).map(([name, b]) => `${true === b.text ? '--var-text' : '--var'} ${name}=${b.value}`);
+    const out = [];
+    for (const [name, b] of Object.entries(trust.hostVars ?? {})) {
+        const it = b.from ?? `${true === b.text ? '--var-text' : '--var'} ${name}=${b.value}`;
+        if (!out.includes(it)) {
+            out.push(it);
+        }
+    }
+    return out;
 }
 // `md,sql` or `.md,.sql` -- the dot is accepted and dropped, because a
 // reader who has just written `@"./notes.txt"` reaches for one. An empty
@@ -2603,7 +2665,7 @@ const MODEL_HELP = 'aontu model get|why|set ... (try --help)';
 // to be found past a flag AND past its value: in `--text-ext get` the
 // `get` is the extension list, not the subcommand.
 const MODEL_SUBS = ['get', 'why', 'set'];
-const GLOBAL_VALUED = ['--trust', '--include-root', '--text-ext', '--var', '--var-text'];
+const GLOBAL_VALUED = ['--trust', '--include-root', '--text-ext', '--var', '--var-text', '--vars'];
 function modelSubAt(argv) {
     for (let i = 0; i < argv.length; i++) {
         if (GLOBAL_VALUED.includes(argv[i])) {
@@ -5251,6 +5313,11 @@ function main(argv, servers = SERVERS) {
         }
         else if ('--var' === arg || '--var-text' === arg) {
             if (!takeBinding(arg, args[++i], bindings, PROCESS_IO)) {
+                return finish(2);
+            }
+        }
+        else if ('--vars' === arg) {
+            if (!takeVarsFile(args[++i], bindings, PROCESS_IO)) {
                 return finish(2);
             }
         }

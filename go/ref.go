@@ -813,6 +813,21 @@ func VarNames(root Val) []string {
 	return slices.Sorted(maps.Keys(names))
 }
 
+// MemberCanons is each top-level key of a map, in order, with its
+// value's canon: the CLI binds a file of values by it. ok is false for
+// a value that is no map.
+func MemberCanons(v Val) (keys []string, canons []string, ok bool) {
+	m, isMap := v.(*MapVal)
+	if !isMap {
+		return nil, nil, false
+	}
+	keys = slices.Sorted(maps.Keys(m.peg))
+	for _, k := range keys {
+		canons = append(canons, m.peg[k].Canon())
+	}
+	return keys, canons, true
+}
+
 // HoldsReference reports whether a value still reads a path or a
 // variable: the CLI refuses a binding that does.
 func HoldsReference(root Val) bool {

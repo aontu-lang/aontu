@@ -64,6 +64,7 @@ type Aontu struct {
 type HostVar struct {
 	Value string
 	Text  bool
+	From  string // the option that bound it, when not --var: --vars <file>
 }
 
 // A binding's source loads nothing, and its site is the option that
@@ -91,6 +92,9 @@ func hostValues(hostVars map[string]HostVar, texts map[string]string) (
 func hostSite(name string, b HostVar) (string, string) {
 	if b.Text {
 		return "--var-text " + name, newString(b.Value).Canon()
+	}
+	if "" != b.From {
+		return b.From + " " + name, b.Value
 	}
 	return "--var " + name, b.Value
 }

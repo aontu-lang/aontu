@@ -59,7 +59,7 @@ type AontuOptions = {
 }
 
 
-type HostVars = Record<string, { value: string, text?: boolean }>
+type HostVars = Record<string, { value: string, text?: boolean, from?: string }>
 
 
 const DEFAULT_OPTS: () => AontuOptions = () => {
