@@ -327,13 +327,59 @@ func stagedArgIdx(f *FuncVal) []int {
 }
 
 func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
+	return stagedDriveAt(ctx, f, base, stagedArgIdx(f))
+}
+
+// matchDrive holds the peer for the scrutinee alone, as TypeScript does, and
+// a scrutinee reading the match's own place waits while the peer leaves it open.
+func matchDrive(ctx *Ctx, f *FuncVal, base []string, peer Val) bool {
+	idx := stagedArgIdx(f)
+	var own Val
+	if readsPlace(f.peg[0], f.path) {
+		own = cloneAt(f.peg[0], f.peg[0].vpath(), true)
+	}
+	var ready bool
+	ctx.holdArm(f.path, peer, nil, true, func() Val { ready = stagedDriveAt(ctx, f, base, idx[:1]); return nil })
+	if nil != own && ready && !generates(f.peg[0]) {
+		peg := append([]Val{}, f.peg...)
+		peg[0] = own
+		f.peg = peg
+		ready = false
+	}
+	return stagedDriveAt(ctx, f, base, idx[1:]) && ready
+}
+
+// generates: a scalar, or a bag of such; a nil refuses as before.
+func generates(v Val) bool {
+	switch t := effectiveScrutinee(v).(type) {
+	case *ScalarVal:
+		return true
+	case *MapVal:
+		for _, k := range t.keys {
+			if !t.isOptional(k) && !generates(t.peg[k]) {
+				return false
+			}
+		}
+		return true
+	case *ListVal:
+		for _, c := range t.peg {
+			if !generates(c) {
+				return false
+			}
+		}
+		return true
+	}
+	return v.Nil()
+}
+
+func stagedDriveAt(ctx *Ctx, f *FuncVal, base []string, idx []int) bool {
 	ready := true
 	saved := ctx.argsnap
 	ctx.argsnap = true
 	defer func() { ctx.argsnap = saved }()
 	// Every index stagedArgIdx answers is derived from len(f.peg), and
 	// arity is checked at parse, so there is no bound to test here.
-	for _, i := range stagedArgIdx(f) {
+	for _, i := range idx {
 		if f.peg[i].Dc() != DONE {
 			ctx.slot = base
 			driven := unite(ctx, f.peg[i], top())

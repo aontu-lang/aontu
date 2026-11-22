@@ -2732,7 +2732,14 @@ until the phase that encodes it lands.
    (#818), with decision 76: each port's `match` drives its scrutinee
    with its peer held at its own place (`holdArm`), and a path that
    place answers reads the peer there rather than recursing, so rows
-   sr0, sr1, sr6, sr7 and sr9 to sr11 leave the ledger.
+   sr0, sr1, sr6, sr7 and sr9 to sr11 leave the ledger. A scrutinee the
+   rest of the document leaves open there, `number` in
+   `v: {x: number} & match($.v.x, 1, {y: 1}, {y: 2})`, had both ports
+   take the default at once; from the same day, after #916's review, it
+   waits and is read again until the data settles it, so the data's
+   `x` picks the arm, rows sr51 to sr56. A pattern that reads the
+   match's own place is #919's question: both ports wait, and the
+   definition reads it from the schema alone, an `error`.
 64. **How a refusal draws its call.** Raised 2026-10-21 by #457: a
    refusal draws the call it refuses again under its frame, and where
    an argument is driven, TypeScript draws the value the engine saw,
@@ -2941,7 +2948,12 @@ until the phase that encodes it lands.
    port's `must` holds back a condition that reads its own place until
    its peer is known, then reads a fresh copy of it with the peer held
    there (`readsPlace`), so rows sr15 to sr23 leave the ledger, its
-   bound 201 with decision 77's three rows.
+   bound 201 with decision 77's three rows. A relative path into the
+   value under trial, `.name` in `v: must({x: .name}, "m")`, read so
+   in both ports the same day (#917): `readsPlace` takes the path the
+   reference resolves to, where it had taken an absolute one's written
+   steps alone; rows sr27 to sr50 hold it, with the scrutinee
+   `.order.status`, which both ports already read.
 77. **An unknown call inside a trial.** Raised 2026-11-20 by #870: a
    call to a name that is no built-in, or with the wrong count of
    arguments, is refused where it stands alone, `unknown_function` or

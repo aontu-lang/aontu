@@ -125,6 +125,7 @@ declare class ConstraintVal extends FeatureVal {
     get canon(): string;
     same(peer: any): boolean;
 }
+declare function readsPlace(v: any, place: string[]): boolean;
 declare function constraintSubsumesConstraint(g: ConstraintVal, s: ConstraintVal): boolean | 'undecided';
 declare function constraintSubsumesKind(g: ConstraintVal, marker: any): boolean;
 declare function constraintAdmitsScalar(g: ConstraintVal, scalar: any): boolean | 'undecided';
@@ -179,4 +180,4 @@ declare function pendingNof(pending?: {
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, nofCounts, pendingNof, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, constraintAdmitsSize, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MulofConstraintVal, ReConstraintVal, FormatConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };
+export { normaliseRe, nofCounts, pendingNof, readsPlace, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, constraintAdmitsSize, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MulofConstraintVal, ReConstraintVal, FormatConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };

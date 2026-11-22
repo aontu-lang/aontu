@@ -2086,11 +2086,22 @@ func readsPlace(v Val, place []string) bool {
 	var kids []Val
 	switch t := v.(type) {
 	case *RefVal:
-		if !t.absolute || len(t.peg) < len(place) {
+		at := t.peg
+		if !t.absolute {
+			rp := t.plainRefPath()
+			if nil == rp {
+				return false
+			}
+			at = make([]any, len(rp))
+			for i, s := range rp {
+				at[i] = s
+			}
+		}
+		if len(at) < len(place) {
 			return false
 		}
 		for i, s := range place {
-			if p, ok := t.peg[i].(string); !ok || p != s {
+			if p, ok := at[i].(string); !ok || p != s {
 				return false
 			}
 		}
@@ -2107,6 +2118,10 @@ func readsPlace(v Val, place []string) bool {
 		kids = t.peg
 	case *FuncVal:
 		kids = t.peg
+	case *ConstraintVal:
+		if nil != t.pending {
+			kids = t.pending.args
+		}
 	}
 	return slices.ContainsFunc(kids, func(c Val) bool { return nil != c && readsPlace(c, place) })
 }
