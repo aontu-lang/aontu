@@ -1403,8 +1403,10 @@ were made in the building:
   evaluates nothing.
 
 A bound value is sited at the option that bound it, `--var n`, with its
-text kept for an error frame to quote, in both engines. HV2 to HV4 are
-not started.
+text kept for an error frame to quote, in both engines. HV4 is written
+the same day: the how-to on host values gains the command line, the CI
+how-to a line, and the API reference the options, `hostVars` and
+`HostVars`. HV2 and HV3 are not started.
 
 ### Questions for the ruling on part 6
 

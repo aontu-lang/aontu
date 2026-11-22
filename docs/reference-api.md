@@ -105,6 +105,19 @@ the one it formats. `sync`, `add`, `get` and `remove` take them and
 then refuse a `root` capability, because a confined run cannot reach
 the package cache they write.
 
+Two options bind a document's `$name` for the run
+([Variables](#variables)): `--var name=value`, read as aontu source,
+and `--var-text name=value`, bound as text. Every verb that evaluates
+a document takes them, an include reads them as its document does,
+and a package evaluates with none. `fmt`, `publish`, the package verbs
+and the REPL refuse them. A binding is refused, exit `2`, when no
+document named on the command line reads it, when it is malformed or
+bound twice, and when its source doesn't evaluate alone, loads a file,
+or still reads a path or a variable. A template, a folder or a
+document that doesn't parse can't say what it reads, so a run that
+names one refuses no binding as unread. A bound value is sited at the
+option that bound it, so an error frames `--> --var n:1:1`.
+
 **Behaviour**
 
 - **File:** `aontu config.aontu` reads, unifies and prints the file.
@@ -793,6 +806,9 @@ aontu breaking --against <file|git#rev> [--at <path>]
 - Modes: **backward** (the default) checks the new document subsumes
   the old: documents valid under v1 stay valid; **forward** checks the
   old subsumes the new; **full** checks both.
+- Under `--var` or `--var-text` every version reads the same
+  bindings, and the report names them: an `under:` line in the text and
+  `bindings` in the JSON.
 -  The document can declare its own promise: `aontu_policy:
   hide({compat: *backward | forward | full | none})`: `breaking` reads
   `$.aontu_policy.compat` from the new document, and `--mode` overrides
@@ -2994,6 +3010,10 @@ aontu hash [--form] [--format text|json] <file.aontu>
 - Exit codes: `0` hashed, `2` usage, `4` the document does not
   evaluate on its own: a broken document has no meaning to pin, and a
   hash of the wreck would agree with every other wreck.
+- Under `--var` or `--var-text` the hash pins one deployment, not the
+  model, so the report names the bindings: `--format json` lists them
+  under `bindings`, and the text form, which stays the bare hash, is
+  followed by a note on stderr.
 
 To see the pin hold still, write `svc.aontu`:
 
@@ -4072,8 +4092,13 @@ same refusal a literal gets.
 
 ### Variables
 
-`$name` references are filled from `ctx.vars`. Build value objects with
-the exported `Val` constructors:
+`$name` references are filled from `ctx.vars`. The `hostVars` option
+binds them for every context an instance makes without vars of its own,
+which is how the CLI's `--var` and `--var-text` reach every verb:
+`new Aontu({ hostVars: { n: { value: '3' }, sha: { value: '0123', text: true } } })`.
+Each binding is aontu source, or with `text` the text as it stands, and
+each context makes its own values of them. Otherwise, build value
+objects with the exported `Val` constructors:
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
@@ -4376,8 +4401,12 @@ equivalence is pinned by the test suite both implementations run.
 
 ### Variables in Go
 
-`UnifyVars`/`GenerateVars` accept a `map[string]Val`. Build the values
-with the exported constructors:
+`UnifyVars`/`GenerateVars` accept a `map[string]Val`. The `HostVars`
+field of `Aontu`, `VetOptions`, `SubsumeOptions` and `PatchOptions`
+binds `$name` for every evaluation given no vars of its own, as
+TypeScript's `hostVars` does: a `map[string]HostVar`, each one aontu
+source in `Value`, or with `Text` the text as it stands. Otherwise,
+build the values with the exported constructors:
 
 | Constructor | Returns |
 |-------------|---------|
