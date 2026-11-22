@@ -45,7 +45,9 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // The scrutinee and the PATTERNS are driven; the results are not
         // (see the header). driveStagedArgs takes a prefix, so the odd
         // positions are driven one at a time.
-        let ready = this.driveStagedArgs(ctx, 1);
+        // A scrutinee that reads the place the match stands at reads it from
+        // the rest of the document there, the peer, without the match's arms.
+        let ready = this.driveStagedArgs(peer.isTop ? ctx : ctx.holdArm(this.path, peer, undefined, true), 1);
         const last = this.peg.length - (this.hasDefault() ? 1 : 0);
         for (let i = 1; i < last; i += 2) {
             const arg = this.peg[i];

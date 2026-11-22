@@ -2728,7 +2728,11 @@ until the phase that encodes it lands.
    to sr11 of `test/spec/def-path.tsv`. What such a term holds besides
    the path reads with the data, so a conflict in it, and an arm that
    would change the value its scrutinee read, is a refusal, `invalid`,
-   not yet the schema's `error`. **Not yet built**: both ports.
+   not yet the schema's `error`. **Built in both ports 2026-11-22**
+   (#818), with decision 76: each port's `match` drives its scrutinee
+   with its peer held at its own place (`holdArm`), and a path that
+   place answers reads the peer there rather than recursing, so rows
+   sr0, sr1, sr6, sr7 and sr9 to sr11 leave the ledger.
 64. **How a refusal draws its call.** Raised 2026-10-21 by #457: a
    refusal draws the call it refuses again under its frame, and where
    an argument is driven, TypeScript draws the value the engine saw,
@@ -2933,7 +2937,11 @@ until the phase that encodes it lands.
    with decision 63 (`Val.dropSelf`): rows sr12 to sr26 of
    `test/spec/def-path.tsv`, which reads the document's paths, where
    the trial fragment had held them as tq0 to tq14 and read none.
-   **Not yet built**: both ports.
+   **Built in both ports 2026-11-22** (#895), with decision 63: each
+   port's `must` holds back a condition that reads its own place until
+   its peer is known, then reads a fresh copy of it with the peer held
+   there (`readsPlace`), so rows sr15 to sr23 leave the ledger, its
+   bound 201 with decision 77's three rows.
 77. **An unknown call inside a trial.** Raised 2026-11-20 by #870: a
    call to a name that is no built-in, or with the wrong count of
    arguments, is refused where it stands alone, `unknown_function` or
