@@ -6281,10 +6281,10 @@ admits nothing (`Decls.tried`). So `nof(1, {b?: 1 & 2}, {x: 1})`
 admits `{"x": 1}`, one branch counting, `when({b?: 1 & 2}, {x: 1})`
 never applies its branch, and `contains({b?: 1 & 2}, 1)` counts no
 member. A call the reading couldn't make, a list too long for its size
-and a preference clash count too, as they do in an argument read while
-the trial is built, and a written `nil` still stands, so
+and a preference clash count too, as they do in an argument the engines
+read as they build the trial, and a written `nil` still stands, so
 `nof(0, {b?: nil})` refuses `{"x": 1}`. An argument that computes with
-a key no position places yet is read where it lands. Both engines
+a key no position places yet stays as written until it lands. Both engines
 answer each as the definition does, in rows `td93` to `td95` and `tl0`
 on of `test/spec/def-trial.tsv`:
 
