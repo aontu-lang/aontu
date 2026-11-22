@@ -83,7 +83,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 ctx.err = trialErr;
                 oval[vI] = (0, unify_1.unite)((te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx)
                     .holdArm(this.path, (0, PrefVal_1.prefInnerPeg)(v), member), v, member, 'dj-peer');
-                if (0 < trialErr.length) {
+                if (0 < trialErr.length || holdsUnmetNil(oval[vI])) {
                     oval[vI] = NilVal_1.TRIAL_NIL;
                 }
                 else if (v instanceof PrefVal_1.PrefVal && !peer.isTop) {
@@ -434,5 +434,12 @@ function genShape(v, out) {
         return '[' + out.map((o, i) => genShape(kids[i], o)).join(',') + ']';
     }
     return (0, exactjson_1.exactJSON)(out);
+}
+// An arm that holds a written nil at a member it must have refuses (ruling 54).
+function holdsUnmetNil(v) {
+    const unmet = (c) => (true === c?.isNil && 'literal_nil' === c.why) || holdsUnmetNil(c);
+    return true === v?.isMap ?
+        Object.keys(v.peg).some((k) => !v.optionalKeys.includes(k) && unmet(v.peg[k])) :
+        true === v?.isList && v.peg.some(unmet);
 } /* node:coverage ignore next 8 */
 //# sourceMappingURL=DisjunctVal.js.map

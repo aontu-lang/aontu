@@ -82,6 +82,37 @@ document is now refused before evaluation, as an unbound `_` is.
   moves.
 - The JSON Schema export row for an uncollected nil uses `-"x"` in
   place of a call that the check now refuses.
+### A disjunction drops an arm that holds a written `nil` the value must fill
+
+#907, in both engines. An arm whose meet with the data leaves a written
+`nil` at a member the value must have, a key that isn't optional or a
+list's element, refuses, as ruling 54 reads it. So `v: {x: 1} | {x: nil}`
+admits `{"v": {"x": 1}}` and generates it, where both engines refused it
+as `literal_nil`, and `[1] | [nil]` admits `[1]`. `must` and `nof` over
+such a disjunction follow, and Go's `nof(1, {x: 1} | {x: nil})`, which
+refused `{"x": 1}`, now admits it as TypeScript did.
+
+- Rows tn9 to tn11 of `test/spec/def-trial.tsv` and nl204 to nl212 of
+  `test/spec/def-path.tsv` leave `spec/ledger.tsv`, whose bound falls
+  from 226 to 214.
+
+### The definition reads a `match` or a `must` that reads its own place
+
+Decisions 63 (#818) and 76 (#895), in the definition only. A `match`
+whose scrutinee, or a `must` whose condition, holds a path into the
+place the term stands at reads what the rest of the document holds
+there, without the term's own arms (`Val.dropSelf`). So
+`order: match($.order.status, "shipped", {trackingNo: string}, {})`
+picks its arm by the record's own `status`, and
+`v: must({x: upper($.v.name)}, "m")` holds `x` to the upper case of the
+record's `name`. No engine changes: both still wait on such a `match`
+and leave such a path unread.
+
+- Rows sr0 to sr26 of `test/spec/def-path.tsv` hold #818's four records
+  and five `must` cases. The `must` cases move from the trial fragment,
+  whose reader reads no path, where they were tq0 to tq14.
+- `spec/ledger.tsv` drops tq0 to tq8 and takes the sixteen sr rows both
+  engines answer otherwise. Its bound rises from 219 to 226.
 
 ### The definition reads a conflict anywhere in a tried argument as both engines do
 
