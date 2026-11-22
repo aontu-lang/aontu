@@ -138,3 +138,8 @@ $ aontu --vars values.aontu v.aontu
 
 The file is evaluated on its own and loads nothing, and a name it
 binds that a `--var` binds too is refused as bound twice.
+
+The REPL takes the same three options when it starts, and every document
+of the session reads them. The MCP server's tools take them as `vars`
+and `varsText`, objects of names to strings
+([the MCP server](../reference-api.md#the-mcp-server)).

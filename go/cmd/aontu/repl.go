@@ -38,6 +38,7 @@ func replSnippet(state replState) *aontu.Aontu {
 		cwd = "."
 	}
 	a.TextExt = state.Trust.textExt
+	a.HostVars = state.Trust.hostVars
 	if capability := verbTrust(state.Trust, cwd); nil != capability {
 		a.Trust = capability
 	}

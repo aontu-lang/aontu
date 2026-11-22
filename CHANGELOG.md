@@ -37,8 +37,12 @@ $ aontu --var env=prod --var n=3 v.aontu
   accepted, by ruling 29, so one file serves several documents. The
   file is evaluated on its own and loads nothing, and a name it binds
   that a `--var` binds too is refused as bound twice.
-- **`fmt`, `publish` and the package verbs refuse the options**, and so
-  does the REPL until it takes bindings of its own.
+- **`fmt`, `publish` and the package verbs refuse the options.**
+- **The REPL takes them when it starts**, task HV3, and refuses none as
+  unread, since no document is there yet to read it. **The MCP server's
+  tools take `vars` and `varsText`**, objects of names to strings,
+  refused as the options are; `jsonschema_import` evaluates no aontu
+  document and refuses them.
 - **`hash` and `breaking` name the bindings**: a `bindings` list in the
   JSON report, an `under:` line in `breaking`'s text, and a note on
   stderr beside `hash`'s text, which stays the hash alone.

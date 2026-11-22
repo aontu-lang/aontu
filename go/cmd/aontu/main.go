@@ -1338,11 +1338,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		file = files[0]
 	}
 
-	if 0 < len(bindings) && "" == file && (tty || jsonl) {
-		fmt.Fprintln(stderr, "aontu: --var binds a document given as a file or on stdin")
-		return 2
-	}
-
 	if file != "" {
 		var read map[string]bool
 		if _, serr := os.Stat(file); nil == serr {
@@ -1407,6 +1402,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		return emit(a, string(src), mode, format, stdout, stderr)
 	}
 
+	// A session has no document yet to read a binding, so none is refused
+	// as unread.
+	if !bindHost(&trust, bindings, nil, stderr) {
+		return 2
+	}
 	repl(mode, jsonl, trust, exact, stdin, stdout)
 	return 0
 }

@@ -1410,7 +1410,11 @@ how-to a line, and the API reference the options, `hostVars` and
 top-level key as its value's canon, accepts a key no document reads,
 and refuses a name a `--var` binds as well, as bound twice; the rulings
 left that case open, and refusing it can be relaxed later where
-allowing it could not be withdrawn. HV3 is not started.
+allowing it could not be withdrawn. HV3 follows on the same day: the
+REPL takes the three options when it starts, in both commands, and
+refuses none as unread; the MCP server's tools take `vars` and
+`varsText`, refused as the options are, and `jsonschema_import` refuses
+them. Part 6 is built.
 
 ### Questions for the ruling on part 6
 

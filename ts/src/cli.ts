@@ -10,6 +10,7 @@ import {
 } from 'node:fs'
 import type { Dirent } from 'node:fs'
 import type { HostVars } from './type'
+import { bindingFailure, varNamesIn } from './hostvars'
 import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createInterface } from 'node:readline'
@@ -951,20 +952,6 @@ function hostVarsOf(bindings: VarBinding[], read: Set<string> | undefined, io: I
 }
 
 
-function bindingFailure(src: string): string | undefined {
-  let v: any
-  try {
-    v = new Aontu({ trust: { include: 'none' } }).unify(src)
-  }
-  catch (err: any) {
-    return String(err.message).split('\n')[0]
-  }
-  let holds = false
-  eachPart(v, (n: any) => { holds = holds || true === n.isRef || true === n.isVar })
-  return holds ? 'a binding is a value, and reads no path or variable' : undefined
-}
-
-
 // The names the documents named on the command line read, or undefined
 // where one of them can't be read on its own.
 function namesRead(args: string[], trust: TrustArg): Set<string> | undefined {
@@ -995,38 +982,7 @@ const DATA_EXT = /[.](json|jsonl|yaml|yml|txt|pem|tsv)$/
 
 
 function namesIn(src: string, path: string, trust: TrustArg, read: Set<string>): boolean {
-  let root: any
-  try {
-    root = new Aontu({ path, ...verbOpts(trust, dirname(path)) }).parse(src)
-  }
-  catch (_err: any) {
-    return false
-  }
-  eachPart(root, (v: any) => {
-    if (true === v.isVar && 'string' === typeof v.peg?.peg) {
-      read.add(v.peg.peg)
-    }
-  })
-  return true
-}
-
-
-function eachPart(root: any, visit: (v: any) => void): void {
-  const seen = new Set<any>()
-  const stack: any[] = [root]
-  while (0 < stack.length) {
-    const v = stack.pop()
-    if (true !== v?.isVal || seen.has(v)) {
-      continue
-    }
-    seen.add(v)
-    visit(v)
-    const peg: any = v.peg
-    const kids: any[] = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
-      null != peg && 'object' === typeof peg ? Object.values(peg) : []
-    kids.forEach((kid: any) => stack.push(kid))
-    stack.push(v.spread?.cj)
-  }
+  return varNamesIn(src, { path, ...verbOpts(trust, dirname(path)) }, read)
 }
 
 
@@ -6228,10 +6184,6 @@ function main(argv: string[], servers: Servers = SERVERS): void {
   trust = { ...trust, textExt }
 
   const file = files[0]
-  if (0 < bindings.length && null == file && (jsonl || process.stdin.isTTY)) {
-    process.stderr.write('aontu: --var binds a document given as a file or on stdin\n')
-    return finish(2)
-  }
   if (null != file) {
     const hostVars = hostVarsOf(bindings,
       existsSync(file) ? namesRead([file], trust) : undefined, PROCESS_IO)
@@ -6245,7 +6197,13 @@ function main(argv: string[], servers: Servers = SERVERS): void {
   // made it reachable only through a pty -- which is to say, not
   // reachable by the thing it was built for. Mirrors go/cmd/aontu.
   else if (jsonl || process.stdin.isTTY) {
-    runRepl(mode, jsonl, trust, exact)
+    // A session has no document yet to read a binding, so none is refused
+    // as unread.
+    const hostVars = hostVarsOf(bindings, undefined, PROCESS_IO)
+    if (null === hostVars) {
+      return finish(2)
+    }
+    runRepl(mode, jsonl, { ...trust, hostVars }, exact)
   }
   else {
     runStdin(mode, format, trust, exact, bindings).then((code) => finish(code))

@@ -143,13 +143,19 @@ func TestHostVarsOnStdin(t *testing.T) {
 	}
 }
 
-func TestHostVarsTheReplRefusesThem(t *testing.T) {
-	for _, args := range [][]string{{"--var", "n=3"}, {"--jsonl", "--var", "n=3"}} {
-		tty := 1 == len(args)-1
-		r := hvRun("", tty, args...)
-		if 2 != r.code || !strings.Contains(r.err, "--var binds a document given as a file or on stdin") {
-			t.Fatalf("%v: %+v", args, r)
-		}
+func TestHostVarsTheReplTakesThem(t *testing.T) {
+	f := hvFiles(t, map[string]string{"vals.aontu": "n: 3\n"})
+	// A session has no document yet, so a binding nothing reads passes.
+	a := hvRun("k: $n\nj: $q\n:quit\n", true, "--jsonl", "--var", "n=3", "--var-text", "q=7")
+	if !strings.Contains(a.out, `"out":"{\n  \"k\": 3\n}"`) || !strings.Contains(a.out, `"out":"{\n  \"j\": \"7\"\n}"`) {
+		t.Fatalf("%+v", a)
+	}
+	b := hvRun("k: $n\n:quit\n", true, "--jsonl", "--vars", f("vals.aontu"))
+	if !strings.Contains(b.out, `"out":"{\n  \"k\": 3\n}"`) {
+		t.Fatalf("%+v", b)
+	}
+	if c := hvRun("", true, "--var", "n=}"); 2 != c.code || !strings.Contains(c.err, "--var n: [aontu/unexpected]") {
+		t.Fatalf("%+v", c)
 	}
 }
 
