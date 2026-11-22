@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a `match` or a `must` that reads its own place
+
+Decisions 63 (#818) and 76 (#895), in the definition only. A `match`
+whose scrutinee, or a `must` whose condition, holds a path into the
+place the term stands at reads what the rest of the document holds
+there, without the term's own arms (`Val.dropSelf`). So
+`order: match($.order.status, "shipped", {trackingNo: string}, {})`
+picks its arm by the record's own `status`, and
+`v: must({x: upper($.v.name)}, "m")` holds `x` to the upper case of the
+record's `name`. No engine changes: both still wait on such a `match`
+and leave such a path unread.
+
+- Rows sr0 to sr26 of `test/spec/def-path.tsv` hold #818's four records
+  and five `must` cases. The `must` cases move from the trial fragment,
+  whose reader reads no path, where they were tq0 to tq14.
+- `spec/ledger.tsv` drops tq0 to tq8 and takes the sixteen sr rows both
+  engines answer otherwise. Its bound rises from 219 to 226.
+
 ### The definition reads a conflict anywhere in a tried argument as both engines do
 
 Decision 74 (#892), in the definition only. An argument a trial tries
