@@ -130,10 +130,11 @@ where two were recommended.
 | 50 | Eight small questions, and the site of an included value | the repository's standing rules, and `resolve` as the headline of #313 |
 | 51 | A bare word that is both a name and a kind | the name is quoted in a file of the new version |
 
-Ruling 30 changes ruling 25 of this plan. Rulings 42 and 43 are in
-the definition's own record already, as its decisions 74 and 76,
-entered there on 2026-11-22. Rulings 38, 39 and 44 to 49 are rules of
-the language too, and IS2 of part 11 enters each of them there.
+Ruling 30 changes ruling 25 of this plan. Ten of these rulings are
+rules of the language, and each is a decision of the definition too,
+entered there on 2026-11-22: rulings 42 and 43 are its decisions 74
+and 76, and rulings 38, 39 and 44 to 49 are its decisions 77 to 84,
+in that order, entered by IS2 of part 11.
 
 ## What is missing
 
@@ -1820,9 +1821,11 @@ they were read, so 136 are open.
   size and the rows of `spec/ledger.tsv` it clears. That plan stays the
   record of the workstreams. This part says where each one meets parts 1
   to 10.
-- **28 are placed here**: the issues filed since 2026-11-19, the three
-  that parts 8 to 10 answer among them. The issue plan points here for
-  them, and for the rulings below.
+- **28 were placed here first**: the issues filed since 2026-11-19, the
+  three that parts 8 to 10 answer among them. Since 2026-11-22 each has
+  its row in the issue plan too, by IS1, the three in a workstream of
+  their own, and that plan lists the rulings below beside the
+  definition's decisions.
 
 By kind: 44 are places where both engines differ from the definition or
 from a ruling, 32 are a site, a frame or a message, 18 are a difference
@@ -1831,6 +1834,9 @@ tools, 8 ask for something new, 3 are gaps in the definition itself, and
 2 are documentation.
 
 ### The workstreams of the issue plan
+
+The table lists the 108 issues that plan held before 2026-11-22. The 28
+newer ones are in the next table, each with the workstream it joined.
 
 | Workstream of the issue plan | Open issues | Where this plan meets them |
 |---|---|---|
@@ -1848,7 +1854,7 @@ tools, 8 ask for something new, 3 are gaps in the definition itself, and
 | Tooling: coverage, LSP, CLI, playground, docs | [#318](https://github.com/aontu-lang/aontu/issues/318), [#320](https://github.com/aontu-lang/aontu/issues/320), [#322](https://github.com/aontu-lang/aontu/issues/322), [#340](https://github.com/aontu-lang/aontu/issues/340), [#732](https://github.com/aontu-lang/aontu/issues/732), [#733](https://github.com/aontu-lang/aontu/issues/733), [#747](https://github.com/aontu-lang/aontu/issues/747), [#789](https://github.com/aontu-lang/aontu/issues/789), [#814](https://github.com/aontu-lang/aontu/issues/814) | Part 3 takes [#320](https://github.com/aontu-lang/aontu/issues/320) with LS1, and LS4 formats as `fmt` does, so [#747](https://github.com/aontu-lang/aontu/issues/747) lands before it. The review of [#340](https://github.com/aontu-lang/aontu/issues/340) takes in the options of HV1, of LV3 and of the output flag, so that each is named once and means one thing on every verb. |
 | The definition | [#403](https://github.com/aontu-lang/aontu/issues/403), [#432](https://github.com/aontu-lang/aontu/issues/432), [#829](https://github.com/aontu-lang/aontu/issues/829) | Nothing in this plan bears on these. |
 
-### The issues the issue plan doesn't place
+### The 28 newer issues
 
 | Issue | What it is | Workstream | Resolved by |
 |---|---|---|---|
@@ -1911,18 +1917,20 @@ the raised pins answers `neq(-3,-2,-1)`. The fault is in the TypeScript
 ### The tasks of part 11
 
 Most of this part is the issues themselves, each fixed in its workstream
-by the ruling beside it. Three tasks belong to no issue:
+by the ruling beside it. Three tasks belong to no issue, and two of
+them are done:
 
 | ID | Task | Kind | Waits on | Size |
 |---|---|---|---|---|
-| IS1 | Give each of the 28 issues above its row in a workstream of `admin/issue-plan.md`, with its kind, its size and its ledger rows, and bring that plan's counts and its statement on the parser issues up to date. Until then a section of that plan points here | docs | nothing | S |
-| IS2 | Enter rulings 38, 39 and 44 to 49 in section 7 of [`sketch/DEFINITION.0.md`](DEFINITION.0.md) as decisions of the definition, each with the rows that hold it. Rulings 42 and 43 are there already, as its decisions 74 and 76, and the `nil` of #894 as its decision 75 | definition | nothing | M |
+| IS1 | Give each of the 28 issues above its row in a workstream of `admin/issue-plan.md`, with its kind, its size and its ledger rows, and bring that plan's counts and its statement on the parser issues up to date. Done 2026-11-22: 25 are in seven of its workstreams and three in a new one, none has a ledger row, and every open issue has one row there | docs | nothing | S |
+| IS2 | Enter rulings 38, 39 and 44 to 49 in section 7 of [`sketch/DEFINITION.0.md`](DEFINITION.0.md) as decisions of the definition. Rulings 42 and 43 are there already, as its decisions 74 and 76, and the `nil` of #894 as its decision 75. Done 2026-11-22, as its decisions 77 to 84: each says what both engines answer today, which was run in both, and what moves. No generated row holds any of them yet, so the rows land with each fix | definition | nothing | M |
 | IS3 | Before the pins rise: a release of `@tabnas/expr` that reads `neq(-1, -2, -3)`, or a guard in the TypeScript engine that refuses the input, with the shared row #326 asks for | fix | nothing | S |
 
 IS3 comes before the task that raises the pins. IS2 is how a ruling made
 here reaches the workstream that builds it: the rulings of this plan are
 numbered here, and a decision of the definition has its own number
-there.
+there. The pairs are 38 and 77, 39 and 78, 44 and 79, 45 and 80, 46 and
+81, 47 and 82, 48 and 83, and 49 and 84.
 
 ### Questions for the ruling on part 11
 
@@ -1933,13 +1941,14 @@ Each was raised by an issue, and each ruling unblocks the issues named.
     2026-11-22: refused wherever it stands, since it is decided when the
     document is read, as an unbound `_` is. `maybe` forgives a missing
     referent and never an unknown function. The other choice read it as
-    a call that can't be made, which admits nothing in silence.
+    a call that can't be made, which admits nothing in silence. The
+    definition records it as its decision 77.
 39. **A default inside a map, read by a trial**,
     [#847](https://github.com/aontu-lang/aontu/issues/847). Ruled
     2026-11-22: the trial reads the value the member generates, as it
     already does for a default at the top of a scrutinee. The others
     answered `incomplete`, or kept today's reading, the member as
-    written.
+    written. The definition records it as its decision 78.
 40. **A fallback for an absent field**,
     [#849](https://github.com/aontu-lang/aontu/issues/849). Ruled
     2026-11-22: `maybe(v, fallback)`, a second argument that `maybe`
@@ -1967,32 +1976,37 @@ Each was raised by an issue, and each ruling unblocks the issues named.
     [#810](https://github.com/aontu-lang/aontu/issues/810). Ruled
     2026-11-22: a quoted segment, `$.a."x.y"`, which `path()`,
     `relate()`, `reaches` and a reference read back as one step. The
-    other choice refused such a key.
+    other choice refused such a key. The definition records it as its
+    decision 79.
 45. **`*(` before a literal map or list**,
     [#349](https://github.com/aontu-lang/aontu/issues/349). Ruled
     2026-11-22: a preference, as `*(3)` is. The other choice refused it
-    inside a disjunction too.
+    inside a disjunction too. The definition records it as its decision
+    80.
 46. **A generator over the bag that holds it**,
     [#751](https://github.com/aontu-lang/aontu/issues/751). Ruled
     2026-11-22: it reads the members of its own bag where what it reads
     doesn't depend on its own result, and a true cycle is refused and
     named as one. The other choice refused every such document, with a
-    code that names the cycle.
+    code that names the cycle. The definition records it as its decision
+    81.
 47. **A file that is not valid UTF-8**,
     [#889](https://github.com/aontu-lang/aontu/issues/889). Ruled
     2026-11-22: refused, with one code in both engines that names the
     file and the byte. The other choice replaced each invalid sequence
-    by one rule in both.
+    by one rule in both. The definition records it as its decision 82.
 48. **A relation's template in a copy**,
     [#779](https://github.com/aontu-lang/aontu/issues/779). Ruled
     2026-11-22: held in one form wherever the relation is copied, so
     canon prints one spelling. Canon text and hashes change for a
     document that holds such a relation. The other choice taught
-    `subsume` to read the two forms as one.
+    `subsume` to read the two forms as one. The definition records it as
+    its decision 83.
 49. **A set of names written without commas**,
     [#517](https://github.com/aontu-lang/aontu/issues/517). Ruled
     2026-11-22: `export` and a destructure head read it as the comma
-    form, as a value does. The other choice refused it there.
+    form, as a value does. The other choice refused it there. The
+    definition records it as its decision 84.
 50. **The small ones.** Ruled 2026-11-22: each takes the answer the
     repository's standing rules give it, with one exception.
     - TypeScript's reading, where the engines differ and nothing rules:
@@ -2031,8 +2045,8 @@ Each was raised by an issue, and each ruling unblocks the issues named.
 1. **The questions.** P0 and the rounds of parts 8 to 11 are done.
    Nothing in any part waits on a ruling now.
 2. **What stands on nothing.** C6 and C7 of part 1, CG1 and CG2, LS1,
-   LS4 and LS9, and IS1 to IS3. The workstreams of the issue plan run
-   beside all of it.
+   LS4 and LS9, and IS3. IS1 and IS2 are done. The workstreams of the
+   issue plan run beside all of it.
 3. **The small and visible.** HV1, then KP1, then BT1, with the
    fallback of ruling 40 and the Markdown conventions of ruling 41.
    Each is one change in both ports.

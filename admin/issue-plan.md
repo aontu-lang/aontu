@@ -7,6 +7,11 @@ and #836 tracks the rows the closed fixes still owe. Each open issue is in one w
 workstreams fall into five phases, ordered by what each one unblocks and
 by how many rows of `spec/ledger.tsv` it clears.
 
+28 issues filed from 2026-11-19 to 2026-11-22 were added on 2026-11-22:
+25 in the workstreams below, and three that ask for a change to the
+language in [a workstream of their own](#with-the-lang-refinement-plan-three-language-changes).
+136 issues are open on that day.
+
 ## How each fix lands
 
 - **A ruling comes before the code** wherever a fix waits on one
@@ -17,8 +22,9 @@ by how many rows of `spec/ledger.tsv` it clears.
   So does each issue closed on 2026-11-19 that still has no row.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
-- **Progress is three numbers**: open issues (131), ledger rows (394
-  at most), and entries in `test/spec/divergent.tsv`.
+- **Progress is three numbers**: open issues (131 on 2026-11-19, 136
+  on 2026-11-22), ledger rows (394 at most then, 222 on 2026-11-22),
+  and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
 
@@ -84,9 +90,9 @@ A name or a path that reaches itself consuming no key or element is a static `er
 
 ### Preferences and disjunction arms
 
-10 issues (4 S, 4 M, 2 L), 178 ledger rows.
+11 issues (4 S, 5 M, 2 L), 178 ledger rows.
 
-How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714 still generates the wrong value in four shapes no `gens` row holds, so its rows come first. #832 is the siting half of #482.
+How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714 still generates the wrong value in four shapes no `gens` row holds, so its rows come first. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -100,6 +106,7 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#348](https://github.com/aontu-lang/aontu/issues/348) | parity | M |  | Disjunction arms written differently but generating the same value: Go generates it, TypeScript answers disjunct_no_gen. |
 | [#832](https://github.com/aontu-lang/aontu/issues/832) | parity | S |  | A made default's pref_rank_clash: Go sites $, TypeScript loses the position. |
 | [#431](https://github.com/aontu-lang/aontu/issues/431) | bug | S |  | A concrete value lost to a default by declaration order (`**default`, value, `*default`). |
+| [#857](https://github.com/aontu-lang/aontu/issues/857) | def | M |  | Two same-rank defaults, each narrowed by a bound that refuses the other's, clash as `pref_rank_clash` when written as one meet; the definition reads no default (decision 43). |
 
 ### Seals, marks, moves and generation-time checks
 
@@ -192,9 +199,9 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-12 issues (2 S, 10 M), 36 ledger rows.
+18 issues (2 S, 16 M), 36 ledger rows.
 
-Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, the definition moves), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, both ports move), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, both ports and the definition move).
+Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, the definition moves), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, both ports move), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, both ports and the definition move). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -210,12 +217,18 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#892](https://github.com/aontu-lang/aontu/issues/892) | def | M | 3 | A conflict below the top of a trial argument read against a value: both ports make the argument admit nothing, the definition reads it in place. Ruled as 74: the whole argument admits nothing, so the definition moves. |
 | [#894](https://github.com/aontu-lang/aontu/issues/894) | def | M | 12 | A written `nil` below the top of `must`'s condition refuses every value in both ports (`invalid-arg`), where ruling 54 reads it where it stands. Ruled as 75: `must` reads it as ruling 54 does, so both ports drop the builder's check. |
 | [#895](https://github.com/aontu-lang/aontu/issues/895) | def | M | 9 | A path in `must`'s condition into the value under trial: both ports leave it unread and pass the check, the definition reads `error` or `invalid`. Ruled as 76: the path reads the field, as 63 reads one in `match`, so both ports and the definition move. |
+| [#847](https://github.com/aontu-lang/aontu/issues/847) | bug | M |  | `filter` and `match` miss a default inside a map: the member is dropped or another arm taken, with no finding. Ruled as 78: the trial reads the value the member generates. |
+| [#870](https://github.com/aontu-lang/aontu/issues/870) | bug | M |  | A call to an unknown name, or with a wrong count, is silent inside a trial, in a disjunction's arm and under `maybe`. Ruled as 77: refused wherever it stands. |
+| [#850](https://github.com/aontu-lang/aontu/issues/850) | parity | M |  | A `match` whose result is a relative reference overflows the TypeScript stack; Go answers. |
+| [#868](https://github.com/aontu-lang/aontu/issues/868) | parity | M |  | A `match` whose pattern is a relative reference overflows the TypeScript stack, and a bound over it is `mapval_no_gen`; Go answers both. |
+| [#871](https://github.com/aontu-lang/aontu/issues/871) | parity | M |  | `maybe(v)` of a relative reference as a call's second or later argument never resolves in TypeScript; Go answers. |
+| [#861](https://github.com/aontu-lang/aontu/issues/861) | design | M |  | No single call projects one field of each member into a map that keeps the source's keys. C1 and C2 of the lang refinement plan: `at`, and a key for `pack`. |
 
 ### Declarations, loads, includes and built-in models
 
-12 issues (3 S, 8 M, 1 L).
+18 issues (4 S, 13 M, 1 L).
 
-Faults at an include or a built-in model's boundary, which lose structure or a site, and the declaration questions #738 rules on.
+Faults at an include or a built-in model's boundary, which lose structure or a site, and the declaration questions #738 rules on. Five of the newer ones are one question, the file a value from an include is sited in (#841, #845, #876, #887, with #734 and #658 above), and #889 is a file that is not valid UTF-8.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -231,6 +244,12 @@ Faults at an include or a built-in model's boundary, which lose structure or a s
 | [#804](https://github.com/aontu-lang/aontu/issues/804) | parity | M |  | Go evaluates a document including a source that writes a destructure as nil, `parse_unknown` at `$`. |
 | [#805](https://github.com/aontu-lang/aontu/issues/805) | bug | M |  | Evaluation accepts an unused body's destructure of an unexported name that vet refuses, in both ports. |
 | [#616](https://github.com/aontu-lang/aontu/issues/616) | diag | M |  | Use case 18: list template met with a string reports `list` in TypeScript, `scalar_kind` in Go. |
+| [#842](https://github.com/aontu-lang/aontu/issues/842) | parity | M |  | A file that holds a destructure head, included under a key, is `no_path` in TypeScript and `alias_not_toplevel` in Go. Ruled, plan ruling 36: the file is whole where it lands. |
+| [#841](https://github.com/aontu-lang/aontu/issues/841) | diag | S |  | An `export_arg` refusal in a file included at the root is framed in that file by TypeScript and at the entry document's 1:1 by Go. Plan ruling 50 sites it in its own file. |
+| [#845](https://github.com/aontu-lang/aontu/issues/845) | diag | M |  | A refusal over a value loaded at a value position frames it at the `@` in TypeScript and in its own file in Go. Plan ruling 50 sites it in its own file. |
+| [#876](https://github.com/aontu-lang/aontu/issues/876) | diag | M |  | A syntax error inside an included data file is reported in the including file, differently in each port. Plan ruling 50 sites it in its own file. |
+| [#887](https://github.com/aontu-lang/aontu/issues/887) | diag | M |  | A `vet` finding's value from an included data file is sited in the including document by TypeScript and in the data file by Go, both at `-1:-1`. Plan ruling 50 sites it in its own file. |
+| [#889](https://github.com/aontu-lang/aontu/issues/889) | parity | M |  | Adjacent invalid UTF-8 sequences become one U+FFFD in Go and one each in TypeScript, so the ports hash one file differently. Ruled as 82: such a file is refused. |
 
 ### subsume and breaking
 
@@ -248,9 +267,9 @@ The `subsume` and `breaking` gaps besides relations: a range inside a template (
 
 ### Scalars and generated output
 
-7 issues (5 S, 2 M).
+9 issues (5 S, 4 M).
 
-Small parity faults in builtins, and #825's `form`, which is cheapest before the next release.
+Small parity faults in builtins, #825's `form`, which is cheapest before the next release, and two additions the lang refinement plan rules on: Markdown conventions for `esc` and `usc` (#848) and a fallback for `maybe` (#849).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -261,25 +280,28 @@ Small parity faults in builtins, and #825's `form`, which is cheapest before the
 | [#825](https://github.com/aontu-lang/aontu/issues/825) | design | M |  | Ruled: rename gen notation options `as`, `case`, `keys` to `form` across model, ports, rows, docs. |
 | [#395](https://github.com/aontu-lang/aontu/issues/395) | bug | S |  | Canon drops the meta() record from a spread template that comes from an alias, in both ports. |
 | [#319](https://github.com/aontu-lang/aontu/issues/319) | bug | M |  | allOf members typing one property differently import as nil, refusing every object instead of forbidding the key. |
+| [#848](https://github.com/aontu-lang/aontu/issues/848) | design | M |  | `esc` and `usc` have no convention for Markdown. Ruled, plan ruling 41: `md`, `mdcell` and `mdcode`. |
+| [#849](https://github.com/aontu-lang/aontu/issues/849) | design | M |  | No rule can fall back when a member's field is absent. Ruled, plan ruling 40: `maybe(v, fallback)`. |
 
 ### Parser limits
 
-2 issues (2 M).
+3 issues (3 M).
 
-The pinned `@tabnas/expr` overflows. Retest against the published 0.6.3 before changing the pin, which `docs/contributing/parity.md` keeps exact on purpose.
+The pinned `@tabnas/expr` overflows. The retest was run on 2026-11-21 with every pin raised, `@tabnas/expr` at 0.6.4: the three documents of #325 answer as Go does, and #326 gets worse, the TypeScript engine running out of memory after about fifty seconds where it overflowed its stack at once. So #326 needs a fix of its own before the pin moves, which `docs/contributing/parity.md` keeps exact on purpose. [The table](../sketch/LANG-REFINEMENT-PLAN.0.md#what-the-pins-do-to-the-parser-issues) is in the lang refinement plan. #853 is the unifier's stack and was not part of that run.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
 | [#325](https://github.com/aontu-lang/aontu/issues/325) | parity | M |  | A flat operator chain of about 1,950 members overflows the TypeScript parser stack; Go parses it. |
 | [#326](https://github.com/aontu-lang/aontu/issues/326) | parity | M |  | `neq(-1, -2, -3)` overflows the TypeScript parser stack, where Go evaluates it; upstream @tabnas/expr defect. |
+| [#853](https://github.com/aontu-lang/aontu/issues/853) | parity | M |  | A chain of 5,000 absolute paths overflows the TypeScript unifier's stack and is reported as `internal`; Go answers `budget_passes`. |
 
 ## Phase 4: diagnostics and tooling
 
 ### Diagnostics: sites, messages and frames
 
-13 issues (7 S, 6 M).
+17 issues (10 S, 7 M).
 
-Thirteen issues where the verdict agrees and a code, site, frame or message does not. Rulings 64 and 65 settle #457 and #327, a refusal drawing a call as written and a value sited at its own span, and with them #331, #391 and #685. Each needs a row in the full-message twin tests.
+Seventeen issues where the verdict agrees and a code, site, frame or message does not. Rulings 64 and 65 settle #457 and #327, a refusal drawing a call as written and a value sited at its own span, and with them #331, #391 and #685. Each needs a row in the full-message twin tests.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -296,12 +318,16 @@ Thirteen issues where the verdict agrees and a code, site, frame or message does
 | [#755](https://github.com/aontu-lang/aontu/issues/755) | diag | S |  | Errors finding of relations, reaches, view, trim, jsonschema names included files absolutely; Go loses the position (-1:-1). |
 | [#775](https://github.com/aontu-lang/aontu/issues/775) | diag | M |  | Refusal inside the one disjunction arm the data selects is reported as empty at the member, naming nothing. |
 | [#457](https://github.com/aontu-lang/aontu/issues/457) | diag | M |  | A call's refusal renders a driven argument by value in TS, as written in Go. |
+| [#840](https://github.com/aontu-lang/aontu/issues/840) | diag | M |  | Under `vet`, a field met with a destructured name and a literal reports `no_scalar_unify` at the name's body in TypeScript and `scalar_kind` at the literal in Go. |
+| [#846](https://github.com/aontu-lang/aontu/issues/846) | diag | S |  | A parse error on the empty line after a source's last newline draws its caret a line lower in Go. |
+| [#852](https://github.com/aontu-lang/aontu/issues/852) | diag | S |  | A path with an unbound variable step is refused as `unknown_var` nine times in TypeScript and once in Go. |
+| [#866](https://github.com/aontu-lang/aontu/issues/866) | diag | S |  | A `deprecated` finding on a preference inside `deprecate()` is sited at the `*` in TypeScript and a column earlier in Go. |
 
 ### Tooling: coverage, LSP, CLI, playground, docs
 
-11 issues (6 S, 4 M, 1 L).
+16 issues (9 S, 6 M, 1 L).
 
-Coverage (#318, #732, #733), the language servers (#320, #834), the command line (#340, #322, #747, #833), the playground bundle (#814) and the documented deep imports (#789).
+Coverage (#318, #732, #733), the language servers (#320, #834, #858, #859), the command line (#340, #322, #747, #833, #860, #862), the playground bundle (#814), the documented deep imports (#789) and a count the pages state (#869).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -316,6 +342,23 @@ Coverage (#318, #732, #733), the language servers (#320, #834), the command line
 | [#833](https://github.com/aontu-lang/aontu/issues/833) | bug | S |  | --canon prints an unknown function as nil and exits 0. |
 | [#814](https://github.com/aontu-lang/aontu/issues/814) | tool | S |  | Playground bundle is stale and a rebuilt one fails the smoke check on `structuredClone`. |
 | [#789](https://github.com/aontu-lang/aontu/issues/789) | docs | S |  | Documented deep imports `aontu/dist/val/*` and `aontu/dist/lsp` fail under ESM and nodenext. |
+| [#858](https://github.com/aontu-lang/aontu/issues/858) | tool | S |  | Both language servers send one written conflict once for each path that copies it. |
+| [#859](https://github.com/aontu-lang/aontu/issues/859) | tool | S |  | Hover on a recursive position reads `*recurse*` in TypeScript and `*value*` in Go. |
+| [#860](https://github.com/aontu-lang/aontu/issues/860) | tool | M |  | `trim --check` examines nothing below a key stated twice, an explicit `&` or a call, and answers `clean`. |
+| [#862](https://github.com/aontu-lang/aontu/issues/862) | design | M |  | No verb of either CLI, the REPL or the MCP tools can bind a host variable `$name`. HV1 of the lang refinement plan. |
+| [#869](https://github.com/aontu-lang/aontu/issues/869) | docs | S |  | `llms.txt` and `docs/lsp.md` count 68 built-ins where `test/spec/signature.tsv` declares 72. |
+
+## With the lang refinement plan: three language changes
+
+3 issues (3 L).
+
+Each asks for a change to the language, and each is a part of [the lang refinement plan](../sketch/LANG-REFINEMENT-PLAN.0.md), which holds its tasks and its rulings. Their order is fixed there: roots, then versions, then types.
+
+| # | kind | effort | ledger rows | what it is |
+|---|---|---|---|---|
+| [#884](https://github.com/aontu-lang/aontu/issues/884) | design | L |  | `$` as the root of the source file it is written in, and `$$` as the global root. Part 8 of that plan, tasks RP1 to RP5. |
+| [#881](https://github.com/aontu-lang/aontu/issues/881) | design | L |  | A language version stated in each source file, with older forms read through a table of translations. Part 9, tasks LV1 to LV5. |
+| [#886](https://github.com/aontu-lang/aontu/issues/886) | design | L |  | More scalar types by the convention of `path()`: dates and times, `semver`, five identifiers and bytes. Part 10, tasks ST1 to ST7. |
 
 ## Alongside: the definition and the repository
 
@@ -348,46 +391,41 @@ Each is a small gate that stops a fault from coming back.
 | [#611](https://github.com/aontu-lang/aontu/issues/611) | process | S |  | Union merge of the prompt log drops shared closing fences, leaving entries unclosed; no automated guard. |
 | [#443](https://github.com/aontu-lang/aontu/issues/443) | tool | S |  | Vale drops alerts around an HTML entity spelling a tag in a code fence. |
 
-## The issues filed since, and the rulings of 2026-11-22
+## The rulings of 2026-11-22
 
-28 issues were filed after 2026-11-19 and have no row above.
-[Part 11](../sketch/LANG-REFINEMENT-PLAN.0.md#part-11-the-open-issues)
-of the lang refinement plan places each in a workstream of this plan,
-and says where each workstream above meets that plan's tasks. Three of
-the 28 are parts of it: [#884](https://github.com/aontu-lang/aontu/issues/884) is its part 8, [#881](https://github.com/aontu-lang/aontu/issues/881) its part 9 and
-[#886](https://github.com/aontu-lang/aontu/issues/886) its part 10.
+The project's owner ruled on 2026-11-21 and 2026-11-22, in
+[the lang refinement plan](../sketch/LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-8-to-11),
+on the questions that the newer issues and some older ones above
+waited on. That plan numbers its rulings apart from the definition's.
+Those that are rules of the language are also decisions of section 7
+of [`sketch/DEFINITION.0.md`](../sketch/DEFINITION.0.md), under the
+number in the last column. A feature is entered there when it is
+built, and a diagnostic has no decision, since the definition holds no
+message and no site.
 
-The project's owner ruled there on 2026-11-22 on the questions these
-issues, and some older ones above, waited on. The rulings are numbered
-in that plan,
-[38 to 50](../sketch/LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-8-to-11),
-apart from the definition's. Its rulings 42 and 43 are the definition's
-74 and 76. The rest enter section 7 of the definition when their
-workstream takes them up:
+| issues | plan ruling | ruled | the definition's decision |
+|---|---|---|---|
+| [#870](https://github.com/aontu-lang/aontu/issues/870) | 38 | an unknown call is refused wherever it stands | 77 |
+| [#847](https://github.com/aontu-lang/aontu/issues/847) | 39 | a trial reads the value a default generates | 78 |
+| [#849](https://github.com/aontu-lang/aontu/issues/849) | 40 | `maybe(v, fallback)` | with the build |
+| [#848](https://github.com/aontu-lang/aontu/issues/848) | 41 | `md`, `mdcell` and `mdcode` | with the build |
+| [#892](https://github.com/aontu-lang/aontu/issues/892) | 42 | the whole argument admits nothing | 74 |
+| [#895](https://github.com/aontu-lang/aontu/issues/895) | 43 | the path reads the field as the data settles it | 76 |
+| [#472](https://github.com/aontu-lang/aontu/issues/472), [#475](https://github.com/aontu-lang/aontu/issues/475) and [#810](https://github.com/aontu-lang/aontu/issues/810) | 44 | a quoted segment, `$.a."x.y"` | 79 |
+| [#349](https://github.com/aontu-lang/aontu/issues/349) | 45 | `*(` before a literal map or list is a preference | 80 |
+| [#751](https://github.com/aontu-lang/aontu/issues/751) | 46 | a generator reads its own bag where no cycle is read, and a true cycle is refused and named | 81 |
+| [#889](https://github.com/aontu-lang/aontu/issues/889) | 47 | a file that is not valid UTF-8 is refused, with one code | 82 |
+| [#779](https://github.com/aontu-lang/aontu/issues/779) | 48 | a relation's template is held in one form wherever it is copied | 83 |
+| [#517](https://github.com/aontu-lang/aontu/issues/517) | 49 | a set of names written without commas reads as the comma form | 84 |
+| [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#518](https://github.com/aontu-lang/aontu/issues/518) and [#786](https://github.com/aontu-lang/aontu/issues/786) | 50 | TypeScript's reading |  |
+| [#313](https://github.com/aontu-lang/aontu/issues/313) | 50 | the headline says `resolve`, as Go's does |  |
+| [#540](https://github.com/aontu-lang/aontu/issues/540) | 50 | the definition's reading | 18 |
+| [#894](https://github.com/aontu-lang/aontu/issues/894) | 50 | `must` reads a written `nil` as ruling 54 does | 75 |
+| [#331](https://github.com/aontu-lang/aontu/issues/331), [#845](https://github.com/aontu-lang/aontu/issues/845), [#887](https://github.com/aontu-lang/aontu/issues/887), [#876](https://github.com/aontu-lang/aontu/issues/876), [#841](https://github.com/aontu-lang/aontu/issues/841), [#734](https://github.com/aontu-lang/aontu/issues/734), [#755](https://github.com/aontu-lang/aontu/issues/755), [#658](https://github.com/aontu-lang/aontu/issues/658) and [#320](https://github.com/aontu-lang/aontu/issues/320) | 50 | a value from an included file is sited in its own file |  |
+| [#842](https://github.com/aontu-lang/aontu/issues/842) | 36 | a file is whole where it lands | with the build |
 
-| issues | ruled |
-|---|---|
-| [#870](https://github.com/aontu-lang/aontu/issues/870) | 38: an unknown call is refused wherever it stands |
-| [#847](https://github.com/aontu-lang/aontu/issues/847) | 39: a trial reads the value a default generates |
-| [#849](https://github.com/aontu-lang/aontu/issues/849) | 40: `maybe(v, fallback)` |
-| [#848](https://github.com/aontu-lang/aontu/issues/848) | 41: `md`, `mdcell` and `mdcode` |
-| [#472](https://github.com/aontu-lang/aontu/issues/472), [#475](https://github.com/aontu-lang/aontu/issues/475) and [#810](https://github.com/aontu-lang/aontu/issues/810) | 44: a quoted segment, `$.a."x.y"` |
-| [#349](https://github.com/aontu-lang/aontu/issues/349) | 45: `*(` before a literal map or list is a preference |
-| [#751](https://github.com/aontu-lang/aontu/issues/751) | 46: a generator reads its own bag where no cycle is read, and a true cycle is refused and named |
-| [#889](https://github.com/aontu-lang/aontu/issues/889) | 47: a file that is not valid UTF-8 is refused, with one code |
-| [#779](https://github.com/aontu-lang/aontu/issues/779) | 48: a relation's template is held in one form wherever it is copied |
-| [#517](https://github.com/aontu-lang/aontu/issues/517) | 49: a set of names written without commas reads as the comma form |
-| [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#518](https://github.com/aontu-lang/aontu/issues/518) and [#786](https://github.com/aontu-lang/aontu/issues/786) | 50: TypeScript's reading |
-| [#313](https://github.com/aontu-lang/aontu/issues/313) | 50: the headline says `resolve`, as Go's does |
-| [#540](https://github.com/aontu-lang/aontu/issues/540) | 50: the definition's reading, its decision 18 |
-| [#331](https://github.com/aontu-lang/aontu/issues/331), [#845](https://github.com/aontu-lang/aontu/issues/845), [#887](https://github.com/aontu-lang/aontu/issues/887), [#876](https://github.com/aontu-lang/aontu/issues/876), [#841](https://github.com/aontu-lang/aontu/issues/841), [#734](https://github.com/aontu-lang/aontu/issues/734), [#755](https://github.com/aontu-lang/aontu/issues/755), [#658](https://github.com/aontu-lang/aontu/issues/658) and [#320](https://github.com/aontu-lang/aontu/issues/320) | 50: a value from an included file is sited in its own file |
-| [#842](https://github.com/aontu-lang/aontu/issues/842) | 36: a file is whole where it lands |
-
-The parser issues were tried with the pins raised, `@tabnas/expr` at
-0.6.4: [#325](https://github.com/aontu-lang/aontu/issues/325) closes, and [#326](https://github.com/aontu-lang/aontu/issues/326) gets worse, the TypeScript engine
-running out of memory where it overflowed its stack at once.
-[The table](../sketch/LANG-REFINEMENT-PLAN.0.md#what-the-pins-do-to-the-parser-issues)
-is in that plan, and a fix for [#326](https://github.com/aontu-lang/aontu/issues/326) comes before the pins rise.
+[Part 11](../sketch/LANG-REFINEMENT-PLAN.0.md#part-11-the-open-issues) of that plan says where each
+workstream above meets its tasks.
 
 ## Order at a glance
 
@@ -395,9 +433,12 @@ is in that plan, and a fix for [#326](https://github.com/aontu-lang/aontu/issues
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 42 | 354 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 57 | 34 |
-| 4 | diagnostics, tooling | 24 | |
+| 2 | alias cycles, preferences, seals and marks, copies | 43 | 354 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 74 | 58 |
+| 4 | diagnostics, tooling | 33 | |
+| with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | 2 |
 
 The issue counts overlap where a quick win belongs to a workstream.
+From phase 2 on, each count is the sum of its workstreams' own, as
+they stand on 2026-11-22 with the 28 newer issues added.
