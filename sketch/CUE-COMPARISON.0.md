@@ -528,7 +528,12 @@ None of this is decided. Each item is a candidate for the maintainer.
    parts 2 to 7, added and ruled on 2026-11-21, make tasks of items 3
    and 4 below, of the language server and the key pattern in item 6,
    and of #862 in item 1, and add bytes and sized numbers. The ruling
-   defers OpenAPI, which is to be added separately.
+   defers OpenAPI, which is to be added separately. Its parts 8 to 11,
+   ruled on 2026-11-21 and 2026-11-22, take in the open issues: `$`
+   as a file's root, a language version stated in each file, which
+   [Modules and packages](#modules-and-packages) lists as a gap, more
+   scalar types with bytes among them, and a place for each of the
+   136 open issues.
 3. **The CUE guide that the plan's H3 asks for now has its table.** The
    table in
    [Where the same text means different things](#where-the-same-text-means-different-things),

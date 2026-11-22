@@ -1749,3 +1749,216 @@ The answers to the agent's questions, each question followed by the option chose
 #895: a path in `must`'s condition can read the value under trial, as in `v: must({x: upper($.v.name)}, "m")`. Both engines leave the path unread and pass the check, so `{"v": {"x": "B", "name": "a"}}` is valid. In the same way, `must({x: 1, y: $.v.x}, "m")` admits a value with no `y`. The definition reads the path in the schema alone, where it names nothing: an error through a call, a refusal otherwise. Decision 63 already ruled that `match` reads such a field. What should `must` do?
 → Read the field (Recommended)
 ```
+
+## 2026-11-21 12:12:50 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+The comprehension plan proposes a built-in that reads the member of a map or list at a computed key or position, as in pack($.svc, at(_, port)) and at($.teams, at(_, team), email). Should it be added, and under which name?
+→ at (Recommended)
+G8 settled a key-selector argument for pack as a refusal. Six comprehension idioms reach a keyed result only by packing over picked keys and looking each member up again. Should pack be able to make each child's key from its member?
+→ Reopen and add it (Recommended)
+A list position is text today, from key(), so an offset or a neighbour needs a written list of numbers. Should a position be available as a number?
+→ index(up?) (Recommended)
+A loop driven by a number alone, such as CUE's list.Range(0, n, 1), has no spelling in aontu today. It is the one addition that touches the trust contract, because its size comes from a value and not from data that exists. Should one be added?
+→ range(n), budget 100000 (Recommended)
+```
+
+## 2026-11-21 12:13:38 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Inside nested generators the hole _ is the innermost member, so an inner loop reads the outer member only by counted climbs such as ..name. G8 left an explicit depth form open as an additive option. Should an inner template be able to name the enclosing generator's member?
+→ outer(up?) (Recommended)
+You adopted at(d, ...k). What should it answer when a key or position names nothing in d?
+→ Refuse, as a path (Recommended)
+You adopted at(d, ...k). Should it read a member that is marked hide() or type()?
+→ Read it (Recommended)
+You adopted at(d, ...k). What should a negative index, at(xs, -1), answer?
+→ Count from the end
+```
+
+## 2026-11-21 12:14:49 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+You reopened the keyed pack. How should the key for each child be spelled?
+→ A third argument (Recommended)
+For the keyed pack: what may the key template read?
+→ _ and key(0) only (Recommended)
+For the keyed pack: what kind may a key be?
+→ A string only (Recommended)
+You adopted outer(up?). What counts as one level when it counts outward?
+→ Every binder of _ (Recommended)
+```
+
+## 2026-11-21 12:16:40 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu pins sixteen tabnas packages at their September versions, which read formats and cannot write them. In a trial with every pin at its latest version, TypeScript needed two changed lines, Go none, and both suites then passed apart from the vendor-hash file. Should the pins be raised?
+→ Raise them now (Recommended)
+The tabnas writers can write a value as YAML, TOML, INI, CSV, JSONL, XML and more, with the same bytes in both ports. ADR-038 says the component tree is the only output road. How should aontu write these formats?
+→ Flag, then built-in (Recommended)
+An include reads ten extensions as data today and refuses the rest by name. tabnas already parses more. Which of these should an include also read as data?
+→ CSV (Recommended), JSONL (Recommended), XML, And allow abnf grammar defined input
+A verb reads its file operand as aontu source whatever the extension. So aontu vet schema.aontu data.yaml fails on the YAML, and a .toml operand gives a conflict against a list of the file's words. Should verbs read a data file by its extension, as an include does?
+→ Yes, by the same table (Recommended)
+```
+
+## 2026-11-21 18:45:10 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Plan question 14. The guide for CUE users will print CUE code, and the comparison's 154 probes become a corpus. Should a workflow run a real `cue` binary over the probes, so that a CUE answer that moves is noticed?
+→ Daily, pinned (Recommended)
+Plan question 15. If a pinned `cue` binary answers a probe differently from the answer on record, what should the daily run do?
+→ Release fails (Recommended)
+Plan question 16. A definition or a reference can sit in an included file. How far should the language server read to answer definition, hover, references and completion?
+→ Its own evaluation (Recommended)
+Plan question 17. Rename edits a key and every reference to it. Some sites can't be kept true by editing text: a key a generator makes, a key read through `key()`, a key a pattern matches, and a site inside a package. What should rename do when it meets one?
+→ Refuse, naming it (Recommended)
+```
+
+## 2026-11-21 18:49:36 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Plan question 18. Today aontu holds keys to a pattern with a guarded spread, `&: match(key(0), re("^env_"), string, any)`, where CUE writes `[=~"^env_"]: string`. Which short form should aontu have?
+→ A call, keyed (Recommended)
+Plan question 19. In CUE a pattern in a definition admits the keys it matches. In aontu a spread declares no key, so an instance of a `type()` refuses even a key its own pattern admits, and such a type is written `type(open({ … }))` with `nil` as the pattern's last argument. Should the short form change how a seal treats a patterned key?
+→ Unchanged (Recommended)
+Plan question 20. How far should OpenAPI support go? CUE imports and exports the schemas under `components.schemas`, and reads no operations.
+→ Defer, will be added separately
+Plan question 21. aontu exports JSON Schema 2020-12, which OpenAPI 3.1 takes as it is. OpenAPI 3.0 needs an older dialect, and G12 lists export to an older draft as a non-goal. CUE writes 3.0.0 only. Which should `aontu openapi` export?
+→ Defer, openapi added later
+```
+
+## 2026-11-21 18:51:21 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Plan question 22. Which options should bind a `$name` from the command line? How the value is read matters: read as aontu source, `--var sha=1234567` binds an integer; read as text, `--var n=3` can never meet `integer & $n`, since no built-in turns text into a number.
+→ Source, text, file (Recommended)
+Plan question 23. What should happen to `--var name=value` when no document reads `$name`? CUE refuses a tag that no file declares.
+→ Refuse
+Plan question 24. A hash taken under bindings is the hash of one deployment, not of the model. Which verbs should take the binding options?
+→ hash and breaking (Recommended)
+Plan question 25. How should aontu carry binary data? CUE has a `bytes` kind, written `'…'`, and writes it to JSON as base64 text.
+→ Text, encoded (Recommended)
+```
+
+## 2026-11-21 18:54:44 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Plan question 26. Which built-ins should encode and decode base64, base64url and hex? Today `esc(s, variant)` and `usc(s, variant)` hold conventions such as `uri` and `xml`, and `usc` refuses malformed input.
+→ encode and decode
+Plan question 27. CUE predeclares `uint8` to `int64` and more. aontu's G1 records sized kinds as not being built, because a `type()` block of named constraints says them. A 64-bit name is hard to write right, though: it takes two kinds and exact bounds. What should aontu offer?
+→ A bundled model (Recommended)
+Plan question 28. CUE reads `1Ki` as 1024 and `2M` as 2000000. aontu reads each as a bare string, which is what a Kubernetes quantity such as `memory: 1Gi` has to stay. Should aontu have multipliers?
+→ Not adopted (Recommended)
+```
+
+## 2026-11-21 18:58:09 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+A follow-up that your ruling on question 23 raises. You ruled that `--var name=value` is refused when no document reads `$name`. `--vars <file>` binds every top-level key of a file. Should a key of that file that no document reads be refused too?
+→ Accept in a file (Recommended)
+```
+
+## 2026-11-21 23:26:31 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Issue #886 asks for more scalar types, such as dates and bytes, with no new syntax, by the convention of `path()`. Later today you ruled (25) that bytes are text in a named encoding, with no kind. The kind I offered then had a literal form, which #886 rules out. Which stands for bytes?
+→ A bytes type, as #886 (Recommended)
+Which scalar types should issue #886 bring first? Each would be made by a call, as `path($.a)` is, and generate as a JSON string. Choose all that apply.
+→ Dates and times (Recommended), semver (Recommended), Identifiers
+How is a new scalar type's kind spelled? `path` as a bare word is the path kind. But `date`, `bytes` and `semver` as bare words are strings today in both engines, so a model that writes `type: date` means the string "date".
+→ The bare word
+JSON and YAML have no dates: data spells one as a string. `path` is strict here: `path & "$.a"` is refused, and `vet` refuses the string. Should the new scalar types treat a string the same way?
+→ Strict, as path (Recommended)
+```
+
+## 2026-11-22 00:08:12 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Issue #884: `$` is to mean the root of the current source file, and `$$` the global root. Today `$` is the global root everywhere, in both engines, so a file included under a key that writes `$.shared.x` reads the entry document. How do existing files keep their meaning when `$` changes?
+→ For every file at once
+Under issue #884, what should a captured path generate when it is written in an included file? `path($.a)` keeps its spelling and generates "$.a" today. Written in a file included under `v`, its node is at `$.v.a` in the output, and `relate()` refuses the address today as naming nothing.
+→ The global address (Recommended)
+Issue #842: a file can hold a destructure head, `{ %A } = @"./lib.aontu"`, which takes names from another file. Placed under a key, as `a: @"./c.aontu"`, that file is refused today, as `no_path` in TypeScript and `alias_not_toplevel` in Go. Under #884 a file's `$` paths stay valid wherever it lands. Should its names too?
+→ Yes, the file is whole (Recommended)
+Issue #881 asks every source file to state the language version it is written in. No file states one today. What should a file with no annotation be read as?
+→ The last version before annotations (Recommended)
+```
+
+## 2026-11-22 00:12:11 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Issue #870: a call to a name that is no built-in, or with the wrong count of arguments, is refused where it stands alone. Inside a trial it is silent: `filter($.xs, length(3))`, with the retired name for `len`, answers `[]` with exit 0 in both engines. What should an unknown call be inside a trial, or under `maybe`?
+→ Refused wherever it stands (Recommended)
+Issue #847: a `filter` condition and a `match` pattern read a member as it is written. With `t: &: { surface: *"sdk" | string }` and `t: { go: {}, ts: {} }`, `filter($.t, { surface: "sdk" })` answers `{}` in both engines, with no finding, though both members generate `surface: "sdk"`. What should a trial read where a member's field holds only a default?
+→ The value it generates (Recommended)
+Issue #849: no rule can fall back when a member's optional field is absent. `match(.title, …)` is `no_path`, `maybe(.title)` passes the absence on, and `*maybe(.title) | key()` doesn't generate. Which spelling should give a fallback?
+→ maybe(v, fallback) (Recommended)
+Issue #848: `esc` and `usc` have no convention for Markdown, so text bound for a generated table or paragraph has no single call that makes it safe. Which conventions should they gain?
+→ With mdcode too
+```
+
+## 2026-11-22 01:08:47 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Issue #892, the definition's open decision 74. A conflict below the top of a trial argument that is read against a value: `v: nof(1, {b?: 1 & 2}, {x: 1})` with the data `{"x": 1}`. Both engines answer `valid`, and the definition answers `invalid`. Which reading stands?
+→ The whole argument admits nothing (Recommended)
+Issue #895, the definition's open decision 76. A path in `must`'s condition into the value under trial: `v: must({x: upper($.v.name)}, "m")`. Both engines leave the path unread and pass the check, so the data `{"x": "B", "name": "a"}` is valid. The definition reads an error in the schema. Which reading stands?
+→ As the data settles it (Recommended)
+Issues #472, #475 and #810 are one question: a key that holds a dot has no spelling in an address. `path($.a."x.y")` captures `$.a.x.y`, which names another place, a link under such a key gets another node's address, and a quoted step `"."` climbs to the parent. Kubernetes keys such as `app.kubernetes.io/name` hold dots. What should an address do with such a key?
+→ A quoted segment (Recommended)
+Issue #349: `*` before a parenthesised map or list literal. Alone, `v: *([2])` is refused as `pref_implicit_bag`. Inside a disjunction the `*` is dropped in silence: `(1) | *([2])` answers `1`, where `(1) | *[2]` answers `[2]`. Both engines agree. How should `*(` before a literal container read?
+→ A preference (Recommended)
+```
+
+## 2026-11-22 01:10:28 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Issue #751: a generator or fold inside a member, whose data is the bag that holds that member, is refused as "not a bag". With `t: { &: { n: integer, tot: sum(pick($.t, n)) } }`, each `tot` reads only the members' `n`, which no `tot` feeds, yet both engines answer `aggregate_data`. What should such a document be?
+→ Read where no cycle is read (Recommended)
+Issue #889: a source or included file whose bytes are not valid UTF-8. Today both engines replace the bad bytes with U+FFFD and carry on, and they count differently, so one file gets different text and a different hash in each. ADR-003 has aontu define the meaning and not take the host's. What should such a file be?
+→ Refused (Recommended)
+Issue #779: a relation whose template names a subtype is held two ways. Canon prints `rel($.t.D)` in the subtype and the same template unfolded one level, `rel({… rel($.t.D)})`, in the type and each copy of it. So `subsume` can't say that the type admits its own subtype, and answers `undecided`. Which closes it?
+→ One form wherever copied (Recommended)
+Issue #517: a set of names written without commas, `{ %a %b }`. In value position both engines read it as `{ %a, %b }`, as the reference says. But `export({ %a %b })` publishes nothing, in silence, and as a destructure head it is refused as `no_path`. How should the spaced form read in those two places?
+→ As the comma form (Recommended)
+```
+
+## 2026-11-22 01:50:07 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Eight small open questions have an answer under the repository's standing rules, and I'd take them as decided so. TypeScript's reading where the engines differ and nothing rules: #313's headline word (`resolve`), #328's fold order, #332 and #333's paths, #518's parse of a destructure in a list, #786's `key(n)` in a `replace` value. The definition's reading where it has one: #540's marked `nil` (ruling 18) and #894's `nil` in `must` (ruling 54). And one more, from the API reference: a value from an included file is sited in its own file, which answers #331, #845, #887, #876, #841, #734, #755, #658 and #320. Apply the standing rules to all of these?
+→ Apply the standing rules (Recommended)
+A follow-up that two of your rulings raise. You ruled that a new type's kind is its bare word, so in a file of the new version `uri`, `date`, `email` and `hex` are kinds, not strings. But those words are also written bare as names today: `esc(s, uri)` names a convention, and `format` takes a format's name. How do such names keep working?
+→ Quote the name
+```

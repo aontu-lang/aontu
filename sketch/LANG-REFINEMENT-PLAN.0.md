@@ -1,25 +1,32 @@
 # The lang refinement plan
 
-**Status:** Ruled, 2026-11-21. Part 1's thirteen questions were put to
-the maintainer that day, and each has its ruling beside it and in
+**Status:** Ruled, 2026-11-22. Part 1's thirteen questions were put to
+the maintainer on 2026-11-21, and each has its ruling beside it and in
 [The rulings](#the-rulings): all five built-ins are adopted. Parts 2
-to 7 were added the same day and ruled the same day: questions 14 to
+to 7 were added that day and ruled that day: questions 14 to
 29 have their rulings beside them and in
 [The rulings on parts 2 to 7](#the-rulings-on-parts-2-to-7). Part 5,
-OpenAPI, is deferred. Nothing is scheduled. An adopted built-in
-becomes a phase of a gap document under `sketch/capability-review/`
-and a row of the register, under the same-commit rule
+OpenAPI, is deferred. Parts 8 to 11 take in the open issues, and
+their questions, 30 to 51, were ruled on 2026-11-21 and 2026-11-22:
+[The rulings on parts 8 to 11](#the-rulings-on-parts-8-to-11). Nothing
+is scheduled. An adopted built-in becomes a phase of a gap document
+under `sketch/capability-review/` and a row of the register, under
+the same-commit rule
 ([capability-review.md](../docs/contributing/capability-review.md)).
+The rulings here are numbered within this plan. A decision of the
+definition has its own number, in section 7 of
+[DEFINITION.0.md](DEFINITION.0.md), and is cited as one.
 **Basis:** [CUE-COMPARISON.0.md](CUE-COMPARISON.0.md), which compares
 aontu with CUE v0.17.1 and v0.18.0-rc.4, and its section
 [What comprehensions do that the built-ins do not](CUE-COMPARISON.0.md#what-comprehensions-do-that-the-built-ins-do-not).
 **Formerly:** `CUE-COMPARISON-PLAN.0.md`, "A plan from the CUE
 comparison". The maintainer renamed it on 2026-11-21.
-**Scope:** Seven parts, listed under [The parts](#the-parts). Part 1 is
-what gives aontu the functionality that comprehensions give CUE. Parts
-2 to 7 take six more of the comparison's findings. Input and output
-have a note and rulings of their own,
-[IO-FORMATS.0.md](IO-FORMATS.0.md). The rest is listed under
+**Scope:** Eleven parts, listed under [The parts](#the-parts). Part 1
+is what gives aontu the functionality that comprehensions give CUE.
+Parts 2 to 7 take six more of the comparison's findings. Parts 8 to 10
+answer three issues that ask for something new, and part 11 places
+every open issue. Input and output have a note and rulings of their
+own, [IO-FORMATS.0.md](IO-FORMATS.0.md). The rest is listed under
 [What stays outside](#what-stays-outside).
 
 Every example below was run. The CUE code ran through `cue` v0.17.1 and
@@ -47,6 +54,10 @@ say beside each proposed line what it does today.
 | 5 | [OpenAPI](#part-5-openapi) | OA1 to OA6, deferred | 20, 21, ruled |
 | 6 | [Host values on the command line](#part-6-host-values-on-the-command-line) | HV1 to HV4 | 22 to 24 and 29, ruled |
 | 7 | [Binary types: bytes, sized numbers and multipliers](#part-7-binary-types-bytes-sized-numbers-and-multipliers) | BT1 to BT5 | 25 to 28, ruled |
+| 8 | [Root path references](#part-8-root-path-references), issue #884 | RP1 to RP5 | 34 to 36, ruled |
+| 9 | [Language versions](#part-9-language-versions), issue #881 | LV1 to LV5 | 37, ruled |
+| 10 | [More scalar types](#part-10-more-scalar-types), issue #886 | ST1 to ST7 | 30 to 33 and 51, ruled |
+| 11 | [The open issues](#part-11-the-open-issues), all 136 of them | IS1 to IS3 | 38 to 50, ruled |
 
 One task came before the rest of parts 2 to 7. **P0** put their
 questions to the maintainer and recorded each ruling beside its
@@ -75,7 +86,7 @@ which raised it, and follows the recommendation.
 | 22 | The options for host values | `--var` reads aontu source, `--var-text` reads text, and `--vars` reads a file |
 | 23 | A `--var` that no document reads | refused, as a usage error |
 | 24 | Pinning under bindings | `hash` and `breaking` take the options, and `publish` and the package verbs refuse them |
-| 25 | Bytes | text in a named encoding, and no kind |
+| 25 | Bytes | text in a named encoding, and no kind. Changed by ruling 30: bytes are a type |
 | 26 | Where the encodings are spelled | two built-ins, `encode(s, name)` and `decode(t, name)` |
 | 27 | Sized numbers | a bundled model, `@"aontu:num"` |
 | 28 | Multipliers | not adopted |
@@ -86,6 +97,43 @@ Two rulings touch a decision that
 points at each. Ruling 18 takes up N3, which G1 holds as deferred, and
 that record changes when KP1 lands. Ruling 27 keeps G1's decision on
 sized kinds, since a bundled model adds no keyword.
+
+### The rulings on parts 8 to 11
+
+Ruled by the maintainer in six rounds, 30 to 33 on 2026-11-21 and 34
+to 51 on 2026-11-22. Seventeen follow the recommendation. Four do
+not: 32, 34, 41 and 51. On 31 all three groups offered were taken,
+where two were recommended.
+
+| | Question | Ruling |
+|---|---|---|
+| 30 | Bytes, under issue #886 | a type made by a call, which changes ruling 25 |
+| 31 | Which scalar types first | dates and times, `semver`, and five identifiers, with bytes |
+| 32 | A new type's kind | the bare word, as `path` is, from a file's version on |
+| 33 | A string from data | strict, as `path` is: no string becomes one |
+| 34 | How `$` changes in existing files | in every file at once, with a lint |
+| 35 | A captured path in an included file | it generates the global address |
+| 36 | A file's names when it is included under a key | the file is whole |
+| 37 | A file with no version annotation | read as the last version before annotations |
+| 38 | An unknown call inside a trial | refused wherever it stands |
+| 39 | A default inside a map, read by a trial | the value the member generates |
+| 40 | A fallback for an absent field | `maybe(v, fallback)` |
+| 41 | Markdown conventions for `esc` and `usc` | `md`, `mdcell` and `mdcode` |
+| 42 | The definition's decision 74 | the whole argument admits nothing, and the definition moves |
+| 43 | The definition's decision 76 | the path reads the field as the data settles it |
+| 44 | A key that holds a dot, in an address | a quoted segment |
+| 45 | `*(` before a literal map or list | a preference |
+| 46 | A generator over the bag that holds it | it reads the bag where no cycle is read |
+| 47 | A file that is not valid UTF-8 | refused |
+| 48 | A relation's template in a copy | one form wherever it is copied |
+| 49 | A set of names written without commas | read as the comma form |
+| 50 | Eight small questions, and the site of an included value | the repository's standing rules |
+| 51 | A bare word that is both a name and a kind | the name is quoted in a file of the new version |
+
+Ruling 30 changes ruling 25 of this plan. Rulings 42 and 43 are in
+the definition's own record already, as its decisions 74 and 76,
+entered there on 2026-11-22. Rulings 38, 39 and 44 to 49 are rules of
+the language too, and IS2 of part 11 enters each of them there.
 
 ## What is missing
 
@@ -635,7 +683,8 @@ Each fix lands with the shared row that pins it. They matter more once
 C1 and C5 make conditions inside generated members common. #870 bears
 on every built-in here: until it is fixed, a name that becomes a
 built-in changes the answer of any document that holds it in a trial
-today, with no finding before or after. #871 sits where C1 and C3 put
+today, with no finding before or after. Ruling 38 says how it is
+fixed: an unknown call is refused wherever it stands. #871 sits where C1 and C3 put
 an optional lookup, a `maybe` as a later argument of a call.
 
 ## C7: pin today's routes
@@ -1407,6 +1456,12 @@ string holds characters, so binary data stays in its encoded form from
 the file to the output. The proposal was first written over `esc` and
 `usc`, and ruling 26 gave the encodings built-ins of their own.
 
+Ruling 30 then changed ruling 25: bytes are a type, made by a call,
+which is ST5 of [part 10](#part-10-more-scalar-types). `encode` and
+`decode` stay as conversions of text. The formats of BT2 stay for
+data, which spells bytes as a string, and the include of BT3 yields a
+value of the type.
+
 ### Sized numbers
 
 ```cue
@@ -1450,7 +1505,7 @@ reaches the manifest as text.
 |---|---|---|---|---|
 | BT1 | `encode(s, name)` and `decode(t, name)`, for `base64`, `base64url` and `hex`, over a string's UTF-8 bytes | built-in | nothing | M |
 | BT2 | The same three as names `format()` reads, each a grammar of RFC 4648 under `grammar/format/`, so `format(base64)` admits the text | constraint | nothing | S |
-| BT3 | An include reads a file's bytes as base64 text, for the extensions an option names, as `--text-ext` names text | include | BT1 | M |
+| BT3 | An include reads a file's bytes, for the extensions an option names, as `--text-ext` names text. It yields a `bytes` value, by ruling 30 | include | BT1, ST5 | M |
 | BT4 | The sized numbers as a bundled model, `@"aontu:num"`: the integer names CUE predeclares, and `Float32`, each a `type()` | model | nothing | S |
 | BT5 | A how-to on carrying binary data, and a pointer to the bundled names from `name-a-reusable-constraint.md` | docs | BT1, BT4 | S |
 
@@ -1469,7 +1524,9 @@ and BT3 adds a row to ADR-012's table of extensions.
     encoding. JSON has no bytes, CUE's own output is base64 text, and
     JSON Schema says it with `contentEncoding`. A kind would have been
     a new scalar in the lattice, canon, the four grammars, the
-    definition and both ports.
+    definition and both ports. Changed 2026-11-21 by ruling 30: the
+    kind offered here had a literal form, and a type made by a call,
+    as issue #886 asks, was taken in its place.
 26. **Where the encodings are spelled.** Ruled 2026-11-21: a pair of
     built-ins, `encode(s, name)` and `decode(t, name)`, which reads
     better for base64 and adds two names. The recommendation was the
@@ -1484,18 +1541,506 @@ and BT3 adds a row to ADR-012's table of extensions.
     constants in a bundled model, as `mul(4, $.aontu.Num.Gi)`, or read
     `1Ki` as a number, as CUE does.
 
+## Part 8: root path references
+
+[#884](https://github.com/aontu-lang/aontu/issues/884) asks that `$`
+mean the root of the source file it is written in, so that a file's
+own references stay valid wherever it is included, and that `$$` mean
+the global root.
+
+### What `$` means today
+
+Both engines agree on each of these. With `a: 1`, `b: $.a` and
+`c: .a` in `part.aontu`:
+
+| The including document | Answer |
+|---|---|
+| `@"./part.aontu"`, at the top | `b` is `1` |
+| `v: @"./part.aontu"` | refused, `no_path` at `$.v.b`: the entry document has no `a` |
+| `a: 9` and `v: @"./part.aontu"` | `v.b` is `9`, the entry document's `a` |
+
+The relative path `.a` reads the file's own `a` wherever the file
+lands: in the third document `v.c` is `1`. So a file that is included
+under a key can reach its own members by relative paths only, and its
+`$` paths reach the entry document.
+
+Three more facts bear on the change:
+
+- `$$.a` already evaluates today, as `$.a` does, so the new spelling
+  is valid text already and keeps its meaning.
+- A captured path keeps its spelling. `q: relate() & path($.a)`,
+  written in a file that is included under `v`, is refused as
+  `rel_unresolved`: the node is at `$.v.a`.
+- The bundled models write `$.aontu.System.Port` and the like. Under
+  #884 each could be included under a key.
+
+### What changes
+
+- **`$` is the file's root.** In an included file a `$` path is read
+  at the point of insertion: at the key it lands under, and at each
+  member where the include stands in a spread's template. In the entry
+  document `$` and `$$` are one.
+- **`$$` is the global root**, the root of the entry document.
+- **A file is whole where it lands** (ruling 36). Its declarations and
+  destructure heads are read in the file, so the document of
+  [#842](https://github.com/aontu-lang/aontu/issues/842) evaluates.
+- **An address in the output is global** (ruling 35). A captured path
+  or a relation's address written in an included file generates the
+  address of its node in the output.
+- **Every file changes at once** (ruling 34). There is no old reading
+  to select: the changelog names the change, and a lint names each `$`
+  path in a file that the run includes under a key.
+
+A `$` in an included file is then read at each use, as a relative path
+in a template is. That is the reading the issue plan's workstream on
+copies, bodies and templates builds, so this part stands on it:
+[Part 11](#part-11-the-open-issues) lists its issues.
+
+### The tasks of part 8
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| RP1 | `$` as the root of its source file and `$$` as the global root, in the definition, both engines and the reference | language | the copies workstream of the issue plan | L |
+| RP2 | A file is whole where it lands: its declarations and destructure heads are read in the file. Closes #842 | language | RP1 | M |
+| RP3 | A captured path or a relation's address from an included file generates the global address | language | RP1 | M |
+| RP4 | The lint that names each `$` path in a file included under a key, the changelog entry, and the bundled models and use cases moved to the new reading | tool | RP1 | S |
+| RP5 | The reference's section on paths, and the row of the guide for CUE users | docs | RP1 | S |
+
+RP1 lands before part 9 fixes its baseline, so the baseline already
+reads `$` as the file's root and ruling 34 breaks no file twice.
+
+### Questions for the ruling on part 8
+
+34. **How existing files keep their meaning.** Ruled 2026-11-22: they
+    don't; `$` is the file's root in every file from the release that
+    brings it, with a changelog entry and a lint. The recommendation
+    was the other choice, to bring the new reading by the file's
+    version, with an older file keeping `$` as the global root.
+35. **What a captured path generates from an included file.** Ruled
+    2026-11-22: the global address, so that every address in the
+    output names its node there. The other choice kept the spelling in
+    the file.
+36. **A file's names when it is included under a key.** Ruled
+    2026-11-22: the file is whole, and its declarations and destructure
+    heads are read in it. The other choice refused such a file with
+    one code in both ports.
+
+## Part 9: language versions
+
+[#881](https://github.com/aontu-lang/aontu/issues/881) asks that each
+source file state the version of the language it is written in, so
+that the language can change and every file keep its meaning. The
+comparison lists the same thing in CUE, a language version for each
+module and a command that migrates.
+
+### What there is today
+
+- **No file states a version.** `%aontu = { version: "0.76" }`, the
+  spelling the issue suggests, parses and evaluates in both engines
+  today, as a declaration that nothing uses. So today's engines read
+  an annotated file.
+- **A change of meaning is a changelog entry.** `refer()` became
+  `relate()`, the function `form` became `each`, and `length` became
+  `len`; a document that holds an old name is refused, or inside a
+  trial is silent
+  ([#870](https://github.com/aontu-lang/aontu/issues/870)).
+- **A model can deprecate its own values**, with `deprecate()`. The
+  language has nothing of the kind for its own forms.
+
+### What changes
+
+- **A file states its version** as `%aontu = { version: "…" }`, the
+  version of the release whose language it is written in.
+- **A file with none is read as the baseline** (ruling 37): the
+  language as it stands in the last release before annotations. Every
+  existing file keeps its meaning with no edit.
+- **A change of meaning comes with its translation.** From the
+  baseline on, a form that changes meaning is entered in a table, as a
+  rule from the old form to the new. The engine applies the table in
+  memory when it reads an older file, so the file answers as it did
+  when it was written, and canon and the hash are taken after it.
+- **A command rewrites a file** into the current forms and states the
+  new version.
+- **A file newer than the engine is refused**, with a code that names
+  both versions.
+- **A new built-in needs no version.** Ruling 38 refuses an unknown
+  call wherever it stands, so a name that becomes a built-in can't
+  change what a valid document answers.
+
+What rides on a version first: the kinds of part 10, whose bare words
+are strings in an older file (ruling 32), and the names that those
+kinds take (ruling 51). The change of
+[#777](https://github.com/aontu-lang/aontu/issues/777) to what
+`relate(t)` means, and the rename of
+[#825](https://github.com/aontu-lang/aontu/issues/825), either land
+before the baseline or enter the table.
+
+### The tasks of part 9
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| LV1 | The annotation, read in both engines: a file with none is the baseline, and a file newer than the engine is refused | language | RP1 | M |
+| LV2 | The table of translations and its reading: an older file is read through it, and canon and the hash are taken after it. Its meaning in the definition | language | LV1 | L |
+| LV3 | The command that rewrites a file into the current forms and states the new version, with a check for CI | CLI | LV2 | S |
+| LV4 | The rule for a change: a change of meaning lands with its entry in the table, its shared rows for the old and the new reading, and its line in the changelog | process | LV2 | S |
+| LV5 | The reference's section on versions, a how-to on upgrading a file, and the row of the guide for CUE users | docs | LV3 | S |
+
+LV3's command and its options come under the review of every argument
+that [#340](https://github.com/aontu-lang/aontu/issues/340) asks for.
+
+### Question for the ruling on part 9
+
+37. **A file with no annotation.** Ruled 2026-11-22: it is read as the
+    last version before annotations, for good. The others refused it,
+    as the issue first puts it, inferred its version from the oldest
+    retired form it holds, as the issue suggests, or read it as the
+    engine's own version, as CUE reads a file outside a module.
+
+## Part 10: more scalar types
+
+[#886](https://github.com/aontu-lang/aontu/issues/886) asks for more
+scalar types, such as dates and bytes, with no new syntax, by the
+convention of `path()`.
+
+### The convention of `path()`
+
+`path($.a.b)` is a value of its own kind. Both engines hold all of
+this today:
+
+- **The call is the literal.** `path($.a.b)` makes the value, and
+  canon prints the call.
+- **The kind has a name.** `path` and `path()` are both the kind.
+- **It is no kind of string.** `path & "$.a"` is refused,
+  `no_scalar_unify`, and outside the call a string never becomes a
+  path.
+- **It generates as a string**, its address.
+
+`date("2026-11-21")`, `bytes("aGVsbG8=")` and `semver("1.2.3")` are
+`unknown_function` in both engines today. The bare words `date`,
+`bytes` and `semver` are strings, so `type: date` in a model means the
+string.
+
+A date is checked today as a string, and ordered as one:
+
+```aontu
+d: format("date") & min("2026-01-01") & "2026-11-21"
+```
+
+Both engines answer `"2026-11-21"`. The order is the order of
+strings, which is right for one format of date and wrong for a
+version: `"1.10.0"` sorts before `"1.9.0"`.
+
+### What changes
+
+Eleven types, each made by a call and each its own kind:
+
+| Types | Read by | What the type adds to the string |
+|---|---|---|
+| `date`, `time`, `datetime`, `duration` | the RFC 3339 grammars under `grammar/format/` | equality and order by value, so two spellings of one instant are equal |
+| `semver` | the grammar of semver.org | order by precedence |
+| `uuid`, `uri`, `ipv4`, `ipv6`, `email` | the grammars of the formats of those names | a kind of its own, and one spelling for each value |
+| `bytes` | RFC 4648 | length in bytes, and equality across encodings |
+
+- **The bare word is the kind** (ruling 32): `born: date`, as `host:
+  path`. A bare `date` is a string today, so the kind applies in a
+  file whose version is at or past the release that brings it, and in
+  an older file the word stays a string. This part waits on part 9.
+- **No string becomes one** (ruling 33). `date & "2026-11-21"` is
+  refused, as `path & "$.a"` is. Data spells a date as a string, and
+  is checked as today with `format("date")`, which reads the same
+  grammar.
+- **A name is quoted** (ruling 51). `uri`, `date` and `email` are also
+  written bare as names today: `esc(s, uri)`, and a format by its
+  name. In a file of the new version the name is written in quotes,
+  `esc(s, "uri")`, a bare word that is a kind is refused there, and
+  LV3's command rewrites the bare names of an older file.
+- **Bytes are a type** (ruling 30), which changes ruling 25 of
+  part 7. `bytes("aGVsbG8=")` reads base64, and a second argument
+  names another encoding. `encode` and `decode` stay as conversions of
+  text, and the formats of BT2 stay for data, which spells bytes as a
+  string.
+
+### The tasks of part 10
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| ST1 | A scalar type by the convention of `path()`, in the definition and both engines: the call that makes the value from text a grammar reads, the bare word as the kind from its version on, no string becoming one, generation as the canonical text, and equality and order by value | language | LV1 | L |
+| ST2 | `date`, `time`, `datetime` and `duration` | types | ST1 | M |
+| ST3 | `semver` | type | ST1 | S |
+| ST4 | `uuid`, `uri`, `ipv4`, `ipv6` and `email` | types | ST1 | M |
+| ST5 | `bytes`, with `len` in bytes and equality across encodings. The include of BT3 yields one | type | ST1, BT1 | M |
+| ST6 | A name written in quotes in a file of the new version, and a bare word that is a kind refused as a name | language | ST1 | S |
+| ST7 | The reference's section on scalar types, a how-to on dates, and the rows of the guide for CUE users | docs | ST2 | S |
+
+Each type delivers what
+[a built-in task delivers](#what-a-built-in-task-delivers) for its
+call. Two issues sit on the convention these types follow, and land
+before ST1:
+[#474](https://github.com/aontu-lang/aontu/issues/474), how a path
+value meets a string constraint, and
+[#756](https://github.com/aontu-lang/aontu/issues/756), how one meets
+`join`.
+
+### Questions for the ruling on part 10
+
+30. **Bytes.** Ruled 2026-11-21: a type, as #886 asks, which changes
+    ruling 25. The kind offered under question 25 had a literal form,
+    which #886 rules out; this one is made by a call. The other choice
+    let ruling 25 stand and left bytes out of #886.
+31. **Which types first.** Ruled 2026-11-21: all three groups offered,
+    dates and times, `semver`, and the five identifiers, with bytes
+    by ruling 30. The recommendation was the first two.
+32. **The kind's spelling.** Ruled 2026-11-21: the bare word, as
+    `string` and `path` are, so the types wait on the versions of
+    part 9. The recommendation was the empty call, `date()`, which
+    `path()` already is and which takes no word from any document.
+33. **A string from data.** Ruled 2026-11-21: strict, as `path` is.
+    The other choice made each type a kind of string, as `integer` is
+    a kind of `number`, so that JSON data met a schema's `date`.
+
+One question followed from rulings 31 and 32:
+
+51. **A bare word that is both a name and a kind.** Ruled 2026-11-22:
+    the name is quoted in a file of the new version. The
+    recommendation was the other choice, a parameter that reads the
+    word as written, so that `esc(s, uri)` meant the same in every
+    version.
+
+## Part 11: the open issues
+
+Every open issue of the repository was read on 2026-11-21, with its
+comments, and set against this plan. There were 137. One,
+[#898](https://github.com/aontu-lang/aontu/issues/898), closed while
+they were read, so 136 are open.
+
+### Where the issues are
+
+- **108 are placed already**, each in one workstream of
+  [`admin/issue-plan.md`](../admin/issue-plan.md), with its kind, its
+  size and the rows of `spec/ledger.tsv` it clears. That plan stays the
+  record of the workstreams. This part says where each one meets parts 1
+  to 10.
+- **28 are placed here**: the issues filed since 2026-11-19, the three
+  that parts 8 to 10 answer among them. The issue plan points here for
+  them, and for the rulings below.
+
+By kind: 44 are places where both engines differ from the definition or
+from a ruling, 32 are a site, a frame or a message, 18 are a difference
+between the two engines, 16 are a fault both engines share, 13 are
+tools, 8 ask for something new, 3 are gaps in the definition itself, and
+2 are documentation.
+
+### The workstreams of the issue plan
+
+| Workstream of the issue plan | Open issues | Where this plan meets them |
+|---|---|---|
+| Preferences and disjunction arms | [#348](https://github.com/aontu-lang/aontu/issues/348), [#349](https://github.com/aontu-lang/aontu/issues/349), [#431](https://github.com/aontu-lang/aontu/issues/431), [#482](https://github.com/aontu-lang/aontu/issues/482), [#700](https://github.com/aontu-lang/aontu/issues/700), [#702](https://github.com/aontu-lang/aontu/issues/702), [#704](https://github.com/aontu-lang/aontu/issues/704), [#719](https://github.com/aontu-lang/aontu/issues/719) | Ruling 45 answers [#349](https://github.com/aontu-lang/aontu/issues/349). The definition already reads [#857](https://github.com/aontu-lang/aontu/issues/857), by its decision 43. |
+| Seals, marks, moves and generation-time checks | [#343](https://github.com/aontu-lang/aontu/issues/343), [#346](https://github.com/aontu-lang/aontu/issues/346), [#486](https://github.com/aontu-lang/aontu/issues/486), [#540](https://github.com/aontu-lang/aontu/issues/540), [#633](https://github.com/aontu-lang/aontu/issues/633), [#668](https://github.com/aontu-lang/aontu/issues/668), [#726](https://github.com/aontu-lang/aontu/issues/726), [#748](https://github.com/aontu-lang/aontu/issues/748), [#749](https://github.com/aontu-lang/aontu/issues/749), [#770](https://github.com/aontu-lang/aontu/issues/770), [#817](https://github.com/aontu-lang/aontu/issues/817) | Ruling 50 answers [#540](https://github.com/aontu-lang/aontu/issues/540) by the definition's reading. [#346](https://github.com/aontu-lang/aontu/issues/346) and [#726](https://github.com/aontu-lang/aontu/issues/726) are the seal's own rules, which `keyed` leaves as they are (ruling 19). |
+| Where copies, bodies and templates read paths and key() | [#330](https://github.com/aontu-lang/aontu/issues/330), [#416](https://github.com/aontu-lang/aontu/issues/416), [#463](https://github.com/aontu-lang/aontu/issues/463), [#465](https://github.com/aontu-lang/aontu/issues/465), [#500](https://github.com/aontu-lang/aontu/issues/500), [#501](https://github.com/aontu-lang/aontu/issues/501), [#504](https://github.com/aontu-lang/aontu/issues/504), [#520](https://github.com/aontu-lang/aontu/issues/520), [#528](https://github.com/aontu-lang/aontu/issues/528), [#539](https://github.com/aontu-lang/aontu/issues/539), [#691](https://github.com/aontu-lang/aontu/issues/691), [#692](https://github.com/aontu-lang/aontu/issues/692), [#696](https://github.com/aontu-lang/aontu/issues/696), [#762](https://github.com/aontu-lang/aontu/issues/762), [#765](https://github.com/aontu-lang/aontu/issues/765) | `index(up?)` answers what `key(up?)` answers, so [#463](https://github.com/aontu-lang/aontu/issues/463), [#465](https://github.com/aontu-lang/aontu/issues/465), [#520](https://github.com/aontu-lang/aontu/issues/520), [#528](https://github.com/aontu-lang/aontu/issues/528) and [#539](https://github.com/aontu-lang/aontu/issues/539) land before C3 or with its rows. [#528](https://github.com/aontu-lang/aontu/issues/528) also sits under `keyed` in a named pattern. Part 8 reads `$` at each use by the rule this workstream builds. |
+| Relations | [#491](https://github.com/aontu-lang/aontu/issues/491), [#542](https://github.com/aontu-lang/aontu/issues/542), [#661](https://github.com/aontu-lang/aontu/issues/661), [#746](https://github.com/aontu-lang/aontu/issues/746), [#771](https://github.com/aontu-lang/aontu/issues/771), [#773](https://github.com/aontu-lang/aontu/issues/773), [#777](https://github.com/aontu-lang/aontu/issues/777), [#778](https://github.com/aontu-lang/aontu/issues/778), [#779](https://github.com/aontu-lang/aontu/issues/779), [#780](https://github.com/aontu-lang/aontu/issues/780), [#810](https://github.com/aontu-lang/aontu/issues/810), [#811](https://github.com/aontu-lang/aontu/issues/811), [#815](https://github.com/aontu-lang/aontu/issues/815), [#819](https://github.com/aontu-lang/aontu/issues/819), [#878](https://github.com/aontu-lang/aontu/issues/878) | Ruling 48 answers [#779](https://github.com/aontu-lang/aontu/issues/779) and ruling 44 answers [#810](https://github.com/aontu-lang/aontu/issues/810). [#777](https://github.com/aontu-lang/aontu/issues/777) changes what `relate(t)` means, so it lands before the baseline of part 9 or enters its table. |
+| Path steps and path values | [#472](https://github.com/aontu-lang/aontu/issues/472), [#474](https://github.com/aontu-lang/aontu/issues/474), [#475](https://github.com/aontu-lang/aontu/issues/475), [#479](https://github.com/aontu-lang/aontu/issues/479) | Ruling 44 answers [#472](https://github.com/aontu-lang/aontu/issues/472) and [#475](https://github.com/aontu-lang/aontu/issues/475). [#479](https://github.com/aontu-lang/aontu/issues/479) gives a miss of `at` under `maybe` its rule (ruling 2), and ruling 40 adds the fallback. [#474](https://github.com/aontu-lang/aontu/issues/474) lands before ST1. |
+| Generators, folds and trials | [#527](https://github.com/aontu-lang/aontu/issues/527), [#743](https://github.com/aontu-lang/aontu/issues/743), [#751](https://github.com/aontu-lang/aontu/issues/751), [#754](https://github.com/aontu-lang/aontu/issues/754), [#783](https://github.com/aontu-lang/aontu/issues/783), [#786](https://github.com/aontu-lang/aontu/issues/786), [#812](https://github.com/aontu-lang/aontu/issues/812), [#818](https://github.com/aontu-lang/aontu/issues/818), [#892](https://github.com/aontu-lang/aontu/issues/892), [#894](https://github.com/aontu-lang/aontu/issues/894), [#895](https://github.com/aontu-lang/aontu/issues/895) | C6 holds [#754](https://github.com/aontu-lang/aontu/issues/754). Rulings 42, 43 and 46 answer [#892](https://github.com/aontu-lang/aontu/issues/892), [#895](https://github.com/aontu-lang/aontu/issues/895) and [#751](https://github.com/aontu-lang/aontu/issues/751), and ruling 50 answers [#786](https://github.com/aontu-lang/aontu/issues/786) and [#894](https://github.com/aontu-lang/aontu/issues/894). [#783](https://github.com/aontu-lang/aontu/issues/783) and [#786](https://github.com/aontu-lang/aontu/issues/786) land before C3 and C5, which count levels as `key(up?)` does. |
+| Declarations, loads, includes and built-in models | [#517](https://github.com/aontu-lang/aontu/issues/517), [#518](https://github.com/aontu-lang/aontu/issues/518), [#616](https://github.com/aontu-lang/aontu/issues/616), [#658](https://github.com/aontu-lang/aontu/issues/658), [#731](https://github.com/aontu-lang/aontu/issues/731), [#734](https://github.com/aontu-lang/aontu/issues/734), [#738](https://github.com/aontu-lang/aontu/issues/738), [#805](https://github.com/aontu-lang/aontu/issues/805) | Ruling 49 answers [#517](https://github.com/aontu-lang/aontu/issues/517), and ruling 50 answers [#518](https://github.com/aontu-lang/aontu/issues/518) and the sites of [#658](https://github.com/aontu-lang/aontu/issues/658) and [#734](https://github.com/aontu-lang/aontu/issues/734). [#731](https://github.com/aontu-lang/aontu/issues/731) lands before the readers of ruling D: a `.csv` or `.jsonl` file has a list at its root. [#658](https://github.com/aontu-lang/aontu/issues/658) lands before the bundled model of BT4. |
+| subsume and breaking | [#321](https://github.com/aontu-lang/aontu/issues/321), [#387](https://github.com/aontu-lang/aontu/issues/387), [#424](https://github.com/aontu-lang/aontu/issues/424), [#735](https://github.com/aontu-lang/aontu/issues/735), [#774](https://github.com/aontu-lang/aontu/issues/774) | [#774](https://github.com/aontu-lang/aontu/issues/774) meets HV1: `breaking` under an unbound variable has to give a finding. |
+| Scalars and generated output | [#319](https://github.com/aontu-lang/aontu/issues/319), [#395](https://github.com/aontu-lang/aontu/issues/395), [#756](https://github.com/aontu-lang/aontu/issues/756), [#825](https://github.com/aontu-lang/aontu/issues/825) | [#825](https://github.com/aontu-lang/aontu/issues/825)'s rename lands before the baseline of part 9, or as the first entry of its table. [#756](https://github.com/aontu-lang/aontu/issues/756) lands before ST1. |
+| Parser limits | [#325](https://github.com/aontu-lang/aontu/issues/325), [#326](https://github.com/aontu-lang/aontu/issues/326) | The pins of ruling A fix [#325](https://github.com/aontu-lang/aontu/issues/325) and not [#326](https://github.com/aontu-lang/aontu/issues/326): see [What the pins do to the parser issues](#what-the-pins-do-to-the-parser-issues). |
+| Diagnostics: sites, messages and frames | [#313](https://github.com/aontu-lang/aontu/issues/313), [#324](https://github.com/aontu-lang/aontu/issues/324), [#327](https://github.com/aontu-lang/aontu/issues/327), [#328](https://github.com/aontu-lang/aontu/issues/328), [#331](https://github.com/aontu-lang/aontu/issues/331), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#391](https://github.com/aontu-lang/aontu/issues/391), [#457](https://github.com/aontu-lang/aontu/issues/457), [#685](https://github.com/aontu-lang/aontu/issues/685), [#755](https://github.com/aontu-lang/aontu/issues/755), [#772](https://github.com/aontu-lang/aontu/issues/772), [#775](https://github.com/aontu-lang/aontu/issues/775) | Ruling 50 answers [#313](https://github.com/aontu-lang/aontu/issues/313), [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333) and [#331](https://github.com/aontu-lang/aontu/issues/331), and the sites of [#755](https://github.com/aontu-lang/aontu/issues/755). [#313](https://github.com/aontu-lang/aontu/issues/313) lands before C4, since `range` becomes the name of a built-in. |
+| Tooling: coverage, LSP, CLI, playground, docs | [#318](https://github.com/aontu-lang/aontu/issues/318), [#320](https://github.com/aontu-lang/aontu/issues/320), [#322](https://github.com/aontu-lang/aontu/issues/322), [#340](https://github.com/aontu-lang/aontu/issues/340), [#732](https://github.com/aontu-lang/aontu/issues/732), [#733](https://github.com/aontu-lang/aontu/issues/733), [#747](https://github.com/aontu-lang/aontu/issues/747), [#789](https://github.com/aontu-lang/aontu/issues/789), [#814](https://github.com/aontu-lang/aontu/issues/814) | Part 3 takes [#320](https://github.com/aontu-lang/aontu/issues/320) with LS1, and LS4 formats as `fmt` does, so [#747](https://github.com/aontu-lang/aontu/issues/747) lands before it. The review of [#340](https://github.com/aontu-lang/aontu/issues/340) takes in the options of HV1, of LV3 and of the output flag, so that each is named once and means one thing on every verb. |
+| The definition | [#403](https://github.com/aontu-lang/aontu/issues/403), [#432](https://github.com/aontu-lang/aontu/issues/432), [#829](https://github.com/aontu-lang/aontu/issues/829) | Nothing in this plan bears on these. |
+
+### The issues the issue plan doesn't place
+
+| Issue | What it is | Workstream | Resolved by |
+|---|---|---|---|
+| [#840](https://github.com/aontu-lang/aontu/issues/840) | vet names a conflict with a taken name's body in TypeScript and with the literal beside it in Go | Diagnostics | TypeScript |
+| [#841](https://github.com/aontu-lang/aontu/issues/841) | an `export_arg` refusal in an included file is framed in a different file by each port | Declarations, loads, includes | the site rule of ruling 50 |
+| [#842](https://github.com/aontu-lang/aontu/issues/842) | a file that holds a destructure head, included under a key, is refused, differently by each port | Declarations, loads, includes | ruling 36, as RP2 of part 8 |
+| [#845](https://github.com/aontu-lang/aontu/issues/845) | a value loaded under a key is framed at the `@` in TypeScript and in its own file in Go | Declarations, loads, includes | the site rule of ruling 50 |
+| [#846](https://github.com/aontu-lang/aontu/issues/846) | a parse error after a source's last newline draws its caret a line lower in Go | Diagnostics | TypeScript |
+| [#847](https://github.com/aontu-lang/aontu/issues/847) | `filter` and `match` miss a default inside a map | Generators, folds and trials | ruling 39 |
+| [#848](https://github.com/aontu-lang/aontu/issues/848) | `esc` and `usc` have no convention for Markdown | Scalars and generated output | ruling 41 |
+| [#849](https://github.com/aontu-lang/aontu/issues/849) | no rule can fall back when a member's field is absent | Scalars and generated output | ruling 40, with [#465](https://github.com/aontu-lang/aontu/issues/465) |
+| [#850](https://github.com/aontu-lang/aontu/issues/850) | a `match` whose result is a relative reference overflows the TypeScript stack | Generators, folds and trials | C6 of part 1 |
+| [#852](https://github.com/aontu-lang/aontu/issues/852) | an unbound variable step in a path is refused nine times in TypeScript and once in Go | Diagnostics | TypeScript reports once, as Go does |
+| [#853](https://github.com/aontu-lang/aontu/issues/853) | a chain of 5,000 paths overflows the TypeScript unifier and is reported as `internal` | Parser limits | with [#325](https://github.com/aontu-lang/aontu/issues/325) |
+| [#857](https://github.com/aontu-lang/aontu/issues/857) | a flattened meet clashes two narrowed defaults before their bounds apply | Preferences and disjunction arms | the definition's reading, decision 43 |
+| [#858](https://github.com/aontu-lang/aontu/issues/858) | both language servers report a conflict once for each path that copies it | Tooling | LS1 of part 3 |
+| [#859](https://github.com/aontu-lang/aontu/issues/859) | hover labels a recursive position differently in each server | Tooling | LS2 of part 3 |
+| [#860](https://github.com/aontu-lang/aontu/issues/860) | `trim --check` examines nothing below a key stated twice, an explicit `&` or a call | Tooling | its own fix, then LS8 of part 3 |
+| [#861](https://github.com/aontu-lang/aontu/issues/861) | no direct keyed projection of one field of each member | Generators, folds and trials | C1 and C2 of part 1 |
+| [#862](https://github.com/aontu-lang/aontu/issues/862) | the command line can't bind `$name` | Tooling | HV1 of part 6 |
+| [#866](https://github.com/aontu-lang/aontu/issues/866) | a `deprecated` finding on a preference is sited a column apart in the two ports | Diagnostics | TypeScript |
+| [#868](https://github.com/aontu-lang/aontu/issues/868) | a `match` whose pattern is a relative reference overflows the TypeScript stack | Generators, folds and trials | C6 of part 1 |
+| [#869](https://github.com/aontu-lang/aontu/issues/869) | two pages count 68 built-ins where 72 are declared | Tooling | a test that holds the count to the signature table |
+| [#870](https://github.com/aontu-lang/aontu/issues/870) | a call refused at parse is silent inside a trial | Generators, folds and trials | ruling 38, as C6 of part 1 |
+| [#871](https://github.com/aontu-lang/aontu/issues/871) | `maybe()` as a later argument of a call never resolves in TypeScript | Generators, folds and trials | C6 of part 1 |
+| [#876](https://github.com/aontu-lang/aontu/issues/876) | a syntax error inside an included data file is reported in the including file | Declarations, loads, includes | the site rule of ruling 50 |
+| [#881](https://github.com/aontu-lang/aontu/issues/881) | a language version stated in each source file | this plan | part 9 |
+| [#884](https://github.com/aontu-lang/aontu/issues/884) | `$` as the root of the current source file, and `$$` as the global root | this plan | part 8 |
+| [#886](https://github.com/aontu-lang/aontu/issues/886) | more scalar types, by the convention of `path()` | this plan | part 10 |
+| [#887](https://github.com/aontu-lang/aontu/issues/887) | a `vet` site for a value from an included data file names a different file in each port | Declarations, loads, includes | the site rule of ruling 50 |
+| [#889](https://github.com/aontu-lang/aontu/issues/889) | adjacent invalid UTF-8 sequences are replaced differently by the two ports | Declarations, loads, includes | ruling 47 |
+
+Three of these close with a task of an earlier part and need no fix of
+their own: [#861](https://github.com/aontu-lang/aontu/issues/861) with
+C1 and C2, [#862](https://github.com/aontu-lang/aontu/issues/862) with
+HV1, and [#869](https://github.com/aontu-lang/aontu/issues/869) with the
+test that holds the count, which every built-in of this plan would
+otherwise make stale again.
+
+### What the pins do to the parser issues
+
+The issue plan asks that the two parser issues be tried against the
+newer `@tabnas/expr` before its pin moves. Ruling A of
+[IO-FORMATS.0.md](IO-FORMATS.0.md#the-rulings) raises every pin. Both
+issues were run on a scratch copy of `main` with all sixteen pins
+raised, `@tabnas/expr` from 0.5.10 to 0.6.4:
+
+| Issue | At the pins | With the pins raised |
+|---|---|---|
+| [#325](https://github.com/aontu-lang/aontu/issues/325), a chain of 1,950 members | TypeScript overflows its stack | `disjunct_no_gen`, as Go answers |
+| the same, 2,000 members | TypeScript overflows | `max_depth`, as Go answers |
+| the same, a dotted path of 5,000 steps | TypeScript overflows | `no_path`, as Go answers |
+| [#326](https://github.com/aontu-lang/aontu/issues/326), `neq(-1, -2, -3)` | TypeScript overflows, at once | TypeScript runs out of memory after about fifty seconds; Go answers as before |
+
+So the pins close #325, and they make #326 worse: a refusal that came at
+once becomes a process that takes the machine's memory. The Go engine at
+the raised pins answers `neq(-3,-2,-1)`. The fault is in the TypeScript
+`@tabnas/expr` at 0.6.4.
+
+### The tasks of part 11
+
+Most of this part is the issues themselves, each fixed in its workstream
+by the ruling beside it. Three tasks belong to no issue:
+
+| ID | Task | Kind | Waits on | Size |
+|---|---|---|---|---|
+| IS1 | Give each of the 28 issues above its row in a workstream of `admin/issue-plan.md`, with its kind, its size and its ledger rows, and bring that plan's counts and its statement on the parser issues up to date. Until then a section of that plan points here | docs | nothing | S |
+| IS2 | Enter rulings 38, 39 and 44 to 49 in section 7 of [`sketch/DEFINITION.0.md`](DEFINITION.0.md) as decisions of the definition, each with the rows that hold it. Rulings 42 and 43 are there already, as its decisions 74 and 76, and the `nil` of #894 as its decision 75 | definition | nothing | M |
+| IS3 | Before the pins rise: a release of `@tabnas/expr` that reads `neq(-1, -2, -3)`, or a guard in the TypeScript engine that refuses the input, with the shared row #326 asks for | fix | nothing | S |
+
+IS3 comes before the task that raises the pins. IS2 is how a ruling made
+here reaches the workstream that builds it: the rulings of this plan are
+numbered here, and a decision of the definition has its own number
+there.
+
+### Questions for the ruling on part 11
+
+Each was raised by an issue, and each ruling unblocks the issues named.
+
+38. **An unknown call inside a trial**,
+    [#870](https://github.com/aontu-lang/aontu/issues/870). Ruled
+    2026-11-22: refused wherever it stands, since it is decided when the
+    document is read, as an unbound `_` is. `maybe` forgives a missing
+    referent and never an unknown function. The other choice read it as
+    a call that can't be made, which admits nothing in silence.
+39. **A default inside a map, read by a trial**,
+    [#847](https://github.com/aontu-lang/aontu/issues/847). Ruled
+    2026-11-22: the trial reads the value the member generates, as it
+    already does for a default at the top of a scrutinee. The others
+    answered `incomplete`, or kept today's reading, the member as
+    written.
+40. **A fallback for an absent field**,
+    [#849](https://github.com/aontu-lang/aontu/issues/849). Ruled
+    2026-11-22: `maybe(v, fallback)`, a second argument that `maybe`
+    answers where `v` is absent. The others were a new built-in,
+    `first(a, b, …)`, or both.
+41. **Markdown conventions for `esc` and `usc`**,
+    [#848](https://github.com/aontu-lang/aontu/issues/848). Ruled
+    2026-11-22: `md`, `mdcell` and `mdcode`. The recommendation was the
+    first two, and the other choice none.
+42. **A conflict below the top of an argument read against a value**,
+    [#892](https://github.com/aontu-lang/aontu/issues/892), the
+    definition's decision 74. Ruled 2026-11-22: the whole argument
+    admits nothing, as both engines answer, and the definition moves.
+    The other reading left the conflict where it is written. The
+    definition records this under that number.
+43. **A path in `must`'s condition into the value under trial**,
+    [#895](https://github.com/aontu-lang/aontu/issues/895), the
+    definition's decision 76. Ruled 2026-11-22: the path reads the field
+    as the data settles it, as the definition's decision 63 rules for
+    `match`. The other reading made it an error in the schema. The
+    definition records this under that number.
+44. **A key that holds a dot, in an address**,
+    [#472](https://github.com/aontu-lang/aontu/issues/472),
+    [#475](https://github.com/aontu-lang/aontu/issues/475) and
+    [#810](https://github.com/aontu-lang/aontu/issues/810). Ruled
+    2026-11-22: a quoted segment, `$.a."x.y"`, which `path()`,
+    `relate()`, `reaches` and a reference read back as one step. The
+    other choice refused such a key.
+45. **`*(` before a literal map or list**,
+    [#349](https://github.com/aontu-lang/aontu/issues/349). Ruled
+    2026-11-22: a preference, as `*(3)` is. The other choice refused it
+    inside a disjunction too.
+46. **A generator over the bag that holds it**,
+    [#751](https://github.com/aontu-lang/aontu/issues/751). Ruled
+    2026-11-22: it reads the members of its own bag where what it reads
+    doesn't depend on its own result, and a true cycle is refused and
+    named as one. The other choice refused every such document, with a
+    code that names the cycle.
+47. **A file that is not valid UTF-8**,
+    [#889](https://github.com/aontu-lang/aontu/issues/889). Ruled
+    2026-11-22: refused, with one code in both engines that names the
+    file and the byte. The other choice replaced each invalid sequence
+    by one rule in both.
+48. **A relation's template in a copy**,
+    [#779](https://github.com/aontu-lang/aontu/issues/779). Ruled
+    2026-11-22: held in one form wherever the relation is copied, so
+    canon prints one spelling. Canon text and hashes change for a
+    document that holds such a relation. The other choice taught
+    `subsume` to read the two forms as one.
+49. **A set of names written without commas**,
+    [#517](https://github.com/aontu-lang/aontu/issues/517). Ruled
+    2026-11-22: `export` and a destructure head read it as the comma
+    form, as a value does. The other choice refused it there.
+50. **The small ones.** Ruled 2026-11-22: each takes the answer the
+    repository's standing rules give it.
+    - TypeScript's reading, where the engines differ and nothing rules:
+      the headline word of
+      [#313](https://github.com/aontu-lang/aontu/issues/313), which is
+      `resolve`, the fold order of
+      [#328](https://github.com/aontu-lang/aontu/issues/328), the paths
+      of [#332](https://github.com/aontu-lang/aontu/issues/332) and
+      [#333](https://github.com/aontu-lang/aontu/issues/333), the parse
+      of [#518](https://github.com/aontu-lang/aontu/issues/518), and
+      `key(n)` in a `replace` value,
+      [#786](https://github.com/aontu-lang/aontu/issues/786).
+    - The definition's reading, where it has one: the marked `nil` of
+      [#540](https://github.com/aontu-lang/aontu/issues/540), by its
+      decision 18, and the `nil` in `must` of
+      [#894](https://github.com/aontu-lang/aontu/issues/894), by its
+      decision 54, which its decision 75 now records for `must`.
+    - A value from an included file is sited in its own file, as the API
+      reference says:
+      [#331](https://github.com/aontu-lang/aontu/issues/331),
+      [#845](https://github.com/aontu-lang/aontu/issues/845),
+      [#887](https://github.com/aontu-lang/aontu/issues/887),
+      [#876](https://github.com/aontu-lang/aontu/issues/876),
+      [#841](https://github.com/aontu-lang/aontu/issues/841),
+      [#734](https://github.com/aontu-lang/aontu/issues/734),
+      [#755](https://github.com/aontu-lang/aontu/issues/755),
+      [#658](https://github.com/aontu-lang/aontu/issues/658) and
+      [#320](https://github.com/aontu-lang/aontu/issues/320).
+
 ## The order across parts
 
-1. **P0**, the questions, done on 2026-11-21. Nothing in parts 2 to 7
-   waits on a ruling now.
-2. **The small and visible.** HV1, then KP1, then BT1. Each is one
-   change in both ports, and each answers a question a CUE user asks
-   in the first hour.
-3. **The corpus, CG1 to CG3**, beside them, with C6 and C7 of part 1.
-4. **The language server on LS1**, in the order of its table. LS4 and
-   LS9 stand on nothing and can go at any time.
-5. **The guide, CG4**, once the corpus holds its examples. Every other
+1. **The questions.** P0 and the rounds of parts 8 to 11 are done.
+   Nothing in any part waits on a ruling now.
+2. **What stands on nothing.** C6 and C7 of part 1, CG1 and CG2, LS1,
+   LS4 and LS9, and IS1 to IS3. The workstreams of the issue plan run
+   beside all of it.
+3. **The small and visible.** HV1, then KP1, then BT1, with the
+   fallback of ruling 40 and the Markdown conventions of ruling 41.
+   Each is one change in both ports.
+4. **Before a built-in that reads a key or counts a level.** The
+   issues on `key()` that part 11 names land before C3 and C5.
+5. **Roots, then versions, then types.** RP1, then LV1, then ST1: the
+   baseline of part 9 is fixed after `$` changes, and the kinds of
+   part 10 need a file's version.
+6. **The language server on LS1**, in the order of its table.
+7. **The guide, CG4**, once the corpus holds its examples. Every other
    part's documentation task then adds its row to it.
+8. **The pins.** IS3 comes before the task that raises them.
 
 Part 5 has no place in this order: OpenAPI is deferred by ruling. Part
 1 keeps its own [order](#order).
@@ -1512,17 +2057,16 @@ These findings of the comparison are not taken up by this plan:
 | Type generation for a host language | L9 of that plan |
 | Bindings beyond TypeScript and Go | L7 of that plan |
 | A guide for JSON Schema users | the second half of its H3 |
-| A `trim` that rewrites | [#860](https://github.com/aontu-lang/aontu/issues/860) |
+| A `trim` that rewrites | in no plan. [#860](https://github.com/aontu-lang/aontu/issues/860), what `trim --check` examines, is placed in part 11 |
 | Protobuf | in no plan. tabnas reads `.proto`, so reading could follow the readers that ruling D adds |
 | A standard library: time, network addresses, hashes, number and text conversion | in no plan |
-| A language version for each module, and a tool that migrates | in no plan |
 | A package of several files as the unit | in no plan |
 
 The decisions that rule out CUE's other features are listed in the
 comparison, under
 [What this suggests for aontu](CUE-COMPARISON.0.md#what-this-suggests-for-aontu).
 
-## Done when, for parts 2 to 7
+## Done when, for parts 2 to 11
 
 - **Part 2:** every probe is held on both sides, and the guide prints
   no line that a test doesn't hold.
@@ -1535,3 +2079,12 @@ comparison, under
   command line in both ports.
 - **Part 7:** `text` and `back` have spellings, and a 64-bit integer
   has a name.
+- **Part 8:** a file included under a key answers its own `$` paths,
+  and the document of #842 evaluates in both engines.
+- **Part 9:** a file written for the baseline answers the same after a
+  change of meaning lands, and its rewritten copy has the same hash.
+- **Part 10:** in a file of the new version `date("2026-11-21")` is a
+  value of the kind `date`, and `semver("1.10.0")` sorts after
+  `semver("1.9.0")`.
+- **Part 11:** each open issue is closed or has its ruling built, and
+  `admin/issue-plan.md` places every one.

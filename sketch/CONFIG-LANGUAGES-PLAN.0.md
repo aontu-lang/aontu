@@ -12,7 +12,9 @@ built-ins that M8 leaves as candidates. Its parts 2 to 7, of
 2026-11-21, make tasks of H3's guide for CUE users, L6, M5 and L2, and
 add host values on the command line and binary types. They were ruled
 the same day, and the ruling defers L3: OpenAPI is to be added
-separately.
+separately. Its parts 8 to 11, ruled on 2026-11-21 and 2026-11-22,
+add a file's own root, a language version stated in each file and
+more scalar types, and place each open issue.
 **Input and output:** [IO-FORMATS.0.md](IO-FORMATS.0.md), of
 2026-11-21, finds a second route to M1 in the tabnas writers, and what
 L3 and L4 would stand on.

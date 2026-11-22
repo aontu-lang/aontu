@@ -348,6 +348,46 @@ Each is a small gate that stops a fault from coming back.
 | [#611](https://github.com/aontu-lang/aontu/issues/611) | process | S |  | Union merge of the prompt log drops shared closing fences, leaving entries unclosed; no automated guard. |
 | [#443](https://github.com/aontu-lang/aontu/issues/443) | tool | S |  | Vale drops alerts around an HTML entity spelling a tag in a code fence. |
 
+## The issues filed since, and the rulings of 2026-11-22
+
+28 issues were filed after 2026-11-19 and have no row above.
+[Part 11](../sketch/LANG-REFINEMENT-PLAN.0.md#part-11-the-open-issues)
+of the lang refinement plan places each in a workstream of this plan,
+and says where each workstream above meets that plan's tasks. Three of
+the 28 are parts of it: [#884](https://github.com/aontu-lang/aontu/issues/884) is its part 8, [#881](https://github.com/aontu-lang/aontu/issues/881) its part 9 and
+[#886](https://github.com/aontu-lang/aontu/issues/886) its part 10.
+
+The project's owner ruled there on 2026-11-22 on the questions these
+issues, and some older ones above, waited on. The rulings are numbered
+in that plan,
+[38 to 50](../sketch/LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-8-to-11),
+apart from the definition's. Its rulings 42 and 43 are the definition's
+74 and 76. The rest enter section 7 of the definition when their
+workstream takes them up:
+
+| issues | ruled |
+|---|---|
+| [#870](https://github.com/aontu-lang/aontu/issues/870) | 38: an unknown call is refused wherever it stands |
+| [#847](https://github.com/aontu-lang/aontu/issues/847) | 39: a trial reads the value a default generates |
+| [#849](https://github.com/aontu-lang/aontu/issues/849) | 40: `maybe(v, fallback)` |
+| [#848](https://github.com/aontu-lang/aontu/issues/848) | 41: `md`, `mdcell` and `mdcode` |
+| [#472](https://github.com/aontu-lang/aontu/issues/472), [#475](https://github.com/aontu-lang/aontu/issues/475) and [#810](https://github.com/aontu-lang/aontu/issues/810) | 44: a quoted segment, `$.a."x.y"` |
+| [#349](https://github.com/aontu-lang/aontu/issues/349) | 45: `*(` before a literal map or list is a preference |
+| [#751](https://github.com/aontu-lang/aontu/issues/751) | 46: a generator reads its own bag where no cycle is read, and a true cycle is refused and named |
+| [#889](https://github.com/aontu-lang/aontu/issues/889) | 47: a file that is not valid UTF-8 is refused, with one code |
+| [#779](https://github.com/aontu-lang/aontu/issues/779) | 48: a relation's template is held in one form wherever it is copied |
+| [#517](https://github.com/aontu-lang/aontu/issues/517) | 49: a set of names written without commas reads as the comma form |
+| [#313](https://github.com/aontu-lang/aontu/issues/313), [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#518](https://github.com/aontu-lang/aontu/issues/518) and [#786](https://github.com/aontu-lang/aontu/issues/786) | 50: TypeScript's reading |
+| [#540](https://github.com/aontu-lang/aontu/issues/540) | 50: the definition's reading, its decision 18 |
+| [#331](https://github.com/aontu-lang/aontu/issues/331), [#845](https://github.com/aontu-lang/aontu/issues/845), [#887](https://github.com/aontu-lang/aontu/issues/887), [#876](https://github.com/aontu-lang/aontu/issues/876), [#841](https://github.com/aontu-lang/aontu/issues/841), [#734](https://github.com/aontu-lang/aontu/issues/734), [#755](https://github.com/aontu-lang/aontu/issues/755), [#658](https://github.com/aontu-lang/aontu/issues/658) and [#320](https://github.com/aontu-lang/aontu/issues/320) | 50: a value from an included file is sited in its own file |
+| [#842](https://github.com/aontu-lang/aontu/issues/842) | 36: a file is whole where it lands |
+
+The parser issues were tried with the pins raised, `@tabnas/expr` at
+0.6.4: [#325](https://github.com/aontu-lang/aontu/issues/325) closes, and [#326](https://github.com/aontu-lang/aontu/issues/326) gets worse, the TypeScript engine
+running out of memory where it overflowed its stack at once.
+[The table](../sketch/LANG-REFINEMENT-PLAN.0.md#what-the-pins-do-to-the-parser-issues)
+is in that plan, and a fix for [#326](https://github.com/aontu-lang/aontu/issues/326) comes before the pins rise.
+
 ## Order at a glance
 
 | phase | workstreams | issues | ledger rows |

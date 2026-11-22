@@ -339,6 +339,16 @@ record it changes:
 - **The operands.** The reference says what a verb's operand is, and
   it changes with the first verb that reads one by extension.
 
+**One input found since stands before the pins.** With the pins
+raised, `neq(-1, -2, -3)` takes the TypeScript engine's memory, where
+at the pins it overflows the stack at once
+([#326](https://github.com/aontu-lang/aontu/issues/326)). The same
+trial closes
+[#325](https://github.com/aontu-lang/aontu/issues/325). So the task
+under ruling A waits on IS3 of
+[the lang refinement plan](LANG-REFINEMENT-PLAN.0.md#what-the-pins-do-to-the-parser-issues),
+which holds the table.
+
 **Input that an ABNF grammar defines** was the maintainer's own
 addition to option D. Two steps read it today, and both ports agree
 on them: an include of the text, and `parse` over it with the grammar.
