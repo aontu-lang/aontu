@@ -365,7 +365,9 @@ class RefVal extends FeatureVal {
 
     // Check if self.path starts with peg (cycle detection).
     // Element-by-element comparison avoids string join+startsWith allocations.
-    let isprefixpath = this.peg.length <= this.path.length
+    // A path a held value answers reads that value, not the place around it.
+    let isprefixpath = this.peg.length <= this.path.length &&
+      !(this.absolute && 0 < heldFrom(ctx, this.peg as string[], 0))
     if (isprefixpath) {
       for (let i = 0; i < this.peg.length; i++) {
         if (this.peg[i] !== this.path[i]) {

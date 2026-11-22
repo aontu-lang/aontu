@@ -3181,9 +3181,10 @@ record the default takes is valid. In the same way
 record's own `name`. The schema alone reads such a term as `any`, since
 only the data supplies what its path reads, so it can't make the
 document an error. Rows `sr0` on of `test/spec/def-path.tsv` hold
-these. Both engines still wait on such a `match` and leave such a path
-unread, and the rows they answer otherwise sit in the ledger under #818
-and #895.
+these. Both engines answer each as the definition does, as #818 and
+#895 asked: a `match` reads its scrutinee with the rest of the document
+held at its own place, and a `must` waits for that rest before it reads
+such a condition.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -6352,8 +6353,8 @@ into the value under trial, `$.v.name` under `v`, reads the field as
 the rest of the document settles it, as the section on paths below
 says, so `must({x: upper($.v.name)}, "m")` admits
 `{"x": "A", "name": "a"}` and refuses `{"x": "B", "name": "a"}`. Both
-engines leave such a path unread and pass the check: rows `sr0` on of
-`test/spec/def-path.tsv`, the ones that differ in the ledger under #895.
+engines read such a path the same way, as #895 asked, and rows `sr0` on
+of `test/spec/def-path.tsv` hold it.
 
 Read with no position, as the schema's own tree is, a call whose
 arguments hold a `key(n)` stays as written, so that a path copies it to

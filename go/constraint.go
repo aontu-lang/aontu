@@ -931,7 +931,16 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 			("contains" == c.pending.atom && 0 == i) {
 			next = trialArg(ctx, arg)
 		} else if DONE != arg.Dc() {
-			next = arg.Unify(top(), ctx)
+			// A condition reading the must's own place waits for the peer, then reads it fresh.
+			own := "must" == c.pending.atom && 0 == i && readsPlace(arg, c.path)
+			switch {
+			case own && (nil == peer || isTop(peer)):
+			case own:
+				a := cloneAt(arg, arg.vpath(), true)
+				next = ctx.holdArm(c.path, peer, nil, true, func() Val { return a.Unify(top(), ctx) })
+			default:
+				next = arg.Unify(top(), ctx)
+			}
 		}
 		settled = settled && DONE == next.Dc()
 		moved = moved || next.Canon() != arg.Canon()
@@ -2071,6 +2080,35 @@ func trialArg(ctx *Ctx, arg Val) Val {
 		return rideOn(ctx, next, arg, nil)
 	}
 	return newNil("nof")
+}
+
+func readsPlace(v Val, place []string) bool {
+	var kids []Val
+	switch t := v.(type) {
+	case *RefVal:
+		if !t.absolute || len(t.peg) < len(place) {
+			return false
+		}
+		for i, s := range place {
+			if p, ok := t.peg[i].(string); !ok || p != s {
+				return false
+			}
+		}
+		return true
+	case *MapVal:
+		for _, k := range t.keys {
+			kids = append(kids, t.peg[k])
+		}
+	case *ListVal:
+		kids = t.peg
+	case *DisjunctVal:
+		kids = t.peg
+	case *ConjunctVal:
+		kids = t.peg
+	case *FuncVal:
+		kids = t.peg
+	}
+	return slices.ContainsFunc(kids, func(c Val) bool { return nil != c && readsPlace(c, place) })
 }
 
 func holdsNil(v Val, only func(Val) bool) bool {
