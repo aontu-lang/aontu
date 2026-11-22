@@ -886,8 +886,9 @@ function eachPart(root, visit) {
         seen.add(v);
         visit(v);
         const peg = v.peg;
-        stack.push(...(Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
-            null != peg && 'object' === typeof peg ? Object.values(peg) : []));
+        const kids = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
+            null != peg && 'object' === typeof peg ? Object.values(peg) : [];
+        kids.forEach((kid) => stack.push(kid));
         stack.push(v.spread?.cj);
     }
 }

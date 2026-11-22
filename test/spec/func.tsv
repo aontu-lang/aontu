@@ -219,6 +219,7 @@ call-unknown-unused-declaration	errc	%T=nosuch(1) k:1	unknown_function
 call-known-in-filter	gens	xs:["abc","ab"] new:filter($.xs,len(3))	{"new":["abc"],"xs":["abc","ab"]}
 call-unknown-least-by-path	err	b:filter([1],nosuch(1)) a:filter([1],other(2))	Cannot resolve value at path $.a
 call-arity-maybe-with-two	errc	x:[1,maybe(1,2)]	func_arity
+call-least-by-code-point	errc	"𐀀":filter([1],add(1)) "":filter([1],nosuch(1))	unknown_function
 call-maybe-none-reads-back	canon	x:maybe()	{"x":nil}
 call-unknown-in-filter-vets	verdict	old: filter($.xs, length(3))	{"xs": ["abc"]}	{"verdict":"error"}
 func-group-single-term	gen	a:(1+2)	{"a":3}

@@ -483,5 +483,12 @@ const G = (x) => A.generate(x);
         (0, expect_1.expect)(N('path(3.14)')).equal('nil');
         (0, expect_1.expect)(N('path(.1)')).equal('path(.1)');
     });
+    // The check for a call that can't be made walks every element, and a
+    // list past the host's limit on spread arguments must not overflow it.
+    (0, node_test_1.test)('a-long-list-is-checked-for-calls', () => {
+        const items = Array.from({ length: 130000 }, (_, i) => i).join(',');
+        (0, expect_1.expect)(A.generate('xs: [' + items + ']').xs.length).equal(130000);
+        (0, expect_1.expect)(() => A.generate('xs: [' + items + ', nosuch(1)]')).throw(/unknown_function/);
+    });
 });
 //# sourceMappingURL=func.test.js.map

@@ -12,6 +12,7 @@ import {
 
 import { Val as ValBase } from './Val'
 import { makeNilErr } from '../err'
+import { cmpCodePoint } from '../keyorder'
 
 
 class PlaceVal extends ValBase {
@@ -107,7 +108,8 @@ function unknownCall(root: Val): Val | undefined {
   }
   let least: [Val, string[]] | undefined = undefined
   for (const f of found) {
-    if (undefined === least || f[1].join('\x00') < least[1].join('\x00')) {
+    if (undefined === least ||
+      cmpCodePoint(f[1].join('\x00'), least[1].join('\x00')) < 0) {
       least = f
     }
   }
@@ -164,7 +166,16 @@ function refusedCallIn(start: any, startPath: string[], startCalls: boolean,
       }
       next.push([v.spread?.cj, path, calls])
     }
-    stack.push(...next.reverse())
+    pushReversed(stack, next)
+  }
+}
+
+
+// One push per item: a list's elements, spread as arguments, overflow the
+// host's limit on them long before the stack does.
+function pushReversed<T>(stack: T[], next: T[]): void {
+  for (let i = next.length - 1; 0 <= i; i--) {
+    stack.push(next[i])
   }
 }
 
@@ -195,7 +206,7 @@ function declBodies(start: any): [Val, string[]][] {
     else {
       partsOf(v).forEach((c: any) => next.push([c, path]))
     }
-    stack.push(...next.reverse())
+    pushReversed(stack, next)
   }
   return out
 }

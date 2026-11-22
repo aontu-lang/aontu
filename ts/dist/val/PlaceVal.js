@@ -11,6 +11,7 @@ exports.waitsOnHole = waitsOnHole;
 exports.fillPlace = fillPlace;
 const Val_1 = require("./Val");
 const err_1 = require("../err");
+const keyorder_1 = require("../keyorder");
 class PlaceVal extends Val_1.Val {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -82,7 +83,8 @@ function unknownCall(root) {
     }
     let least = undefined;
     for (const f of found) {
-        if (undefined === least || f[1].join('\x00') < least[1].join('\x00')) {
+        if (undefined === least ||
+            (0, keyorder_1.cmpCodePoint)(f[1].join('\x00'), least[1].join('\x00')) < 0) {
             least = f;
         }
     }
@@ -134,7 +136,14 @@ function refusedCallIn(start, startPath, startCalls, seen, found) {
             }
             next.push([v.spread?.cj, path, calls]);
         }
-        stack.push(...next.reverse());
+        pushReversed(stack, next);
+    }
+}
+// One push per item: a list's elements, spread as arguments, overflow the
+// host's limit on them long before the stack does.
+function pushReversed(stack, next) {
+    for (let i = next.length - 1; 0 <= i; i--) {
+        stack.push(next[i]);
     }
 }
 function declBodies(start) {
@@ -163,7 +172,7 @@ function declBodies(start) {
         else {
             partsOf(v).forEach((c) => next.push([c, path]));
         }
-        stack.push(...next.reverse());
+        pushReversed(stack, next);
     }
     return out;
 }

@@ -963,8 +963,9 @@ function eachPart(root: any, visit: (v: any) => void): void {
     seen.add(v)
     visit(v)
     const peg: any = v.peg
-    stack.push(...(Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
-      null != peg && 'object' === typeof peg ? Object.values(peg) : []))
+    const kids: any[] = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
+      null != peg && 'object' === typeof peg ? Object.values(peg) : []
+    kids.forEach((kid: any) => stack.push(kid))
     stack.push(v.spread?.cj)
   }
 }

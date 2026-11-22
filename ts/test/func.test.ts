@@ -595,4 +595,12 @@ describe('func', function() {
     expect(N('path(.1)')).equal('path(.1)')
   })
 
+  // The check for a call that can't be made walks every element, and a
+  // list past the host's limit on spread arguments must not overflow it.
+  test('a-long-list-is-checked-for-calls', () => {
+    const items = Array.from({ length: 130000 }, (_, i) => i).join(',')
+    expect(A.generate('xs: [' + items + ']').xs.length).equal(130000)
+    expect(() => A.generate('xs: [' + items + ', nosuch(1)]')).throw(/unknown_function/)
+  })
+
 })
