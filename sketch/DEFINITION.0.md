@@ -2702,7 +2702,7 @@ until the phase that encodes it lands.
    that holds one drops. Rows td0 on of `test/spec/def-trial.tsv`,
    both ports answering each as the definition does but td93 to td95,
    a branch of `nof` holding a conflict below its top, which decision
-   74 raises. The questions of
+   74 settled, built 2026-11-22. The questions of
    #535 about a written `nil` were settled by ruling 54 and #796.
 63. **A `match` over the map it is met into.** Raised 2026-11-17 by
    #818: the rule
@@ -2870,7 +2870,16 @@ until the phase that encodes it lands.
    read against a value makes that argument admit nothing, as one at
    its top does (#525), and stays apart from a written `nil` there, as
    decision 62 keeps the two apart in an argument read as the trial is
-   built. **Not yet built**: the definition moves.
+   built. **Built 2026-11-22**: `Decls.tried` reads each such argument
+   as `nil` where its staged normal form doesn't stand, so a call the
+   reading couldn't make, a list too long for its size and a
+   preference clash count as a conflict does, a written `nil` stands,
+   and an argument that computes with a key no position places yet is
+   left to be read where it lands. Rows td93 to td95 leave the ledger,
+   and rows tl0 on of `test/spec/def-trial.tsv` hold `when`'s branch
+   and condition, the conditions of `contains` and `filter`, and those
+   three clashes in a branch of `nof`, both ports answering each as
+   the definition does.
 75. **A written `nil` below the top of `must`'s condition.** Raised
    2026-11-21 by building decision 62 (#894): both ports refuse every
    value where `must`'s condition holds a written `nil` below its top,
@@ -2888,7 +2897,9 @@ until the phase that encodes it lands.
    ledger, its bound falling to 213. Rows tn9 to tn11, an arm that
    holds a written `nil`, stay, under #907: both ports keep such an arm
    once the data meets it, outside `must` too, so
-   `v: {x: 1} | {x: nil}` refuses `{"v": {"x": 1}}`.
+   `v: {x: 1} | {x: nil}` refuses `{"v": {"x": 1}}`, which rows nl204
+   to nl212 of `test/spec/def-path.tsv` hold, in the ledger under #907
+   with them, its bound 219 once decision 74 was built.
 76. **A path in `must`'s condition into the value under trial.**
    Raised 2026-11-21 by building decision 62 (#895): both ports leave
    a path such as `$.v.name` in `v: must(…)` unread, and pass the
@@ -2929,7 +2940,7 @@ until the phase that encodes it lands.
    definition doesn't move for the name. It moves for a wrong count:
    it reads `v: {&: add(1)}` against `{"v": {}}` as `valid`, an
    unreached template being nothing, so rows x2250 to x2252 of
-   `test/spec/def-call.tsv` enter the ledger, its bound rising to 216.
+   `test/spec/def-call.tsv` enter the ledger, its bound rising by three.
 78. **A default inside a map, read by a trial.** Raised 2026-11-20 by
    #847: a `filter` condition and a `match` pattern read a member as
    it is written. With `t: &: { surface: *"sdk" | string }` and

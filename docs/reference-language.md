@@ -7735,9 +7735,10 @@ one. A scalar is tried at the meet and a container at generation, when
 no member can still arrive. A branch is tried while the branches left
 can still change the verdict, in canon order: `nof(min(1), …)` stops at
 the first that admits, `nof(0, …)` refuses at the first that admits,
-and `nof(1, …)` refuses at the second. A branch that conflicts on its
-own admits nothing, as `nil` does, and a reference that names nothing
-is the document's error.
+and `nof(1, …)` refuses at the second. A branch that holds a conflict
+anywhere, at its top or at a member as `{b?: 1 & 2}` does, admits
+nothing, as `nil` does, and a reference that names nothing is the
+document's error. A written `nil` in a branch is no conflict.
 
 Each trial is asked once for each position, trial schema and value in
 an evaluation, and every later ask reads that first verdict. The trials
@@ -7763,7 +7764,7 @@ It is how the applicators of JSON Schema cross into aontu: `anyOf` is
 the exporter writes those counts back as those keywords, with `allOf`
 for a count of every branch.
 
-`nof(n, c₁, …)` counts the branches that admit the datum and judges the count as `n` judges it, a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) that reads refusal as the second answer of the one relation, so `nof(0, c)` is the complement of `c`: `judge_nof_zero` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). The eighth generated fragment, [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv), holds both engines to the trial schemas.
+`nof(n, c₁, …)` counts the branches that admit the datum and judges the count as `n` judges it, a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) that reads refusal as the second answer of the one relation, so `nof(0, c)` is the complement of `c`: `judge_nof_zero` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). The eighth generated fragment, [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv), holds both engines to the trial schemas. A branch, an argument of `when`, and the condition of `contains` and of `filter` read as `nil` where they hold a conflict anywhere: `Decls.tried` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), held to both engines by rows `tl0` on of the same fragment.
 
 ### Band B: `when`
 
@@ -7774,7 +7775,8 @@ and where `c` does not, `e` must. An `e` not written passes, so
 tried as a `nof` branch is, a scalar at the meet and a container at
 generation, and `nil` in any position admits nothing: `when(string,
 nil)` refuses every string, and `when(nil, t, e)` holds every value to
-`e`.
+`e`. A conflict anywhere in an argument makes the whole argument admit
+nothing too, so `when({b?: 1 & 2}, {x: 1})` never applies `{x: 1}`.
 
 A condition on a key being present reads as the key held as `any`:
 `when({k: any}, {n: any}) & {k: 1}` is refused, since the value holds
