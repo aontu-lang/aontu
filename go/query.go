@@ -403,7 +403,8 @@ func (a *Aontu) Why(src, path string) WhyReport {
 	prov := newProvenance(src, texts)
 	prov.writtenFrom(parsed)
 
-	ctx := &Ctx{root: parsed, src: src, file: a.File, prov: prov}
+	ctx := &Ctx{root: parsed, vars: hostVals(a.HostVars), src: src, file: a.File,
+		prov: prov}
 	if nil != a.Trust {
 		ctx.budgetPasses = a.Trust.Budget.Passes
 		ctx.budgetDepth = a.Trust.Budget.Depth

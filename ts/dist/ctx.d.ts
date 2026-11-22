@@ -15,6 +15,7 @@ type AontuContextConfig = {
     src?: string;
     srcpath?: string;
     vars?: Record<string, Val>;
+    texts?: Record<string, string>;
     vc?: number;
     collect?: boolean;
     opts?: AontuOptions;
@@ -27,6 +28,7 @@ declare class AontuContext {
     cc: number;
     settle: boolean;
     vars: Record<string, Val>;
+    texts?: Record<string, string>;
     src?: string;
     fs?: FST;
     errfs?: FST;

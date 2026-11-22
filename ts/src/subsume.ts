@@ -2,7 +2,7 @@
 import { includeOpts } from './utility'
 
 
-import type { TrustOptions } from './type'
+import type { HostVars, TrustOptions } from './type'
 import { sharedEngine } from './engine'
 import { anchorAt } from './vet'
 import { hcanon } from './hcanon'
@@ -50,6 +50,8 @@ export type SubsumeOptions = {
   // Rides beside `trust` because it is the other half of what an
   // include may read.
   textExt?: string[]
+
+  hostVars?: HostVars
 }
 
 export type SubsumeReport = {

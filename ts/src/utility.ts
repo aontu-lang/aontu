@@ -1,13 +1,14 @@
 /* Copyright (c) 2023-2025 Richard Rodger, MIT License */
 
 
-import type { AontuOptions, TrustOptions, Val } from './type'
+import type { AontuOptions, HostVars, TrustOptions, Val } from './type'
 import { riderText } from './rider'
 
 
 type IncludeOptions = {
   trust?: TrustOptions
   textExt?: string[]
+  hostVars?: HostVars
 }
 
 function includeOpts(options: IncludeOptions): Partial<AontuOptions> {
@@ -15,6 +16,7 @@ function includeOpts(options: IncludeOptions): Partial<AontuOptions> {
     ...(null == options.trust ? {} : { trust: options.trust }),
     ...(null == options.textExt || 0 === options.textExt.length
       ? {} : { textExt: options.textExt }),
+    ...(null == options.hostVars ? {} : { hostVars: options.hostVars }),
   }
 }
 

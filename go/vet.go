@@ -101,6 +101,9 @@ type VetOptions struct {
 	// --text-ext), the other half of what an include may read.
 	TextExt []string
 
+	// HostVars are the bindings of the CLI's --var and --var-text.
+	HostVars map[string]HostVar
+
 	SchemaPath string
 	DataPath   string
 
@@ -111,8 +114,8 @@ type VetOptions struct {
 	ExactNumbers bool
 }
 
-func aontuForPathTrust(
-	path string, trust *TrustOptions, textExt []string) *Aontu {
+func aontuForPathTrust(path string, trust *TrustOptions, textExt []string,
+	hostVars map[string]HostVar) *Aontu {
 	a := New()
 	if "" != path {
 		a = NewWithBase(filepath.Dir(path))
@@ -121,6 +124,7 @@ func aontuForPathTrust(
 		a.Trust = trust
 	}
 	a.TextExt = textExt
+	a.HostVars = hostVars
 	return a
 }
 
@@ -368,11 +372,13 @@ func anchorAt(root Val, at string) Val {
 // does not carry, at the anchor's own paths.
 func filledFindings(generated any, unified Val, dataSrc string,
 	options VetOptions, prov vetProv, sources vetSources) []VetFinding {
-	ownA := aontuForPathTrust(options.DataPath, options.Trust, options.TextExt)
+	ownA := aontuForPathTrust(options.DataPath, options.Trust, options.TextExt,
+		options.HostVars)
 	ownA.ExactNumbers = options.ExactNumbers
 	parsed, _ := ownA.Parse(dataSrc)
 	stampURL(parsed, prov.dataURL)
-	ownCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
+	ownCtx := &Ctx{root: parsed, vars: hostVals(options.HostVars), src: dataSrc,
+		collect: true}
 	own := unifyRoot(parsed, ownCtx)
 	if 0 < len(ownCtx.err) {
 		out := []VetFinding{}
@@ -535,9 +541,9 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	}
 
 	schemaA := aontuForPathTrust(
-		options.SchemaPath, options.Trust, options.TextExt)
+		options.SchemaPath, options.Trust, options.TextExt, options.HostVars)
 	dataA := aontuForPathTrust(
-		options.DataPath, options.Trust, options.TextExt)
+		options.DataPath, options.Trust, options.TextExt, options.HostVars)
 	dataA.ExactNumbers = options.ExactNumbers
 
 	// 1. The schema alone. If it does not stand up on its own, the data
@@ -550,7 +556,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			Findings:  []VetFinding{pointed(parseFinding(schemaURL, VetRoleSchema, perr), nil)},
 		}
 	}
-	schemaCtx := &Ctx{root: schemaParsed, src: schemaSrc, collect: true}
+	schemaCtx := &Ctx{root: schemaParsed, vars: hostVals(options.HostVars),
+		src: schemaSrc, collect: true}
 	schemaVal := unifyRoot(schemaParsed, schemaCtx)
 	schemaCtx.root = schemaVal
 	held := nilWithin(schemaVal)
@@ -664,10 +671,11 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	if options.Coverage {
 		measured := dataVal
 		coverA := aontuForPathTrust(
-			options.DataPath, options.Trust, options.TextExt)
+			options.DataPath, options.Trust, options.TextExt, options.HostVars)
 		coverA.ExactNumbers = options.ExactNumbers
 		if parsed, cerr := coverA.Parse(dataSrc); nil == cerr {
-			coverCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
+			coverCtx := &Ctx{root: parsed, vars: hostVals(options.HostVars),
+				src: dataSrc, collect: true}
 			settled := unifyRoot(parsed, coverCtx)
 			// A data document that does not stand alone is already
 			// reported by the meet below; here it falls back to what was
@@ -708,7 +716,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	pair := newConjunct([]Val{meetAnchor, dataVal})
 	pair.path = anchorSegs(options.At)
-	ctx := &Ctx{root: pair, src: dataSrc, collect: true}
+	ctx := &Ctx{root: pair, vars: hostVals(options.HostVars), src: dataSrc,
+		collect: true}
 	if "" != options.At {
 		ctx.fixroot = schemaVal
 	}
@@ -720,6 +729,10 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		for path, text := range a.IncludeText {
 			sources[path] = text
 		}
+	}
+	for name, b := range options.HostVars {
+		url, text := hostSite(name, b)
+		sources[url] = text
 	}
 
 	var nils []*NilVal

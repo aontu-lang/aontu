@@ -8,6 +8,86 @@ each change affects.
 
 ## Unreleased
 
+### Host values on the command line: `--var` and `--var-text`
+
+#862, task HV1 of the language plan, in both commands. A document that
+reads `$name` could be evaluated from a program and not from a shell.
+
+```sh
+$ aontu --var env=prod --var n=3 v.aontu
+```
+
+- **`--var name=value` reads the value as aontu source**, so `n=3` binds
+  an integer and `env=prod` a string; **`--var-text name=value` binds
+  the text as it stands**, for a short commit hash that may be all
+  digits.
+- **Every verb that evaluates a document takes them**: the bare command,
+  `vet`, `subsume`, `breaking`, `trim`, `model get`, `why` and `set`,
+  `hash`, `jsonschema`, `view`, `relations`, `reaches`, `trace`,
+  `render`, `template`, `allow` and `agentsmd`. An include reads them as
+  the document does; a package evaluates with none.
+- **A binding is refused as a usage error, exit 2**, when no document
+  named on the command line reads it, when it is malformed or bound
+  twice, when its source doesn't evaluate on its own or loads a file,
+  and when it still reads a path or a variable. A template, a folder or a
+  document that doesn't parse can't say what it reads, so a run with one
+  refuses no binding as unread.
+- **`--vars <file>` binds each top-level key of a document of values**,
+  task HV2, as its value's canon. A key that no document reads is
+  accepted, by ruling 29, so one file serves several documents. The
+  file is evaluated on its own and loads nothing, and a name it binds
+  that a `--var` binds too is refused as bound twice.
+- **`fmt`, `publish` and the package verbs refuse the options**, and so
+  does the REPL until it takes bindings of its own.
+- **`hash` and `breaking` name the bindings**: a `bindings` list in the
+  JSON report, an `under:` line in `breaking`'s text, and a note on
+  stderr beside `hash`'s text, which stays the hash alone.
+- **A bound value is sited at the option that bound it**, so a conflict
+  frames `--> --var n:1:1` over the value's own text.
+- The engines take the bindings as an option: `hostVars` in TypeScript,
+  `HostVars` on Go's `Aontu`, `VetOptions`, `SubsumeOptions` and
+  `PatchOptions`. **Go's `PolicyCompatTrust` takes them as a fifth
+  argument**, and Go's new `VarNames`, `HoldsReference` and
+  `MemberCanons` are what its command reads documents and files with.
+
+### A relative reference in a later argument reads from the call's place
+
+#871 and the second case of #868, in TypeScript. The parser pathed every
+argument of a call after the first as an element of the argument list,
+so a relative reference in it read from the wrong place:
+`x: { b: 2, d: sub(5, maybe(.b)) }` left `d` unresolved, with a climb
+`..y.b` it was absent in silence, and `match(.a, above(.b), true, false)`
+never settled. An argument that is no map or list now reads from the
+call's place, as the first did and as the Go engine reads it; a map or
+list argument keeps its path, which a template's `key()` reads. Six rows
+in `test/spec/maybe.tsv` pin the shapes.
+
+### An unknown call is refused wherever it stands
+
+Decision 77 (#870), in both engines. A call to a name that is no
+built-in, `unknown_function`, or with the wrong count, `func_arity`, was
+refused where it stood alone and read in silence as a value that admits
+nothing elsewhere: `filter($.xs, length(3))`, with the retired name of
+`len`, answered `[]`, and `match`, `nof`, `when`, a disjunction's arm and
+`maybe` did the same. Both are decided when the document is read, so the
+document is now refused before evaluation, as an unbound `_` is.
+
+- **A document that held one in those places changes answer**, from a
+  value to a refusal. `vet` of such a schema answers `error`.
+- **A declaration's body is checked too**, used or not, and its call is
+  reported at the map that declares it. Of several calls, the one
+  reported is the least by path.
+- **`maybe()` with no argument is left to evaluation**, since it is how
+  canon writes an absence.
+- **The JSON Schema how-to's example of `must` was itself such a call**:
+  `must((v) => 0 <= v, "…")` is six arguments, and exported as `{}`.
+  It is now `must(min(0), "…")`, which crosses as `allOf` of its trial.
+- Rows x2250 to x2252 of `test/spec/def-call.tsv`, a wrong count in a
+  template nothing reaches, enter `spec/ledger.tsv`, whose bound rises
+  from 219 to 222: the definition reads that template as nothing and
+  moves.
+- The JSON Schema export row for an uncollected nil uses `-"x"` in
+  place of a call that the check now refuses.
 ### A disjunction drops an arm that holds a written `nil` the value must fill
 
 #907, in both engines. An arm whose meet with the data leaves a written

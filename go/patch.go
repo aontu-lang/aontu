@@ -17,6 +17,9 @@ type PatchOptions struct {
 	// --text-ext), the other half of what an include may read.
 	TextExt []string
 
+	// HostVars are the bindings of the CLI's --var and --var-text.
+	HostVars map[string]HostVar
+
 	// Where each document CAME FROM, so relative `@"file"` loads
 	// inside them resolve from their own directories.
 	EntryPath   string
@@ -143,6 +146,7 @@ func Patch(
 	report := Vet(entrySrc, overlay, &VetOptions{
 		Trust:      options.Trust,
 		TextExt:    options.TextExt,
+		HostVars:   options.HostVars,
 		DataPath:   options.OverlayPath,
 		DataURL:    options.OverlayPath,
 		SchemaPath: options.EntryPath,

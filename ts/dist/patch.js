@@ -252,6 +252,7 @@ function patch(entrySrc, overlaySrc, assignments, opts) {
     const report = (0, vet_1.vet)(entrySrc, overlay, {
         trust: options.trust,
         textExt: options.textExt,
+        hostVars: options.hostVars,
         schemaPath: options.entryPath,
         dataPath: options.overlayPath,
         schemaUrl: options.entryPath,

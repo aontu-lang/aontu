@@ -1,7 +1,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 
-import type { TrustOptions, Val } from './type'
+import type { HostVars, TrustOptions, Val } from './type'
 
 import { sharedEngine } from './engine'
 import {
@@ -109,6 +109,8 @@ export type VetOptions = {
   // Rides beside `trust` because it is the other half of what an
   // include may read.
   textExt?: string[]
+
+  hostVars?: HostVars
 }
 
 

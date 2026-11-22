@@ -200,7 +200,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-19 issues (2 S, 17 M), 28 ledger rows.
+19 issues (2 S, 17 M), 31 ledger rows.
 
 Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63 and built in the definition 2026-11-22, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, built in the definition the same day), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, built in the definition the same day). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
@@ -220,10 +220,10 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#907](https://github.com/aontu-lang/aontu/issues/907) | def | M |  | A disjunction arm that holds a written `nil` doesn't refuse once the data meets it, in either port, so `v: {x: 1} \| {x: nil}` refuses `{"v": {"x": 1}}`; the definition admits it. Fixed in both ports 2026-11-22. |
 | [#895](https://github.com/aontu-lang/aontu/issues/895) | def | M | 9 | A path in `must`'s condition into the value under trial: both ports leave it unread and pass the check, the definition reads `error` or `invalid`. Ruled as 76: the path reads the field, as 63 reads one in `match`, so both ports and the definition move. Built in the definition 2026-11-22; both ports still leave the path unread. |
 | [#847](https://github.com/aontu-lang/aontu/issues/847) | bug | M |  | `filter` and `match` miss a default inside a map: the member is dropped or another arm taken, with no finding. Ruled as 78: the trial reads the value the member generates. |
-| [#870](https://github.com/aontu-lang/aontu/issues/870) | bug | M |  | A call to an unknown name, or with a wrong count, is silent inside a trial, in a disjunction's arm and under `maybe`. Ruled as 77: refused wherever it stands. |
+| [#870](https://github.com/aontu-lang/aontu/issues/870) | bug | M | 3 | A call to an unknown name, or with a wrong count, is silent inside a trial, in a disjunction's arm and under `maybe`. Ruled as 77: refused wherever it stands. Built 2026-11-22; rows x2250 to x2252 wait on the definition. |
 | [#850](https://github.com/aontu-lang/aontu/issues/850) | parity | M |  | A `match` whose result is a relative reference overflows the TypeScript stack; Go answers. |
-| [#868](https://github.com/aontu-lang/aontu/issues/868) | parity | M |  | A `match` whose pattern is a relative reference overflows the TypeScript stack, and a bound over it is `mapval_no_gen`; Go answers both. |
-| [#871](https://github.com/aontu-lang/aontu/issues/871) | parity | M |  | `maybe(v)` of a relative reference as a call's second or later argument never resolves in TypeScript; Go answers. |
+| [#868](https://github.com/aontu-lang/aontu/issues/868) | parity | M |  | A `match` whose pattern is a relative reference overflows the TypeScript stack, and a bound over it is `mapval_no_gen`; Go answers both. The bound is fixed 2026-11-22; the overflow is the parser defect of #326, fixed upstream in tabnas/expr#121. |
+| [#871](https://github.com/aontu-lang/aontu/issues/871) | parity | M |  | `maybe(v)` of a relative reference as a call's second or later argument never resolves in TypeScript; Go answers. Fixed 2026-11-22, with the second case of #868. |
 | [#861](https://github.com/aontu-lang/aontu/issues/861) | design | M |  | No single call projects one field of each member into a map that keeps the source's keys. C1 and C2 of the lang refinement plan: `at`, and a key for `pack`. |
 
 ### Declarations, loads, includes and built-in models
@@ -436,7 +436,7 @@ workstream above meets its tasks.
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
 | 2 | alias cycles, preferences, seals and marks, copies | 43 | 354 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 75 | 49 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 75 | 52 |
 | 4 | diagnostics, tooling | 33 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | 2 |

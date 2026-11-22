@@ -1,4 +1,4 @@
-import type { TrustOptions } from './type';
+import type { HostVars, TrustOptions } from './type';
 import type { VetFinding } from './vet';
 import type { WhyRecord } from './provenance';
 export type QueryView = 'json' | 'canon' | 'types' | 'keys';
@@ -8,6 +8,7 @@ export type QueryOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    hostVars?: HostVars;
     exactNumbers?: boolean;
 };
 export type QueryReport = {

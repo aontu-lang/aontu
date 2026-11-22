@@ -36,6 +36,7 @@ type AontuContextConfig = {
   src?: string
   srcpath?: string
   vars?: Record<string, Val>
+  texts?: Record<string, string>
   vc?: number
   collect?: boolean
   opts?: AontuOptions
@@ -51,6 +52,8 @@ class AontuContext {
 
   settle: boolean = false
   vars: Record<string, Val> = {}
+  // The source of a value with no file, by its site's url: a binding's.
+  texts?: Record<string, string>
   src?: string
   fs?: FST
   // The error renderer's own reader; see type.ts's `errfs`.
@@ -140,6 +143,7 @@ class AontuContext {
     this.cc = null == cfg.cc ? this.cc : cfg.cc
 
     this.vars = cfg.vars ?? this.vars
+    this.texts = cfg.texts
     this.seenI = cfg.seenI ?? 0
     this.seen = cfg.seen ?? {}
 

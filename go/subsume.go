@@ -31,6 +31,9 @@ type SubsumeOptions struct {
 	// --text-ext), the other half of what an include may read.
 	TextExt []string
 
+	// HostVars are the bindings of the CLI's --var and --var-text.
+	HostVars map[string]HostVar
+
 	Profile     string // "values" | "defaults" (default) | "gen"
 	At          string // compare at this path of both documents
 	GeneralURL  string // provenance label for general sites
@@ -1157,12 +1160,12 @@ func subsumeDefaultsWalk(st *subState, path []string, g0, s0 Val,
 }
 
 func PolicyCompat(src, path string) string {
-	return PolicyCompatTrust(src, path, nil, nil)
+	return PolicyCompatTrust(src, path, nil, nil, nil)
 }
 
-func PolicyCompatTrust(
-	src, path string, trust *TrustOptions, textExt []string) string {
-	a := aontuForPathTrust(path, trust, textExt)
+func PolicyCompatTrust(src, path string, trust *TrustOptions, textExt []string,
+	hostVars map[string]HostVar) string {
+	a := aontuForPathTrust(path, trust, textExt, hostVars)
 	v, err := a.Unify(src)
 	if err != nil || nil == v || v.Nil() {
 		return ""
@@ -1234,7 +1237,8 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 	broken := SubsumeReport{Verdict: SubsumeError, Findings: []VetFinding{}}
 
 	load := func(src, path string) Val {
-		a := aontuForPathTrust(path, options.Trust, options.TextExt)
+		a := aontuForPathTrust(path, options.Trust, options.TextExt,
+			options.HostVars)
 		v, err := a.Unify(src)
 		if err != nil || nil == v || v.Nil() {
 			return nil

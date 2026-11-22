@@ -10,8 +10,9 @@ declare class PlaceVal extends ValBase {
 }
 declare function boundArgStart(v: any): number;
 declare function unboundHole(ctx: AontuContext, root: Val): Val | undefined;
+declare function unknownCall(root: Val): Val | undefined;
 declare function hasPlace(v: any): boolean;
 declare function waitsOnHole(v: any): boolean;
 declare function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val;
 declare function rebuild(v: Val, peg: any, ctx: AontuContext): Val;
-export { boundArgStart, hasPlace, rebuild, unboundHole, waitsOnHole, fillPlace, PlaceVal, };
+export { boundArgStart, hasPlace, rebuild, unboundHole, unknownCall, waitsOnHole, fillPlace, PlaceVal, };

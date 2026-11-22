@@ -4,7 +4,7 @@ import { riderText } from './rider'
 
 
 import { Aontu } from './aontu'
-import type { AontuOptions, TrustOptions } from './type'
+import type { AontuOptions, HostVars, TrustOptions } from './type'
 import { exactJSON } from './exactjson'
 import { anchorAt, engineFinding } from './vet'
 import type { VetFinding } from './vet'
@@ -31,6 +31,8 @@ export type QueryOptions = {
   // Rides beside `trust` because it is the other half of what an
   // include may read.
   textExt?: string[]
+
+  hostVars?: HostVars
 
   exactNumbers?: boolean
 }

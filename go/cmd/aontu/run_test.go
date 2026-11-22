@@ -568,16 +568,13 @@ func TestRunExactNumbers(t *testing.T) {
 
 // Mirrors cli-canon-refuses-an-unknown-function in ts/test/cli.test.ts.
 func TestRunCanonUnknownFunction(t *testing.T) {
-	for _, src := range []string{"x: nosuchfn(1)", "x: rel() & path($.a)", "x: {a: nosuchfn(1)}"} {
+	// An arm is no exception: the call is refused wherever it stands.
+	for _, src := range []string{"x: nosuchfn(1)", "x: rel() & path($.a)", "x: {a: nosuchfn(1)}",
+		"x: nosuchfn(1) | 2"} {
 		var out, errw bytes.Buffer
 		if code := run([]string{"-c"}, strings.NewReader(src), &out, &errw, false); code != 1 ||
 			!strings.Contains(errw.String(), "[aontu/unknown_function]") {
 			t.Fatalf("%s: %d %q", src, code, errw.String())
 		}
-	}
-	var out, errw bytes.Buffer
-	if code := run([]string{"-c"}, strings.NewReader("x: nosuchfn(1) | 2"), &out, &errw, false); code != 0 ||
-		strings.TrimSpace(out.String()) != `{"x":2}` {
-		t.Fatalf("dead arm: %d %q", code, out.String())
 	}
 }

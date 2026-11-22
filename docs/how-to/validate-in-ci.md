@@ -136,6 +136,14 @@ mean a half-finished document blocks the commit too:
 exec aontu vet schema.aontu user.json
 ```
 
+A schema that reads a `$name` takes its value from the job, by
+[`--var`](inject-host-values.md#from-the-command-line):
+
+<!-- test: skip CI configuration; not executable here -->
+```sh
+aontu vet --var env=ci schema.aontu user.json
+```
+
 While editing, `--watch` re-runs the whole vet whenever the schema or
 a data file changes, streaming one report per run:
 
