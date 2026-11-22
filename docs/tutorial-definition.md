@@ -6302,10 +6302,11 @@ def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds)
 
 Below the top of `must`'s condition a written `nil` stands as it does
 anywhere, so `must({b?: nil}, "m")` admits `{"x": 1}` and refuses
-`{"b": 1}`, where both engines refuse every value with `invalid-arg`.
-Rows `tn0` on hold it, and the ones the engines answer otherwise sit in
-the ledger under #894, which settles that the engines move to the
-definition's reading. A path in the condition into the value under
+`{"b": 1}`, as both engines answer. Rows `tn0` on hold it. An arm that
+holds a written `nil` refuses, so `must({x: 1} | {x: nil}, "m")` admits
+`{"x": 1}`, but both engines keep such an arm once the data meets it,
+outside `must` too: those rows sit in the ledger under #907. A path in
+the condition into the value under
 trial, `$.v.name` under `v`, names nothing in the schema alone, so the
 reading can't make a call over it, and `must({x: upper($.v.name)}, "m")`
 is an `error`. Both engines leave such a path unread and pass the

@@ -7716,6 +7716,10 @@ tried on, and an arm that holds one drops. A size, the count of `nof`
 and of `contains`, the source of `filter` and the scrutinee of `match`
 read the same way.
 
+A written `nil` in `c` is no conflict, and stands where it is written,
+as it does anywhere: `must({b?: nil}, "m")` admits a value without `b`
+and refuses one that supplies it.
+
 `must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). The reading makes a trial `nil` where an argument both engines read as they build it holds a conflict anywhere, its staged normal form not standing: `Decls.clashes` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), held to both engines by rows `td0` on of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv).
 
 ### Band B: `nof`
