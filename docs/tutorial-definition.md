@@ -6270,7 +6270,8 @@ later argument the engines and the definition part: both engines make
 the whole argument admit nothing, so `nof(1, {b?: 1 & 2}, {x: 1})`
 admits `{"x": 1}`, where the definition reads the conflict at the
 optional member and refuses it. Rows `td93` to `td95` sit in the
-ledger under #892, which waits on a ruling.
+ledger under #892, which settles that the engines' reading is the
+language's: the definition is the side that moves.
 
 A written `nil` stands there. Both engines read a size, a condition of
 `must` or a count written as `nil` as a value that admits nothing, so `must(nil, "m")`
@@ -6303,12 +6304,15 @@ Below the top of `must`'s condition a written `nil` stands as it does
 anywhere, so `must({b?: nil}, "m")` admits `{"x": 1}` and refuses
 `{"b": 1}`, where both engines refuse every value with `invalid-arg`.
 Rows `tn0` on hold it, and the ones the engines answer otherwise sit in
-the ledger under #894. A path in the condition into the value under
+the ledger under #894, which settles that the engines move to the
+definition's reading. A path in the condition into the value under
 trial, `$.v.name` under `v`, names nothing in the schema alone, so the
 reading can't make a call over it, and `must({x: upper($.v.name)}, "m")`
 is an `error`. Both engines leave such a path unread and pass the
-check: rows `tq0` on, the ones that differ in the ledger under #895,
-which awaits a ruling.
+check: rows `tq0` on, the ones that differ in the ledger under #895.
+That issue rules that such a path reads the field as the rest of the
+document settles it, so that `upper($.v.name)` reads `"A"` where `name`
+is `"a"`, and both engines and the definition move to that reading.
 
 Read with no position, as the schema's own tree is, a call whose
 arguments hold a `key(n)` stays as written, so that a path copies it to
