@@ -3170,8 +3170,8 @@ def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
 ```
 
 Both trees leave out a `match` whose scrutinee, and a `must` whose
-condition, holds a path into the place the term itself stands at
-(`Val.dropSelf`). Such a path reads what the rest of the document holds
+condition, holds a path into the place the term itself stands at, by
+`Val.dropSelf`. Such a path reads what the rest of the document holds
 there, without the term's own arms, so the rule
 `order: match($.order.status, "shipped", {trackingNo: string}, {})`
 reads the record's `status` and meets in the arm it picks:
@@ -3181,7 +3181,7 @@ record the default takes is valid. In the same way
 record's own `name`. The schema alone reads such a term as `any`, since
 only the data supplies what its path reads, so it can't make the
 document an error. Rows `sr0` on of `test/spec/def-path.tsv` hold
-these; both engines still wait on such a `match` and leave such a path
+these. Both engines still wait on such a `match` and leave such a path
 unread, and the rows they answer otherwise sit in the ledger under #818
 and #895.
 
