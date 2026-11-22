@@ -5,6 +5,7 @@ exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstrai
 exports.normaliseRe = normaliseRe;
 exports.nofCounts = nofCounts;
 exports.pendingNof = pendingNof;
+exports.readsPlace = readsPlace;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintSubsumesKind = constraintSubsumesKind;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;

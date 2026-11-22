@@ -3184,7 +3184,9 @@ document an error. Rows `sr0` on of `test/spec/def-path.tsv` hold
 these. Both engines answer each as the definition does, as #818 and
 #895 asked: a `match` reads its scrutinee with the rest of the document
 held at its own place, and a `must` waits for that rest before it reads
-such a condition.
+such a condition. Where that rest leaves the scrutinee open, as
+`v: {x: number} & match($.v.x, 1, {y: 1}, {y: 2})` does, the `match`
+waits for the data, so the data's `x` picks the arm.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

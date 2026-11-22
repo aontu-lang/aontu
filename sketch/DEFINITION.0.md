@@ -2732,7 +2732,14 @@ until the phase that encodes it lands.
    (#818), with decision 76: each port's `match` drives its scrutinee
    with its peer held at its own place (`holdArm`), and a path that
    place answers reads the peer there rather than recursing, so rows
-   sr0, sr1, sr6, sr7 and sr9 to sr11 leave the ledger.
+   sr0, sr1, sr6, sr7 and sr9 to sr11 leave the ledger. A scrutinee the
+   rest of the document leaves open there, `number` in
+   `v: {x: number} & match($.v.x, 1, {y: 1}, {y: 2})`, had both ports
+   take the default at once; from the same day, after #916's review, it
+   waits and is read again until the data settles it, so the data's
+   `x` picks the arm, rows sr51 to sr56. A pattern that reads the
+   match's own place is #919's question: both ports wait, and the
+   definition reads it from the schema alone, an `error`.
 64. **How a refusal draws its call.** Raised 2026-10-21 by #457: a
    refusal draws the call it refuses again under its frame, and where
    an argument is driven, TypeScript draws the value the engine saw,
