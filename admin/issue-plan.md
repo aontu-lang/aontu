@@ -7,10 +7,11 @@ and #836 tracks the rows the closed fixes still owe. Each open issue is in one w
 workstreams fall into five phases, ordered by what each one unblocks and
 by how many rows of `spec/ledger.tsv` it clears.
 
-28 issues filed from 2026-11-19 to 2026-11-22 were added on 2026-11-22:
+28 issues filed from 2026-11-19 to 2026-11-21 were added on 2026-11-22:
 25 in the workstreams below, and three that ask for a change to the
 language in [a workstream of their own](#with-the-lang-refinement-plan-three-language-changes).
-136 issues are open on that day.
+The same day #894 was built and closed, and #907 was filed and placed.
+136 issues are open after both.
 
 ## How each fix lands
 
@@ -23,7 +24,7 @@ language in [a workstream of their own](#with-the-lang-refinement-plan-three-lan
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 222 on 2026-11-22),
+  on 2026-11-22), ledger rows (394 at most then, 213 on 2026-11-22),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -199,9 +200,9 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-18 issues (2 S, 16 M), 36 ledger rows.
+19 issues (2 S, 17 M), 27 ledger rows.
 
-Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, the definition moves), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, both ports move), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, both ports and the definition move). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
+Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, the definition moves), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, both ports and the definition move). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -215,7 +216,8 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#743](https://github.com/aontu-lang/aontu/issues/743) | def | M | 12 | A `match` over an open scrutinee is refused before data; ruling 49 says wait for the data. |
 | [#527](https://github.com/aontu-lang/aontu/issues/527) | def | S |  | neq over a nested list written in place expands it twice; path form expands once |
 | [#892](https://github.com/aontu-lang/aontu/issues/892) | def | M | 3 | A conflict below the top of a trial argument read against a value: both ports make the argument admit nothing, the definition reads it in place. Ruled as 74: the whole argument admits nothing, so the definition moves. |
-| [#894](https://github.com/aontu-lang/aontu/issues/894) | def | M | 12 | A written `nil` below the top of `must`'s condition refuses every value in both ports (`invalid-arg`), where ruling 54 reads it where it stands. Ruled as 75: `must` reads it as ruling 54 does, so both ports drop the builder's check. |
+| [#894](https://github.com/aontu-lang/aontu/issues/894) | def | M |  | A written `nil` below the top of `must`'s condition refuses every value in both ports (`invalid-arg`), where ruling 54 reads it where it stands. Ruled as 75: `must` reads it as ruling 54 does, so both ports drop the builder's check. Built 2026-11-22; rows tn9 to tn11 moved to #907. |
+| [#907](https://github.com/aontu-lang/aontu/issues/907) | def | M | 3 | A disjunction arm that holds a written `nil` doesn't refuse once the data meets it, in either port, so `v: {x: 1} \| {x: nil}` refuses `{"v": {"x": 1}}`; the definition admits it. |
 | [#895](https://github.com/aontu-lang/aontu/issues/895) | def | M | 9 | A path in `must`'s condition into the value under trial: both ports leave it unread and pass the check, the definition reads `error` or `invalid`. Ruled as 76: the path reads the field, as 63 reads one in `match`, so both ports and the definition move. |
 | [#847](https://github.com/aontu-lang/aontu/issues/847) | bug | M |  | `filter` and `match` miss a default inside a map: the member is dropped or another arm taken, with no finding. Ruled as 78: the trial reads the value the member generates. |
 | [#870](https://github.com/aontu-lang/aontu/issues/870) | bug | M |  | A call to an unknown name, or with a wrong count, is silent inside a trial, in a disjunction's arm and under `maybe`. Ruled as 77: refused wherever it stands. |
@@ -434,11 +436,11 @@ workstream above meets its tasks.
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
 | 2 | alias cycles, preferences, seals and marks, copies | 43 | 354 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 74 | 58 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 75 | 49 |
 | 4 | diagnostics, tooling | 33 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | 2 |
 
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
-they stand on 2026-11-22 with the 28 newer issues added.
+they stand on 2026-11-22 with #907 added.

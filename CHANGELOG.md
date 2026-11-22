@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### `must` reads a written `nil` in its condition where it stands
+
+Decision 75 (#894), in both engines. `must`'s builder refused every
+value, `invalid-arg`, when its condition held any `nil` below its top.
+It now refuses only for a conflict's `nil`, so a written one stands as
+ruling 54 reads it anywhere: `must({b?: nil}, "m")` admits a value
+without `b` and refuses one that supplies it, and `must({b?: nil & 1},
+"m")` reads the same. A condition that is itself `nil`, `must(nil,
+"m")`, is unchanged.
+
+- Rows tn0 to tn5 and tn12 to tn14 of `test/spec/def-trial.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 222 to 213.
+- Rows tn9 to tn11, an arm that holds a written `nil`, stay in it under
+  #907: both engines keep such an arm once the data meets it, outside
+  `must` too.
+
 ### The coverage gate passes again in both engines
 
 ADR-002 holds both engines at 100% coverage, and the daily run's gate

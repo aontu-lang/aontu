@@ -1814,6 +1814,15 @@ comments, and set against this plan. There were 137. One,
 [#898](https://github.com/aontu-lang/aontu/issues/898), closed while
 they were read, so 136 are open.
 
+Two things moved on 2026-11-22, after the reading.
+[#894](https://github.com/aontu-lang/aontu/issues/894) was built and
+closed, as the definition's decision 75. And
+[#907](https://github.com/aontu-lang/aontu/issues/907) was filed, an
+arm of a disjunction that holds a written `nil`: the issue plan places
+it with the generators and trials, and nothing in this plan bears on
+it. So 136 are open after both, and the tables below are the reading
+of 2026-11-21, with #894 still in them.
+
 ### Where the issues are
 
 - **108 are placed already**, each in one workstream of

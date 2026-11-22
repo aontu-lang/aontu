@@ -672,7 +672,8 @@ func makeConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			// stringLeaf test is strict).
 			return bad("invalid-arg")
 		}
-		if holdsNil(args[0], nil) {
+		// Below the top only a conflict's nil refuses: a written one stands (ruling 54).
+		if args[0].Nil() || holdsNil(args[0], conflictNil) {
 			return bad("invalid-arg")
 		}
 		// (An effectful argument is refused at construction, above: by
@@ -2105,10 +2106,11 @@ func holdsNil(v Val, only func(Val) bool) bool {
 	return false
 }
 
+func conflictNil(v Val) bool { n, ok := v.(*NilVal); return !ok || "literal_nil" != n.why }
+
 func writtenNilsOnly(args []Val) bool {
-	conflict := func(v Val) bool { n, ok := v.(*NilVal); return !ok || "literal_nil" != n.why }
 	return slices.ContainsFunc(args, func(a Val) bool { return holdsNil(a, nil) }) &&
-		!slices.ContainsFunc(args, func(a Val) bool { return holdsNil(a, conflict) })
+		!slices.ContainsFunc(args, func(a Val) bool { return holdsNil(a, conflictNil) })
 }
 
 func holdsMove(v Val) bool {

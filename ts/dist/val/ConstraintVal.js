@@ -458,7 +458,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             if (!stringLeaf(args[1])) {
                 return bad('invalid-arg');
             }
-            if (holdsNil(args[0])) {
+            // Below the top only a conflict's nil refuses: a written one stands (ruling 54).
+            if (true === args[0].isNil || holdsNil(args[0], conflictNil)) {
                 return bad('invalid-arg');
             }
             // (An effectful argument is refused at construction, in the
@@ -1396,9 +1397,12 @@ function holdsNil(v, only) {
         ((true === v.isMap || true === v.isList || true === v.isDisjunct ||
             true === v.isConstraint) && heldVals(v).some((c) => holdsNil(c, only)));
 }
+function conflictNil(n) {
+    return 'literal_nil' !== n.why;
+}
 function writtenNilsOnly(args) {
     return args.some((a) => holdsNil(a)) &&
-        !args.some((a) => holdsNil(a, (n) => 'literal_nil' !== n.why));
+        !args.some((a) => holdsNil(a, conflictNil));
 }
 function holdsMove(v) {
     return (true === v.isFunc && 'move' === v.funcname?.()) ||

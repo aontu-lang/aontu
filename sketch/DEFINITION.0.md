@@ -2881,8 +2881,14 @@ until the phase that encodes it lands.
    ports read the same `nil` where it stands in a branch of `nof`.
    Rows tn0 to tn17 of `test/spec/def-trial.tsv`, twelve of them in
    the ledger under #894. **Ruled 2026-11-22 (the project's owner):
-   `must` reads a written `nil` as ruling 54 does.** **Not yet
-   built**: both ports drop the check in `must`'s builder.
+   `must` reads a written `nil` as ruling 54 does.** **Built
+   2026-11-22** in both ports: the check in `must`'s builder refuses a
+   condition only for a conflict's `nil`, so a written one stands where
+   it is written, and rows tn0 to tn5 and tn12 to tn14 leave the
+   ledger, its bound falling to 213. Rows tn9 to tn11, an arm that
+   holds a written `nil`, stay, under #907: both ports keep such an arm
+   once the data meets it, outside `must` too, so
+   `v: {x: 1} | {x: nil}` refuses `{"v": {"x": 1}}`.
 76. **A path in `must`'s condition into the value under trial.**
    Raised 2026-11-21 by building decision 62 (#895): both ports leave
    a path such as `$.v.name` in `v: must(…)` unread, and pass the
