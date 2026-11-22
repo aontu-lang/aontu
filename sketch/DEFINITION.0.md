@@ -2910,7 +2910,9 @@ until the phase that encodes it lands.
    once the data meets it, outside `must` too, so
    `v: {x: 1} | {x: nil}` refuses `{"v": {"x": 1}}`, which rows nl204
    to nl212 of `test/spec/def-path.tsv` hold, in the ledger under #907
-   with them, its bound 219 once decision 74 was built.
+   with them, its bound 219 once decision 74 was built. Both ports
+   drop such an arm from 2026-11-22 (#907), so those twelve rows leave
+   the ledger, its bound 214.
 76. **A path in `must`'s condition into the value under trial.**
    Raised 2026-11-21 by building decision 62 (#895): both ports leave
    a path such as `$.v.name` in `v: must(…)` unread, and pass the

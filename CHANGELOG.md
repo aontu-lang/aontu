@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### A disjunction drops an arm that holds a written `nil` the value must fill
+
+#907, in both engines. An arm whose meet with the data leaves a written
+`nil` at a member the value must have, a key that isn't optional or a
+list's element, refuses, as ruling 54 reads it. So `v: {x: 1} | {x: nil}`
+admits `{"v": {"x": 1}}` and generates it, where both engines refused it
+as `literal_nil`, and `[1] | [nil]` admits `[1]`. `must` and `nof` over
+such a disjunction follow, and Go's `nof(1, {x: 1} | {x: nil})`, which
+refused `{"x": 1}`, now admits it as TypeScript did.
+
+- Rows tn9 to tn11 of `test/spec/def-trial.tsv` and nl204 to nl212 of
+  `test/spec/def-path.tsv` leave `spec/ledger.tsv`, whose bound falls
+  from 226 to 214.
+
 ### The definition reads a `match` or a `must` that reads its own place
 
 Decisions 63 (#818) and 76 (#895), in the definition only. A `match`
