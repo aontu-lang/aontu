@@ -1403,7 +1403,8 @@ function holdsNil(v, only) {
 }
 function readsPlace(v, place) {
     if (true === v?.isRef) {
-        return true === v.absolute && place.every((s, i) => v.peg[i] === s);
+        const at = true === v.absolute ? v.peg : v.plainRefPath();
+        return null != at && place.every((s, i) => at[i] === s);
     }
     return heldVals(v).some((c) => true === c?.isVal && readsPlace(c, place));
 }

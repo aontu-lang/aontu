@@ -7722,7 +7722,7 @@ A written `nil` in `c` is no conflict, and reads as it does anywhere:
 `must({b?: nil}, "m")` admits a value without `b` and refuses one that
 supplies it.
 
-`must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). A path in `c` into the value under trial, `$.v.name` in `v: must(…)`, reads in the definition the field the rest of the document holds there, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). Both engines read it the same way, as #895 asked. The reading makes a trial `nil` where an argument both engines read as they build it holds a conflict anywhere, its staged normal form not standing: `Decls.clashes` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), held to both engines by rows `td0` on of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv).
+`must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). A path in `c` into the value under trial, `$.v.name` in `v: must(…)`, reads in the definition the field the rest of the document holds there, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), and so does a relative path that reaches it, `.name` in the condition's `x`. Both engines read it the same way, as #895 and #917 asked. The reading makes a trial `nil` where an argument both engines read as they build it holds a conflict anywhere, its staged normal form not standing: `Decls.clashes` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), held to both engines by rows `td0` on of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv).
 
 ### Band B: `nof`
 

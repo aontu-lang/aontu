@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### A relative path in `must`'s condition reads its own place too
+
+#917, in both engines. A relative path in a `must`'s condition that
+reaches the place the `must` stands at reads the field as an absolute
+one does, so `v: must({x: .name}, "m")` refuses
+`{"v": {"x": "B", "name": "a"}}`, and `must({x: 1, y: .x}, "m")`
+refuses a value with no `y`, where both engines passed the check.
+
+- `ts/src/val/ConstraintVal.ts` and `go/constraint.go`: `readsPlace`
+  takes the path a relative reference resolves to.
+- Rows sr27 to sr50 of `test/spec/def-path.tsv` hold the relative
+  reads, with a `match` whose scrutinee is `.order.status`, which both
+  engines already read.
+
 ### A `match` or a `must` reads its own place
 
 #818 and #895, in both engines, as the definition reads them. A path in

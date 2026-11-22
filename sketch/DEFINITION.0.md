@@ -2941,7 +2941,12 @@ until the phase that encodes it lands.
    port's `must` holds back a condition that reads its own place until
    its peer is known, then reads a fresh copy of it with the peer held
    there (`readsPlace`), so rows sr15 to sr23 leave the ledger, its
-   bound 201 with decision 77's three rows.
+   bound 201 with decision 77's three rows. A relative path into the
+   value under trial, `.name` in `v: must({x: .name}, "m")`, read so
+   in both ports the same day (#917): `readsPlace` takes the path the
+   reference resolves to, where it had taken an absolute one's written
+   steps alone; rows sr27 to sr50 hold it, with the scrutinee
+   `.order.status`, which both ports already read.
 77. **An unknown call inside a trial.** Raised 2026-11-20 by #870: a
    call to a name that is no built-in, or with the wrong count of
    arguments, is refused where it stands alone, `unknown_function` or
