@@ -1885,6 +1885,22 @@ as a value that admits nothing, met with whatever it meets (`Val.void`,
 ruling 54). -/
 def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds).illFormed
 
+/-- An argument a trial tries against a value, a branch of `nof`,
+`when`'s three and the conditions of `contains` and `filter`, admits
+nothing where it doesn't stand, whatever depth its conflict sits at,
+as both ports read it; one that computes with a key no position places
+yet is read where it lands. -/
+def Decls.tried (ds : Decls) (here : Option (List Step)) (v : Val) : Val :=
+  if here.isNone && v.holdsKey then v else if ds.clashes v then .nil else v
+
+theorem Decls.tried_checkableA {ds : Decls} {here : Option (List Step)} {v : Val}
+    (h : v.CheckableA) : (ds.tried here v).CheckableA := by
+  unfold Decls.tried; split
+  · exact h
+  · split
+    · exact .nil
+    · exact h
+
 /-- Whether a list's marked element is a conflict, under the riders it
 carries, met with the list's spread `s`: both ports read the element
 and meet it with the spread before the list drops it (decision 18). -/
@@ -1999,7 +2015,10 @@ read then holds a conflict anywhere (`Decls.clashes`): a size, `must`'s
 condition and the count of `nof` and of `contains`; and so are a
 `filter` whose source and a selection whose scrutinee holds one, or is
 dead, written `nil` or not. So such a trial is an error where it stands, an arm holding it drops,
-and a spread holding it refuses each member it's tried on. -/
+and a spread holding it refuses each member it's tried on. An argument a
+trial tries against a value instead, a branch of `nof`, `when`'s three
+and the conditions of `contains` and `filter`, admits nothing where it
+holds a conflict anywhere (`Decls.tried`), as one at its top does. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -2022,17 +2041,21 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     else
     match (normaliseD ds s').unride with
     | .map fs _ _ => (Val.map ((filterFields ds fs).filterMap fun m =>
-        if filterTakes ds (resolveD ds (some m.2) (stepped here (.seg (.key m.1))) c) m.2
+        if filterTakes ds (ds.tried (stepped here (.seg (.key m.1)))
+            (resolveD ds (some m.2) (stepped here (.seg (.key m.1))) c)) m.2
         then some (m.1, false, m.2) else none) none false).rideMoves s'.moves
     | .list items _ _ => (Val.list (keptTerms (fun i v =>
-        filterTakes ds (resolveD ds (some v) (stepped here (.seg (.idx i))) c) v) 0 (filterItems items))
+        filterTakes ds (ds.tried (stepped here (.seg (.idx i)))
+          (resolveD ds (some v) (stepped here (.seg (.idx i))) c)) v) 0 (filterItems items))
         none false).rideMoves s'.moves
     | _ =>
     match genD ds s' with
     | some (.map fs) => (keptFields (normaliseD ds s').unride (fs.filter fun m =>
-        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).rideMoves s'.moves
+        checkR ds (ds.tried (stepped here (.seg (.key m.1)))
+          (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c)) m.2)).rideMoves s'.moves
     | some (.list xs) => (keptElems (normaliseD ds s').unride (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) xs).rideMoves s'.moves
+        checkR ds (ds.tried (stepped here (.seg (.idx i)))
+          (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c)) x) xs).rideMoves s'.moves
     | some _ => .nil
     | none => .filter s' (resolveD ds none none c)
   | .call f args =>
@@ -2106,11 +2129,15 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .pref r x => .pref r (resolveD ds b here x)
   | .meet a c => .meet (resolveD ds b here a) (resolveD ds b here c)
   | .nof n cs =>
-    if ds.clashes (resolveD ds b here n) then .nil else .nof (resolveD ds b here n) (resolveItems ds b here cs)
+    if ds.clashes (resolveD ds b here n) then .nil
+    else .nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here))
   | .must c m => if ds.clashes (resolveD ds b here c) then .nil else .must (resolveD ds b here c) m
-  | .when c t e => .when (resolveD ds b here c) (resolveD ds b here t) (resolveSpread ds b here e)
+  | .when c t e =>
+    .when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
+      ((resolveSpread ds b here e).map (ds.tried here))
   | .contains c n =>
-    if ds.clashes (resolveD ds b here n) then .nil else .contains (resolveD ds b here c) (resolveD ds b here n)
+    if ds.clashes (resolveD ds b here n) then .nil
+    else .contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n)
   | .rest t cs => .rest (resolveD ds b here t) (resolveCovers ds b here cs)
   | .ride k v r => .ride k (resolveD ds b here v) r
   | .link v lt => .link (resolveD ds b here v) lt
@@ -3754,8 +3781,9 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     split
     · exact .nil
     refine .nof (ihn hb) fun c hc => ?_
-    obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc
-    exact ihcs c₀ hc₀ hb
+    obtain ⟨c₁, hc₁, rfl⟩ := List.mem_map.mp hc
+    obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc₁
+    exact Decls.tried_checkableA (ihcs c₀ hc₀ hb)
   | must _ ih =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ih := @And.left _ _ ih
@@ -3768,16 +3796,17 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace iht := @And.left _ _ iht
     replace ihe := fun e' he => @And.left _ _ (ihe e' he)
     simp only [resolveD]
-    refine .when (ihc hb) (iht hb) fun e he => ?_
-    obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
-    exact ihe e₀ he₀ hb
+    refine .when (Decls.tried_checkableA (ihc hb)) (Decls.tried_checkableA (iht hb)) fun e he => ?_
+    obtain ⟨e₁, he₁, rfl⟩ := Option.map_eq_some_iff.mp he
+    obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he₁
+    exact Decls.tried_checkableA (ihe e₀ he₀ hb)
   | contains _ _ ihc ihn =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ihc := @And.left _ _ ihc
     replace ihn := @And.left _ _ ihn
     simp only [resolveD]; split
     · exact .nil
-    · exact .contains (ihc hb) (ihn hb)
+    · exact .contains (Decls.tried_checkableA (ihc hb)) (ihn hb)
   | rest _ _ _ _ iht ih1 ih2 ih3 =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace iht := @And.left _ _ iht
@@ -4080,7 +4109,8 @@ theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s 
     (hl : (normaliseD ds (resolveD ds b (some pos) s)).unride = .list items sp cl) :
     resolveD ds b (some pos) (.filter s c) =
       (Val.list (keptTerms (fun i v =>
-        filterTakes ds (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c) v) 0 (filterItems items))
+        filterTakes ds (ds.tried (stepped (some pos) (.seg (.idx i)))
+          (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c)) v) 0 (filterItems items))
         none false).rideMoves (resolveD ds b (some pos) s).moves := by
   rw [resolveD.eq_def]
   simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hc, hw, hl]

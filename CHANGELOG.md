@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a conflict anywhere in a tried argument as both engines do
+
+Decision 74 (#892), in the definition only. An argument a trial tries
+against a value, a branch of `nof`, `when`'s condition and branches and
+the conditions of `contains` and `filter`, admits nothing where it holds
+a conflict anywhere, as one at its top does, so `nof(1, {b?: 1 & 2},
+{x: 1})` admits `{"x": 1}`, one branch counting. The definition read
+such a conflict at the member it stood in, as a written `nil`. A call
+the reading couldn't make, a list too long for its size and a
+preference clash count too, and a written `nil` still stands. No engine
+changes.
+
+- Rows td93 to td95 of `test/spec/def-trial.tsv` leave `spec/ledger.tsv`.
+- Rows tl0 to tl20 of the same fragment hold both engines to `when`'s
+  branch and condition, the conditions of `contains` and `filter`, and
+  the three clashes in a branch of `nof`.
+- Rows nl204 to nl212 of `test/spec/def-path.tsv` hold an arm that
+  holds a written `nil`, which both engines keep once the data meets it
+  (#907), and join the ledger under that issue. Its bound rises from
+  213 to 219.
+
 ### `must` reads a written `nil` in its condition where it stands
 
 Decision 75 (#894), in both engines. `must`'s builder refused every
