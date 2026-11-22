@@ -1,0 +1,4 @@
+xs: [a, b]
+ys: [1, 2]
+yi: hide(each($.ys, {i: key(), y: _}))
+out: each($.xs, {k: _, y: sum(pick(filter($.yi, {i: key(3)}), y))})

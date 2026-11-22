@@ -1,0 +1,2 @@
+xs: [{name: a, team: core}, {name: b, team: web}, {name: c, team: core}]
+out: pack(pick($.xs, team), pick(filter($.xs, {team: key(2)}), name))

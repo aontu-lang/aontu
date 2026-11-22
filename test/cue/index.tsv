@@ -1,0 +1,166 @@
+# The comparison's 154 probes, as task CG1 of
+# sketch/LANG-REFINEMENT-PLAN.0.md asks: each written once in aontu,
+# <id>.aontu, and once in CUE, <id>.cue, to say the same thing. Each
+# aontu answer is what both engines give (the parity probe), and the
+# rows of test/spec/cue.tsv and test/spec/comprehension.tsv hold it.
+# The CUE answers are `cue export --out json` from v0.17.1 and
+# v0.18.0-rc.4 (`cue eval` beside `aontu -c` for the canon probes);
+# "same" in the last column is the first release's answer. A selected
+# probe answers with only the members it is about. relation reads the
+# two first answers: same, differs, both refuse, or the one that
+# refuses. Columns:
+# id<TAB>title<TAB>mode<TAB>members<TAB>relation<TAB>aontu<TAB>cue-0.17.1<TAB>cue-0.18.0-rc.4
+s1	equal scalars meet	gen		same	ok {"a":1}	ok {"a":1}	same
+s2	different scalars conflict	gen		both refuse	ERR [aontu/scalar_value]: Cannot unify values at path $.a	ERR a: conflicting values 2 and 1: ¦ ./p.cue:1:4	same
+s3	int meets float of same value	gen		both refuse	ERR [aontu/scalar_kind]: Cannot unify values at path $.a	ERR a: conflicting values 1 and 1.0 (mismatched types int and float): ¦ ./p.cue:1:4	same
+s4	number narrows to integer	gen		same	ok {"a":3}	ok {"a":3}	same
+s5	string admits the empty string	gen		aontu refuses	ERR [aontu/string_empty]: Cannot resolve value at path $.a	ok {"a":""}	same
+s6	2^53+1 integer literal	gen		aontu refuses	ERR [aontu/lossy_integer_literal]: Cannot resolve value at path $.id	ok {"id":9007199254740993}	same
+s7	exact integer literal	gen		same	ok {"id":9007199254740993}	ok {"id":9007199254740993}	same
+s8	0.1 + 0.2	gen		differs	ok {"a":0.30000000000000004}	ok {"a":0.3}	same
+s9	exact 0.1 + 0.2	gen		same	ok {"a":0.3}	ok {"a":0.3}	same
+s10	integer division	gen		same	ok {"a":3,"b":1,"c":-1}	ok {"a":3,"b":1,"c":-1}	same
+s11	division operator	gen		same	ok {"a":3.5}	ok {"a":3.5}	same
+s12	multiplication	gen		same	ok {"a":42}	ok {"a":42}	same
+s13	int + float	gen		same	ok {"a":3.5}	ok {"a":3.5}	same
+s14	string concatenation	gen		same	ok {"a":"abcd"}	ok {"a":"abcd"}	same
+s15	string + number	gen		cue refuses	ok {"a":"port:80"}	ERR a: invalid operands "port:" and 80 to '+' (type string and int): ¦ ./p.cue:1:4	same
+s16	hex, octal, binary, separators	gen		same	ok {"a":31,"b":15,"c":10,"d":1000000}	ok {"a":31,"b":15,"c":10,"d":1000000}	same
+s17	SI multiplier literal	gen		differs	ok {"a":"1Ki"}	ok {"a":1024}	same
+s18	bare word	gen		cue refuses	ok {"a":"Mercury"}	ERR a: reference "Mercury" not found: ¦ ./p.cue:1:4	same
+s19	single-quoted text	gen		differs	ok {"a":"abc"}	ok {"a":"YWJj"}	same
+s20	int64 overflow arithmetic	gen		aontu refuses	ERR [aontu/invalid-arg]: Cannot add value at path $.a	ok {"a":9223372036854775808}	same
+s21	integer equality across int and float	gen		same	ok {"a":1,"b":1}	ok {"a":1,"b":1.0}	same
+s22	float literal kind	gen		cue refuses	ok {"a":1000}	ERR a: conflicting values 1E+3 and int (mismatched types float and int): ¦ ./p.cue:1:4	same
+s23	integer division of a negative number	gen		differs	ok {"a":-3,"b":1,"c":-1,"d":3,"e":-1}	ok {"a":-4,"b":1,"c":-1,"d":4,"e":1}	same
+s24	two lists under +	gen		cue refuses	ok {"a":[1,2,3]}	ERR a: Addition of lists is superseded by list.Concat; see https://cuelang.org/e/v0.11-list-arithmetic: ¦ ./p.cue:1:4	same
+d1	standalone default, overridden	gen		cue refuses	ok {"a":2}	ERR a: preference mark not allowed at this position: ¦ ./p.cue:1:4	same
+d2	default in a disjunction, overridden	gen		same	ok {"a":2}	ok {"a":2}	same
+d3	default in a disjunction, unset	gen		same	ok {"a":1}	ok {"a":1}	same
+d4	enum with default refuses an outsider	gen		both refuse	ERR [aontu/empty]: Cannot unify values at path $.k	ERR k: 3 errors in empty disjunction: ¦ k: conflicting values "auto" and "autoo":	same
+d5	two defaults disagree	gen		both refuse	ERR [aontu/pref_rank_clash]: Cannot unify values at path $.a	ERR a: incomplete value 1 | 2	ERR a: incomplete value 1 | 2: ¦ ./p.cue:1:4
+d6	ranked defaults	gen		same	ok {"a":1}	ok {"a":1}	same
+d7	unresolved disjunction	gen		both refuse	ERR [aontu/disjunct_no_gen]: Cannot resolve value at path $.a	ERR a: incomplete value 1 | 2	ERR a: incomplete value 1 | 2: ¦ ./p.cue:1:4
+d8	default meets a narrowing peer	gen		same	ok {"a":8080}	ok {"a":8080}	same
+d9	struct default, extended	gen		same	ok {"a":{"x":1,"y":2}}	ok {"a":{"x":1,"y":2}}	same
+d10	two standalone defaults of the same value	gen		cue refuses	ok {"a":1}	ERR a: preference mark not allowed at this position: ¦ ./p.cue:1:4	same
+m1	optional key with a concrete value	gen		differs	ok {"x":1,"y":2}	ok {"y":2}	same
+m2	optional key filled	gen		same	ok {"x":1}	ok {"x":1}	same
+m3	optional key unfilled	gen		same	ok {"y":2}	ok {"y":2}	same
+m4	required kind left unfilled	gen		both refuse	ERR [aontu/mapval_no_gen]: Cannot resolve value at path $.x	ERR x: field is required but not present: ¦ ./p.cue:1:1	same
+m5	closed map refuses a new key	gen		both refuse	ERR [aontu/closed]: Cannot resolve value at path $.a.y	ERR a.y: field not allowed: ¦ ./p.cue:2:16	same
+m6	closed map refuses a nested new key	gen		both refuse	ERR [aontu/closed]: Cannot resolve value at path $.a.x.z	ERR a.x.z: field not allowed: ¦ ./p.cue:2:20	same
+m7	open map accepts a new key	gen		same	ok {"a":{"x":1,"y":2}}	ok {"a":{"x":1,"y":2}}	same
+m8	reopened closed map	gen		same	ok {"a":{"x":1,"y":2}}	ok {"a":{"x":1,"y":2}}	same
+m9	template for every key	gen		both refuse	ERR [aontu/no_scalar_unify]: Cannot unify values at path $.m.b	ERR m.b: conflicting values "x" and int (mismatched types string and int): ¦ ./p.cue:1:14	same
+m10	template for keys matching a pattern	gen		same	ok {"m":{"b":"s","xa":1}}	ok {"m":{"b":"s","xa":1}}	same
+m11	pattern template refuses a match	gen		both refuse	ERR [aontu/no_scalar_unify]: Cannot unify values at path $.m.xa	ERR m.xa: conflicting values "s" and int (mismatched types string and int): ¦ ./p.cue:1:14	same
+m12	hidden value used by another	gen		same	ok {"a":2}	ok {"a":2}	same
+m13	schema block not in output	gen		same	ok {"a":{"x":1}}	ok {"a":{"x":1}}	same
+m14	type() block not in output	gen		same	ok {"port":80}	ok {"port":80}	same
+m15	closed list refuses a longer list	gen		both refuse	ERR [aontu/closed]: Cannot resolve value at path $.l.2	ERR l: incompatible list lengths (2 and 3): ¦ ./p.cue:1:17	same
+m16	list literal met with a longer list	gen		cue refuses	ok {"l":[1,2,3]}	ERR l: incompatible list lengths (2 and 3): ¦ ./p.cue:1:17	same
+m17	list of any length, one element type	gen		same	ok {"l":[1,2,3]}	ok {"l":[1,2,3]}	same
+m18	null or string	gen		same	ok {"a":null}	ok {"a":null}	same
+m19	duplicate key merge	gen		same	ok {"a":{"b":1,"c":2}}	ok {"a":{"b":1,"c":2}}	same
+m20	nested shorthand	gen		same	ok {"a":{"b":{"c":1}}}	ok {"a":{"b":{"c":1}}}	same
+m21	embedding a closed schema and adding a field	gen		both refuse	ERR [aontu/closed]: Cannot resolve value at path $.b.y	ERR b.y: field not allowed: ¦ ./p.cue:3:4	same
+r1	relative reference	gen		same	ok {"a":{"x":1,"y":1}}	ok {"a":{"x":1,"y":1}}	same
+r2	absolute reference	gen		same	ok {"a":1,"b":{"c":1}}	ok {"a":1,"b":{"c":1}}	same
+r3	reference cycle, unresolved	gen		both refuse	ERR [aontu/path_cycle]: Cannot resolve value at path $.a	ERR a: incomplete value _: ¦ ./p.cue:1:4	same
+r4	reference cycle, resolved by a value	gen		aontu refuses	ERR [aontu/path_cycle]: Cannot resolve value at path $.a	ok {"a":1,"b":1}	same
+r5	structural cycle	gen		both refuse	ERR [aontu/recursion_unexpanded]: Cannot recurse value at path $.a.b	ERR a.b: structural cycle	same
+r6	recursive schema on finite data	gen		same	ok {"t":{"next":{"next":{"v":3},"v":2},"v":1}}	ok {"t":{"next":{"next":{"v":3},"v":2},"v":1}}	same
+r7	list index	gen		same	ok {"a":[10,20,30],"b":20}	ok {"a":[10,20,30],"b":20}	same
+r8	named value (let / alias)	gen		same	ok {"a":6}	ok {"a":6}	same
+r9	reference to an undefined path	gen		both refuse	ERR [aontu/no_path]: Cannot resolve value at path $.a	ERR a: reference "nope" not found: ¦ ./p.cue:1:4	same
+r10	self-reference through arithmetic	gen		same	ok {"a":{"m":6,"n":2}}	ok {"a":{"m":6,"n":2}}	same
+c1	integer range	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value 11 (out of bound <=10): ¦ ./p.cue:1:16	same
+c2	two lower bounds meet	canon		same	ok {"a":min(5)}	ok a: >=5	same
+c3	empty range	canon		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: incompatible number bounds <5 and >10: ¦ ./p.cue:1:10	same
+c4	regular expression	gen		same	ok {"a":"abc"}	ok {"a":"abc"}	same
+c5	regular expression refuses	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value "xbc" (out of bound =~"^a"): ¦ ./p.cue:1:4	same
+c6	negated pattern	gen		same	ok {"a":"xbc"}	ok {"a":"xbc"}	same
+c7	not equal	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value 3 (out of bound !=3): ¦ ./p.cue:1:4	same
+c8	string length	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value "ab" (does not satisfy strings.MinRunes(3)): ¦ ./p.cue:2:4	same
+c9	list length	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value [1] (does not satisfy list.MinItems(2)): len(list) < MinItems(2) (1 < 2): ¦ ./p.cue:2:4	same
+c10	unique items	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value [1,1] (does not satisfy list.UniqueItems): equal value (1) at position 0 and 1: ¦ ./p.cue:2:4	same
+c11	exactly one of	gen		same	ok {"a":1}	ok {"a":1}	same
+c12	exactly one of, two admit	gen		both refuse	ERR [aontu/nof]: Cannot unify values at path $.a	ERR a: invalid value 1 (does not satisfy matchN): 2 matched, expected 1: ¦ ./p.cue:1:4	same
+c13	if-then constraint	gen		both refuse	ERR [aontu/when]: Cannot unify values at path $.a	ERR a: invalid value {k:1} (does not satisfy matchIf): field is required but not present: ¦ ./p.cue:1:4	same
+c14	custom message	gen		both refuse	ERR [aontu/must]: Cannot unify values at path $.a	ERR a must not be negative: ¦ ./p.cue:2:12	same
+c15	multiple of	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value 12 (does not satisfy math.MultipleOf(5)): ¦ ./p.cue:2:4	same
+c16	date format	gen		both refuse	ERR [aontu/parse_failed]: Cannot parse values at path $.a	ERR a: invalid value "2024-02-30" (does not satisfy time.Format("2006-01-02")): invalid time "2024-02-30": ¦ ./p.cue:2:4	same
+c17	IPv4 format	gen		both refuse	ERR [aontu/parse_failed]: Cannot parse values at path $.a	ERR a: invalid value "1.2.3.256" (does not satisfy net.IPv4): ParseAddr("1.2.3.256"): IPv4 field has value >255: ¦ ./p.cue:2:4	same
+c18	contains	gen		both refuse	ERR [aontu/constraint]: Cannot unify values at path $.a	ERR a: invalid value [1,2] (does not satisfy list.Contains(10)): ¦ ./p.cue:2:4	same
+c19	bound on an open string	canon		same	ok {"a":string&len(integer&min(0)&max(3))}	ok import "strings" a: strings.MaxRunes(3)	same
+c20	constraint on a float	gen		same	ok {"a":0.5}	ok {"a":0.5}	same
+g1	map from a map	gen		same	ok {"ports":{"a":1,"b":2},"svc":{"a":{"port":1},"b":{"port":2}}}	ok {"ports":{"a":1,"b":2},"svc":{"a":{"port":1},"b":{"port":2}}}	same
+g2	filter a list	gen		same	ok {"big":[5,3],"l":[1,5,3]}	ok {"big":[5,3],"l":[1,5,3]}	same
+g3	conditional field	gen		same	ok {"env":"prod","replicas":3}	ok {"env":"prod","replicas":3}	same
+g4	string building	gen		same	ok {"image":"acme/web:1.0","name":"web"}	ok {"image":"acme/web:1.0","name":"web"}	same
+g5	number into a string	gen		same	ok {"port":80,"url":"http://h:80"}	ok {"port":80,"url":"http://h:80"}	same
+g6	upper, split, join	gen		same	ok {"a":"AB","b":["a","b"],"c":"a-b"}	ok {"a":"AB","b":["a","b"],"c":"a-b"}	same
+g7	sum and sort	gen		same	ok {"a":6,"b":[1,2,3]}	ok {"a":6,"b":[1,2,3]}	same
+g8	regex replace	gen		same	ok {"a":"cxt"}	ok {"a":"cxt"}	same
+g9	names to keyed children	gen		same	ok {"deploy":{"auth":{"image":"acme/auth"},"web":{"image":"acme/web"}},"names":["web","auth"]}	ok {"deploy":{"auth":{"image":"acme/auth"},"web":{"image":"acme/web"}},"names":["web","auth"]}	same
+g10	map to list	gen		differs	ok {"l":[1,2],"m":{"a":1,"b":2}}	ok {"l":[2,1],"m":{"a":1,"b":2}}	same
+g11	computed key	gen		same	ok {"k":"dyn","m":{"dyn":1}}	ok {"k":"dyn","m":{"dyn":1}}	same
+g12	template names each child	gen		same	ok {"a":{"c":{"name":"c"},"d":{"name":"d"}}}	ok {"a":{"c":{"name":"c"},"d":{"name":"d"}}}	ERR old-style alias syntax (=) is not allowed as of language version v0.18.0; use postfix syntax (~X or ~(K,V)): ¦ ./p.cue:1:8
+g13	count and max	gen		same	ok {"a":3,"b":5,"l":[7,8,9]}	ok {"a":3,"b":5,"l":[7,8,9]}	same
+g14	project a field to a list	gen		same	ok {"ports":[1,2],"svc":{"a":{"port":1},"b":{"port":2}}}	ok {"ports":[1,2],"svc":{"a":{"port":1},"b":{"port":2}}}	same
+n1	integer arithmetic past 2^53	gen		aontu refuses	ERR [aontu/inexact_integer_sum]: Cannot add value at path $.a	ok {"a":9007199254740993}	same
+n2	integer arithmetic past 34 digits	gen		differs	ok {"a":12345678901234567890123456789012345679,"b":12345678901234567890123456789012345678}	ok {"a":1.234567890123456789012345678901235E+37,"b":12345678901234567890123456789012350000}	ok {"a":12345678901234567890123456789012345679,"b":12345678901234567890123456789012345678}
+d11	optional key with a default	gen		differs	ok {"x":1,"y":2}	ok {"y":2}	same
+u1	discriminated union	gen		same	ok {"a":{"kind":"b","y":"s"}}	ok {"a":{"kind":"b","y":"s"}}	same
+u2	closed union refuses an extra key	gen		both refuse	ERR [aontu/empty]: Cannot unify values at path $.a	ERR a: 2 errors in empty disjunction: ¦ a.kind: conflicting values "a" and "b":	same
+o1	output key order	gen		same	ok {"a":2,"b":1}	ok {"a":2,"b":1}	same
+m22	required marker on a concrete schema value	gen		cue refuses	ok {"x":1}	ERR x: field is required but not present: ¦ ./p.cue:1:1	same
+m23	required marker satisfied	gen		same	ok {"x":1}	ok {"x":1}	same
+x1	optional input, with a fallback	gen		same	ok {"a":{"x":1},"b":2,"c":0}	ok {"a":{"x":1},"b":2,"c":0}	same
+x2	if and else	gen		same	ok {"n":3,"size":"big"}	ok {"n":3,"size":"big"}	same
+x3	a user-defined function	gen		cue refuses	ok {"x":11,"y":3}	ERR parsing experiments for version "v0.17.1": unknown experiment "functions": ¦ ./p.cue:2:1	ok {"x":11,"y":3}
+x4	list literals met element by element	gen		cue refuses	ok {"y":[3,4]}	ERR parsing experiments for version "v0.17.1": unknown experiment "openlists": ¦ ./p.cue:2:1	ok {"y":[3,4]}
+x5	reopen a closed schema to extend it	gen		cue refuses	ok {"b":{"x":1,"y":2}}	ERR postfix ... operator requires @experiment(explicitopen): ¦ ./p.cue:2:7	ok {"b":{"x":1,"y":2}}
+x6	a reference to the enclosing map	gen		cue refuses	ok {"a":{"x":1,"y":1}}	ERR a.y: predeclared identifier "self" requires @experiment(aliasv2): ¦ ./p.cue:1:14	ok {"a":{"x":1,"y":1}}
+x7	a pattern that names its key, postfix alias	gen		cue refuses	ok {"m":{"c":{"name":"c"},"d":{"name":"d"}}}	ERR postfix alias syntax requires @experiment(aliasv2): ¦ ./p.cue:1:12	ok {"m":{"c":{"name":"c"},"d":{"name":"d"}}}
+x8	a field beside an embedded closed schema	gen		aontu refuses	ERR [aontu/closed]: Cannot resolve value at path $.b.y	ok {"b":{"x":0,"y":1}}	ERR b.y: field not allowed: ¦ ./p.cue:2:9
+x9	struct equality	gen		differs	ok {"e":"yes","f":"yes"}	ok {"e":true,"f":false}	same
+k1	a new record from each record	gen	out	same	ok {"out":[{"addr":"h1:80","name":"web"},{"addr":"h2:5432","name":"db"}]}	ok {"out":[{"addr":"h1:80","name":"web"},{"addr":"h2:5432","name":"db"}]}	same
+k2	filter on a bound, then project	gen	out	same	ok {"out":["db"]}	ok {"out":["db"]}	same
+k3	or, and, not in a condition	gen	or,and,not	same	ok {"and":["b"],"not":["b","c"],"or":["a","b"]}	ok {"and":["b"],"not":["b","c"],"or":["a","b"]}	same
+k4	a condition that compares two fields of one member	gen	out	differs	ok {"out":[]}	ok {"out":[{"a":3,"b":1}]}	same
+k5	the same, through a derived field	gen	out	same	ok {"out":[3]}	ok {"out":[3]}	same
+k6	flatten the lists the members hold	gen	out	same	ok {"out":[80,443,5432]}	ok {"out":[80,443,5432]}	same
+k7	an inner loop that reads the outer member	gen	out	same	ok {"out":["web:80","web:443","db:5432"]}	ok {"out":["web:80","web:443","db:5432"]}	same
+k8	every pair from two lists	gen	out	same	ok {"out":["a-x","a-y","b-x","b-y"]}	ok {"out":["a-x","a-y","b-x","b-y"]}	same
+k9	the members named in another list	gen	out	differs	ok {"out":["cache","web"]}	ok {"out":["web","cache"]}	same
+k10	a map keyed by a field of each member	gen	out	same	ok {"out":{"db":5432,"web":80}}	ok {"out":{"db":5432,"web":80}}	same
+k11	the same, holding each whole record	gen	out	same	ok {"out":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}}}	ok {"out":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}}}	same
+k12	group by a field	gen	out	same	ok {"out":{"core":["a","c"],"web":["b"]}}	ok {"out":{"core":["a","c"],"web":["b"]}}	same
+k13	the same, with the key level miscounted	gen	out	differs	ok {"out":{"core":[],"web":[]}}	ok {"out":{"core":["a","c"],"web":["b"]}}	same
+k14	invert a map	gen	out	same	ok {"out":{"x":"a","y":"b"}}	ok {"out":{"x":"a","y":"b"}}	same
+k15	a prefix on every key	gen	out	same	ok {"out":{"svc-a":1,"svc-b":2}}	ok {"out":{"svc-a":1,"svc-b":2}}	same
+k16	a key built from two fields	gen	out	same	ok {"out":{"a/web":80,"b/web":81}}	ok {"out":{"a/web":80,"b/web":81}}	same
+k17	every pair from two lists, keyed by both	gen	out	same	ok {"out":{"a-x":{"left":"a","right":"x"},"a-y":{"left":"a","right":"y"},"b-x":{"left":"b","right":"x"},"b-y":{"left":"b","right":"y"}}}	ok {"out":{"a-x":{"left":"a","right":"x"},"a-y":{"left":"a","right":"y"},"b-x":{"left":"b","right":"x"},"b-y":{"left":"b","right":"y"}}}	same
+k18	one field of each member, keys kept, any kind	gen	out	same	ok {"out":{"a":{"x":1},"b":{"x":2}}}	ok {"out":{"a":{"x":1},"b":{"x":2}}}	same
+k19	look one field up by a field of the member	gen	out	same	ok {"out":{"a":"core@x","b":"web@x","c":"core@x"}}	ok {"out":{"a":"core@x","b":"web@x","c":"core@x"}}	same
+k20	look a whole record up by a field of the member	gen	out	same	ok {"out":{"a":{"owner":{"email":"core@x","tier":1}},"b":{"owner":{"email":"web@x","tier":2}},"c":{"owner":{"email":"core@x","tier":1}}}}	ok {"out":{"a":{"owner":{"email":"core@x","tier":1}},"b":{"owner":{"email":"web@x","tier":2}},"c":{"owner":{"email":"core@x","tier":1}}}}	same
+k21	pair two lists by position	gen	out	same	ok {"out":[{"k":"a","y":1},{"k":"b","y":2}]}	ok {"out":[{"k":"a","y":1},{"k":"b","y":2}]}	same
+k22	a block of fields under a condition	gen	out	same	ok {"out":{"name":"web","replicas":3,"tier":"gold"}}	ok {"out":{"name":"web","replicas":3,"tier":"gold"}}	same
+k23	a list element under a condition	gen	out	same	ok {"out":["run","now"]}	ok {"out":["run","now"]}	same
+k24	a chain of conditions, first match wins	gen	out	same	ok {"out":"medium"}	ok {"out":"medium"}	same
+k25	a field present or absent	gen	out	same	ok {"out":[true,false]}	ok {"out":[true,false]}	same
+k26	a local value in the loop	gen	out	same	ok {"out":[{"v":4},{"v":6}]}	ok {"out":[{"v":4},{"v":6}]}	same
+k27	a sum of products	gen	out	same	ok {"out":17}	ok {"out":17}	same
+k28	two lists end to end	gen	out	same	ok {"out":[1,2,3]}	ok {"out":[1,2,3]}	same
+k29	the keys of a map as a list	gen	out	differs	ok {"out":["a","b"]}	ok {"out":["b","a"]}	same
+k30	a loop over a number itself	gen	out	aontu refuses	ERR [aontu/each_data]: Cannot resolve value at path $.out	ok {"out":["node-0","node-1","node-2"]}	same
+k31	a loop driven by a number, under a written bound	gen	out	same	ok {"out":["node-0","node-1","node-2"]}	ok {"out":["node-0","node-1","node-2"]}	same
+k32	the same, with the number past the written bound	gen	out	differs	ok {"out":10}	ok {"out":12}	same
+k33	the last member of twelve	gen	out	same	ok {"out":"l"}	ok {"out":"l"}	same
+k34	a list reversed	gen	out	same	ok {"out":["b","a","c"]}	ok {"out":["b","a","c"]}	same
+k35	a slice	gen	out	same	ok {"out":[2,3]}	ok {"out":[2,3]}	same
+k36	each member against the one before it	gen	out	same	ok {"out":[2,4]}	ok {"out":[2,4]}	same
+k37	a field of the member in an each template	gen	out	aontu refuses	ERR [aontu/no_path]: Cannot resolve value at path $.out.0.n	ok {"out":[{"n":"web"},{"n":"db"}]}	same
+k38	a condition that reads a value elsewhere in the document	gen	out	same	ok {"out":[{"a":3}]}	ok {"out":[{"a":3}]}	same

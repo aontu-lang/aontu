@@ -1,0 +1,3 @@
+a: {x: 1}
+b: add(maybe($.a.x), 1)
+c: add(maybe($.a.y), 1) & *0

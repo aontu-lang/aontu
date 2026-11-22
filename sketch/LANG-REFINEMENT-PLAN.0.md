@@ -927,6 +927,17 @@ guide gives a row like this both CUE spellings.
 | CG4 | The guide, `docs/how-to/aontu-for-cue-users.md`, in the four sections above | docs | CG1, CG2 | M |
 | CG5 | The site's comparisons page, drawn from the guide, in `aontu-lang/web` | docs | CG4 | S |
 
+Progress on 2026-11-22. CG1 and CG2 are built. The probes are under
+`test/cue/`, a file in each language and `index.tsv` with what each
+answers. Re-run that day, both engines gave every probe the answer the
+comparison recorded. 89 answer as CUE v0.17.1 does, 14 differ, 30 are
+refused by both, 8 by aontu alone and 13 by CUE alone. The 89 count two
+canon probes that both answer, each in its own syntax, as the same. The 116
+probes beyond k1 to k38 are the rows of `test/spec/cue.tsv`, byte-exact
+`gens` where they generate, since three generate exact numbers, and
+`ts/test/cuecorpus.test.ts` holds each file to its row. CG3, the CUE
+half in the daily workflow, is not started.
+
 C7 and CG2 are one mechanism: whichever starts first writes the rows
 of the other. CG3 edits `.github/workflows/`, so its push needs an
 account with the `workflow` scope. H3 also asks for a guide for JSON

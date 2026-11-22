@@ -1,0 +1,2 @@
+debug: false
+out: [run, match($.debug, true, "--verbose", maybe($.none)), now]

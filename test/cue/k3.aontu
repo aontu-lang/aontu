@@ -1,0 +1,4 @@
+xs: [{n: a, env: prod, tier: gold}, {n: b, env: dev, tier: gold}, {n: c, env: dev, tier: tin}]
+or: pick(filter($.xs, {env: prod} | {tier: gold}), n)
+and: pick(filter($.xs, {env: dev, tier: gold}), n)
+not: pick(filter($.xs, {env: neq(prod)}), n)

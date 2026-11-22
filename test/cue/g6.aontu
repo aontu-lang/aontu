@@ -1,0 +1,3 @@
+a: upper("ab")
+b: split("a,b", ",")
+c: join(["a", "b"], "-")

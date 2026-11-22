@@ -1,0 +1,2 @@
+%A = close({x: integer})
+b: open(%A) & {x: 1, y: 2}

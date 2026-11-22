@@ -1,0 +1,2 @@
+a: *8080 | integer
+a: integer & min(1024)

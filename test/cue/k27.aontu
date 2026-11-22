@@ -1,0 +1,2 @@
+lines: [{qty: 2, price: 5}, {qty: 1, price: 7}]
+out: sum(emit($.lines, {match: any, body: [mul(.qty, .price)]}))

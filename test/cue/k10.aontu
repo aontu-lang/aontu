@@ -1,0 +1,2 @@
+xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]
+out: pack(pick($.xs, name), sum(pick(filter($.xs, {name: key(2)}), port)))

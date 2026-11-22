@@ -1,0 +1,1 @@
+a: close({x: {y: integer}}) & {x: {y: 1, z: 2}}

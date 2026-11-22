@@ -1,0 +1,2 @@
+xs: [{name: web}, {name: db}]
+out: each($.xs, {n: .name})

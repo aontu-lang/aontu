@@ -1,0 +1,4 @@
+as: [a, b]
+bs: [x, y]
+tmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))
+out: emit($.tmp, {match: any, body: [.row]})

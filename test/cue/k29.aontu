@@ -1,0 +1,2 @@
+m: {b: 1, a: 2}
+out: each(pack($.m, key(0)), _)

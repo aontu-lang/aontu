@@ -1,0 +1,3 @@
+svc: {a: {cfg: {x: 1}}, b: {cfg: {x: 2}}}
+out: pack($.svc, {})
+links: hide(emit(pack($.svc, _ & {id: key()}), {match: any, body: [relate(.cfg) & path("$.out." + .id)]}))

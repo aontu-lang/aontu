@@ -1,0 +1,2 @@
+svc: {a: {port: 1}, b: {port: 2}}
+ports: pick($.svc, port)

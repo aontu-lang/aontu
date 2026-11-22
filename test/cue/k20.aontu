@@ -1,0 +1,5 @@
+teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}
+svc: {a: {team: core}, b: {team: web}, c: {team: core}}
+sst: hide(pack($.svc, _ & {id: key()}))
+g: hide(pack($.teams, {rec: _, links: each(pick(filter($.sst, {team: key(3)}), id), relate({owner: ...rec}) & path("$.out." + _))}))
+out: pack($.svc, {})

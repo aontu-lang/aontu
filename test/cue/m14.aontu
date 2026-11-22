@@ -1,0 +1,2 @@
+type: type({ Port: integer & min(1) })
+port: $.type.Port & 80

@@ -1,0 +1,2 @@
+xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]
+out: emit($.xs, {match: any, body: [{name: .name, addr: .host + ":" + .port}]})

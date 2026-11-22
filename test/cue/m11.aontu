@@ -1,0 +1,2 @@
+m: {&: match(key(0), re("^x"), integer, any)}
+m: {xa: "s"}

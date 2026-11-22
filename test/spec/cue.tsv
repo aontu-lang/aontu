@@ -1,0 +1,121 @@
+# The aontu half of the comparison's probes (test/cue/, task CG2 of
+# sketch/LANG-REFINEMENT-PLAN.0.md), bar k1 to k38, which are the
+# routes-k rows of comprehension.tsv. Each expectation is what both
+# engines answer (the parity probe), and ts/test/cuecorpus.test.ts
+# holds each source to its file. Columns: name<TAB>mode<TAB>src<TAB>expect.
+cue-s1	gens	a: 1 & 1	{"a":1}
+cue-s2	errc	a: 1 & 2	scalar_value
+cue-s3	errc	a: 1 & 1.0	scalar_kind
+cue-s4	gens	a: number & integer & 3	{"a":3}
+cue-s5	errc	a: string & ""	string_empty
+cue-s6	errc	id: 9007199254740993	lossy_integer_literal
+cue-s7	gens	id: 0d9007199254740993	{"id":9007199254740993}
+cue-s8	gens	a: 0.1 + 0.2	{"a":0.30000000000000004}
+cue-s9	gens	a: 0d0.1 + 0d0.2	{"a":0.3}
+cue-s10	gens	a: div(7, 2)\nb: mod(-7, 2)\nc: rem(-7, 2)	{"a":3,"b":1,"c":-1}
+cue-s11	gens	a: div(7.0, 2)	{"a":3.5}
+cue-s12	gens	a: mul(6, 7)	{"a":42}
+cue-s13	gens	a: 1 + 2.5	{"a":3.5}
+cue-s14	gens	a: "ab" + "cd"	{"a":"abcd"}
+cue-s15	gens	a: "port:" + 80	{"a":"port:80"}
+cue-s16	gens	a: 0x1f\nb: 0o17\nc: 0b1010\nd: 1_000_000	{"a":31,"b":15,"c":10,"d":1000000}
+cue-s17	gens	a: 1Ki	{"a":"1Ki"}
+cue-s18	gens	a: Mercury	{"a":"Mercury"}
+cue-s19	gens	a: 'abc'	{"a":"abc"}
+cue-s20	errc	a: add(9223372036854775807, 1)	invalid-arg
+cue-s21	gens	a: 1 & number\nb: 1.0 & number	{"a":1,"b":1}
+cue-s22	gens	a: 1e3 & integer	{"a":1000}
+cue-s23	gens	a: div(-7, 2)\nb: mod(-7, 2)\nc: rem(-7, 2)\nd: div(-7, -2)\ne: mod(7, -2)	{"a":-3,"b":1,"c":-1,"d":3,"e":-1}
+cue-s24	gens	a: [1, 2] + [3]	{"a":[1,2,3]}
+cue-d1	gens	a: *1\na: 2	{"a":2}
+cue-d2	gens	a: *1 | integer\na: 2	{"a":2}
+cue-d3	gens	a: *1 | integer	{"a":1}
+cue-d4	errc	k: *"auto" | "literal" | "data"\nk: "autoo"	empty
+cue-d5	errc	a: *1 | *2	pref_rank_clash
+cue-d6	gens	a: *1 | **2	{"a":1}
+cue-d7	errc	a: 1 | 2	disjunct_no_gen
+cue-d8	gens	a: *8080 | integer\na: integer & min(1024)	{"a":8080}
+cue-d9	gens	a: *{x: 1}\na: y: 2	{"a":{"x":1,"y":2}}
+cue-d10	gens	a: *1\na: *1	{"a":1}
+cue-m1	gens	x?: 1\ny: 2	{"x":1,"y":2}
+cue-m2	gens	x?: integer\nx: 1	{"x":1}
+cue-m3	gens	x?: integer\ny: 2	{"y":2}
+cue-m4	errc	x: integer	mapval_no_gen
+cue-m5	errc	a: close({x: integer}) & {x: 1, y: 2}	closed
+cue-m6	errc	a: close({x: {y: integer}}) & {x: {y: 1, z: 2}}	closed
+cue-m7	gens	a: {x: integer} & {x: 1, y: 2}	{"a":{"x":1,"y":2}}
+cue-m8	gens	a: open(close({x: integer})) & {x: 1, y: 2}	{"a":{"x":1,"y":2}}
+cue-m9	errc	m: {&: integer}\nm: {a: 1, b: "x"}	no_scalar_unify
+cue-m10	gens	m: {&: match(key(0), re("^x"), integer, any)}\nm: {xa: 1, b: "s"}	{"m":{"b":"s","xa":1}}
+cue-m11	errc	m: {&: match(key(0), re("^x"), integer, any)}\nm: {xa: "s"}	no_scalar_unify
+cue-m12	gens	h: hide(1)\na: $.h + 1	{"a":2}
+cue-m13	gens	%D = {x: 1}\na: %D	{"a":{"x":1}}
+cue-m14	gens	type: type({ Port: integer & min(1) })\nport: $.type.Port & 80	{"port":80}
+cue-m15	errc	l: close([integer, integer]) & [1, 2, 3]	closed
+cue-m16	gens	l: [integer, integer] & [1, 2, 3]	{"l":[1,2,3]}
+cue-m17	gens	l: [&: integer]\nl: [1, 2, 3]	{"l":[1,2,3]}
+cue-m18	gens	a: null | string\na: null	{"a":null}
+cue-m19	gens	a: {b: 1}\na: {c: 2}	{"a":{"b":1,"c":2}}
+cue-m20	gens	a: b: c: 1	{"a":{"b":{"c":1}}}
+cue-m21	errc	%A = close({x: integer})\nb: %A & {x: 1}\nb: y: 2	closed
+cue-r1	gens	a: {x: 1, y: .x}	{"a":{"x":1,"y":1}}
+cue-r2	gens	a: 1\nb: {c: $.a}	{"a":1,"b":{"c":1}}
+cue-r3	errc	a: $.b\nb: $.a	path_cycle
+cue-r4	errc	a: $.b\nb: $.a\na: 1	path_cycle
+cue-r5	errc	a: b: $.a	recursion_unexpanded
+cue-r6	gens	%T = {v: integer, next?: %T}\nt: %T & {v: 1, next: {v: 2, next: {v: 3}}}	{"t":{"next":{"next":{"v":3},"v":2},"v":1}}
+cue-r7	gens	a: [10, 20, 30]\nb: $.a.1	{"a":[10,20,30],"b":20}
+cue-r8	gens	%x = 2\na: mul(%x, 3)	{"a":6}
+cue-r9	errc	a: $.nope	no_path
+cue-r10	gens	a: {n: 2, m: mul(.n, 3)}	{"a":{"m":6,"n":2}}
+cue-c1	errc	a: integer & min(1) & max(10)\na: 11	constraint
+cue-c2	canon	a: min(1) & min(5)	{"a":min(5)}
+cue-c3	errc	a: above(10) & below(5)	constraint
+cue-c4	gens	a: re("^a") & "abc"	{"a":"abc"}
+cue-c5	errc	a: re("^a") & "xbc"	constraint
+cue-c6	gens	a: nof(0, re("^a")) & "xbc"	{"a":"xbc"}
+cue-c7	errc	a: neq(3) & 3	constraint
+cue-c8	errc	a: len(min(3)) & "ab"	constraint
+cue-c9	errc	a: len(min(2)) & [1]	constraint
+cue-c10	errc	a: unique() & [1, 1]	constraint
+cue-c11	gens	a: nof(1, integer, string) & 1	{"a":1}
+cue-c12	errc	a: nof(1, min(0), integer) & 1	nof
+cue-c13	errc	a: when({k: any}, {n: any}) & {k: 1}	when
+cue-c14	errc	a: must(min(0), "a must not be negative") & -1	must
+cue-c15	errc	a: mulof(5) & 12	constraint
+cue-c16	errc	a: format("date") & "2024-02-30"	parse_failed
+cue-c17	errc	a: format("ipv4") & "1.2.3.256"	parse_failed
+cue-c18	errc	a: contains(min(10)) & [1, 2]	constraint
+cue-c19	canon	a: string & len(max(3))	{"a":string&len(integer&min(0)&max(3))}
+cue-c20	gens	a: float & above(0) & 0.5	{"a":0.5}
+cue-g1	gens	svc: {a: {port: 1}, b: {port: 2}}\nports: pack($.svc, sum(pick([_], port)))	{"ports":{"a":1,"b":2},"svc":{"a":{"port":1},"b":{"port":2}}}
+cue-g2	gens	l: [1, 5, 3]\nbig: filter($.l, above(2))	{"big":[5,3],"l":[1,5,3]}
+cue-g3	gens	env: prod\nreplicas?: match($.env, prod, 3, any)	{"env":"prod","replicas":3}
+cue-g4	gens	name: web\nimage: "acme/" + $.name + ":1.0"	{"image":"acme/web:1.0","name":"web"}
+cue-g5	gens	port: 80\nurl: "http://h:" + $.port	{"port":80,"url":"http://h:80"}
+cue-g6	gens	a: upper("ab")\nb: split("a,b", ",")\nc: join(["a", "b"], "-")	{"a":"AB","b":["a","b"],"c":"a-b"}
+cue-g7	gens	a: sum([1, 2, 3])\nb: sort([3, 1, 2])	{"a":6,"b":[1,2,3]}
+cue-g8	gens	a: rep("caaat", "a+", "x")	{"a":"cxt"}
+cue-g9	gens	names: [web, auth]\ndeploy: pack($.names, {image: "acme/" + key()})	{"deploy":{"auth":{"image":"acme/auth"},"web":{"image":"acme/web"}},"names":["web","auth"]}
+cue-g10	gens	m: {b: 2, a: 1}\nl: each($.m, _)	{"l":[1,2],"m":{"a":1,"b":2}}
+cue-g11	gens	k: dyn\nm: pack([$.k], 1)	{"k":"dyn","m":{"dyn":1}}
+cue-g12	gens	a: { &: { name: key() }, c: {}, d: {} }	{"a":{"c":{"name":"c"},"d":{"name":"d"}}}
+cue-g13	gens	l: [7, 8, 9]\na: sum(each($.l, 1))\nb: greatest([1, 5, 3])	{"a":3,"b":5,"l":[7,8,9]}
+cue-g14	gens	svc: {a: {port: 1}, b: {port: 2}}\nports: pick($.svc, port)	{"ports":[1,2],"svc":{"a":{"port":1},"b":{"port":2}}}
+cue-n1	errc	a: 9007199254740992 + 1	inexact_integer_sum
+cue-n2	gens	a: 0d12345678901234567890123456789012345678 + 1\nb: div(mul(0d12345678901234567890123456789012345678, 10), 10)	{"a":12345678901234567890123456789012345679,"b":12345678901234567890123456789012345678}
+cue-d11	gens	x?: *1 | integer\ny: 2	{"x":1,"y":2}
+cue-u1	gens	a: {kind: "a", x: integer} | {kind: "b", y: string}\na: {kind: "b", y: "s"}	{"a":{"kind":"b","y":"s"}}
+cue-u2	errc	a: close({kind: "a", x: integer}) | close({kind: "b", y: string})\na: {kind: "b", y: "s", z: 1}	empty
+cue-o1	gens	b: 1\na: 2	{"a":2,"b":1}
+cue-m22	gens	x: 1	{"x":1}
+cue-m23	gens	x: integer\nx: 1	{"x":1}
+cue-x1	gens	a: {x: 1}\nb: add(maybe($.a.x), 1)\nc: add(maybe($.a.y), 1) & *0	{"a":{"x":1},"b":2,"c":0}
+cue-x2	gens	n: 3\nsize: match($.n, min(2), big, small)	{"n":3,"size":"big"}
+cue-x3	gens	x: apply(1, add(_, 10))\ny: apply(1, add(_, 2))	{"x":11,"y":3}
+cue-x4	gens	y: [3]\ny: [any, 4]	{"y":[3,4]}
+cue-x5	gens	%A = close({x: integer})\nb: open(%A) & {x: 1, y: 2}	{"b":{"x":1,"y":2}}
+cue-x6	gens	a: {x: 1, y: .x}	{"a":{"x":1,"y":1}}
+cue-x7	gens	m: {&: {name: key()}}\nm: {c: {}, d: {}}	{"m":{"c":{"name":"c"},"d":{"name":"d"}}}
+cue-x8	errc	%A = close({x: *0 | integer})\nb: %A & {y: 1}	closed
+cue-x9	gens	e: match({x: 1}, {x: 1}, yes, no)\nf: match({x: 1, y: 2}, {x: 1}, yes, no)	{"e":"yes","f":"yes"}

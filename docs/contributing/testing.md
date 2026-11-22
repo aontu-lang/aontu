@@ -201,6 +201,17 @@ right. Nothing in the suite can warn you, because a row that was never
 probed carries no record of having been agreed. Probing costs two
 commands; the alternative costs a wrong contract that looks green.
 
+## The CUE corpus
+
+`test/cue/` holds the 154 probes of the comparison with CUE, each written
+once as `<id>.aontu` and once as `<id>.cue` to say the same thing.
+`test/cue/index.tsv` records what each answers in aontu and in two CUE
+releases, and how the two answers relate. The aontu half runs as shared
+rows, k1 to k38 in `test/spec/comprehension.tsv` and the rest in
+`test/spec/cue.tsv`, each expectation from the parity probe, and
+`ts/test/cuecorpus.test.ts` fails when a file and its row differ. A probe
+added to the corpus gets its row in the same change.
+
 ## The render matrix
 
 A shared spec row carries what an engine ANSWERS, so a verb that writes
