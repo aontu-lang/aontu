@@ -4466,6 +4466,35 @@ os20	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {
 os21	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c", "v": 3}}	{"verdict":"valid"}
 os22	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c", "v": 3}}	{"verdict":"valid","opts":{"noFill":true}}
 os23	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c", "v": 3}}	{"verdict":"valid","opts":{"partial":true}}
+# A match whose scrutinee, and a must whose condition, reads the place the term
+# stands at reads what the rest of the document holds there, in rows sr0 on.
+sr0	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "placed"}}	{"verdict":"valid"}
+sr1	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "placed"}}	{"verdict":"valid","opts":{"noFill":true}}
+sr2	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "placed"}}	{"verdict":"valid","opts":{"partial":true}}
+sr3	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped"}}	{"verdict":"incomplete"}
+sr4	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sr5	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped"}}	{"verdict":"valid","opts":{"partial":true}}
+sr6	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped", "trackingNo": "1Z"}}	{"verdict":"valid"}
+sr7	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped", "trackingNo": "1Z"}}	{"verdict":"valid","opts":{"noFill":true}}
+sr8	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped", "trackingNo": "1Z"}}	{"verdict":"valid","opts":{"partial":true}}
+sr9	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped", "trackingNo": 7}}	{"verdict":"invalid"}
+sr10	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped", "trackingNo": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
+sr11	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "shipped", "trackingNo": 7}}	{"verdict":"invalid","opts":{"partial":true}}
+sr12	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "A", "name": "a"}}	{"verdict":"valid"}
+sr13	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "A", "name": "a"}}	{"verdict":"valid","opts":{"noFill":true}}
+sr14	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "A", "name": "a"}}	{"verdict":"valid","opts":{"partial":true}}
+sr15	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "B", "name": "a"}}	{"verdict":"invalid"}
+sr16	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "B", "name": "a"}}	{"verdict":"invalid","opts":{"noFill":true}}
+sr17	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "B", "name": "a"}}	{"verdict":"invalid","opts":{"partial":true}}
+sr18	verdict	"v": must({"x": 1, "y": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid"}
+sr19	verdict	"v": must({"x": 1, "y": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+sr20	verdict	"v": must({"x": 1, "y": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+sr21	verdict	"v": must({"x": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"valid"}
+sr22	verdict	"v": must({"x": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+sr23	verdict	"v": must({"x": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+sr24	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid"}
+sr25	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+sr26	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid","opts":{"partial":true}}
 # One document in three orders follows in rows od0 on (ADR-081): a type and a
 # subtype of it that name each other by path, the subtype written first, the
 # type written first, and the use written above both, each against no data,
