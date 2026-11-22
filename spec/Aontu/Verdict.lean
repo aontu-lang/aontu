@@ -1893,6 +1893,14 @@ yet is read where it lands. -/
 def Decls.tried (ds : Decls) (here : Option (List Step)) (v : Val) : Val :=
   if here.isNone && v.holdsKey then v else if ds.clashes v then .nil else v
 
+theorem Decls.tried_checkableA {ds : Decls} {here : Option (List Step)} {v : Val}
+    (h : v.CheckableA) : (ds.tried here v).CheckableA := by
+  unfold Decls.tried; split
+  · exact h
+  · split
+    · exact .nil
+    · exact h
+
 /-- Whether a list's marked element is a conflict, under the riders it
 carries, met with the list's spread `s`: both ports read the element
 and meet it with the spread before the list drops it (decision 18). -/
@@ -3773,8 +3781,9 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     split
     · exact .nil
     refine .nof (ihn hb) fun c hc => ?_
-    obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc
-    exact ihcs c₀ hc₀ hb
+    obtain ⟨c₁, hc₁, rfl⟩ := List.mem_map.mp hc
+    obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc₁
+    exact Decls.tried_checkableA (ihcs c₀ hc₀ hb)
   | must _ ih =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ih := @And.left _ _ ih
@@ -3787,16 +3796,17 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace iht := @And.left _ _ iht
     replace ihe := fun e' he => @And.left _ _ (ihe e' he)
     simp only [resolveD]
-    refine .when (ihc hb) (iht hb) fun e he => ?_
-    obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
-    exact ihe e₀ he₀ hb
+    refine .when (Decls.tried_checkableA (ihc hb)) (Decls.tried_checkableA (iht hb)) fun e he => ?_
+    obtain ⟨e₁, he₁, rfl⟩ := Option.map_eq_some_iff.mp he
+    obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he₁
+    exact Decls.tried_checkableA (ihe e₀ he₀ hb)
   | contains _ _ ihc ihn =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ihc := @And.left _ _ ihc
     replace ihn := @And.left _ _ ihn
     simp only [resolveD]; split
     · exact .nil
-    · exact .contains (ihc hb) (ihn hb)
+    · exact .contains (Decls.tried_checkableA (ihc hb)) (ihn hb)
   | rest _ _ _ _ iht ih1 ih2 ih3 =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace iht := @And.left _ _ iht
