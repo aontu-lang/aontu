@@ -4075,7 +4075,10 @@ bound, as a size reads it (ruling 55): either way round, met with a
 value, in `neq` and in its list, through a path, at an optional key and
 preferred; and `nil | nil`, which leaves none, is still an error.
 Last, a bound, a size or a trial over it that no data meets: absent at
-an optional key, and waiting at a required one. -/
+an optional key, and waiting at a required one; and an arm that holds
+one, which refuses, so the disjunction admits what its other arm
+admits, in a map either way round and in a list, which both ports read
+otherwise (#907). -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let nl := Val.void
   let ch := Val.or [(0, int 1), (0, int 2)]
@@ -4146,7 +4149,10 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], mo [("v", true, .must nl "m")], dm []),
     ([], m [("v", .len nl)], dm []),
     ([], mo [("v", true, bnd .neq [.list [nl, int 2] none false])], dm []),
-    ([], mo [("v", true, .must (bnd .min [nl]) "m")], dm [])]
+    ([], mo [("v", true, .must (bnd .min [nl]) "m")], dm []),
+    ([], m [("v", .or [(0, m [("x", int 1)]), (0, m [("x", nl)])])], dm [("v", dm [("x", j 1)])]),
+    ([], m [("v", .or [(0, m [("x", nl)]), (0, m [("x", int 1)])])], dm [("v", dm [("x", j 1)])]),
+    ([], m [("v", .or [(0, lst [int 1]), (0, lst [nl])])], dm [("v", .list [j 1])])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -5232,6 +5238,38 @@ theorem deepEagerCases_checkable : ∀ c ∈ deepEagerCases,
 theorem deep_eager_verdict_exact : ∀ c ∈ deepEagerCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (deepEagerCases_checkable c hc).1 (deepEagerCases_checkable c hc).2 v
+
+/-- The arguments a trial tries against a value, holding a clash below
+their top, which makes the whole argument admit nothing, as both ports
+read it: `when`'s branch, which then refuses the value its condition
+takes, and its condition, which then takes none; the condition of
+`contains`, which then counts no member, and of `filter`, which then
+keeps none; and a branch of `nof` holding a call the reading could not
+make, a list too long for its size and a preference clash, which then
+counts for no value. -/
+def lazyClashCases : List (Decls × Val × Data) :=
+  let c12 : Val := .meet (int 1) (int 2)
+  let opt (v : Val) : Val := mo [("b", true, v)]
+  let x1 : Val := m [("x", int 1)]
+  let long : Val := .meet (.len (int 1)) (lst [int 1, int 2])
+  let clash2 : Val := .or [(1, int 1), (1, int 2)]
+  let dx : Data := .map [("v", .map [("x", .integer 1)])]
+  let dx2 : Data := .map [("v", .map [("x", .integer 2)])]
+  [([], m [("v", .when (m [("x", int 2)]) (mo [("x", false, int 2), ("b", true, c12)]) none)], dx2),
+    ([], m [("v", .when (opt c12) x1 none)], dx2),
+    ([], m [("v", .contains (opt c12) (int 1))], .map [("v", .list [.map [("x", .integer 1)]])]),
+    ([], m [("v", .filter (m [("a", x1)]) (opt c12))], .map [("v", .map [])]),
+    ([], m [("v", .nof (int 1) [opt (.call .add [str "a", int 1]), x1])], dx),
+    ([], m [("v", .nof (int 1) [opt long, x1])], dx),
+    ([], m [("v", .nof (int 1) [opt clash2, x1])], dx)]
+
+set_option maxRecDepth 8192 in
+theorem lazyClashCases_checkable : ∀ c ∈ lazyClashCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem lazy_clash_verdict_exact : ∀ c ∈ lazyClashCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (lazyClashCases_checkable c hc).1 (lazyClashCases_checkable c hc).2 v
 
 /-- A written `nil` below the top of `must`'s condition, which ruling 54
 reads where it stands: at an optional member, a `b` the value must
@@ -8607,7 +8645,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# path, each read at each member of the output, follow in rows gt0 on, a spread"
     IO.println "# such a template holds, read at each member, a member the data adds among them,"
     IO.println "# in rows sg0 on, a written nil, which forbids an optional member and leaves a"
-    IO.println "# required one unmet (ruling 54), in rows nl0 on, and"
+    IO.println "# required one unmet and an arm that holds one refusing (ruling 54), in rows"
+    IO.println "# nl0 on, and"
     IO.println "# templates that meet their own hole, each member kept and met with the rest,"
     IO.println "# the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their"
     IO.println "# templates read where each instance lands in the output, in rows eg0 on,"
@@ -8810,6 +8849,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# an argument both ports read as they build it, with a conflict below its top, in"
     IO.println "# rows td0 on. A written nil below the top of must's condition follows in rows"
     IO.println "# tn0 on, and a path in must's condition into the value under trial in rows tq0 on."
+    IO.println "# An argument a trial tries against a value, with a clash below its top, admits"
+    IO.println "# nothing, in rows tl0 on."
     trialRows "t"
     trialRows "y" keyCases
     trialRows "tc" meetNameCases
@@ -8818,6 +8859,7 @@ def main (args : List String) : IO UInt32 := do
     trialRows "td" deepEagerCases
     trialRows "tn" voidBelowCases
     trialRows "tq" selfPathCases
+    trialRows "tl" lazyClashCases
     return 0
   | ["calls"] =>
     IO.println "# Generated by `lake exe oracle calls` (spec/Oracle.lean) from the definition"

@@ -6169,7 +6169,10 @@ read then holds a conflict anywhere (`Decls.clashes`): a size, `must`'s
 condition and the count of `nof` and of `contains`; and so are a
 `filter` whose source and a selection whose scrutinee holds one, or is
 dead, written `nil` or not. So such a trial is an error where it stands, an arm holding it drops,
-and a spread holding it refuses each member it's tried on. -/
+and a spread holding it refuses each member it's tried on. An argument a
+trial tries against a value instead, a branch of `nof`, `when`'s three
+and the conditions of `contains` and `filter`, admits nothing where it
+holds a conflict anywhere (`Decls.tried`), as one at its top does. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -6192,17 +6195,21 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     else
     match (normaliseD ds s').unride with
     | .map fs _ _ => (Val.map ((filterFields ds fs).filterMap fun m =>
-        if filterTakes ds (resolveD ds (some m.2) (stepped here (.seg (.key m.1))) c) m.2
+        if filterTakes ds (ds.tried (stepped here (.seg (.key m.1)))
+            (resolveD ds (some m.2) (stepped here (.seg (.key m.1))) c)) m.2
         then some (m.1, false, m.2) else none) none false).rideMoves s'.moves
     | .list items _ _ => (Val.list (keptTerms (fun i v =>
-        filterTakes ds (resolveD ds (some v) (stepped here (.seg (.idx i))) c) v) 0 (filterItems items))
+        filterTakes ds (ds.tried (stepped here (.seg (.idx i)))
+          (resolveD ds (some v) (stepped here (.seg (.idx i))) c)) v) 0 (filterItems items))
         none false).rideMoves s'.moves
     | _ =>
     match genD ds s' with
     | some (.map fs) => (keptFields (normaliseD ds s').unride (fs.filter fun m =>
-        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).rideMoves s'.moves
+        checkR ds (ds.tried (stepped here (.seg (.key m.1)))
+          (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c)) m.2)).rideMoves s'.moves
     | some (.list xs) => (keptElems (normaliseD ds s').unride (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) xs).rideMoves s'.moves
+        checkR ds (ds.tried (stepped here (.seg (.idx i)))
+          (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c)) x) xs).rideMoves s'.moves
     | some _ => .nil
     | none => .filter s' (resolveD ds none none c)
 ```
@@ -6265,13 +6272,27 @@ The conflict in a spread still refuses only a member it's tried on, so
 that holds one drops, so `must({x: 1} | {x: 1, b?: 1 & 2}, "m")`
 admits `{"x": 1}`. Both engines still read the other arguments later,
 so `when({b?: 1 & 2}, {x: 1})` stands. Rows `td0` on of
-`test/spec/def-trial.tsv` hold both engines to it. Below the top of a
-later argument the engines and the definition part: both engines make
-the whole argument admit nothing, so `nof(1, {b?: 1 & 2}, {x: 1})`
-admits `{"x": 1}`, where the definition reads the conflict at the
-optional member and refuses it. Rows `td93` to `td95` sit in the
-ledger under #892, which settles that the engines' reading is the
-language's: the definition is the side that moves.
+`test/spec/def-trial.tsv` hold both engines to it.
+
+An argument a trial tries against a value, a branch of `nof`, `when`'s
+condition and branches and the conditions of `contains` and `filter`,
+reads a conflict anywhere in it as one at its top: the whole argument
+admits nothing (`Decls.tried`). So `nof(1, {b?: 1 & 2}, {x: 1})`
+admits `{"x": 1}`, one branch counting, `when({b?: 1 & 2}, {x: 1})`
+never applies its branch, and `contains({b?: 1 & 2}, 1)` counts no
+member. A call the reading couldn't make, a list too long for its size
+and a preference clash count too, as they do in an argument read while
+the trial is built, and a written `nil` still stands, so
+`nof(0, {b?: nil})` refuses `{"x": 1}`. An argument that computes with
+a key no position places yet is read where it lands. Both engines
+answer each as the definition does, in rows `td93` to `td95` and `tl0`
+on of `test/spec/def-trial.tsv`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.tried (ds : Decls) (here : Option (List Step)) (v : Val) : Val :=
+  if here.isNone && v.holdsKey then v else if ds.clashes v then .nil else v
+```
 
 A written `nil` stands there. Both engines read a size, a condition of
 `must` or a count written as `nil` as a value that admits nothing, so `must(nil, "m")`
@@ -6293,11 +6314,15 @@ def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds)
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
   | .nof n cs =>
-    if ds.clashes (resolveD ds b here n) then .nil else .nof (resolveD ds b here n) (resolveItems ds b here cs)
+    if ds.clashes (resolveD ds b here n) then .nil
+    else .nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here))
   | .must c m => if ds.clashes (resolveD ds b here c) then .nil else .must (resolveD ds b here c) m
-  | .when c t e => .when (resolveD ds b here c) (resolveD ds b here t) (resolveSpread ds b here e)
+  | .when c t e =>
+    .when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
+      ((resolveSpread ds b here e).map (ds.tried here))
   | .contains c n =>
-    if ds.clashes (resolveD ds b here n) then .nil else .contains (resolveD ds b here c) (resolveD ds b here n)
+    if ds.clashes (resolveD ds b here n) then .nil
+    else .contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n)
 ```
 
 Below the top of `must`'s condition a written `nil` stands as it does
@@ -6371,7 +6396,8 @@ theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s 
     (hl : (normaliseD ds (resolveD ds b (some pos) s)).unride = .list items sp cl) :
     resolveD ds b (some pos) (.filter s c) =
       (Val.list (keptTerms (fun i v =>
-        filterTakes ds (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c) v) 0 (filterItems items))
+        filterTakes ds (ds.tried (stepped (some pos) (.seg (.idx i)))
+          (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c)) v) 0 (filterItems items))
         none false).rideMoves (resolveD ds b (some pos) s).moves := by
   rw [resolveD.eq_def]
   simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hc, hw, hl]
