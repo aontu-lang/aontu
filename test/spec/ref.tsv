@@ -22,6 +22,7 @@ key-deep	gen	a:b:{k:key()}	{"a":{"b":{"k":"b"}}}
 key-sibling	gen	x:1 a:{k:key()}	{"x":1,"a":{"k":"a"}}
 forward-ref	gen	x:$.a\na:7	{"x":7,"a":7}
 chain-reverse	gen	c:42\nb:$.c\na:$.b	{"a":42,"b":42,"c":42}
+forward-ref-through-a-list	gen	c:$.a.1\na:[1, $.b]\nb:2	{"c":2,"a":[1,2],"b":2}
 # A LIST INDEX IS A STRING KEY, LIKE ANY OTHER.
 #
 # The defect these rows were written for was in the removed `.$KEY`: at a

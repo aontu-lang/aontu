@@ -646,8 +646,8 @@ function overKind(
 
 
 // A recursion is the definition it names, unfolded against its own
-// document (sketch/RECURSION.0.md, P3). One met again before the
-// walk enters a bag unfolds to no structure, and is compared as residue.
+// document (sketch/RECURSION.0.md, P3). The alias-cycle rule refuses one
+// met again before a bag, so the guard below ends only a stray walk.
 function subsumeRecursion(
   state: SubState, path: string[], g0: any, s0: any, g: any, s: any): Tri | undefined {
   const key = g0?.id + ' ' + s0?.id

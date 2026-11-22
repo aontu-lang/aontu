@@ -120,7 +120,7 @@ class MatchFuncVal extends FuncBaseVal {
     })
   }
 
-} /* node:coverage ignore next 5 */
+} /* node:coverage ignore next 6 */
 
 
 

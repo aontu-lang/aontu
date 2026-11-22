@@ -31,3 +31,20 @@ func TestSpreadListWaitsOnAnElementThatReadsUndecided(t *testing.T) {
 		t.Fatalf("[&: integer] & done [maybe($.gone) & top]: settled as %v", out)
 	}
 }
+
+func TestHasUnknownFunctionFindsOnlyThatRefusal(t *testing.T) {
+	m := newMap()
+	m.set("a", newList([]Val{newNil("unknown_function")}))
+	if !HasUnknownFunction(m) {
+		t.Fatalf("{a: [unknown_function]}: not found")
+	}
+	if HasUnknownFunction(newList([]Val{newNil("scalar_value")})) {
+		t.Fatalf("[scalar_value]: reported as unknown_function")
+	}
+}
+
+func TestWrapSettledWaitsOnTheWrappersOtherArguments(t *testing.T) {
+	if wrapSettled([]Val{newMap(), newRef([]any{"r"}, true)}) {
+		t.Fatalf("meta({}, $.r): settled while $.r waits")
+	}
+}

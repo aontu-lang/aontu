@@ -206,7 +206,7 @@ function norm(terms, carried) {
             true === t.isMatchFunc && true !== t.done ? t.canon : undefined;
         return undefined === key || seen.size !== seen.add(key).size;
     });
-} /* node:coverage ignore next 7 */
+}
 // A spread's template meets each member without the marks written around
 // it (ruling 39), through a meet and the other riders; a term rebuilt
 // without them keeps its source's identity (spreadId), as members record it.
@@ -230,5 +230,5 @@ function unmarkedTemplate(cj, ctx) {
         }
     }
     return t._unmarked;
-}
+} /* node:coverage ignore next 7 */
 //# sourceMappingURL=ConjunctVal.js.map

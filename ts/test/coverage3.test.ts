@@ -1258,6 +1258,18 @@ describe('coverage3-subsume', () => {
     Assert.equal(state.findings[0].code, 'sub_unresolved')
   })
 
+  // A recursion whose definition is itself, with no bag between, which
+  // the alias-cycle rule refuses in any parsed document, ends the walk.
+  test('subsume-recursion-met-again-before-a-bag', () => {
+    const rec: any = (new Aontu().unify('T: {next?: $.T}') as any).peg.T.peg.next
+    const root = new MapVal({ peg: { T: rec } })
+    const state: any = {
+      profile: 'values', findings: [], pairs: newPairs(),
+      generalUrl: 'general', specificUrl: 'specific', groot: root, sroot: root,
+    }
+    Assert.equal(subsumeNode(state, ['x'], rec, rec), 'yes')
+  })
+
 })
 
 
