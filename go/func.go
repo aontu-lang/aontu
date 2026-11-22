@@ -352,7 +352,14 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	if stagedFuncs[f.name] {
-		driven := stagedDrive(ctx, f, base)
+		var driven bool
+		drive := func() Val { driven = stagedDrive(ctx, f, base); return nil }
+		// A scrutinee that reads the match's own place reads the peer held there.
+		if "match" == f.name && nil != peer && !isTop(peer) {
+			ctx.holdArm(f.path, peer, nil, true, drive)
+		} else {
+			drive()
+		}
 		ready := driven && ctx.settle
 
 		if !ready {

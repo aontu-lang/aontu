@@ -469,8 +469,19 @@ func dropMarkWrapper(v Val) Val {
 	return dropPendingMarkWrappers(v)
 }
 
+// A path a held value answers reads that value, not the place around it.
+func (rv *RefVal) heldSelf(ctx *Ctx) bool {
+	parts := make([]string, 0, len(rv.peg))
+	for _, p := range rv.peg {
+		if s, ok := p.(string); ok {
+			parts = append(parts, s)
+		}
+	}
+	return rv.absolute && len(parts) == len(rv.peg) && 0 < heldFrom(ctx.armAt, parts)
+}
+
 func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
-	if rv.isPrefixPath() {
+	if rv.isPrefixPath() && !rv.heldSelf(ctx) {
 		degenerate := 0 == len(rv.path)
 		target := make([]string, 0, len(rv.peg))
 		for _, p := range rv.peg {

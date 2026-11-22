@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### A `match` or a `must` reads its own place
+
+#818 and #895, in both engines, as the definition reads them. A path in
+a `match`'s scrutinee, or in a `must`'s condition, into the place the
+term stands at reads what the rest of the document holds there, without
+the term's own arms. So
+`order: match($.order.status, "shipped", {trackingNo: string}, {})`
+picks its arm by the record's own `status`, where both engines never
+settled it: `{"order": {"status": "placed"}}` is valid, and a shipped
+record with a `trackingNo` of `7` is invalid in every mode, where
+`--partial` admitted it. `v: must({x: upper($.v.name)}, "m")` holds `x`
+to the upper case of the record's `name`, `must({x: 1, y: $.v.x}, "m")`
+refuses a value with no `y`, and `must({x: $.v.x}, "m")` admits
+`{"x": 1}`, which both engines refused.
+
+- `ts/src/val/MatchFuncVal.ts` and `go/func.go`: `match` drives its
+  scrutinee with its peer held at its own place.
+- `ts/src/val/ConstraintVal.ts` and `go/constraint.go`: `must` holds
+  back a condition that reads its own place until its peer is known,
+  then reads a fresh copy of it with the peer held there.
+- `ts/src/val/RefVal.ts` and `go/ref.go`: a path a held value answers
+  reads that value, not a recursion into its own place.
+- Rows sr0, sr1, sr6, sr7, sr9 to sr11 and sr15 to sr23 of
+  `test/spec/def-path.tsv` leave `spec/ledger.tsv`, whose bound falls
+  from 217 to 201.
+
 ### Host values on the command line: `--var` and `--var-text`
 
 #862, task HV1 of the language plan, in both commands. A document that

@@ -656,7 +656,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 next = trialArg(ctx, arg, this.path);
             }
             else if (true !== arg?.done) {
-                next = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, ctx));
+                // A condition reading the must's own place waits for the peer, then reads it fresh.
+                const own = 'must' === pend.atom && 0 === i && readsPlace(arg, this.path);
+                const held = own && null != peer && !peer.isTop;
+                const a = held ? arg.clone(ctx, { dup: true }) : arg;
+                next = own && !held ? arg : (0, unify_1.withDepth)(ctx, a, TOP, () => a.unify(TOP, held ? ctx.holdArm(this.path, peer, undefined, true) : ctx));
             }
             settled = settled && true === next?.done;
             moved = moved || next?.canon !== arg?.canon;
@@ -1396,6 +1400,12 @@ function holdsNil(v, only) {
     return (true === v.isNil && (undefined === only || only(v))) ||
         ((true === v.isMap || true === v.isList || true === v.isDisjunct ||
             true === v.isConstraint) && heldVals(v).some((c) => holdsNil(c, only)));
+}
+function readsPlace(v, place) {
+    if (true === v?.isRef) {
+        return true === v.absolute && place.every((s, i) => v.peg[i] === s);
+    }
+    return heldVals(v).some((c) => true === c?.isVal && readsPlace(c, place));
 }
 function conflictNil(n) {
     return 'literal_nil' !== n.why;
