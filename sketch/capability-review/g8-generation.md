@@ -637,6 +637,11 @@ combinators.
   a list of service *records* has no evident key — require a key
   field by convention, add a key-selector argument, or refuse
   list-of-maps data; the Terraform stable-keys lesson versus arity.)
+  *(Reopened on 2026-11-21: ruling 5 of
+  [LANG-REFINEMENT-PLAN.0.md](../LANG-REFINEMENT-PLAN.0.md#the-rulings)
+  adds the key-selector, as an optional third argument. A `pack` with
+  no key argument refuses as before, and so does every `pack` until
+  that phase lands.)*
 - **`_` scoping under nesting.** When a `pack` template contains an
   `each`, which generator's child does an inner `_` bind? Innermost-
   binder lexical scoping is the presumption, but the alternative
@@ -645,7 +650,11 @@ combinators.
   models occurring in practice before Phase 3 — expired: Phase 3
   landed without such models forcing the question, so
   innermost-binder stands as the shipped presumption and the depth
-  argument remains an open, additive option.)*
+  argument remains an open, additive option.)* *(Ruled on 2026-11-21,
+  as rulings 12 and 13 of
+  [LANG-REFINEMENT-PLAN.0.md](../LANG-REFINEMENT-PLAN.0.md#the-rulings):
+  innermost binding stands for `_`, and the depth form arrives as the
+  function `outer(up?)`.)*
 - **What `filter`'s trial observes.** Does `{replicas: *2|integer}`
   in a candidate satisfy `cond` `{replicas: 2}` (default considered)
   or not (only asserted structure counts)? Same question for

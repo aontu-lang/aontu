@@ -2918,6 +2918,124 @@ until the phase that encodes it lands.
    `must({x: $.v.x}, "m")` admits `{"x": 1}`, which the ports and the
    definition both refuse today. **Not yet built**: both ports and the
    definition move.
+77. **An unknown call inside a trial.** Raised 2026-11-20 by #870: a
+   call to a name that is no built-in, or with the wrong count of
+   arguments, is refused where it stands alone, `unknown_function` or
+   `func_arity`, and is silent inside a trial in both ports.
+   `filter($.xs, length(3))`, with the retired name of `len`, answers
+   `[]`, `match(1, nosuch(1), yes, no)` answers `"no"` and
+   `nosuch(1) | 2` answers `2`, each with exit 0, and `maybe` forgives
+   the unknown name, `[1, maybe(nosuch(1)), 2]` answering `[1, 2]`.
+   **Ruled 2026-11-22 (the project's owner): refused wherever it
+   stands.** Both refusals are decided when the document is read, as
+   an unbound `_` is, so a document that holds such a call is refused
+   in a trial's argument, in a disjunction's arm and under `maybe`,
+   which forgives a missing referent and never an unknown function.
+   **Not yet built**: both ports move, with shared rows for the
+   issue's table. An unknown name has no form in the definition's
+   syntax, where `Fn` lists the functions, so the definition doesn't
+   move for the name, and its reading of a wrong count is taken with
+   the rows.
+78. **A default inside a map, read by a trial.** Raised 2026-11-20 by
+   #847: a `filter` condition and a `match` pattern read a member as
+   it is written. With `t: &: { surface: *"sdk" | string }` and
+   `t: { go: {}, ts: {} }`, `filter($.t, { surface: "sdk" })` answers
+   `{}` in both ports, with no finding, though both members generate
+   `surface: "sdk"`, and `match` over a map of defaults takes another
+   arm than the generated value would. A default at the top of a
+   scrutinee is read: `x: *"a" | string` with `match($.x, "a", 1, 2)`
+   answers `1`. **Ruled 2026-11-22 (the project's owner): the value
+   the member generates.** A trial reads a default inside a map as it
+   reads one at the top, so `filter` keeps both members and `match`
+   takes the arm that the generated value takes. **Not yet built**:
+   both ports move, with shared rows for the issue's two documents,
+   and the definition's reading of the shape is taken with them.
+79. **A key that holds a dot, in an address.** Raised 2026-10-22 by
+   #472 and #475, and 2026-11-16 by #810: an address joins its keys
+   with `.`, so a key that holds a dot has no spelling in one. In
+   both ports `$.q."."` climbs to the parent, where the definition
+   reads the key `.` (`Seg.key`), `path($."a.b")` captures
+   `path($.a.b)`, two steps, and a link under the key `"a.b"` is
+   reported at the address of the node at `a` then `b`, so `reaches`
+   can't name it and `acyclic()` can refuse a document that holds no
+   cycle. **Ruled 2026-11-22 (the project's owner): a quoted
+   segment.** An address spells such a key in quotes, `$.a."x.y"`,
+   wherever an end is written, and a reference, `path()`, `relate()`
+   and `reaches` read it back as one step. **Not yet built**: both
+   ports move, with shared `graph`, `reach` and relation rows for a
+   key that holds a dot beside a nested path of the same text. The
+   definition already reads a quoted step as a key, and its printer
+   already writes one in quotes.
+80. **`*(` before a literal map or list.** Raised 2026-10-19 by #349:
+   alone, `v: *([2])` and `v: *({y: 2})` are refused as
+   `pref_implicit_bag`, and inside a disjunction the same text is
+   accepted and the `*` lost, `(1) | *([2])` answering `1` where
+   `(1) | *[2]` answers `[2]` and `(1) | *(3)` answers `3`, in both
+   ports. **Ruled 2026-11-22 (the project's owner): a preference.**
+   `*(` before a literal map or list is the preference of that value,
+   as `*(3)` is of `3`, alone and in a disjunction. **Not yet built**:
+   both parsers move, with the grammars under `grammar/` and shared
+   rows for the issue's two tables. The definition holds no text and
+   doesn't move.
+81. **A generator over the bag that holds it.** Raised 2026-11-12 by
+   #751: a generator or a fold inside a member, whose data is the bag
+   that holds that member, is refused in both ports with a code that
+   says the data is no bag, `filter_data`, `each_data` or
+   `aggregate_data`. With
+   `t: { &: { n: integer, tot: sum(pick($.t, n)) } }` each `tot`
+   reads the members' `n` alone, which no `tot` feeds, and the answer
+   is `aggregate_data` at `$.t.a.tot`. **Ruled 2026-11-22 (the
+   project's owner): it reads the bag where no cycle is read.** A
+   generator reads the members of its own bag where what it reads
+   doesn't depend on its own result, so that `tot` is the sum of
+   every `n`, and a true cycle is refused and named as one. **Not yet
+   built**: both ports move, with shared rows for the issue's first
+   four documents, and a code for the cycle, if a new one is needed,
+   lands with its row of `test/spec/errcodes.tsv`. The definition's
+   reading of the shape is taken with the rows.
+82. **A file that is not valid UTF-8.** Raised 2026-11-21 by #889:
+   both ports replace invalid bytes in a source or an included file
+   with U+FFFD and carry on, and count differently where two invalid
+   sequences stand side by side, TypeScript writing one for each
+   maximal invalid subpart and Go one for the run, so the bytes
+   `FF FE` in a string give one file two texts and two hashes.
+   **Ruled 2026-11-22 (the project's owner): refused.** A file that
+   is not valid UTF-8 is no document (ADR-003): both ports refuse it
+   with one new code that names the file and the byte, and no hash is
+   taken of text nobody wrote. **Not yet built**: both ports move,
+   the code lands with its row of `test/spec/errcodes.tsv`, and
+   `test/spec/files/invalid-utf8.aontu` and the rows over it change
+   with it. The definition reads text, not bytes, and doesn't move.
+83. **A relation's template in a copy.** Raised 2026-11-14 by #779: a
+   relation whose template names a subtype of its own type is held
+   two ways in both ports. With `D: $.t.N & { k:"d" }` and
+   `N: { k:"d"|"f" up?:relate($.t.D) }`, canon prints
+   `relate($.t.D)` in `D` and the template unfolded one level,
+   `relate({"k":"d","up"?:relate($.t.D)})`, in `N` and in each copy
+   of it, so `subsume` can't say that the type admits its own
+   subtype and answers `undecided`, `sub_unresolved`. **Ruled
+   2026-11-22 (the project's owner): one form wherever it is
+   copied.** The template is held by its name in every copy, so canon
+   prints one spelling and the two sides compare equal. Canon text
+   and hashes change for a document that holds such a relation. **Not
+   yet built**: both ports move, with a shared row for the first row
+   of the issue's table, and the rows that pin canon and a hash for
+   such a document are derived again from both engines. The
+   definition's reading of the shape is taken with the rows.
+84. **A set of names written without commas.** Raised 2026-10-23 by
+   #517: the reference lets a set of names separate them with spaces
+   or with commas, and in value position both ports read `{ %a %b }`
+   as `{ %a, %b }`. In the two other places that take a set they
+   don't: `export({ %a %b })` is accepted and publishes nothing, so a
+   take of its names is `import_not_exported`, and as a destructure
+   head the spaced form is `no_path` on its first name, at `$.a` in
+   TypeScript and at `$.0.a` in Go. **Ruled 2026-11-22 (the
+   project's owner): as the comma form.** `export` and a destructure
+   head read a spaced set as a value does. **Not yet built**: both
+   ports move, with rows in `test/spec/alias.tsv` for both forms. The
+   definition's rows write the comma form alone (lx0 on in
+   `test/spec/def-path.tsv`), and it holds no text, so it doesn't
+   move.
 
 ## 8. Risks
 
