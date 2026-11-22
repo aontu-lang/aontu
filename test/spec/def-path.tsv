@@ -4519,6 +4519,12 @@ sr47	verdict	"order": match(.order.status, "shipped", {"trackingNo": string}, {}
 sr48	verdict	"order": match(.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "placed"}}	{"verdict":"valid"}
 sr49	verdict	"order": match(.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "placed"}}	{"verdict":"valid","opts":{"noFill":true}}
 sr50	verdict	"order": match(.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "placed"}}	{"verdict":"valid","opts":{"partial":true}}
+sr51	verdict	"v": ({"x": number}) & (match($.v.x, 1, {"y": 1}, {"y": 2}))	{"v": {"x": 1, "y": 2}}	{"verdict":"invalid"}
+sr52	verdict	"v": ({"x": number}) & (match($.v.x, 1, {"y": 1}, {"y": 2}))	{"v": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+sr53	verdict	"v": ({"x": number}) & (match($.v.x, 1, {"y": 1}, {"y": 2}))	{"v": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+sr54	verdict	"v": ({"x": number}) & (match($.v.x, 1, {"y": 1}, {"y": 2}))	{"v": {"x": 1, "y": 1}}	{"verdict":"valid"}
+sr55	verdict	"v": ({"x": number}) & (match($.v.x, 1, {"y": 1}, {"y": 2}))	{"v": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+sr56	verdict	"v": ({"x": number}) & (match($.v.x, 1, {"y": 1}, {"y": 2}))	{"v": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"partial":true}}
 # One document in three orders follows in rows od0 on (ADR-081): a type and a
 # subtype of it that name each other by path, the subtype written first, the
 # type written first, and the use written above both, each against no data,
