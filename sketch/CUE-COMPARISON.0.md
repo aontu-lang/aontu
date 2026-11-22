@@ -12,7 +12,7 @@ from CUE's published module sources, listed under [Sources](#sources).
 2026-10-01, which compares nine languages more briefly. This note goes
 deeper on CUE alone and corrects that survey where either language has
 moved since.
-**Plan:** [CUE-COMPARISON-PLAN.0.md](CUE-COMPARISON-PLAN.0.md) proposes
+**Plan:** [LANG-REFINEMENT-PLAN.0.md](LANG-REFINEMENT-PLAN.0.md) proposes
 the tasks that answer this note, starting with what comprehensions do.
 
 ## In short
@@ -325,6 +325,11 @@ close({
 })
 ```
 
+The tabnas packages that aontu reads these formats with can now write
+them too, in versions newer than the ones aontu pins.
+[IO-FORMATS.0.md](IO-FORMATS.0.md) has what they write, what they
+lose, and what stands between aontu and them.
+
 ### Modules and packages
 
 | Feature | aontu | CUE |
@@ -443,7 +448,7 @@ ten made (k32).
 ### What would shorten them
 
 None of these is decided, and none needs a comprehension keyword.
-[The plan](CUE-COMPARISON-PLAN.0.md) makes them tasks, each with the
+[The plan](LANG-REFINEMENT-PLAN.0.md) makes them tasks, each with the
 code in both languages:
 
 1. **The member of a bag at a key or a position**, `at(d, ...k)`. It is
@@ -516,10 +521,19 @@ None of this is decided. Each item is a candidate for the maintainer.
 1. **The three issues above**: [#860](https://github.com/aontu-lang/aontu/issues/860),
    [#861](https://github.com/aontu-lang/aontu/issues/861) and
    [#862](https://github.com/aontu-lang/aontu/issues/862).
-2. **[The plan](CUE-COMPARISON-PLAN.0.md)**, whose first part is the
+2. **[The plan](LANG-REFINEMENT-PLAN.0.md)**, whose first part is the
    five additions under
    [What would shorten them](#what-would-shorten-them), the defects on
-   their routes, the rows that pin today's routes and the guide.
+   their routes, the rows that pin today's routes and the guide. Its
+   parts 2 to 7, added and ruled on 2026-11-21, make tasks of items 3
+   and 4 below, of the language server and the key pattern in item 6,
+   and of #862 in item 1, and add bytes and sized numbers. The ruling
+   defers OpenAPI, which is to be added separately. Its parts 8 to 11,
+   ruled on 2026-11-21 and 2026-11-22, take in the open issues: `$`
+   as a file's root, a language version stated in each file, which
+   [Modules and packages](#modules-and-packages) lists as a gap, more
+   scalar types with bytes among them, and a place for each of the
+   136 open issues.
 3. **The CUE guide that the plan's H3 asks for now has its table.** The
    table in
    [Where the same text means different things](#where-the-same-text-means-different-things),
