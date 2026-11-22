@@ -1736,3 +1736,16 @@ Continue
 ```text
 Ask me
 ```
+
+## 2026-11-22 01:48:59 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#892: `nof`'s branches, `when`'s condition and branches, and the conditions of `contains` and `filter` are read only against a value, and a conflict in one admits nothing. With the conflict below the top, take `v: nof(1, {b?: 1 & 2}, {x: 1})` against `{"v": {"x": 1}}`. Both engines read the whole branch `{b?: 1 & 2}` as admitting nothing, so one branch counts and the data is valid. The definition reads the conflict at `b`, as it reads `{b?: nil}`, so two branches count and the data is invalid. Which should the language say?
+→ Whole argument admits nothing (Recommended)
+#894: for `v: must({b?: nil}, "m")`, both engines refuse every value (`invalid-arg`). The refusal comes from a check in `must`'s builder that #686 added before ruling 54 settled what a written nil means. The definition reads the nil as ruling 54 does everywhere else: `b` must be absent, so `{"v": {"x": 1}}` and `{"v": {}}` are valid and `{"v": {"b": 1}}` is invalid. Should `must` read a written nil as ruling 54 does?
+→ Follow ruling 54 (Recommended)
+#895: a path in `must`'s condition can read the value under trial, as in `v: must({x: upper($.v.name)}, "m")`. Both engines leave the path unread and pass the check, so `{"v": {"x": "B", "name": "a"}}` is valid. In the same way, `must({x: 1, y: $.v.x}, "m")` admits a value with no `y`. The definition reads the path in the schema alone, where it names nothing: an error through a call, a refusal otherwise. Decision 63 already ruled that `match` reads such a field. What should `must` do?
+→ Read the field (Recommended)
+```

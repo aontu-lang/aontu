@@ -2865,7 +2865,12 @@ until the phase that encodes it lands.
    `invalid`. Both ports tell the two apart: `nof(0, {b?: nil})`
    refuses `{"x": 1}` and `nof(0, {b?: 1 & 2})` admits it. Rows td93
    to td95 of `test/spec/def-trial.tsv`, in the ledger under #892, its
-   bound rising to 201. **Not yet ruled.**
+   bound rising to 201. **Ruled 2026-11-22 (the project's owner): the
+   whole argument admits nothing.** A conflict anywhere in an argument
+   read against a value makes that argument admit nothing, as one at
+   its top does (#525), and stays apart from a written `nil` there, as
+   decision 62 keeps the two apart in an argument read as the trial is
+   built. **Not yet built**: the definition moves.
 75. **A written `nil` below the top of `must`'s condition.** Raised
    2026-11-21 by building decision 62 (#894): both ports refuse every
    value where `must`'s condition holds a written `nil` below its top,
@@ -2875,8 +2880,9 @@ until the phase that encodes it lands.
    and refuses `{"b": 1}`, and an arm that holds one refuses. Both
    ports read the same `nil` where it stands in a branch of `nof`.
    Rows tn0 to tn17 of `test/spec/def-trial.tsv`, twelve of them in
-   the ledger under #894. **Not yet built**: both ports, unless the
-   owner rules `must` apart.
+   the ledger under #894. **Ruled 2026-11-22 (the project's owner):
+   `must` reads a written `nil` as ruling 54 does.** **Not yet
+   built**: both ports drop the check in `must`'s builder.
 76. **A path in `must`'s condition into the value under trial.**
    Raised 2026-11-21 by building decision 62 (#895): both ports leave
    a path such as `$.v.name` in `v: must(…)` unread, and pass the
@@ -2886,7 +2892,15 @@ until the phase that encodes it lands.
    a call over it is one the reading can't make, an `error` by
    decision 62. Decision 63 ruled the same shape for `match`. Rows tq0
    to tq14, nine of them in the ledger under #895, its bound rising to
-   222. **Not yet ruled.**
+   222. **Ruled 2026-11-22 (the project's owner): it reads the field.**
+   A path in `must`'s condition into the value under trial reads the
+   field as the rest of the document settles it, as decision 63 reads
+   one in `match`: `must({x: upper($.v.name)}, "m")` admits
+   `{"x": "A", "name": "a"}` and refuses `{"x": "B", "name": "a"}`,
+   `must({x: 1, y: $.v.x}, "m")` refuses a value with no `y`, and
+   `must({x: $.v.x}, "m")` admits `{"x": 1}`, which the ports and the
+   definition both refuse today. **Not yet built**: both ports and the
+   definition move.
 
 ## 8. Risks
 
