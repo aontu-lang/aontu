@@ -26,6 +26,8 @@
 # an argument both ports read as they build it, with a conflict below its top, in
 # rows td0 on. A written nil below the top of must's condition follows in rows
 # tn0 on, and a path in must's condition into the value under trial in rows tq0 on.
+# An argument a trial tries against a value, with a clash below its top, admits
+# nothing, in rows tl0 on.
 t0	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid"}
 t1	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 t2	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
@@ -1124,9 +1126,9 @@ td89	verdict	"v": each([1], must({"b"?: (1) & (2)}, "m"))	{"v": [1]}	{"verdict":
 td90	verdict	"v": when({"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid"}
 td91	verdict	"v": when({"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 td92	verdict	"v": when({"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
-td93	verdict	"v": nof(1, {"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"invalid"}
-td94	verdict	"v": nof(1, {"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
-td95	verdict	"v": nof(1, {"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+td93	verdict	"v": nof(1, {"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid"}
+td94	verdict	"v": nof(1, {"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+td95	verdict	"v": nof(1, {"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
 td96	verdict	"v": contains({"b"?: (1) & (2)}, 1)	{"v": {"x": 1}}	{"verdict":"invalid"}
 td97	verdict	"v": contains({"b"?: (1) & (2)}, 1)	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
 td98	verdict	"v": contains({"b"?: (1) & (2)}, 1)	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
@@ -1169,3 +1171,24 @@ tq11	verdict	"v": must({"x": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid","
 tq12	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid"}
 tq13	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 tq14	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid","opts":{"partial":true}}
+tl0	verdict	"v": when({"x": 2}, {"x": 2, "b"?: (1) & (2)})	{"v": {"x": 2}}	{"verdict":"invalid"}
+tl1	verdict	"v": when({"x": 2}, {"x": 2, "b"?: (1) & (2)})	{"v": {"x": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+tl2	verdict	"v": when({"x": 2}, {"x": 2, "b"?: (1) & (2)})	{"v": {"x": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+tl3	verdict	"v": when({"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 2}}	{"verdict":"valid"}
+tl4	verdict	"v": when({"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+tl5	verdict	"v": when({"b"?: (1) & (2)}, {"x": 1})	{"v": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+tl6	verdict	"v": contains({"b"?: (1) & (2)}, 1)	{"v": [{"x": 1}]}	{"verdict":"invalid"}
+tl7	verdict	"v": contains({"b"?: (1) & (2)}, 1)	{"v": [{"x": 1}]}	{"verdict":"invalid","opts":{"noFill":true}}
+tl8	verdict	"v": contains({"b"?: (1) & (2)}, 1)	{"v": [{"x": 1}]}	{"verdict":"invalid","opts":{"partial":true}}
+tl9	verdict	"v": filter({"a": {"x": 1}}, {"b"?: (1) & (2)})	{"v": {}}	{"verdict":"valid"}
+tl10	verdict	"v": filter({"a": {"x": 1}}, {"b"?: (1) & (2)})	{"v": {}}	{"verdict":"valid","opts":{"noFill":true}}
+tl11	verdict	"v": filter({"a": {"x": 1}}, {"b"?: (1) & (2)})	{"v": {}}	{"verdict":"valid","opts":{"partial":true}}
+tl12	verdict	"v": nof(1, {"b"?: add("a", 1)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid"}
+tl13	verdict	"v": nof(1, {"b"?: add("a", 1)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+tl14	verdict	"v": nof(1, {"b"?: add("a", 1)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+tl15	verdict	"v": nof(1, {"b"?: (len(1)) & ([1, 2])}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid"}
+tl16	verdict	"v": nof(1, {"b"?: (len(1)) & ([1, 2])}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+tl17	verdict	"v": nof(1, {"b"?: (len(1)) & ([1, 2])}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+tl18	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid"}
+tl19	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+tl20	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}

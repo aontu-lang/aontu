@@ -192,9 +192,9 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-13 issues (2 S, 11 M), 27 ledger rows.
+13 issues (2 S, 11 M), 33 ledger rows.
 
-Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, the definition moves), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, both ports and the definition move).
+Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, built in the definition the same day), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, both ports and the definition move).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -207,9 +207,9 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#818](https://github.com/aontu-lang/aontu/issues/818) | def | M |  | `match()` met with the map whose field it reads never settles: incomplete in ports, error in definition. |
 | [#743](https://github.com/aontu-lang/aontu/issues/743) | def | M | 12 | A `match` over an open scrutinee is refused before data; ruling 49 says wait for the data. |
 | [#527](https://github.com/aontu-lang/aontu/issues/527) | def | S |  | neq over a nested list written in place expands it twice; path form expands once |
-| [#892](https://github.com/aontu-lang/aontu/issues/892) | def | M | 3 | A conflict below the top of a trial argument read against a value: both ports make the argument admit nothing, the definition reads it in place. Ruled as 74: the whole argument admits nothing, so the definition moves. |
+| [#892](https://github.com/aontu-lang/aontu/issues/892) | def | M |  | A conflict below the top of a trial argument read against a value: both ports make the argument admit nothing, the definition reads it in place. Ruled as 74: the whole argument admits nothing, so the definition moves. Built 2026-11-22. |
 | [#894](https://github.com/aontu-lang/aontu/issues/894) | def | M |  | A written `nil` below the top of `must`'s condition refuses every value in both ports (`invalid-arg`), where ruling 54 reads it where it stands. Ruled as 75: `must` reads it as ruling 54 does, so both ports drop the builder's check. Built 2026-11-22; rows tn9 to tn11 moved to #907. |
-| [#907](https://github.com/aontu-lang/aontu/issues/907) | def | M | 3 | A disjunction arm that holds a written `nil` doesn't refuse once the data meets it, in either port, so `v: {x: 1} \| {x: nil}` refuses `{"v": {"x": 1}}`; the definition admits it. |
+| [#907](https://github.com/aontu-lang/aontu/issues/907) | def | M | 12 | A disjunction arm that holds a written `nil` doesn't refuse once the data meets it, in either port, so `v: {x: 1} \| {x: nil}` refuses `{"v": {"x": 1}}`; the definition admits it. |
 | [#895](https://github.com/aontu-lang/aontu/issues/895) | def | M | 9 | A path in `must`'s condition into the value under trial: both ports leave it unread and pass the check, the definition reads `error` or `invalid`. Ruled as 76: the path reads the field, as 63 reads one in `match`, so both ports and the definition move. |
 
 ### Declarations, loads, includes and built-in models
