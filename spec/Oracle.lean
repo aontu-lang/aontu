@@ -3572,6 +3572,44 @@ theorem openSelect_verdict_exact : ∀ c ∈ openSelectCases, ∀ (m : Mode) (v 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_readsD (openSelectCases_reads c hc) v
 
+/-- A `match` whose scrutinee, and a `must` whose condition, reads the
+place the term stands at, which reads what the rest of the document
+holds there, without the term (`Val.dropSelf`): the rule of #818,
+`order: match($.order.status, "shipped", {trackingNo: string}, {})`,
+against a record the default takes, one the arm takes that lacks the
+member, has it and has it of the wrong kind; and `must`'s condition
+reading the value under trial, through a call against data that agrees
+and data that doesn't, beside a required member the data leaves out,
+alone, and beside a path to a field of the schema's own, which reads as
+any path does. -/
+def selfReadCases : List (Decls × Val × Data) :=
+  let rule : Val := m [("order", .select (.path [.key "order", .key "status"])
+    [(str "shipped", m [("trackingNo", .string)])] (some (m [])))]
+  let ord (fs : List (String × Data)) : Data := .map [("order", .map fs)]
+  let mu (c : Val) : Val := .must c "m"
+  let vx : Val := .path [.key "v", .key "x"]
+  let vn : Val := .path [.key "v", .key "name"]
+  let dn (x : String) : Data := .map [("v", .map [("x", .str x), ("name", .str "a")])]
+  let dx : Data := .map [("v", .map [("x", .integer 1)])]
+  [([], rule, ord [("status", .str "placed")]),
+    ([], rule, ord [("status", .str "shipped")]),
+    ([], rule, ord [("status", .str "shipped"), ("trackingNo", .str "1Z")]),
+    ([], rule, ord [("status", .str "shipped"), ("trackingNo", j 7)]),
+    ([], m [("v", mu (m [("x", .call .upper [vn])]))], dn "A"),
+    ([], m [("v", mu (m [("x", .call .upper [vn])]))], dn "B"),
+    ([], m [("v", mu (m [("x", int 1), ("y", vx)]))], dx),
+    ([], m [("v", mu (m [("x", vx)]))], dx),
+    ([], m [("v", mu (m [("x", int 1), ("y", .path [.key "w"])])), ("w", int 1)],
+      .map [("v", .map [("x", .integer 1)]), ("w", .integer 1)])]
+
+set_option maxRecDepth 16384 in
+theorem selfReadCases_reads : ∀ c ∈ selfReadCases, c.1.readsPD c.2.1 c.2.2 = true := by
+  decide +kernel
+
+theorem self_read_verdict_exact : ∀ c ∈ selfReadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_readsD (selfReadCases_reads c hc) v
+
 /-- Spreads whose templates read their member's place, each read at each
 member there is: a relative path in a map's template, beside data that
 supplies its target, refuses it, fills it and supplies none; the
@@ -5295,33 +5333,6 @@ theorem voidBelowCases_checkable : ∀ c ∈ voidBelowCases,
 theorem void_below_verdict_exact : ∀ c ∈ voidBelowCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (voidBelowCases_checkable c hc).1 (voidBelowCases_checkable c hc).2 v
-
-/-- A path in `must`'s condition into the value under trial, `$.v.x`
-under `v`, which names nothing in the schema alone: through a call,
-which the reading can't make, a conflict in the argument, against
-data that agrees and data that doesn't; beside a required member the
-data leaves out; and alone; beside a path to a field of the schema's
-own. Both ports leave such a path unread, and the rows they answer
-otherwise are in the ledger under #895. -/
-def selfPathCases : List (Decls × Val × Data) :=
-  let mu (c : Val) : Val := .must c "m"
-  let vx : Val := .path [.key "v", .key "x"]
-  let vn : Val := .path [.key "v", .key "name"]
-  let dn (x : String) : Data := .map [("v", .map [("x", .str x), ("name", .str "a")])]
-  let dx : Data := .map [("v", .map [("x", .integer 1)])]
-  [([], m [("v", mu (m [("x", .call .upper [vn])]))], dn "A"),
-    ([], m [("v", mu (m [("x", .call .upper [vn])]))], dn "B"),
-    ([], m [("v", mu (m [("x", int 1), ("y", vx)]))], dx),
-    ([], m [("v", mu (m [("x", vx)]))], dx),
-    ([], m [("v", mu (m [("x", int 1), ("y", .path [.key "w"])])), ("w", int 1)],
-      .map [("v", .map [("x", .integer 1)]), ("w", .integer 1)])]
-
-theorem selfPathCases_checkable : ∀ c ∈ selfPathCases,
-    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
-
-theorem self_path_verdict_exact : ∀ c ∈ selfPathCases, ∀ (m : Mode) (v : Verdict),
-    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vet_iff (selfPathCases_checkable c hc).1 (selfPathCases_checkable c hc).2 v
 
 /-- `contains` over a recursive name met with a list, which the meet
 counts reading the name as its body, as both ports do: a member that
@@ -8756,6 +8767,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A match whose scrutinee the schema leaves open waits for the data (ruling 49),"
     IO.println "# in rows os0 on."
     pathRows "os" openSelectCases
+    IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
+    IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
+    pathRows "sr" selfReadCases
     IO.println "# One document in three orders follows in rows od0 on (ADR-081): a type and a"
     IO.println "# subtype of it that name each other by path, the subtype written first, the"
     IO.println "# type written first, and the use written above both, each against no data,"
@@ -8848,7 +8862,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# disjunction admits what any arm admits, whatever its rank, in rows ta0 on, and"
     IO.println "# an argument both ports read as they build it, with a conflict below its top, in"
     IO.println "# rows td0 on. A written nil below the top of must's condition follows in rows"
-    IO.println "# tn0 on, and a path in must's condition into the value under trial in rows tq0 on."
+    IO.println "# tn0 on."
     IO.println "# An argument a trial tries against a value, with a clash below its top, admits"
     IO.println "# nothing, in rows tl0 on."
     trialRows "t"
@@ -8858,7 +8872,6 @@ def main (args : List String) : IO UInt32 := do
     trialRows "ta" armTrialCases
     trialRows "td" deepEagerCases
     trialRows "tn" voidBelowCases
-    trialRows "tq" selfPathCases
     trialRows "tl" lazyClashCases
     return 0
   | ["calls"] =>
