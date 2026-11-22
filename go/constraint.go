@@ -2118,6 +2118,10 @@ func readsPlace(v Val, place []string) bool {
 		kids = t.peg
 	case *FuncVal:
 		kids = t.peg
+	case *ConstraintVal:
+		if nil != t.pending {
+			kids = t.pending.args
+		}
 	}
 	return slices.ContainsFunc(kids, func(c Val) bool { return nil != c && readsPlace(c, place) })
 }

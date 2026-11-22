@@ -2430,6 +2430,7 @@ export {
   normaliseRe,
   nofCounts,
   pendingNof,
+  readsPlace,
   // Exported for the subsumption query (G3, ts/src/subsume.ts): the
   // residual-vs-residual and residual-vs-scalar rules live here beside
   // the compare machinery they reuse.

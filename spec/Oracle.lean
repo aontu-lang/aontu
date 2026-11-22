@@ -3583,12 +3583,16 @@ and data that doesn't, beside a required member the data leaves out,
 alone, and beside a path to a field of the schema's own, which reads as
 any path does; then the same reads written as relative paths, which read
 where they stand (#917): `.name` alone and through a call, `.x` beside a
-required member and alone, and the rule's scrutinee as `.order.status`. -/
+required member and alone, and the rule's scrutinee as `.order.status`;
+and a scrutinee the rest of the schema leaves open, `number`, which the
+data's own `x` settles. -/
 def selfReadCases : List (Decls × Val × Data) :=
   let rule : Val := m [("order", .select (.path [.key "order", .key "status"])
     [(str "shipped", m [("trackingNo", .string)])] (some (m [])))]
   let relRule : Val := m [("order", .select (rel 1 ["order", "status"])
     [(str "shipped", m [("trackingNo", .string)])] (some (m [])))]
+  let openRule : Val := m [("v", .meet (m [("x", .number)])
+    (.select (.path [.key "v", .key "x"]) [(int 1, m [("y", int 1)])] (some (m [("y", int 2)]))))]
   let ord (fs : List (String × Data)) : Data := .map [("order", .map fs)]
   let mu (c : Val) : Val := .must c "m"
   let vx : Val := .path [.key "v", .key "x"]
@@ -3612,7 +3616,9 @@ def selfReadCases : List (Decls × Val × Data) :=
     ([], m [("v", mu (m [("x", int 1), ("y", rel 1 ["x"])]))], dx),
     ([], m [("v", mu (m [("x", rel 1 ["x"])]))], dx),
     ([], relRule, ord [("status", .str "shipped"), ("trackingNo", j 7)]),
-    ([], relRule, ord [("status", .str "placed")])]
+    ([], relRule, ord [("status", .str "placed")]),
+    ([], openRule, .map [("v", .map [("x", .integer 1), ("y", .integer 2)])]),
+    ([], openRule, .map [("v", .map [("x", .integer 1), ("y", .integer 1)])])]
 
 set_option maxRecDepth 16384 in
 theorem selfReadCases_reads : ∀ c ∈ selfReadCases, c.1.readsPD c.2.1 c.2.2 = true := by

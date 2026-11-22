@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### A `match` that reads its own place waits while that place is open
+
+The review of #916, in both engines. A `match` whose scrutinee reads its
+own place, where the rest of the schema leaves that place open, waits
+for the data instead of choosing at once, so
+`v: {x: number} & match($.v.x, 1, {y: 1}, {y: 2})` takes the first arm
+for `{"v": {"x": 1, "y": 1}}`, as the definition does, where both
+engines took the default. Two differences #916 opened between the
+engines close too: Go reads a path in a `must` condition through a
+bound, `must({x: min($.v.y)}, "m")`, as TypeScript does, and Go's
+`match` reads its patterns without its peer, as TypeScript's does.
+#919 asks what such a pattern should read.
+
+- `ts/src/val/MatchFuncVal.ts`, `go/generate.go` and `go/func.go`: a
+  scrutinee that reads the match's own place and comes out open is read
+  again on a later pass, and Go holds the peer for the scrutinee alone.
+- `go/constraint.go`: `readsPlace` reads a pending bound's arguments.
+- Rows sr51 to sr56 of `test/spec/def-path.tsv`, and two rows of
+  `test/spec/constraint-must.tsv`.
+
 ### A relative path in `must`'s condition reads its own place too
 
 #917, in both engines. A relative path in a `must`'s condition that

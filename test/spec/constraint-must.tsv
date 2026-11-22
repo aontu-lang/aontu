@@ -96,3 +96,8 @@ must-trial-leaves-a-value-that-does-not-generate	errc	a:must({},"m") a:{x:intege
 # a settled one, and a trial beside a kind it does not narrow is tried.
 must-a-waiting-atom-meets-a-built-one	errc	a: nof(1, {a: any}) & must({x: key()}, "m") & {a: 1}	must
 must-a-trial-beside-the-list-kind-is-tried	errc	a: must(len(max(0)) & list, "m") & [1]	must
+#
+# A path into the value under trial reads the field wherever the
+# condition holds it, as the argument of a bound too.
+must-reads-its-place-through-a-bound	errc	v: must({x: min($.v.y)}, "m") & {x: 1, y: 2}	must
+must-reads-its-place-through-a-bound-admits	gen	v: must({x: min($.v.y)}, "m") & {x: 3, y: 2}	{"v":{"x":3,"y":2}}
