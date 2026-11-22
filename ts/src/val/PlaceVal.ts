@@ -12,6 +12,7 @@ import {
 
 import { Val as ValBase } from './Val'
 import { makeNilErr } from '../err'
+import { cmpCodePoint } from '../keyorder'
 
 
 class PlaceVal extends ValBase {
@@ -91,6 +92,123 @@ function unboundHole(ctx: AontuContext, root: Val): Val | undefined {
   const nil: any = makeNilErr(ctx, 'hole_unbound', found[0], undefined, 'parse')
   nil.path = found[1]
   return nil
+}
+
+
+// An unknown name or a wrong count is refused wherever it stands, even
+// where a trial or maybe would read it as admitting nothing (decision 77
+// of sketch/DEFINITION.0.md). A declaration's body counts, reported where
+// it is declared, and of several the least by path is reported.
+function unknownCall(root: Val): Val | undefined {
+  const found: [Val, string[]][] = []
+  const seen = new Set<Val>()
+  refusedCallIn(root, [], false, seen, found)
+  for (const [body, path] of declBodies(root)) {
+    refusedCallIn(body, path, true, seen, found)
+  }
+  let least: [Val, string[]] | undefined = undefined
+  for (const f of found) {
+    if (undefined === least ||
+      cmpCodePoint(f[1].join('\x00'), least[1].join('\x00')) < 0) {
+      least = f
+    }
+  }
+  if (undefined === least) {
+    return undefined
+  }
+  const nil: any = least[0]
+  nil.path = least[1]
+  return nil
+}
+
+
+// `maybe()` is how canon writes an absence, so it is read back as one.
+function refusedCall(v: any): boolean {
+  return true === v.isNil && ('unknown_function' === v.why ||
+    ('func_arity' === v.why &&
+      !('maybe' === v.refusedCall?.name && 0 === v.refusedCall.args.length)))
+}
+
+
+// Both walks keep their own stack, as aliasCycle does: a document may nest
+// deeper than the host's stack, and the order is the recursive one.
+function refusedCallIn(start: any, startPath: string[], startCalls: boolean,
+  seen: Set<Val>, found: [Val, string[]][]): void {
+  const stack: [any, string[], boolean][] = [[start, startPath, startCalls]]
+  while (0 < stack.length) {
+    const [v, path, calls] = stack.pop() as [any, string[], boolean]
+    if (true !== v?.isVal || seen.has(v)) {
+      continue
+    }
+    seen.add(v)
+    if (refusedCall(v)) {
+      found.push([v, path])
+      continue
+    }
+    const next: [any, string[], boolean][] = []
+    const call = callOf(v)
+    const peg: any = v.peg
+    if (undefined !== call) {
+      call.args.forEach((arg: any) => next.push([arg, path, true]))
+    }
+    else {
+      if (Array.isArray(peg) || true === peg?.isVal) {
+        [peg].flat().forEach((item: any, i: number) => next.push([item,
+          true === v.isList && !calls ? [...path, '' + i] : path,
+          calls || true === v.isOp || true === v.isConstraint]))
+      }
+      else if (null != peg && 'object' === typeof peg) {
+        for (const k of Object.keys(peg)) {
+          if (!(v.aliasKeys ?? []).includes(k)) {
+            next.push([peg[k], calls ? path : [...path, k], calls])
+          }
+        }
+      }
+      next.push([v.spread?.cj, path, calls])
+    }
+    pushReversed(stack, next)
+  }
+}
+
+
+// One push per item: a list's elements, spread as arguments, overflow the
+// host's limit on them long before the stack does.
+function pushReversed<T>(stack: T[], next: T[]): void {
+  for (let i = next.length - 1; 0 <= i; i--) {
+    stack.push(next[i])
+  }
+}
+
+
+function declBodies(start: any): [Val, string[]][] {
+  const out: [Val, string[]][] = []
+  const seen = new Set<Val>()
+  const stack: [any, string[]][] = [[start, []]]
+  while (0 < stack.length) {
+    const [v, path] = stack.pop() as [any, string[]]
+    if (true !== v?.isVal || seen.has(v)) {
+      continue
+    }
+    seen.add(v)
+    for (const k of v.aliasKeys ?? []) {
+      out.push([v.peg[k], path])
+    }
+    const next: [any, string[]][] = []
+    const peg: any = v.peg
+    if (true === v.isMap && null != peg && 'object' === typeof peg) {
+      for (const k of Object.keys(peg)) {
+        if (!(v.aliasKeys ?? []).includes(k)) {
+          next.push([peg[k], [...path, k]])
+        }
+      }
+      next.push([v.spread?.cj, path])
+    }
+    else {
+      partsOf(v).forEach((c: any) => next.push([c, path]))
+    }
+    pushReversed(stack, next)
+  }
+  return out
 }
 
 
@@ -263,6 +381,7 @@ export {
   hasPlace,
   rebuild,
   unboundHole,
+  unknownCall,
   waitsOnHole,
   fillPlace,
   PlaceVal,

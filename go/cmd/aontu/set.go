@@ -91,6 +91,7 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 		&aontu.PatchOptions{
 			Trust:     verbTrust(trust, entryRootOfFile(entry)),
 			TextExt:   trust.textExt,
+			HostVars:  trust.hostVars,
 			EntryPath: entry, InPlace: inPlace, OverlayPath: overlayFile})
 
 	// WRITTEN ONLY WHEN IT HOLDS. A change that contradicts a pinned

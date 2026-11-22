@@ -106,7 +106,7 @@ func (a *Aontu) trimEvalCanon(
 	if nil != delPath && !trimDeleteAt(v, delPath) {
 		return "", false, nil
 	}
-	ctx := &Ctx{root: v, src: src}
+	ctx := &Ctx{root: v, vars: hostVals(a.HostVars), src: src}
 	res := unifyRoot(v, ctx)
 	if nil == res || res.Nil() || 0 < len(ctx.err) {
 		f := failureFinding(ctx, a.File, src, res)

@@ -1,0 +1,89 @@
+# Today's routes to what CUE writes with comprehensions: the 38 probes
+# k1 to k38 of sketch/CUE-COMPARISON.0.md, section "What comprehensions
+# do that the built-ins do not", as task C7 of
+# sketch/LANG-REFINEMENT-PLAN.0.md asks. Columns:
+# name<TAB>mode<TAB>src<TAB>expect. Each expectation is what both engines
+# answer (the parity probe).
+#
+# The rows hold three things: the routes that work keep working, each
+# built-in that C1 to C5 add is written beside the answer its route gives
+# now, and the silent answers stay visible: the condition that reads
+# nothing (k4), the miscounted level (k13) and the list past its written
+# bound (k32). Two probes are refusals today: a loop over a number alone
+# (k30) and a field of the member in an each template (k37).
+# k1: a new record from each record
+routes-k1	gen	xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]\nout: emit($.xs, {match: any, body: [{name: .name, addr: .host + ":" + .port}]})	{"out":[{"addr":"h1:80","name":"web"},{"addr":"h2:5432","name":"db"}],"xs":[{"host":"h1","name":"web","port":80},{"host":"h2","name":"db","port":5432}]}
+# k2: filter on a bound, then project
+routes-k2	gen	xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]\nout: pick(filter($.xs, {port: above(1000)}), name)	{"out":["db"],"xs":[{"host":"h1","name":"web","port":80},{"host":"h2","name":"db","port":5432}]}
+# k3: or, and, not in a condition
+routes-k3	gen	xs: [{n: a, env: prod, tier: gold}, {n: b, env: dev, tier: gold}, {n: c, env: dev, tier: tin}]\nor: pick(filter($.xs, {env: prod} | {tier: gold}), n)\nand: pick(filter($.xs, {env: dev, tier: gold}), n)\nnot: pick(filter($.xs, {env: neq(prod)}), n)	{"and":["b"],"not":["b","c"],"or":["a","b"],"xs":[{"env":"prod","n":"a","tier":"gold"},{"env":"dev","n":"b","tier":"gold"},{"env":"dev","n":"c","tier":"tin"}]}
+# k4: a condition that compares two fields of one member
+routes-k4	gen	xs: [{a: 3, b: 1}, {a: 1, b: 2}]\nout: filter($.xs, {a: above(.b)})	{"out":[],"xs":[{"a":3,"b":1},{"a":1,"b":2}]}
+# k5: the same, through a derived field
+routes-k5	gen	xs: [{a: 3, b: 1}, {a: 1, b: 2}]\ntmp: hide(each($.xs, _ & {d: sub(.a, .b)}))\nout: pick(filter($.tmp, {d: above(0)}), a)	{"out":[3],"xs":[{"a":3,"b":1},{"a":1,"b":2}]}
+# k6: flatten the lists the members hold
+routes-k6	gen	svcs: [{name: web, ports: [80, 443]}, {name: db, ports: [5432]}]\nout: emit($.svcs, {match: any, body: [.ports]})	{"out":[80,443,5432],"svcs":[{"name":"web","ports":[80,443]},{"name":"db","ports":[5432]}]}
+# k7: an inner loop that reads the outer member
+routes-k7	gen	svcs: [{name: web, ports: [80, 443]}, {name: db, ports: [5432]}]\ntmp: hide(each($.svcs, _ & {pairs: each(.ports, ..name + ":" + _)}))\nout: emit($.tmp, {match: any, body: [.pairs]})	{"out":["web:80","web:443","db:5432"],"svcs":[{"name":"web","ports":[80,443]},{"name":"db","ports":[5432]}]}
+# k8: every pair from two lists
+routes-k8	gen	as: [a, b]\nbs: [x, y]\ntmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))\nout: emit($.tmp, {match: any, body: [.row]})	{"as":["a","b"],"bs":["x","y"],"out":["a-x","a-y","b-x","b-y"]}
+# k9: the members named in another list
+routes-k9	gen	allowed: [web, cache]\nxs: [{name: web}, {name: db}, {name: cache}]\ntmp: hide(pack($.allowed, filter($.xs, {name: key(2)})))\nout: pick(emit($.tmp, {match: any, body: [_]}), name)	{"allowed":["web","cache"],"out":["cache","web"],"xs":[{"name":"web"},{"name":"db"},{"name":"cache"}]}
+# k10: a map keyed by a field of each member
+routes-k10	gen	xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]\nout: pack(pick($.xs, name), sum(pick(filter($.xs, {name: key(2)}), port)))	{"out":{"db":5432,"web":80},"xs":[{"host":"h1","name":"web","port":80},{"host":"h2","name":"db","port":5432}]}
+# k11: the same, holding each whole record
+routes-k11	gen	xs: [{name: web, port: 80}, {name: db, port: 5432}]\nout: pack(pick($.xs, name), {})\nlinks: hide(emit($.xs, {match: any, body: [relate(_) & path("$.out." + .name)]}))	{"out":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}},"xs":[{"name":"web","port":80},{"name":"db","port":5432}]}
+# k12: group by a field
+routes-k12	gen	xs: [{name: a, team: core}, {name: b, team: web}, {name: c, team: core}]\nout: pack(pick($.xs, team), pick(filter($.xs, {team: key(2)}), name))	{"out":{"core":["a","c"],"web":["b"]},"xs":[{"name":"a","team":"core"},{"name":"b","team":"web"},{"name":"c","team":"core"}]}
+# k13: the same, with the key level miscounted
+routes-k13	gen	xs: [{name: a, team: core}, {name: b, team: web}, {name: c, team: core}]\nout: pack(pick($.xs, team), pick(filter($.xs, {team: key(3)}), name))	{"out":{"core":[],"web":[]},"xs":[{"name":"a","team":"core"},{"name":"b","team":"web"},{"name":"c","team":"core"}]}
+# k14: invert a map
+routes-k14	gen	m: {a: x, b: y}\nst: hide(pack($.m, {k: key(), v: _}))\nout: pack(pick($.st, v), join(pick(filter($.st, {v: key(2)}), k)))	{"m":{"a":"x","b":"y"},"out":{"x":"a","y":"b"}}
+# k15: a prefix on every key
+routes-k15	gen	m: {a: 1, b: 2}\nst: hide(pack($.m, {k: "svc-" + key(), v: _}))\nout: pack(pick($.st, k), sum(pick(filter($.st, {k: key(2)}), v)))	{"m":{"a":1,"b":2},"out":{"svc-a":1,"svc-b":2}}
+# k16: a key built from two fields
+routes-k16	gen	xs: [{ns: a, name: web, port: 80}, {ns: b, name: web, port: 81}]\nst: hide(each($.xs, _ & {id: .ns + "/" + .name}))\nout: pack(pick($.st, id), sum(pick(filter($.st, {id: key(2)}), port)))	{"out":{"a/web":80,"b/web":81},"xs":[{"name":"web","ns":"a","port":80},{"name":"web","ns":"b","port":81}]}
+# k17: every pair from two lists, keyed by both
+routes-k17	gen	as: [a, b]\nbs: [x, y]\ntmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))\nkeys: hide(emit($.tmp, {match: any, body: [.row]}))\nout: pack($.keys, {parts: hide(split(key(), "-")), left: .parts.0, right: .parts.1})	{"as":["a","b"],"bs":["x","y"],"out":{"a-x":{"left":"a","right":"x"},"a-y":{"left":"a","right":"y"},"b-x":{"left":"b","right":"x"},"b-y":{"left":"b","right":"y"}}}
+# k18: one field of each member, keys kept, any kind
+routes-k18	gen	svc: {a: {cfg: {x: 1}}, b: {cfg: {x: 2}}}\nout: pack($.svc, {})\nlinks: hide(emit(pack($.svc, _ & {id: key()}), {match: any, body: [relate(.cfg) & path("$.out." + .id)]}))	{"out":{"a":{"x":1},"b":{"x":2}},"svc":{"a":{"cfg":{"x":1}},"b":{"cfg":{"x":2}}}}
+# k19: look one field up by a field of the member
+routes-k19	gen	teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}\nsvc: {a: {team: core}, b: {team: web}, c: {team: core}}\ntst: hide(pack($.teams, _ & {id: key()}))\nsvc: &: {owner: join(pick(filter($.tst, {id: ...team}), email))}\nout: pack($.svc, join(pick([_], owner)))	{"out":{"a":"core@x","b":"web@x","c":"core@x"},"svc":{"a":{"owner":"core@x","team":"core"},"b":{"owner":"web@x","team":"web"},"c":{"owner":"core@x","team":"core"}},"teams":{"core":{"email":"core@x","tier":1},"web":{"email":"web@x","tier":2}}}
+# k20: look a whole record up by a field of the member
+routes-k20	gen	teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}\nsvc: {a: {team: core}, b: {team: web}, c: {team: core}}\nsst: hide(pack($.svc, _ & {id: key()}))\ng: hide(pack($.teams, {rec: _, links: each(pick(filter($.sst, {team: key(3)}), id), relate({owner: ...rec}) & path("$.out." + _))}))\nout: pack($.svc, {})	{"out":{"a":{"owner":{"email":"core@x","tier":1}},"b":{"owner":{"email":"web@x","tier":2}},"c":{"owner":{"email":"core@x","tier":1}}},"svc":{"a":{"team":"core"},"b":{"team":"web"},"c":{"team":"core"}},"teams":{"core":{"email":"core@x","tier":1},"web":{"email":"web@x","tier":2}}}
+# k21: pair two lists by position
+routes-k21	gen	xs: [a, b]\nys: [1, 2]\nyi: hide(each($.ys, {i: key(), y: _}))\nout: each($.xs, {k: _, y: sum(pick(filter($.yi, {i: key(3)}), y))})	{"out":[{"k":"a","y":1},{"k":"b","y":2}],"xs":["a","b"],"ys":[1,2]}
+# k22: a block of fields under a condition
+routes-k22	gen	env: prod\nout: {name: web} & match($.env, prod, {replicas: 3, tier: gold}, {})	{"env":"prod","out":{"name":"web","replicas":3,"tier":"gold"}}
+# k23: a list element under a condition
+routes-k23	gen	debug: false\nout: [run, match($.debug, true, "--verbose", maybe($.none)), now]	{"debug":false,"out":["run","now"]}
+# k24: a chain of conditions, first match wins
+routes-k24	gen	n: 7\nout: match($.n, below(3), small, below(10), medium, large)	{"n":7,"out":"medium"}
+# k25: a field present or absent
+routes-k25	gen	x: {opt: 1}\ny: {}\nout: [match($.x, {opt: any}, true, false), match($.y, {opt: any}, true, false)]	{"out":[true,false],"x":{"opt":1},"y":{}}
+# k26: a local value in the loop
+routes-k26	gen	xs: [{a: 1}, {a: 2}, {a: 3}]\ntmp: hide(emit($.xs, {match: any, body: [{v: mul(.a, 2)}]}))\nout: filter($.tmp, {v: above(2)})	{"out":[{"v":4},{"v":6}],"xs":[{"a":1},{"a":2},{"a":3}]}
+# k27: a sum of products
+routes-k27	gen	lines: [{qty: 2, price: 5}, {qty: 1, price: 7}]\nout: sum(emit($.lines, {match: any, body: [mul(.qty, .price)]}))	{"lines":[{"price":5,"qty":2},{"price":7,"qty":1}],"out":17}
+# k28: two lists end to end
+routes-k28	gen	a: [1, 2]\nb: [3]\nout: $.a + $.b	{"a":[1,2],"b":[3],"out":[1,2,3]}
+# k29: the keys of a map as a list
+routes-k29	gen	m: {b: 1, a: 2}\nout: each(pack($.m, key(0)), _)	{"m":{"a":2,"b":1},"out":["a","b"]}
+# k30: a loop over a number itself
+routes-k30	errc	n: 3\nout: each($.n, "node-" + key())	each_data
+# k31: a loop driven by a number, under a written bound
+routes-k31	gen	n: 3\nout: each(filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], below($.n)), "node-" + _)	{"n":3,"out":["node-0","node-1","node-2"]}
+# k32: the same, with the number past the written bound
+routes-k32	gen	n: 12\nout: sum(each(filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], below($.n)), 1))	{"n":12,"out":10}
+# k33: the last member of twelve
+routes-k33	gen	xs: [a, b, c, d, e, f, g, h, i, j, k, l]\nst: hide(each($.xs, {i: key(), v: _}))\nlp: hide("" + sub(sum(each($.xs, 1)), 1))\nout: join(pick(filter($.st, {i: $.lp}), v))	{"out":"l","xs":["a","b","c","d","e","f","g","h","i","j","k","l"]}
+# k34: a list reversed
+routes-k34	gen	xs: [c, a, b]\nnums: hide(each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], {i: key(), n: _}))\ns1: hide(each($.xs, {v: _, n: sum(pick(filter($.nums, {i: key(3)}), n))}))\nout: pick(sort($.s1, n, desc), v)	{"out":["b","a","c"],"xs":["c","a","b"]}
+# k35: a slice
+routes-k35	gen	xs: [1, 2, 3, 4]\nnums: hide(each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], {i: key(), n: _}))\ns1: hide(each($.xs, {v: _, n: sum(pick(filter($.nums, {i: key(3)}), n))}))\nout: pick(filter($.s1, {n: min(1) & below(3)}), v)	{"out":[2,3],"xs":[1,2,3,4]}
+# k36: each member against the one before it
+routes-k36	gen	xs: [3, 5, 9]\nnums: hide(each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], {i: key(), n: _}))\nst: hide(each($.xs, {i: key(), v: _}))\nm: hide(pack(pick($.st, i), {v: sum(pick(filter($.st, {i: key(3)}), v)), n: sum(pick(filter($.nums, {i: key(3)}), n))}))\nm2: hide(each($.m, _ & {p: "" + sub(.n, 1)}))\nm3: hide(pack(pick($.m2, p), {prev: sum(pick(filter($.st, {i: key(3)}), v)), v: sum(pick(filter($.m2, {p: key(3)}), v)), n: sum(pick(filter($.m2, {p: key(3)}), n))}))\nout: emit(sort(filter($.m3, {n: above(0)}), n), {match: any, body: [sub(.v, .prev)]})	{"out":[2,4],"xs":[3,5,9]}
+# k37: a field of the member in an each template
+routes-k37	errc	xs: [{name: web}, {name: db}]\nout: each($.xs, {n: .name})	no_path
+# k38: a condition that reads a value elsewhere in the document
+routes-k38	gen	limit: 2\nxs: [{a: 3}, {a: 1}]\nout: filter($.xs, {a: above($.limit)})	{"limit":2,"out":[{"a":3}],"xs":[{"a":3},{"a":1}]}

@@ -190,10 +190,10 @@ func TestTrustVerbOptionsConfineTheEngine(t *testing.T) {
 	// document, so that leg runs the resolver too. It answers "" for a
 	// document that does not stand up, which a denied include makes it.
 	policy := "aontu_policy: { compat: \"forward\" }\n" + src
-	if m := PolicyCompatTrust(policy, entry, nil, nil); "forward" != m {
+	if m := PolicyCompatTrust(policy, entry, nil, nil, nil); "forward" != m {
 		t.Fatalf("policy, unconfined: %q", m)
 	}
-	if m := PolicyCompatTrust(policy, entry, none, nil); "" != m {
+	if m := PolicyCompatTrust(policy, entry, none, nil, nil); "" != m {
 		t.Fatalf("policy ignored trust: %q", m)
 	}
 
@@ -209,15 +209,15 @@ func TestTrustVerbOptionsConfineTheEngine(t *testing.T) {
 		t.Fatalf("patch ignored Trust: %s", v)
 	}
 
-	open := aontuForPathTrust(entry, nil, nil)
+	open := aontuForPathTrust(entry, nil, nil, nil)
 	if got := open.Get(src, "$.a.secret", nil); !got.OK {
 		t.Fatalf("get, unconfined: %+v", got.Findings)
 	}
-	shut := aontuForPathTrust(entry, none, nil)
+	shut := aontuForPathTrust(entry, none, nil, nil)
 	if got := shut.Get(src, "$.a.secret", nil); got.OK {
 		t.Fatal("get ignored the capability")
 	}
-	if got := aontuForPathTrust(entry, none, nil).Why(src, "$.a.secret"); got.OK {
+	if got := aontuForPathTrust(entry, none, nil, nil).Why(src, "$.a.secret"); got.OK {
 		t.Fatal("why ignored the capability")
 	}
 }

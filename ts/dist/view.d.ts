@@ -1,5 +1,5 @@
 import type { VetFinding } from './vet';
-import type { TrustOptions } from './type';
+import type { HostVars, TrustOptions } from './type';
 import { Provenance } from './provenance';
 import type { SubsumeProfile } from './subsume';
 export type ViewVerdict = 'rendered' | 'lossy' | 'error';
@@ -52,6 +52,7 @@ export type ViewOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    hostVars?: HostVars;
     at?: string;
     maxRows?: number;
     relation?: string;

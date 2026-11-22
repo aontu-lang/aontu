@@ -20,6 +20,7 @@ function includeOpts(options) {
         ...(null == options.trust ? {} : { trust: options.trust }),
         ...(null == options.textExt || 0 === options.textExt.length
             ? {} : { textExt: options.textExt }),
+        ...(null == options.hostVars ? {} : { hostVars: options.hostVars }),
     };
 }
 const WALK_DEFAULT_MAXDEPTH = 9999;

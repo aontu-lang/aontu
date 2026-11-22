@@ -2941,7 +2941,7 @@ until the phase that encodes it lands.
    port's `must` holds back a condition that reads its own place until
    its peer is known, then reads a fresh copy of it with the peer held
    there (`readsPlace`), so rows sr15 to sr23 leave the ledger, its
-   bound 198.
+   bound 201 with decision 77's three rows.
 77. **An unknown call inside a trial.** Raised 2026-11-20 by #870: a
    call to a name that is no built-in, or with the wrong count of
    arguments, is refused where it stands alone, `unknown_function` or
@@ -2955,11 +2955,16 @@ until the phase that encodes it lands.
    an unbound `_` is, so a document that holds such a call is refused
    in a trial's argument, in a disjunction's arm and under `maybe`,
    which forgives a missing referent and never an unknown function.
-   **Not yet built**: both ports move, with shared rows for the
-   issue's table. An unknown name has no form in the definition's
-   syntax, where `Fn` lists the functions, so the definition doesn't
-   move for the name, and its reading of a wrong count is taken with
-   the rows.
+   **Built 2026-11-22** in both ports: a check before evaluation, as
+   for an unbound `_`, refuses the least such call by path, a
+   declaration's body included and `maybe()` with no argument left to
+   evaluation, with rows from call-unknown-in-filter on in
+   `test/spec/func.tsv`. An unknown name has no form in the
+   definition's syntax, where `Fn` lists the functions, so the
+   definition doesn't move for the name. It moves for a wrong count:
+   it reads `v: {&: add(1)}` against `{"v": {}}` as `valid`, an
+   unreached template being nothing, so rows x2250 to x2252 of
+   `test/spec/def-call.tsv` enter the ledger, its bound rising by three.
 78. **A default inside a map, read by a trial.** Raised 2026-11-20 by
    #847: a `filter` condition and a `match` pattern read a member as
    it is written. With `t: &: { surface: *"sdk" | string }` and

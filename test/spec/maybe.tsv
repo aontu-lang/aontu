@@ -131,3 +131,15 @@ template-pref-member-unresolved-later-element-stands	err	x: [&: {k: *{n: string}
 template-pref-member-unresolved-site-list	err	x: [&: {k: *{n: string}}]\nx: [{k: maybe($.gone)}]	<no-file>:2:9
 template-pref-member-unresolved-site-map	err	x: {&: {k: *{n: string}}}\nx: {a: {k: maybe($.gone)}}	<no-file>:2:12
 template-pref-member-unresolved-site-second	err	x: [&: {k: *{n: string}}]\nx: [{k: maybe($.gone)}, {k: maybe($.gone)}]	<no-file>:2:29
+# A relative reference under maybe, or under a bound, as a later
+# argument of a call: TypeScript pathed every argument after the first as
+# an element of the argument list, so the reference read from the wrong
+# place and stayed unresolved, or under a climb was absent in silence
+# (#871, and the second case of #868). Every argument reads from the
+# call's place, as the first did.
+maybe-relative-later-arg	canon	x: { b: 2, d: sub(5, maybe(.b)) }	{"x":{"b":2,"d":3}}
+maybe-relative-later-arg-climb	canon	y: {b: 2}\nx: { d: sub(5, maybe(..y.b)) }	{"x":{"d":3},"y":{"b":2}}
+maybe-relative-later-arg-missing	canon	x: { a: 5, d: sub(.a, maybe(.b)) }	{"x":{"a":5,"d":maybe()}}
+match-relative-bound-pattern	canon	t: { a: 3, b: 1, more: match(.a, above(.b), true, false) }	{"t":{"a":3,"b":1,"more":true}}
+match-relative-bound-pattern-fails	canon	t: { a: 1, b: 3, more: match(.a, above(.b), true, false) }	{"t":{"a":1,"b":3,"more":false}}
+match-relative-bound-pattern-spread	gens	t: &: { more: match(.a, above(.b), true, false) }\nt: { p: { a: 3, b: 1 }, q: { a: 1, b: 3 } }	{"t":{"p":{"a":3,"b":1,"more":true},"q":{"a":1,"b":3,"more":false}}}

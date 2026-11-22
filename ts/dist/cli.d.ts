@@ -1,3 +1,4 @@
+import type { HostVars } from './type';
 import { Aontu } from './aontu';
 import type { Served, PkgHttp } from './pkg-net';
 import type { PkgToolOptions } from './pkg';
@@ -20,6 +21,7 @@ type TrustArg = ({
     dir?: string;
 }) & {
     textExt: string[];
+    hostVars?: HostVars;
 };
 export type ReplState = {
     mode: Mode;

@@ -51,9 +51,15 @@ type AontuOptions = {
 
   exactNumbers?: boolean
 
+  // Host bindings for `$name`: --var's source, or with `text` --var-text's.
+  hostVars?: HostVars
+
   trustWarn?: (kind: 'escape' | 'pkg', path: string) => void
   trustWarnRoot?: string
 }
+
+
+type HostVars = Record<string, { value: string, text?: boolean, from?: string }>
 
 
 const DEFAULT_OPTS: () => AontuOptions = () => {
@@ -73,6 +79,7 @@ type ErrContext = {
   src?: string,
   fs?: FST,
   errfs?: FST
+  texts?: Record<string, string>
 } /* node:coverage ignore next 24 */
 
 export type {
@@ -82,6 +89,7 @@ export type {
   ValMap,
   ValList,
   AontuOptions,
+  HostVars,
   ErrContext,
   FST,
   TrustInclude,

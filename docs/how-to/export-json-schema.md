@@ -150,7 +150,7 @@ construct. Collect the classes in `report.aontu`:
 <!-- test: file report.aontu -->
 ```aontu
 report: {
-  total: number & must((v) => 0 <= v, "total must not be negative")
+  total: number & must(min(0), "total must not be negative")
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
   attempts: [&: integer] & len(max(3))
@@ -177,7 +177,15 @@ $ aontu jsonschema --at report report.aontu
     "retries": {
       "maxItems": 3
     },
-    "total": {}
+    "total": {
+      "allOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        }
+      ],
+      "type": "number"
+    }
   },
   "required": [
     "amountEur",
@@ -202,7 +210,7 @@ lossy: $.report.amountEur bigdecimal: JSON Schema has no type for one leaf of a 
 lossy: $.report.attempts.& integer: JSON Schema reads a number by its value, so its integer also admits 1.0 and whole numbers past the integer leaf, which this kind refuses; number & mulof(1) is the integer it means
 lossy: $.report.audit hide: a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it
 lossy: $.report.retries len: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
-lossy: $.report.total nil: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
+lossy: $.report.total must: JSON Schema has no keyword for a check's message, so the check crosses as allOf of its trial schema and its message is DROPPED
 $ echo $?
 1
 ```
@@ -219,10 +227,11 @@ mark.
 
 ## Four edges
 
-The report above already pins two of them. First, `must()` holds the whole value residual, so `number &
-must(...)` exports `{}` under the construct name `nil`: the check is
-opaque by construction, and the `number` kind beside it is lost with
-it (a concrete `5 & must(...)` exports `{}` all the same). Second, a
+The report above already pins two of them. First, a `must()` crosses
+as `allOf` of its trial's schema, so `total` keeps its `minimum`, and
+its message is dropped, since JSON Schema has no keyword to carry it.
+A concrete value settles the check, and `5 & must(...)` exports
+`const: 5`. Second, a
 count needs something to count. `attempts` sizes a list, so its
 `len(max(3))` crossed as `maxItems` with nothing to report, and beside
 a map it would be `maxProperties`; `retries` is a bare count with no

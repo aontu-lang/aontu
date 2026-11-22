@@ -1,4 +1,4 @@
-import type { TrustOptions } from './type';
+import type { HostVars, TrustOptions } from './type';
 import type { VetFinding, VetSite } from './vet';
 export type SubsumeVerdict = 'subsumes' | 'does_not_subsume' | 'undecided' | 'error';
 export type SubsumeProfile = 'values' | 'defaults' | 'gen';
@@ -11,6 +11,7 @@ export type SubsumeOptions = {
     specificPath?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    hostVars?: HostVars;
 };
 export type SubsumeReport = {
     verdict: SubsumeVerdict;

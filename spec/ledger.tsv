@@ -3,7 +3,7 @@
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, both where the ruled answer is neither side's, and the
 # cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 198.
+# A listed case that comes to agree fails the run. Bounded at 201.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -203,3 +203,6 @@ od23	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: 
 od24	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	invalid	error	ports	ADR-081: a document reads alike in whatever order it is written, and the definition reads these three orders alike (order_verdicts_agree); the ports read a use written above the two definitions as a cycle (#778)
 od25	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	invalid	error	ports	ADR-081: a document reads alike in whatever order it is written, and the definition reads these three orders alike (order_verdicts_agree); the ports read a use written above the two definitions as a cycle (#778)
 od26	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	invalid	error	ports	ADR-081: a document reads alike in whatever order it is written, and the definition reads these three orders alike (order_verdicts_agree); the ports read a use written above the two definitions as a cycle (#778)
+x2250	"v": {&: add(1)}	{"v": {}}	valid	error	definition	decision 77 (section 7): a call with the wrong count is decided as the document is read, so it is refused wherever it stands, in a template nothing reaches too; the definition holds the call and reads the unreached template as nothing (#870)
+x2251	"v": {&: add(1)}	{"v": {}}	valid	error	definition	decision 77 (section 7): a call with the wrong count is decided as the document is read, so it is refused wherever it stands, in a template nothing reaches too; the definition holds the call and reads the unreached template as nothing (#870)
+x2252	"v": {&: add(1)}	{"v": {}}	valid	error	definition	decision 77 (section 7): a call with the wrong count is decided as the document is read, so it is refused wherever it stands, in a template nothing reaches too; the definition holds the call and reads the unreached template as nothing (#870)

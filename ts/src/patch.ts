@@ -2,7 +2,7 @@
 
 
 import { vet } from './vet'
-import type { TrustOptions } from './type'
+import type { HostVars, TrustOptions } from './type'
 import type { VetFinding, VetReport, VetVerdict } from './vet'
 import { pathParts, why } from './query'
 import type { WhyConjunct } from './provenance'
@@ -19,6 +19,7 @@ export type PatchOptions = {
   // (G5, docs/trust.md); vet's precedent.
   trust?: TrustOptions
   textExt?: string[]
+  hostVars?: HostVars
 }
 
 
@@ -359,6 +360,7 @@ export function patch(
   const report: VetReport = vet(entrySrc, overlay, {
     trust: options.trust,
     textExt: options.textExt,
+    hostVars: options.hostVars,
     schemaPath: options.entryPath,
     dataPath: options.overlayPath,
     schemaUrl: options.entryPath,

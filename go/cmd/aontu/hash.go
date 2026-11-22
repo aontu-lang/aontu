@@ -71,8 +71,11 @@ func runHash(argv []string, stdout, stderr io.Writer) int {
 	if form {
 		text = aontu.Hcanon(v)
 	}
+	bindings := bindingsOf(trust)
 	if "json" == format {
-		text = renderHashJSON(v)
+		text = renderHashJSON(v, bindings)
+	} else if 0 < len(bindings) {
+		io.WriteString(stderr, "aontu: hashed under "+strings.Join(bindings, " ")+"\n")
 	}
 	io.WriteString(stdout, text+"\n")
 	return 0
@@ -81,20 +84,22 @@ func runHash(argv []string, stdout, stderr io.Writer) int {
 // The machine-readable form. Field order is LEXICOGRAPHIC, the
 // canonical emitter's order (see vetReportJSON).
 type hashReportJSON struct {
-	Aontu subsumeProducerJSON `json:"aontu"`
-	Form  string              `json:"form"`
-	Hash  string              `json:"hash"`
+	Aontu    subsumeProducerJSON `json:"aontu"`
+	Bindings []string            `json:"bindings,omitempty"`
+	Form     string              `json:"form"`
+	Hash     string              `json:"hash"`
 }
 
-func renderHashJSON(v aontu.Val) string {
+func renderHashJSON(v aontu.Val, bindings []string) string {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(hashReportJSON{
-		Aontu: subsumeProducerJSON{Verb: "hash", Version: aontu.VERSION},
-		Form:  aontu.Hcanon(v),
-		Hash:  aontu.CanonHash(v),
+		Aontu:    subsumeProducerJSON{Verb: "hash", Version: aontu.VERSION},
+		Bindings: bindings,
+		Form:     aontu.Hcanon(v),
+		Hash:     aontu.CanonHash(v),
 	})
 	return strings.TrimSuffix(buf.String(), "\n")
 }

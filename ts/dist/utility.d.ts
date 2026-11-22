@@ -1,7 +1,8 @@
-import type { AontuOptions, TrustOptions, Val } from './type';
+import type { AontuOptions, HostVars, TrustOptions, Val } from './type';
 type IncludeOptions = {
     trust?: TrustOptions;
     textExt?: string[];
+    hostVars?: HostVars;
 };
 declare function includeOpts(options: IncludeOptions): Partial<AontuOptions>;
 declare function propagateMarks(source: Val, target: Val): void;
