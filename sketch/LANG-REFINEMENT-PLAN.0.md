@@ -127,7 +127,7 @@ where two were recommended.
 | 47 | A file that is not valid UTF-8 | refused |
 | 48 | A relation's template in a copy | one form wherever it is copied |
 | 49 | A set of names written without commas | read as the comma form |
-| 50 | Eight small questions, and the site of an included value | the repository's standing rules |
+| 50 | Eight small questions, and the site of an included value | the repository's standing rules, and `resolve` as the headline of #313 |
 | 51 | A bare word that is both a name and a kind | the name is quoted in a file of the new version |
 
 Ruling 30 changes ruling 25 of this plan. Rulings 42 and 43 are in
@@ -1844,7 +1844,7 @@ tools, 8 ask for something new, 3 are gaps in the definition itself, and
 | subsume and breaking | [#321](https://github.com/aontu-lang/aontu/issues/321), [#387](https://github.com/aontu-lang/aontu/issues/387), [#424](https://github.com/aontu-lang/aontu/issues/424), [#735](https://github.com/aontu-lang/aontu/issues/735), [#774](https://github.com/aontu-lang/aontu/issues/774) | [#774](https://github.com/aontu-lang/aontu/issues/774) meets HV1: `breaking` under an unbound variable has to give a finding. |
 | Scalars and generated output | [#319](https://github.com/aontu-lang/aontu/issues/319), [#395](https://github.com/aontu-lang/aontu/issues/395), [#756](https://github.com/aontu-lang/aontu/issues/756), [#825](https://github.com/aontu-lang/aontu/issues/825) | [#825](https://github.com/aontu-lang/aontu/issues/825)'s rename lands before the baseline of part 9, or as the first entry of its table. [#756](https://github.com/aontu-lang/aontu/issues/756) lands before ST1. |
 | Parser limits | [#325](https://github.com/aontu-lang/aontu/issues/325), [#326](https://github.com/aontu-lang/aontu/issues/326) | The pins of ruling A fix [#325](https://github.com/aontu-lang/aontu/issues/325) and not [#326](https://github.com/aontu-lang/aontu/issues/326): see [What the pins do to the parser issues](#what-the-pins-do-to-the-parser-issues). |
-| Diagnostics: sites, messages and frames | [#313](https://github.com/aontu-lang/aontu/issues/313), [#324](https://github.com/aontu-lang/aontu/issues/324), [#327](https://github.com/aontu-lang/aontu/issues/327), [#328](https://github.com/aontu-lang/aontu/issues/328), [#331](https://github.com/aontu-lang/aontu/issues/331), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#391](https://github.com/aontu-lang/aontu/issues/391), [#457](https://github.com/aontu-lang/aontu/issues/457), [#685](https://github.com/aontu-lang/aontu/issues/685), [#755](https://github.com/aontu-lang/aontu/issues/755), [#772](https://github.com/aontu-lang/aontu/issues/772), [#775](https://github.com/aontu-lang/aontu/issues/775) | Ruling 50 answers [#313](https://github.com/aontu-lang/aontu/issues/313), [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333) and [#331](https://github.com/aontu-lang/aontu/issues/331), and the sites of [#755](https://github.com/aontu-lang/aontu/issues/755). [#313](https://github.com/aontu-lang/aontu/issues/313) lands before C4, since `range` becomes the name of a built-in. |
+| Diagnostics: sites, messages and frames | [#313](https://github.com/aontu-lang/aontu/issues/313), [#324](https://github.com/aontu-lang/aontu/issues/324), [#327](https://github.com/aontu-lang/aontu/issues/327), [#328](https://github.com/aontu-lang/aontu/issues/328), [#331](https://github.com/aontu-lang/aontu/issues/331), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#391](https://github.com/aontu-lang/aontu/issues/391), [#457](https://github.com/aontu-lang/aontu/issues/457), [#685](https://github.com/aontu-lang/aontu/issues/685), [#755](https://github.com/aontu-lang/aontu/issues/755), [#772](https://github.com/aontu-lang/aontu/issues/772), [#775](https://github.com/aontu-lang/aontu/issues/775) | Ruling 50 answers [#313](https://github.com/aontu-lang/aontu/issues/313), [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333) and [#331](https://github.com/aontu-lang/aontu/issues/331), and the sites of [#755](https://github.com/aontu-lang/aontu/issues/755). [#313](https://github.com/aontu-lang/aontu/issues/313) lands before C4, since `range` becomes the name of a built-in and TypeScript's headline uses the word. |
 | Tooling: coverage, LSP, CLI, playground, docs | [#318](https://github.com/aontu-lang/aontu/issues/318), [#320](https://github.com/aontu-lang/aontu/issues/320), [#322](https://github.com/aontu-lang/aontu/issues/322), [#340](https://github.com/aontu-lang/aontu/issues/340), [#732](https://github.com/aontu-lang/aontu/issues/732), [#733](https://github.com/aontu-lang/aontu/issues/733), [#747](https://github.com/aontu-lang/aontu/issues/747), [#789](https://github.com/aontu-lang/aontu/issues/789), [#814](https://github.com/aontu-lang/aontu/issues/814) | Part 3 takes [#320](https://github.com/aontu-lang/aontu/issues/320) with LS1, and LS4 formats as `fmt` does, so [#747](https://github.com/aontu-lang/aontu/issues/747) lands before it. The review of [#340](https://github.com/aontu-lang/aontu/issues/340) takes in the options of HV1, of LV3 and of the output flag, so that each is named once and means one thing on every verb. |
 | The definition | [#403](https://github.com/aontu-lang/aontu/issues/403), [#432](https://github.com/aontu-lang/aontu/issues/432), [#829](https://github.com/aontu-lang/aontu/issues/829) | Nothing in this plan bears on these. |
 
@@ -1994,17 +1994,21 @@ Each was raised by an issue, and each ruling unblocks the issues named.
     2026-11-22: `export` and a destructure head read it as the comma
     form, as a value does. The other choice refused it there.
 50. **The small ones.** Ruled 2026-11-22: each takes the answer the
-    repository's standing rules give it.
+    repository's standing rules give it, with one exception.
     - TypeScript's reading, where the engines differ and nothing rules:
-      the headline word of
-      [#313](https://github.com/aontu-lang/aontu/issues/313), which is
-      `resolve`, the fold order of
+      the fold order of
       [#328](https://github.com/aontu-lang/aontu/issues/328), the paths
       of [#332](https://github.com/aontu-lang/aontu/issues/332) and
       [#333](https://github.com/aontu-lang/aontu/issues/333), the parse
       of [#518](https://github.com/aontu-lang/aontu/issues/518), and
       `key(n)` in a `replace` value,
       [#786](https://github.com/aontu-lang/aontu/issues/786).
+    - The exception is the headline of
+      [#313](https://github.com/aontu-lang/aontu/issues/313). Its word
+      is `resolve`, which is Go's and is what every other refusal of an
+      argument says, so TypeScript moves. The question listed it under
+      TypeScript's reading in error: TypeScript says `range`. The word
+      put to the maintainer, and accepted, was `resolve`.
     - The definition's reading, where it has one: the marked `nil` of
       [#540](https://github.com/aontu-lang/aontu/issues/540), by its
       decision 18, and the `nil` in `must` of

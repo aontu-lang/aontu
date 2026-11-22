@@ -377,7 +377,8 @@ workstream takes them up:
 | [#889](https://github.com/aontu-lang/aontu/issues/889) | 47: a file that is not valid UTF-8 is refused, with one code |
 | [#779](https://github.com/aontu-lang/aontu/issues/779) | 48: a relation's template is held in one form wherever it is copied |
 | [#517](https://github.com/aontu-lang/aontu/issues/517) | 49: a set of names written without commas reads as the comma form |
-| [#313](https://github.com/aontu-lang/aontu/issues/313), [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#518](https://github.com/aontu-lang/aontu/issues/518) and [#786](https://github.com/aontu-lang/aontu/issues/786) | 50: TypeScript's reading |
+| [#328](https://github.com/aontu-lang/aontu/issues/328), [#332](https://github.com/aontu-lang/aontu/issues/332), [#333](https://github.com/aontu-lang/aontu/issues/333), [#518](https://github.com/aontu-lang/aontu/issues/518) and [#786](https://github.com/aontu-lang/aontu/issues/786) | 50: TypeScript's reading |
+| [#313](https://github.com/aontu-lang/aontu/issues/313) | 50: the headline says `resolve`, as Go's does |
 | [#540](https://github.com/aontu-lang/aontu/issues/540) | 50: the definition's reading, its decision 18 |
 | [#331](https://github.com/aontu-lang/aontu/issues/331), [#845](https://github.com/aontu-lang/aontu/issues/845), [#887](https://github.com/aontu-lang/aontu/issues/887), [#876](https://github.com/aontu-lang/aontu/issues/876), [#841](https://github.com/aontu-lang/aontu/issues/841), [#734](https://github.com/aontu-lang/aontu/issues/734), [#755](https://github.com/aontu-lang/aontu/issues/755), [#658](https://github.com/aontu-lang/aontu/issues/658) and [#320](https://github.com/aontu-lang/aontu/issues/320) | 50: a value from an included file is sited in its own file |
 | [#842](https://github.com/aontu-lang/aontu/issues/842) | 36: a file is whole where it lands |
