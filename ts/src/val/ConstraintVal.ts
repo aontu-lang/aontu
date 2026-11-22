@@ -1738,7 +1738,8 @@ function holdsNil(v: any, only?: (n: any) => boolean): boolean {
 
 function readsPlace(v: any, place: string[]): boolean {
   if (true === v?.isRef) {
-    return true === v.absolute && place.every((s: string, i: number) => v.peg[i] === s)
+    const at = true === v.absolute ? v.peg : v.plainRefPath()
+    return null != at && place.every((s: string, i: number) => at[i] === s)
   }
   return heldVals(v).some((c: any) => true === c?.isVal && readsPlace(c, place))
 }
