@@ -1695,3 +1695,9 @@ The answers to the agent's questions, each question followed by the option chose
 #895: a path in `must`'s condition can read the value under trial, as in `v: must({x: upper($.v.name)}, "m")`. Both engines leave the path unread and pass the check, so `{"v": {"x": "B", "name": "a"}}` is valid. In the same way, `must({x: 1, y: $.v.x}, "m")` admits a value with no `y`. The definition reads the path in the schema alone, where it names nothing: an error through a call, a refusal otherwise. Decision 63 already ruled that `match` reads such a field. What should `must` do?
 → Read the field (Recommended)
 ```
+
+## 2026-11-22 12:27:18 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Status of the lean project?
+```
