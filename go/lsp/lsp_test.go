@@ -783,3 +783,51 @@ func TestDiagnosticsDeprecated(t *testing.T) {
 		t.Fatalf("met records: %v", met)
 	}
 }
+
+// Twin: ts/test/lsp.test.ts lsp-formatting, case for case.
+func TestFormatting(t *testing.T) {
+	var cases [][2]json.RawMessage
+	if err := json.Unmarshal([]byte(`[
+  ["a:1 b: {c:2}", [{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":12}},"newText":"a: 1\nb: c: 2\n"}]],
+  ["a: 1\n", []],
+  ["a: ]", null],
+  ["a: 1\nb: \"😀\"", [{"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":7}},"newText":"a: 1\nb: \"😀\"\n"}]],
+  ["x: {\n  y: 1\n}\n", [{"range":{"start":{"line":0,"character":0},"end":{"line":3,"character":0}},"newText":"x: y: 1\n"}]]
+]`), &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases {
+		var text string
+		_ = json.Unmarshal(c[0], &text)
+		got, _ := json.Marshal(Formatting(text))
+		var a, b any
+		_ = json.Unmarshal(got, &a)
+		_ = json.Unmarshal(c[1], &b)
+		if !reflect.DeepEqual(a, b) {
+			t.Errorf("Formatting(%q) = %s, want %s", text, got, c[1])
+		}
+	}
+}
+
+func TestFormattingThroughTheHandler(t *testing.T) {
+	h := NewHandler()
+	init := h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize",
+		Params: json.RawMessage(`{}`)})
+	if !strings.Contains(string(init[0].Result), `"documentFormattingProvider":true`) {
+		t.Fatalf("capabilities = %s", init[0].Result)
+	}
+	h.Handle(Message{Method: "textDocument/didOpen", Params: json.RawMessage(
+		`{"textDocument":{"uri":"file:///f.aontu","text":"a:1"}}`)})
+	out := h.Handle(Message{ID: json.RawMessage("2"), Method: "textDocument/formatting",
+		Params: json.RawMessage(`{"textDocument":{"uri":"file:///f.aontu"}}`)})
+	if !strings.Contains(string(out[0].Result), `"newText":"a: 1\n"`) {
+		t.Fatalf("formatting = %s", out[0].Result)
+	}
+	for _, params := range []json.RawMessage{json.RawMessage(`{}`), json.RawMessage(`[]`)} {
+		out = h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/formatting",
+			Params: params})
+		if "null" != string(out[0].Result) {
+			t.Errorf("formatting with params %s = %s", params, out[0].Result)
+		}
+	}
+}

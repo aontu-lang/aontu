@@ -56,6 +56,11 @@ type Location = {
     uri: string;
     range: Range;
 };
+type TextEdit = {
+    range: Range;
+    newText: string;
+};
+declare function computeFormatting(text: string): TextEdit[] | null;
 declare function computeDefinition(src: string, position: Position, uri: string): Location | null;
 declare function computeHover(src: string, position: Position, provenance?: boolean, trust?: any): Hover | null;
 type CompletionItem = {
@@ -81,5 +86,5 @@ declare class LspHandler {
     handle(msg: Message): OutMessage[];
     private publish;
 }
-export { computeDiagnostics, computeHover, computeDefinition, computeCompletions, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_VARIABLE, COMPLETION_KEYWORD, };
-export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, };
+export { computeDiagnostics, computeHover, computeDefinition, computeCompletions, computeFormatting, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_VARIABLE, COMPLETION_KEYWORD, };
+export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, };

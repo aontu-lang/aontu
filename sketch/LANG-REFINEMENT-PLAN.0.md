@@ -1040,6 +1040,11 @@ cursor to a path. Every feature below but formatting stands on it.
 | LS8 | Code actions, starting with the one whose edit is already decided: remove an entry that `trim --check` reports. Others follow as findings gain repairs | server | LS1 | M |
 | LS9 | A JetBrains client through LSP4IJ, as thin as the three under `editors/` | client | nothing | S |
 
+Progress on 2026-11-22. LS4 is built in both servers: formatting
+answers with the text `aontu fmt` writes, one edit over the whole
+document, none where it already is that text, and `null` where the
+document doesn't parse.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same

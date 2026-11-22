@@ -8,6 +8,15 @@ each change affects.
 
 ## Unreleased
 
+### The language server formats a document
+
+Task LS4, in both servers. `textDocument/formatting` answers with the
+text `aontu fmt` writes, as one edit over the whole document, no edit
+where the document already is that text, and `null` where it doesn't
+parse, which its diagnostics already report. The servers advertise
+`documentFormattingProvider`, and the libraries export
+`computeFormatting` and `Formatting`.
+
 ### Host values on the command line: `--var` and `--var-text`
 
 #862, task HV1 of the language plan, in both commands. A document that

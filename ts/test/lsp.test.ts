@@ -16,6 +16,7 @@ import {
   COMPLETION_FUNCTION,
   COMPLETION_VARIABLE,
   COMPLETION_KEYWORD,
+  computeFormatting,
 } from '../dist/lsp'
 
 
@@ -308,6 +309,43 @@ describe('lsp-alias-lexical', () => {
     // No such document: null rather than a guess.
     Assert.equal(h.handle({
       id: 9, method: 'textDocument/definition', params: {},
+    })[0].result, null)
+  })
+})
+
+
+describe('lsp-formatting', () => {
+
+  // Twin: go/lsp/lsp_test.go TestFormatting, case for case.
+  const CASES: [string, any][] = [
+  ["a:1 b: {c:2}", [{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":12}},"newText":"a: 1\nb: c: 2\n"}]],
+  ["a: 1\n", []],
+  ["a: ]", null],
+  ["a: 1\nb: \"😀\"", [{"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":7}},"newText":"a: 1\nb: \"😀\"\n"}]],
+  ["x: {\n  y: 1\n}\n", [{"range":{"start":{"line":0,"character":0},"end":{"line":3,"character":0}},"newText":"x: y: 1\n"}]]
+]
+
+  test('formatting-is-what-fmt-writes', () => {
+    for (const [text, want] of CASES) {
+      Assert.deepEqual(computeFormatting(text), want, JSON.stringify(text))
+    }
+  })
+
+  test('formatting-through-the-handler', () => {
+    const h = new LspHandler()
+    Assert.equal(h.handle({ id: 1, method: 'initialize', params: {} })[0]
+      .result.capabilities.documentFormattingProvider, true)
+    h.handle({
+      method: 'textDocument/didOpen',
+      params: { textDocument: { uri: 'file:///f.aontu', text: 'a:1' } },
+    })
+    const r = h.handle({
+      id: 2, method: 'textDocument/formatting',
+      params: { textDocument: { uri: 'file:///f.aontu' } },
+    })
+    Assert.equal(r[0].result[0].newText, 'a: 1\n')
+    Assert.equal(h.handle({
+      id: 3, method: 'textDocument/formatting', params: {},
     })[0].result, null)
   })
 })
