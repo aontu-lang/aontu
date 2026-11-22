@@ -240,6 +240,12 @@ func (r *fmtReader) significant() int {
 	return k
 }
 
+// The & of a &: entry opens the next entry, and carries nothing on.
+func (r *fmtReader) continues() bool {
+	k := r.significant()
+	return fmtBinary[r.name(k)] && !("#E&" == r.name(k) && "#CL" == r.name(k+1))
+}
+
 // A key followed by a colon, the optional marker allowed between.
 func (r *fmtReader) atKey() bool {
 	return fmtKeyish[r.name(0)] && ("#CL" == r.name(1) ||
@@ -402,7 +408,7 @@ func (r *fmtReader) valueAt() *fmtNode {
 			// operator (`a: 1 &\n  2`) or before one (`a: 1\n  | 2`),
 			// or after a comment inside the value; anything else ends
 			// the value.
-			if r.open(items) || fmtBinary[r.name(r.significant())] {
+			if r.open(items) || r.continues() {
 				r.i++
 				continue
 			}
@@ -412,7 +418,7 @@ func (r *fmtReader) valueAt() *fmtNode {
 			// A comment inside the value: after the colon, after an
 			// operator, or on a line the value continues past. Otherwise
 			// it trails the statement and the caller attaches it.
-			if r.open(items) || fmtBinary[r.name(r.significant())] {
+			if r.open(items) || r.continues() {
 				items = append(items, &fmtNode{t: "note", text: r.T[r.i].src, at: at})
 				r.i++
 				continue

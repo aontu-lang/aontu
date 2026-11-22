@@ -1043,7 +1043,9 @@ cursor to a path. Every feature below but formatting stands on it.
 Progress on 2026-11-22. LS4 is built in both servers: formatting
 answers with the text `aontu fmt` writes, one edit over the whole
 document, none where it already is that text, and `null` where the
-document doesn't parse.
+document doesn't parse. #747, which the order puts before it, is fixed
+in both formatters in the same change: a comment on its own line
+before a later `&:` entry keeps its line.
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and

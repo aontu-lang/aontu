@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### `aontu fmt` keeps a comment on its own line before a `&:` entry
+
+#747, in both formatters. A comment on a line of its own before a `&:`
+entry that wasn't its map's first was written at the end of the line
+above, where it read as a comment on the wrong entry. The formatter
+read past the comment for an operator to carry the value above it on,
+and took the `&` of `&:` for one. It now stops there, so the comment
+keeps its line, and the blank line before it stays before it. Two rows
+in `test/spec/fmt.tsv` hold the shapes. The language server formats as
+`fmt` does, so it gains the fix too.
+
 ### The language server formats a document
 
 Task LS4, in both servers. `textDocument/formatting` answers with the
