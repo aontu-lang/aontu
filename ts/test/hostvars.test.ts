@@ -13,6 +13,7 @@ import * as Path from 'node:path'
 
 import { Aontu } from '../dist/aontu'
 import { main } from '../dist/cli'
+import { callTool, toolList } from '../dist/mcp'
 
 
 type Ran = { out: string, err: string, code: number }
@@ -166,12 +167,61 @@ describe('hostvars', () => {
     Assert.doesNotMatch(c.err, /no document reads/)
   })
 
-  test('the-repl-refuses-the-bindings', async () => {
-    for (const args of [['--var', 'n=3'], ['--jsonl', '--var', 'n=3']]) {
-      const r = await cliStdin(undefined, true, ...args)
-      Assert.equal(r.code, 2)
-      Assert.match(r.err, /--var binds a document given as a file or on stdin/)
+  test('the-repl-takes-the-bindings', async () => {
+    const f = files({ 'vals.aontu': 'n: 3\n' })
+    // A session has no document yet, so a binding nothing reads passes.
+    const a = await cliStdin('k: $n\nj: $q\n:quit\n', true, '--jsonl', '--var', 'n=3',
+      '--var-text', 'q=7')
+    Assert.match(a.out, /"out":"\{\\n {2}\\"k\\": 3\\n\}"/)
+    Assert.match(a.out, /"out":"\{\\n {2}\\"j\\": \\"7\\"\\n\}"/)
+    const b = await cliStdin('k: $n\n:quit\n', true, '--jsonl', '--vars', f('vals.aontu'))
+    Assert.match(b.out, /"out":"\{\\n {2}\\"k\\": 3\\n\}"/)
+    const c = await cliStdin(undefined, true, '--var', 'n=}')
+    Assert.equal(c.code, 2)
+    Assert.match(c.err, /--var n: \[aontu\/unexpected\]/)
+  })
+
+  test('the-mcp-tools-take-the-bindings', () => {
+    const show = (r: any) => r.content[0].text
+    const got = callTool('get', { src: V, path: '$', vars: { env: 'prod', n: '3' } })
+    Assert.equal(got.isError, false)
+    Assert.deepEqual(JSON.parse(JSON.parse(show(got)).out), { env: 'prod', replicas: 3 })
+    const text = JSON.parse(show(callTool('canon',
+      { src: V, vars: { n: '3' }, varsText: { env: '3' } })))
+    Assert.equal(text.canon, '{"env":"3","replicas":3}')
+    for (const [tool, args] of [
+      ['summary', { src: V }], ['hash', { source: V }], ['why', { src: V, path: '$.env' }],
+      ['vet', { schema: V, data: '{}' }], ['diff', { left: V, right: V }],
+      ['subsume', { general: V, specific: V }], ['breaking', { old: V, new: V }],
+      ['relations', { source: V }], ['reaches', { source: V, from: '$.env', to: '$.env' }],
+      ['view', { source: V }], ['trim', { source: V }], ['jsonschema', { source: V }],
+      ['set', { entry: V, overlay: '', assignments: [{ path: 'x', value: '1' }] }],
+    ] as [string, any][]) {
+      const r = callTool(tool, { ...args, vars: { env: 'prod', n: '3' } })
+      Assert.doesNotMatch(show(r), /unknown_var|takes no vars|no document reads/, tool)
     }
+    const refused: [any, RegExp][] = [
+      [{ vars: { n: '3', q: '1' } }, /binds \$q, which no document reads/],
+      [{ vars: { n: '}' } }, /vars\.n: \[aontu\/unexpected\]/],
+      [{ vars: { n: 3 } }, /vars needs an object of names to strings/],
+      [{ vars: ['x'] }, /vars needs an object of names to strings/],
+      [{ varsText: { 'a-b': 'x' } }, /varsText needs an object of names to strings/],
+      [{ vars: { n: '3' }, varsText: { n: '3' } }, /varsText binds \$n a second time/],
+    ]
+    for (const [extra, want] of refused) {
+      const r = callTool('canon', { src: V, ...extra })
+      Assert.equal(r.isError, true)
+      Assert.match(show(r), want)
+    }
+    // A document that doesn't parse can't say what it reads.
+    Assert.doesNotMatch(show(callTool('canon', { src: 'a: ]', vars: { q: '1' } })),
+      /no document reads/)
+    Assert.match(show(callTool('jsonschema_import', { source: '{}', vars: { n: '1' } })),
+      /takes no vars/)
+    const listed = toolList()
+    Assert.ok('vars' in listed.find((t: any) => 'vet' === t.name).inputSchema.properties)
+    Assert.ok(!('vars' in listed.find((t: any) => 'jsonschema_import' === t.name)
+      .inputSchema.properties))
   })
 
   test('every-verb-that-evaluates-takes-the-bindings', () => {
@@ -304,6 +354,33 @@ describe('hostvars', () => {
       /--vars is refused here: a package is published/)
     const piped = await cliStdin(V, false, '--vars', f('vals.aontu'))
     Assert.deepEqual(JSON.parse(piped.out), { env: 'prod', replicas: 3 })
+  })
+
+  test('a-name-the-object-prototype-holds-and-a-read-in-an-assignment-bind', () => {
+    const show = (r: any) => r.content[0].text
+    Assert.equal(JSON.parse(show(callTool('canon',
+      { src: 'n: $constructor', vars: { constructor: '3' } }))).canon, '{"n":3}')
+    const set = JSON.parse(show(callTool('set', {
+      entry: 'n: number', overlay: '', assignments: [{ path: 'n', value: '$n' }],
+      vars: { n: '3' },
+    })))
+    Assert.equal(set.verdict, 'valid')
+    Assert.deepEqual(JSON.parse(show(callTool('hash', { source: 'n: $n', vars: { n: '3' } })))
+      .bindings, ['--var n=3'])
+    Assert.deepEqual(JSON.parse(show(callTool('breaking',
+      { old: 'n: $n', new: 'n: $n', varsText: { n: 'x' } }))).bindings, ['--var-text n=x'])
+    Assert.equal(undefined, JSON.parse(show(callTool('hash', { source: 'n: 1' }))).bindings)
+    const none = JSON.parse(show(callTool('breaking', {
+      old: 'aontu_policy: compat: "none"\nn: $n', new: 'aontu_policy: compat: "none"\nn: $n',
+      vars: { n: '1' },
+    })))
+    Assert.deepEqual(none.bindings, ['--var n=1'])
+
+    const f = files({ 'e.aontu': 'n: number\n', 'o.aontu': '', 'k.aontu': 'k: $constructor\n' })
+    const cli1 = cli('model', 'set', 'n=$n', '--entry', f('e.aontu'), '--overlay', f('o.aontu'),
+      '--var', 'n=3')
+    Assert.doesNotMatch(cli1.err, /no document reads/)
+    Assert.deepEqual(JSON.parse(cli('--var', 'constructor=3', f('k.aontu')).out), { k: 3 })
   })
 
   test('the-engine-option-binds-for-every-context-given-no-vars', () => {

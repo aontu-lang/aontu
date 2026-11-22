@@ -1,0 +1,4 @@
+xs: [a, b, c, d, e, f, g, h, i, j, k, l]
+st: hide(each($.xs, {i: key(), v: _}))
+lp: hide("" + sub(sum(each($.xs, 1)), 1))
+out: join(pick(filter($.st, {i: $.lp}), v))

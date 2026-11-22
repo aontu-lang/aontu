@@ -1,0 +1,2 @@
+names: [web, auth]
+deploy: pack($.names, {image: "acme/" + key()})

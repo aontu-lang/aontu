@@ -1,0 +1,2 @@
+xs: [{a: 3, b: 1}, {a: 1, b: 2}]
+out: filter($.xs, {a: above(.b)})

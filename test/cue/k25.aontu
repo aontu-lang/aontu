@@ -1,0 +1,3 @@
+x: {opt: 1}
+y: {}
+out: [match($.x, {opt: any}, true, false), match($.y, {opt: any}, true, false)]

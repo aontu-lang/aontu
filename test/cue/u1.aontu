@@ -1,0 +1,2 @@
+a: {kind: "a", x: integer} | {kind: "b", y: string}
+a: {kind: "b", y: "s"}

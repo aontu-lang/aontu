@@ -1,0 +1,3 @@
+xs: [{a: 1}, {a: 2}, {a: 3}]
+tmp: hide(emit($.xs, {match: any, body: [{v: mul(.a, 2)}]}))
+out: filter($.tmp, {v: above(2)})

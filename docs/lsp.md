@@ -36,6 +36,7 @@ The server provides these features:
   literals, and the alias names the document binds.
 - **Go to definition**: from an alias name to where the file binds it.
 - **Signature help**: the parameters of the function being called.
+- **Formatting**: the document as `aontu fmt` writes it.
 
 **Diagnostics**: open or edit an aontu document and it
 publishes a list of problems, each with a precise source range, severity,
@@ -257,6 +258,12 @@ Where the document binds the alias name at a 0-based position, or
 `null` where the position is not on one, or names nothing the file
 binds. `Location` is `{ uri, range }`.
 
+#### `computeFormatting(src) => TextEdit[] | null`
+
+The document as `aontu fmt` writes it: one `TextEdit`, `{ range,
+newText }`, over the whole document, none where it already is that
+text, and `null` where it doesn't parse.
+
 #### `class LspHandler`
 
 The transport-agnostic protocol state machine. Construct one per session
@@ -339,6 +346,12 @@ Where the document binds the alias name at a 0-based position, or `nil`
 where the position is not on one, or names nothing the file binds.
 `Location` is `{ URI string; Range Range }`.
 
+#### `func Formatting(src string) []TextEdit`
+
+The document as `aontu fmt` writes it: one `TextEdit`, `{ Range Range;
+NewText string }`, over the whole document, none where it already is
+that text, and `nil` where it doesn't parse.
+
 #### `type Handler`
 
 The transport-agnostic protocol state machine (mirrors `LspHandler`).
@@ -370,7 +383,7 @@ positions.
 each change). Advertised capabilities: `textDocumentSync: 1`,
 `hoverProvider: true`, `definitionProvider: true`,
 `completionProvider: {}`, `signatureHelpProvider` with the trigger
-characters `(` and `,`.
+characters `(` and `,`, and `documentFormattingProvider: true`.
 
 | Method | Kind | Behaviour |
 |--------|------|-----------|
@@ -383,6 +396,7 @@ characters `(` and `,`.
 | `textDocument/completion` | request | Replies with the completion item list for the open document. |
 | `textDocument/definition` | request | Replies with the `Location` where the document binds the alias name at the position, or `null`. |
 | `textDocument/signatureHelp` | request | Replies with the signature of the call the position is inside, or `null`. |
+| `textDocument/formatting` | request | Replies with one edit that replaces the document with the text `aontu fmt` writes, no edit where it already is that text, and `null` where it doesn't parse, which its diagnostics report. |
 | `textDocument/publishDiagnostics` | notification (server→client) | Carries `{ uri, diagnostics }`. |
 | `shutdown` | request | Replies `result: null`, arms a clean exit. |
 | `exit` | notification | Stops the server. Exit code `0` if `shutdown` came first, else `1`. |

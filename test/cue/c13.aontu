@@ -1,0 +1,1 @@
+a: when({k: any}, {n: any}) & {k: 1}

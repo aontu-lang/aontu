@@ -1,0 +1,3 @@
+l: [7, 8, 9]
+a: sum(each($.l, 1))
+b: greatest([1, 5, 3])

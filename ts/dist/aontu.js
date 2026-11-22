@@ -393,8 +393,8 @@ function runparse(src, lang, ctx) {
 // option that bound it, with its text kept for an error to quote.
 let BINDER;
 function hostValues(hostVars) {
-    const vars = {};
-    const texts = {};
+    const vars = Object.create(null);
+    const texts = Object.create(null);
     for (const [name, b] of Object.entries(hostVars)) {
         const url = (b.from ?? (true === b.text ? '--var-text' : '--var')) + ' ' + name;
         texts[url] = true === b.text ? new StringVal_1.StringVal({ peg: b.value }).canon : b.value;

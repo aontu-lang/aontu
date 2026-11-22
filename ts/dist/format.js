@@ -105,6 +105,10 @@ class Reader {
         }
         return k;
     }
+    continues() {
+        const k = this.significant();
+        return BINARY[this.name(k)] && !('#E&' === this.name(k) && '#CL' === this.name(k + 1));
+    }
     // A key followed by a colon, the optional marker allowed between.
     atKey() {
         return KEYISH[this.name(0)] && ('#CL' === this.name(1) ||
@@ -252,8 +256,8 @@ class Reader {
             if ('#LN' === n) {
                 // A break the author put before the value, after an operator
                 // (`a: 1 &\n  2`) or before one (`a: 1\n  | 2`), or after a
-                // comment inside the value; anything else ends the value.
-                if (this.open(items) || BINARY[this.name(this.significant())]) {
+                // comment inside the value; anything else, `&:` too, ends it.
+                if (this.open(items) || this.continues()) {
                     this.i++;
                     continue;
                 }
@@ -263,7 +267,7 @@ class Reader {
                 // A comment inside the value: after the colon, after an
                 // operator, or on a line the value continues past. Otherwise
                 // it trails the statement and the caller attaches it.
-                if (this.open(items) || BINARY[this.name(this.significant())]) {
+                if (this.open(items) || this.continues()) {
                     items.push({ t: 'note', text: this.T[this.i].src, at });
                     this.i++;
                     continue;

@@ -45,6 +45,7 @@ exports.deprecatedAt = deprecatedAt;
 const query_1 = require("./query");
 // __importStar downlevel helper, whose branches no supported Node takes.
 const node_fs_1 = require("node:fs");
+const hostvars_1 = require("./hostvars");
 const node_path_1 = require("node:path");
 const node_os_1 = require("node:os");
 const node_readline_1 = require("node:readline");
@@ -855,7 +856,7 @@ function hostVarsOf(bindings, read, io) {
     if (0 === bindings.length) {
         return undefined;
     }
-    const hostVars = {};
+    const hostVars = Object.create(null);
     for (const b of bindings) {
         const flag = b.text ? '--var-text' : '--var';
         if (undefined !== read && !read.has(b.name) && undefined === b.from) {
@@ -864,7 +865,7 @@ function hostVarsOf(bindings, read, io) {
         }
         // A file's values were evaluated with it, and a path or a name they
         // read would have refused it there.
-        const bad = b.text || undefined !== b.from ? undefined : bindingFailure(b.value);
+        const bad = b.text || undefined !== b.from ? undefined : (0, hostvars_1.bindingFailure)(b.value);
         if (undefined !== bad) {
             io.err(`aontu: --var ${b.name}: ${bad}\n`);
             return null;
@@ -876,18 +877,6 @@ function hostVarsOf(bindings, read, io) {
         };
     }
     return hostVars;
-}
-function bindingFailure(src) {
-    let v;
-    try {
-        v = new aontu_1.Aontu({ trust: { include: 'none' } }).unify(src);
-    }
-    catch (err) {
-        return String(err.message).split('\n')[0];
-    }
-    let holds = false;
-    eachPart(v, (n) => { holds = holds || true === n.isRef || true === n.isVar; });
-    return holds ? 'a binding is a value, and reads no path or variable' : undefined;
 }
 // The names the documents named on the command line read, or undefined
 // where one of them can't be read on its own.
@@ -903,6 +892,11 @@ function namesRead(args, trust) {
             if (doc) {
                 return undefined;
             }
+            // A `model set` assignment, path=value: its value is read too.
+            const eq = arg.indexOf('=');
+            if (0 < eq) {
+                (0, hostvars_1.varNamesIn)('v: ' + arg.slice(eq + 1), { trust: { include: 'none' } }, read);
+            }
             continue;
         }
         if (dir || (!doc && !DATA_EXT.test(arg))) {
@@ -916,36 +910,7 @@ function namesRead(args, trust) {
 }
 const DATA_EXT = /[.](json|jsonl|yaml|yml|txt|pem|tsv)$/;
 function namesIn(src, path, trust, read) {
-    let root;
-    try {
-        root = new aontu_1.Aontu({ path, ...verbOpts(trust, (0, node_path_1.dirname)(path)) }).parse(src);
-    }
-    catch (_err) {
-        return false;
-    }
-    eachPart(root, (v) => {
-        if (true === v.isVar && 'string' === typeof v.peg?.peg) {
-            read.add(v.peg.peg);
-        }
-    });
-    return true;
-}
-function eachPart(root, visit) {
-    const seen = new Set();
-    const stack = [root];
-    while (0 < stack.length) {
-        const v = stack.pop();
-        if (true !== v?.isVal || seen.has(v)) {
-            continue;
-        }
-        seen.add(v);
-        visit(v);
-        const peg = v.peg;
-        const kids = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
-            null != peg && 'object' === typeof peg ? Object.values(peg) : [];
-        kids.forEach((kid) => stack.push(kid));
-        stack.push(v.spread?.cj);
-    }
+    return (0, hostvars_1.varNamesIn)(src, { path, ...verbOpts(trust, (0, node_path_1.dirname)(path)) }, read);
 }
 // The bindings a report names, as they were written.
 function bindingsOf(trust) {
@@ -5387,10 +5352,6 @@ function main(argv, servers = SERVERS) {
     }
     trust = { ...trust, textExt };
     const file = files[0];
-    if (0 < bindings.length && null == file && (jsonl || process.stdin.isTTY)) {
-        process.stderr.write('aontu: --var binds a document given as a file or on stdin\n');
-        return finish(2);
-    }
     if (null != file) {
         const hostVars = hostVarsOf(bindings, (0, node_fs_1.existsSync)(file) ? namesRead([file], trust) : undefined, PROCESS_IO);
         if (null === hostVars) {
@@ -5403,7 +5364,13 @@ function main(argv, servers = SERVERS) {
     // made it reachable only through a pty -- which is to say, not
     // reachable by the thing it was built for. Mirrors go/cmd/aontu.
     else if (jsonl || process.stdin.isTTY) {
-        runRepl(mode, jsonl, trust, exact);
+        // A session has no document yet to read a binding, so none is refused
+        // as unread.
+        const hostVars = hostVarsOf(bindings, undefined, PROCESS_IO);
+        if (null === hostVars) {
+            return finish(2);
+        }
+        runRepl(mode, jsonl, { ...trust, hostVars }, exact);
     }
     else {
         runStdin(mode, format, trust, exact, bindings).then((code) => finish(code));

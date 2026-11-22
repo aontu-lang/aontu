@@ -1,0 +1,2 @@
+n: 3
+size: match($.n, min(2), big, small)

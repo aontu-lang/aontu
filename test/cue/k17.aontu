@@ -1,0 +1,5 @@
+as: [a, b]
+bs: [x, y]
+tmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))
+keys: hide(emit($.tmp, {match: any, body: [.row]}))
+out: pack($.keys, {parts: hide(split(key(), "-")), left: .parts.0, right: .parts.1})

@@ -1,4 +1,4 @@
-import type { TrustOptions } from './type';
+import type { HostVars, TrustOptions } from './type';
 import type { VetFinding } from './vet';
 export declare const MCP_PROTOCOL = "2024-11-05";
 export type McpRequest = {
@@ -29,7 +29,10 @@ export type ToolDef = {
     docs?: string[];
     check?: (a: any) => string | undefined;
     refuse?: (a: any, finding: VetFinding, trust: TrustOptions, paths: Record<string, string>) => any;
-    run: (a: any, trust: TrustOptions, paths: Record<string, string>) => any;
+    run: (a: any, trust: TrustOptions, paths: Record<string, string>, host: Host) => any;
+};
+type Host = {
+    hostVars?: HostVars;
 };
 export declare function servedTrust(root?: string): TrustOptions;
 export declare function confinedParseFailure(src: string, trust: TrustOptions, path?: string): VetFinding | undefined;
@@ -42,3 +45,4 @@ export declare function callTool(name: string, args: any, opts?: {
 export declare function serverInstructions(root?: string): string;
 export declare function handle(msg: McpRequest, version: string, root?: string): McpResponse | undefined;
 export declare function parseError(): McpResponse;
+export {};

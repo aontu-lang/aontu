@@ -267,6 +267,38 @@ const lsp_server_1 = require("../dist/lsp-server");
         })[0].result, null);
     });
 });
+(0, node_test_1.describe)('lsp-formatting', () => {
+    // Twin: go/lsp/lsp_test.go TestFormatting, case for case.
+    const CASES = [
+        ["a:1 b: {c:2}", [{ "range": { "start": { "line": 0, "character": 0 }, "end": { "line": 0, "character": 12 } }, "newText": "a: 1\nb: c: 2\n" }]],
+        ["a: 1\n", []],
+        ["a: ]", null],
+        ["a: 1\nb: \"😀\"", [{ "range": { "start": { "line": 0, "character": 0 }, "end": { "line": 1, "character": 7 } }, "newText": "a: 1\nb: \"😀\"\n" }]],
+        ["x: {\n  y: 1\n}\n", [{ "range": { "start": { "line": 0, "character": 0 }, "end": { "line": 3, "character": 0 } }, "newText": "x: y: 1\n" }]]
+    ];
+    (0, node_test_1.test)('formatting-is-what-fmt-writes', () => {
+        for (const [text, want] of CASES) {
+            Assert.deepEqual((0, lsp_1.computeFormatting)(text), want, JSON.stringify(text));
+        }
+    });
+    (0, node_test_1.test)('formatting-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        Assert.equal(h.handle({ id: 1, method: 'initialize', params: {} })[0]
+            .result.capabilities.documentFormattingProvider, true);
+        h.handle({
+            method: 'textDocument/didOpen',
+            params: { textDocument: { uri: 'file:///f.aontu', text: 'a:1' } },
+        });
+        const r = h.handle({
+            id: 2, method: 'textDocument/formatting',
+            params: { textDocument: { uri: 'file:///f.aontu' } },
+        });
+        Assert.equal(r[0].result[0].newText, 'a: 1\n');
+        Assert.equal(h.handle({
+            id: 3, method: 'textDocument/formatting', params: {},
+        })[0].result, null);
+    });
+});
 (0, node_test_1.describe)('lsp-completion', () => {
     (0, node_test_1.test)('completion-list', () => {
         const c = (0, lsp_1.computeCompletions)('');

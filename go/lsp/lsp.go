@@ -32,6 +32,30 @@ type Range struct {
 	End   Position `json:"end"`
 }
 
+// TextEdit replaces a range of the document with new text.
+type TextEdit struct {
+	Range   Range  `json:"range"`
+	NewText string `json:"newText"`
+}
+
+// Formatting is the document as `aontu fmt` writes it; nil where it doesn't parse.
+func Formatting(text string) []TextEdit {
+	report := aontu.New().Format(text)
+	if "formatted" != report.Verdict {
+		return nil
+	}
+	if !report.Changed {
+		return []TextEdit{}
+	}
+	lines := strings.Split(text, "\n")
+	last := lines[len(lines)-1]
+	return []TextEdit{{
+		Range: Range{End: Position{Line: len(lines) - 1,
+			Character: len(utf16.Encode([]rune(last)))}},
+		NewText: report.Text,
+	}}
+}
+
 type Diagnostic struct {
 	Range    Range  `json:"range"`
 	Severity int    `json:"severity"`

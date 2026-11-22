@@ -1,0 +1,3 @@
+m: {a: x, b: y}
+st: hide(pack($.m, {k: key(), v: _}))
+out: pack(pick($.st, v), join(pick(filter($.st, {v: key(2)}), k)))

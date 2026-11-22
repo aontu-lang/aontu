@@ -111,8 +111,10 @@ Three options bind a document's `$name` for the run
 binds each top-level key of a document of values and accepts a key no
 document reads. Every verb that evaluates a document takes them, an
 include reads them as its document does, and a package evaluates with
-none. `fmt`, `publish`, the package verbs
-and the REPL refuse them. A binding is refused, exit `2`, when no
+none. `fmt`, `publish` and the package verbs refuse them. The REPL
+takes them when it starts, for every document of the session, and
+refuses none as unread, since no document is there yet to read it. A
+binding is refused, exit `2`, when no
 document named on the command line reads it, when it is malformed or
 bound twice, and when its source doesn't evaluate alone, loads a file,
 or still reads a path or a variable. A template, a folder or a
@@ -3653,6 +3655,14 @@ tools and the protocol are a transport-free library
 | `view` | a [figure](#aontu-view) of the document as text: the tree, matrix, graph (mermaid, dot, er), layer, sets, layers, ladder, doc or lattice kind, with the loss report; the poset takes several files and is CLI only |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say: the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
 | `jsonschema_import` | the [JSON Schema import](#aontu-jsonschema-import) as `--format json` answers it: the aontu `text`, the `lossy` list, the `vet` flags that check data against the result, and the source `map`. A schema a reference reaches arrives in `documents`, and the server fetches nothing |
+
+Every tool but `jsonschema_import` also takes `vars` and `varsText`,
+objects of names to strings: the command line's `--var` and
+`--var-text`, refused alike when malformed, bound twice, not a value, or
+read by no document of the call, a `set` assignment's value counting as
+read. `hash` and `breaking` name them in their reports, under
+`bindings`, as the command line's do. `jsonschema_import` evaluates no
+aontu document, and refuses them.
 
 Every tool returns **the same JSON contract the CLI prints**, so a
 report read from one is the report read from the other. A tool that

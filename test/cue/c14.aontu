@@ -1,0 +1,1 @@
+a: must(min(0), "a must not be negative") & -1

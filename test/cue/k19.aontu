@@ -1,0 +1,5 @@
+teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}
+svc: {a: {team: core}, b: {team: web}, c: {team: core}}
+tst: hide(pack($.teams, _ & {id: key()}))
+svc: &: {owner: join(pick(filter($.tst, {id: ...team}), email))}
+out: pack($.svc, join(pick([_], owner)))

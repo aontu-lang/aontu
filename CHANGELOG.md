@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### `aontu fmt` keeps a comment on its own line before a `&:` entry
+
+#747, in both formatters. A comment on a line of its own before a `&:`
+entry that wasn't its map's first was written at the end of the line
+above, where it read as a comment on the wrong entry. The formatter
+read past the comment for an operator to carry the value above it on,
+and took the `&` of `&:` for one. It now stops there, so the comment
+keeps its line, and the blank line before it stays before it. Two rows
+in `test/spec/fmt.tsv` hold the shapes. The language server formats as
+`fmt` does, so it gains the fix too.
+
+### The language server formats a document
+
+Task LS4, in both servers. `textDocument/formatting` answers with the
+text `aontu fmt` writes, as one edit over the whole document, no edit
+where the document already is that text, and `null` where it doesn't
+parse, which its diagnostics already report. The servers advertise
+`documentFormattingProvider`, and the libraries export
+`computeFormatting` and `Formatting`.
+
 ### A `match` that reads its own place waits while that place is open
 
 The review of #916, in both engines. A `match` whose scrutinee reads its
@@ -97,8 +117,13 @@ $ aontu --var env=prod --var n=3 v.aontu
   accepted, by ruling 29, so one file serves several documents. The
   file is evaluated on its own and loads nothing, and a name it binds
   that a `--var` binds too is refused as bound twice.
-- **`fmt`, `publish` and the package verbs refuse the options**, and so
-  does the REPL until it takes bindings of its own.
+- **`fmt`, `publish` and the package verbs refuse the options.**
+- **The REPL takes them when it starts**, task HV3, and refuses none as
+  unread, since no document is there yet to read it. **The MCP server's
+  tools take `vars` and `varsText`**, objects of names to strings,
+  refused as the options are, and `hash` and `breaking` name them in
+  their reports as the command line's do; `jsonschema_import` evaluates
+  no aontu document and refuses them.
 - **`hash` and `breaking` name the bindings**: a `bindings` list in the
   JSON report, an `under:` line in `breaking`'s text, and a note on
   stderr beside `hash`'s text, which stays the hash alone.

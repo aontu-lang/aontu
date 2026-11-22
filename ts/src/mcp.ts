@@ -11,7 +11,8 @@ import {
 } from 'node:path'
 
 import { Aontu } from './aontu'
-import type { TrustOptions } from './type'
+import type { HostVars, TrustOptions } from './type'
+import { bindingFailure, varNamesIn } from './hostvars'
 import { vet } from './vet'
 import type { VetFinding } from './vet'
 import { get, why, evalFailure } from './query'
@@ -74,8 +75,11 @@ export type ToolDef = {
     a: any, finding: VetFinding, trust: TrustOptions,
     paths: Record<string, string>) => any
   run: (
-    a: any, trust: TrustOptions, paths: Record<string, string>) => any
+    a: any, trust: TrustOptions, paths: Record<string, string>, host: Host) => any
 }
+
+// The bindings a call gave, `vars` and `varsText`, for every engine it runs.
+type Host = { hostVars?: HostVars }
 
 
 export function servedTrust(root?: string): TrustOptions {
@@ -84,8 +88,8 @@ export function servedTrust(root?: string): TrustOptions {
     : { include: { root } }
 }
 
-function served(trust: TrustOptions): Aontu {
-  return new Aontu({ trust } as any)
+function served(trust: TrustOptions, host: Host = {}): Aontu {
+  return new Aontu({ trust, ...host } as any)
 }
 
 
@@ -143,7 +147,7 @@ const TOOLS: ToolDef[] = [
     },
     required: ['schema', 'data'],
     docs: ['schema', 'data'],
-    run: (a, trust, paths) => vet(str(a.schema), str(a.data), {
+    run: (a, trust, paths, host) => vet(str(a.schema), str(a.data), {
       ...(null == a.at ? {} : { at: str(a.at) }),
       noFill: true === a.noFill,
       exactNumbers: true === a.exactNumbers,
@@ -152,6 +156,7 @@ const TOOLS: ToolDef[] = [
       schemaUrl: paths.schema,
       dataUrl: paths.data,
       trust,
+      ...host,
     }),
   },
   {
@@ -175,11 +180,12 @@ const TOOLS: ToolDef[] = [
     },
     required: ['src', 'path'],
     docs: ['src'],
-    run: (a, trust, paths) => get(str(a.src), str(a.path), {
+    run: (a, trust, paths, host) => get(str(a.src), str(a.path), {
       view: a.view,
       depth: 'number' === typeof a.depth ? a.depth : undefined,
       path: paths.src,
       trust,
+      ...host,
     }),
   },
   {
@@ -194,8 +200,8 @@ const TOOLS: ToolDef[] = [
     },
     required: ['src', 'path'],
     docs: ['src'],
-    run: (a, trust, paths) =>
-      why(str(a.src), str(a.path), { path: paths.src, trust }),
+    run: (a, trust, paths, host) =>
+      why(str(a.src), str(a.path), { path: paths.src, trust, ...host }),
   },
   {
     name: 'diff',
@@ -211,11 +217,12 @@ const TOOLS: ToolDef[] = [
     },
     required: ['left', 'right'],
     docs: ['left', 'right'],
-    run: (a, trust, paths) => diff(str(a.left), str(a.right), {
+    run: (a, trust, paths, host) => diff(str(a.left), str(a.right), {
       ...(null == a.at ? {} : { at: str(a.at) }),
       leftPath: paths.left,
       rightPath: paths.right,
       trust,
+      ...host,
     }),
   },
   {
@@ -228,7 +235,7 @@ const TOOLS: ToolDef[] = [
     },
     required: ['src'],
     docs: ['src'],
-    run: (a, trust, paths) => canonOf(str(a.src), trust, paths.src),
+    run: (a, trust, paths, host) => canonOf(str(a.src), trust, paths.src, host),
   },
   {
     name: 'summary',
@@ -241,7 +248,7 @@ const TOOLS: ToolDef[] = [
     },
     required: ['src'],
     docs: ['src'],
-    run: (a, trust, paths) => summaryOf(str(a.src), trust, paths.src),
+    run: (a, trust, paths, host) => summaryOf(str(a.src), trust, paths.src, host),
   },
 
 
@@ -267,13 +274,14 @@ const TOOLS: ToolDef[] = [
       'defaults' === a.profile || 'gen' === a.profile
       ? undefined : 'profile needs values, defaults or gen',
     refuse: (_a, finding) => ({ verdict: 'error', findings: [finding] }),
-    run: (a, _trust, paths) => subsume(str(a.general), str(a.specific), {
+    run: (a, _trust, paths, host) => subsume(str(a.general), str(a.specific), {
       ...(null == a.profile ? {} : { profile: a.profile }),
       ...(null == a.at ? {} : { at: str(a.at) }),
       generalUrl: paths.general,
       specificUrl: paths.specific,
       generalPath: paths.general,
       specificPath: paths.specific,
+      ...host,
     }),
   },
   {
@@ -303,7 +311,7 @@ const TOOLS: ToolDef[] = [
       mode: breakingMode(a, trust, paths),
       findings: [finding],
     }),
-    run: (a, trust, paths) => breakingOf(a, trust, paths),
+    run: (a, trust, paths, host) => breakingOf(a, trust, paths, host),
   },
   {
     name: 'set',
@@ -347,7 +355,7 @@ const TOOLS: ToolDef[] = [
     docs: ['entry', 'overlay'],
     check: checkAssignments,
     refuse: (a, finding) => setError(str(a.overlay), finding),
-    run: (a, trust, paths) => setOf(a, trust, paths),
+    run: (a, trust, paths, host) => setOf(a, trust, paths, host),
   },
   {
     name: 'relations',
@@ -362,8 +370,8 @@ const TOOLS: ToolDef[] = [
     docs: ['source'],
     refuse: (_a, finding) =>
       ({ verdict: 'error', findings: [], errors: [finding] }),
-    run: (a, _trust, paths) =>
-      relationCheck(str(a.source), { path: paths.source }),
+    run: (a, _trust, paths, host) =>
+      relationCheck(str(a.source), { path: paths.source, ...host }),
   },
   {
     name: 'reaches',
@@ -386,10 +394,11 @@ const TOOLS: ToolDef[] = [
     required: ['source', 'from', 'to'],
     docs: ['source'],
     refuse: (_a, finding) => ({ verdict: 'error', errors: [finding] }),
-    run: (a, _trust, paths) =>
+    run: (a, _trust, paths, host) =>
       reachCheck(str(a.source), str(a.from), str(a.to), {
         path: paths.source,
         relation: null == a.relation ? undefined : str(a.relation),
+        ...host,
       }),
   },
   {
@@ -607,13 +616,14 @@ const TOOLS: ToolDef[] = [
     },
     refuse: (a, finding) =>
       ({ verdict: 'error', kind: a.kind ?? 'tree', loss: [], errors: [finding] }),
-    run: (a, trust, paths) =>
+    run: (a, trust, paths, host) =>
       view(str(a.source), {
         kind: null == a.kind ? 'tree' : a.kind,
         as: null == a.as ? undefined : a.as,
         at: null == a.at ? undefined : str(a.at),
         path: paths.source,
         trust,
+        ...host,
         relation: null == a.relation ? undefined : str(a.relation),
         relations: null == a.relation ? undefined : [str(a.relation)],
         roots: Array.isArray(a.root) ? a.root.map(str) : undefined,
@@ -660,8 +670,8 @@ const TOOLS: ToolDef[] = [
     },
     required: ['source'],
     docs: ['source'],
-    run: (a, trust, paths) =>
-      hashOf(str(a.source), true === a.form, trust, paths.source),
+    run: (a, trust, paths, host) =>
+      hashOf(str(a.source), true === a.form, trust, paths.source, host),
   },
   {
     name: 'trim',
@@ -677,8 +687,8 @@ const TOOLS: ToolDef[] = [
     docs: ['source'],
     refuse: (_a, finding) =>
       ({ verdict: 'error', redundant: [], errors: [finding] }),
-    run: (a, _trust, paths) =>
-      trimCheck(str(a.source), { path: paths.source }),
+    run: (a, _trust, paths, host) =>
+      trimCheck(str(a.source), { path: paths.source, ...host }),
   },
   {
     name: 'jsonschema',
@@ -704,9 +714,9 @@ const TOOLS: ToolDef[] = [
     docs: ['source'],
     refuse: (_a, finding) =>
       ({ verdict: 'error', schema: {}, lossy: [], errors: [finding] }),
-    run: (a, _trust, paths) =>
+    run: (a, _trust, paths, host) =>
       jsonSchema(str(a.source), {
-        at: null == a.at ? undefined : str(a.at), path: paths.source,
+        at: null == a.at ? undefined : str(a.at), path: paths.source, ...host,
       }),
   },
   {
@@ -760,7 +770,7 @@ const TOOLS: ToolDef[] = [
     docs: ['source'],
     check: (a) => textTable(a, 'documents') ?? textTable(a, 'formats') ??
       definedFormat(a.formats),
-    run: (a, _trust, paths) => importedReport(importJsonSchema(
+    run: (a, _trust, paths, _host) => importedReport(importJsonSchema(
       str(a.source), {
         path: paths.source,
         uri: strOr(a.uri),
@@ -815,8 +825,9 @@ function str(v: any): string {
 }
 
 
-function canonOf(src: string, trust: TrustOptions, path?: string): any {
-  const aontu = served(trust)
+function canonOf(src: string, trust: TrustOptions, path: string | undefined,
+  host: Host): any {
+  const aontu = served(trust, host)
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(
     src, null == path ? undefined : { path }, ctx)
@@ -827,8 +838,9 @@ function canonOf(src: string, trust: TrustOptions, path?: string): any {
 }
 
 
-function summaryOf(src: string, trust: TrustOptions, path?: string): any {
-  const aontu = served(trust)
+function summaryOf(src: string, trust: TrustOptions, path: string | undefined,
+  host: Host): any {
+  const aontu = served(trust, host)
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(
     src, null == path ? undefined : { path }, ctx)
@@ -843,7 +855,7 @@ function summaryOf(src: string, trust: TrustOptions, path?: string): any {
     hash: canonHash(v),
     keys,
     // The top tier only: every key, with its subtree elided to `any`.
-    shape: get(src, '$', { view: 'types', depth: 2, path, trust }).out,
+    shape: get(src, '$', { view: 'types', depth: 2, path, trust, ...host }).out,
     findings: [],
   }
 }
@@ -855,8 +867,9 @@ function summaryOf(src: string, trust: TrustOptions, path?: string): any {
 // nothing but a message there (ts/src/cli.ts runHash), so this shape
 // is the served superset of it.
 function hashOf(
-  src: string, form: boolean, trust: TrustOptions, path?: string): any {
-  const aontu = served(trust)
+  src: string, form: boolean, trust: TrustOptions, path: string | undefined,
+  host: Host): any {
+  const aontu = served(trust, host)
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(
     src, null == path ? undefined : { path }, ctx)
@@ -867,8 +880,17 @@ function hashOf(
     ok: true,
     hash: canonHash(v),
     ...(form ? { form: hcanon(v) } : {}),
+    ...bindingsOf(host),
     findings: [],
   }
+}
+
+
+// The bindings a report names, as the command line writes them.
+function bindingsOf(host: Host): { bindings?: string[] } {
+  const all = Object.entries(host.hostVars ?? {}).map(([name, b]) =>
+    `${true === b.text ? '--var-text' : '--var'} ${name}=${b.value}`)
+  return 0 === all.length ? {} : { bindings: all }
 }
 
 
@@ -898,9 +920,9 @@ const BREAKING_VERDICT: Record<SubsumeVerdict, string> = {
 // cli.ts original: the read runs CONFINED, because here the document
 // came from a caller.
 function policyCompatOf(
-  newSrc: string, trust: TrustOptions, path?: string
+  newSrc: string, trust: TrustOptions, path: string | undefined, host: Host
 ): BreakingMode | undefined {
-  const aontu = served(trust)
+  const aontu = served(trust, host)
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(
     newSrc, null == path ? undefined : { path }, ctx)
@@ -924,19 +946,19 @@ function policyCompatOf(
 
 
 function breakingMode(
-  a: any, trust: TrustOptions, paths: Record<string, string>
+  a: any, trust: TrustOptions, paths: Record<string, string>, host: Host = {}
 ): BreakingMode {
-  return a.mode ?? policyCompatOf(str(a.new), trust, paths.new) ?? 'backward'
+  return a.mode ?? policyCompatOf(str(a.new), trust, paths.new, host) ?? 'backward'
 }
 
 
 function breakingOf(
-  a: any, trust: TrustOptions, paths: Record<string, string>): any {
-  const mode = breakingMode(a, trust, paths)
+  a: any, trust: TrustOptions, paths: Record<string, string>, host: Host): any {
+  const mode = breakingMode(a, trust, paths, host)
 
   if ('none' === mode) {
     // The document declares no compatibility promise: nothing to check.
-    return { verdict: 'compatible', mode, findings: [] }
+    return { verdict: 'compatible', mode, ...bindingsOf(host), findings: [] }
   }
 
   const sides = {
@@ -962,6 +984,7 @@ function breakingOf(
       specificUrl: check.specific.url,
       generalPath: check.general.path,
       specificPath: check.specific.path,
+      ...host,
     })
     if (BREAKING_RANK[worst] < BREAKING_RANK[report.verdict]) {
       worst = report.verdict
@@ -969,7 +992,7 @@ function breakingOf(
     findings.push(...report.findings)
   }
 
-  return { verdict: BREAKING_VERDICT[worst], mode, findings }
+  return { verdict: BREAKING_VERDICT[worst], mode, ...bindingsOf(host), findings }
 }
 
 
@@ -1006,7 +1029,7 @@ function setError(overlay: string, finding: VetFinding): any {
 
 
 function setOf(
-  a: any, trust: TrustOptions, paths: Record<string, string>): any {
+  a: any, trust: TrustOptions, paths: Record<string, string>, host: Host): any {
   for (const x of a.assignments) {
     const denied = confinedParseFailure('v: ' + x.value, trust, paths.overlay)
     if (null != denied) {
@@ -1020,13 +1043,81 @@ function setOf(
       entryPath: paths.entry,
       overlayPath: paths.overlay,
       inPlace: true === a.inPlace,
+      ...host,
     })
+}
+
+
+// The command line's --var and --var-text, as the tools take them: a
+// name no document of the call reads is refused, as there.
+function hostOf(a: any, tool: ToolDef, trust: TrustOptions,
+  paths: Record<string, string>): Host | string {
+  if (null == a.vars && null == a.varsText) {
+    return {}
+  }
+  if (!BINDS.includes(tool.name)) {
+    return 'takes no vars: it evaluates no aontu document'
+  }
+  const hostVars: HostVars = Object.create(null)
+  for (const [key, text] of [['vars', false], ['varsText', true]] as const) {
+    const given = a[key] ?? {}
+    if ('object' !== typeof given || Array.isArray(given)) {
+      return `${key} needs an object of names to strings`
+    }
+    for (const [name, value] of Object.entries(given)) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || 'string' !== typeof value) {
+        return `${key} needs an object of names to strings`
+      }
+      if (undefined !== hostVars[name]) {
+        return `${key} binds $${name} a second time`
+      }
+      const bad = text ? undefined : bindingFailure(value)
+      if (undefined !== bad) {
+        return `${key}.${name}: ${bad}`
+      }
+      hostVars[name] = text ? { value, text: true } : { value }
+    }
+  }
+  const read = new Set<string>()
+  for (const doc of tool.docs as string[]) {
+    if (!varNamesIn(str(a[doc]), { trust, path: paths[doc] } as any, read)) {
+      return { hostVars }
+    }
+  }
+  // `set`'s assignments are read too.
+  for (const x of Array.isArray(a.assignments) ? a.assignments : []) {
+    varNamesIn('v: ' + x.value, { trust: { include: 'none' } }, read)
+  }
+  const unread = Object.keys(hostVars).find((name) => !read.has(name))
+  return undefined === unread ? { hostVars } :
+    `binds $${unread}, which no document reads`
+}
+
+
+// The tools that evaluate an aontu document, and so take bindings.
+const BINDS = ['vet', 'get', 'why', 'diff', 'canon', 'summary', 'subsume',
+  'breaking', 'set', 'relations', 'reaches', 'view', 'hash', 'trim', 'jsonschema']
+
+const BIND_PROPS: Record<string, any> = {
+  vars: {
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Bind each $name to its value read as aontu source, ' +
+      'as the command line\'s --var does; a name no document reads is refused',
+  },
+  varsText: {
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Bind each $name to its value as text, as --var-text does',
+  },
 }
 
 
 export function toolList(root?: string): any[] {
   return TOOLS.map((t) => {
-    const properties: Record<string, any> = { ...t.properties }
+    const properties: Record<string, any> = {
+      ...t.properties, ...(BINDS.includes(t.name) ? BIND_PROPS : {}),
+    }
     let required = t.required
     if (null != root && null != t.docs) {
       for (const doc of t.docs) {
@@ -1137,7 +1228,11 @@ export function callTool(
       }
     }
     if (undefined === out) {
-      out = tool.run(a, trust, paths)
+      const host = hostOf(a, tool, trust, paths)
+      if ('string' === typeof host) {
+        return refusal(`tool ${name}: ${host}`)
+      }
+      out = tool.run(a, trust, paths, host)
     }
   }
   catch (e: any) {

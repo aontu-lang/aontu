@@ -1,0 +1,3 @@
+xs: [{a: 3, b: 1}, {a: 1, b: 2}]
+tmp: hide(each($.xs, _ & {d: sub(.a, .b)}))
+out: pick(filter($.tmp, {d: above(0)}), a)

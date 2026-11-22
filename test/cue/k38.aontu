@@ -1,0 +1,3 @@
+limit: 2
+xs: [{a: 3}, {a: 1}]
+out: filter($.xs, {a: above($.limit)})

@@ -1,0 +1,2 @@
+n: 7
+out: match($.n, below(3), small, below(10), medium, large)

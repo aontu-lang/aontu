@@ -1,0 +1,2 @@
+a: close({kind: "a", x: integer}) | close({kind: "b", y: string})
+a: {kind: "b", y: "s", z: 1}

@@ -927,6 +927,17 @@ guide gives a row like this both CUE spellings.
 | CG4 | The guide, `docs/how-to/aontu-for-cue-users.md`, in the four sections above | docs | CG1, CG2 | M |
 | CG5 | The site's comparisons page, drawn from the guide, in `aontu-lang/web` | docs | CG4 | S |
 
+Progress on 2026-11-22. CG1 and CG2 are built. The probes are under
+`test/cue/`, a file in each language and `index.tsv` with what each
+answers. Re-run that day, both engines gave every probe the answer the
+comparison recorded. 89 answer as CUE v0.17.1 does, 14 differ, 30 are
+refused by both, 8 by aontu alone and 13 by CUE alone. The 89 count two
+canon probes that both answer, each in its own syntax, as the same. The 116
+probes beyond k1 to k38 are the rows of `test/spec/cue.tsv`, byte-exact
+`gens` where they generate, since three generate exact numbers, and
+`ts/test/cuecorpus.test.ts` holds each file to its row. CG3, the CUE
+half in the daily workflow, is not started.
+
 C7 and CG2 are one mechanism: whichever starts first writes the rows
 of the other. CG3 edits `.github/workflows/`, so its push needs an
 account with the `workflow` scope. H3 also asks for a guide for JSON
@@ -1028,6 +1039,13 @@ cursor to a path. Every feature below but formatting stands on it.
 | LS7 | Rename: a key and every reference to it, as one edit, or a refusal that names the site it can't rewrite | server | LS6 | M |
 | LS8 | Code actions, starting with the one whose edit is already decided: remove an entry that `trim --check` reports. Others follow as findings gain repairs | server | LS1 | M |
 | LS9 | A JetBrains client through LSP4IJ, as thin as the three under `editors/` | client | nothing | S |
+
+Progress on 2026-11-22. LS4 is built in both servers: formatting
+answers with the text `aontu fmt` writes, one edit over the whole
+document, none where it already is that text, and `null` where the
+document doesn't parse. #747, which the order puts before it, is fixed
+in both formatters in the same change: a comment on its own line
+before a later `&:` entry keeps its line.
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
@@ -1410,7 +1428,11 @@ how-to a line, and the API reference the options, `hostVars` and
 top-level key as its value's canon, accepts a key no document reads,
 and refuses a name a `--var` binds as well, as bound twice; the rulings
 left that case open, and refusing it can be relaxed later where
-allowing it could not be withdrawn. HV3 is not started.
+allowing it could not be withdrawn. HV3 follows on the same day: the
+REPL takes the three options when it starts, in both commands, and
+refuses none as unread; the MCP server's tools take `vars` and
+`varsText`, refused as the options are, and `jsonschema_import` refuses
+them. Part 6 is built.
 
 ### Questions for the ruling on part 6
 

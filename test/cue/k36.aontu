@@ -1,0 +1,7 @@
+xs: [3, 5, 9]
+nums: hide(each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], {i: key(), n: _}))
+st: hide(each($.xs, {i: key(), v: _}))
+m: hide(pack(pick($.st, i), {v: sum(pick(filter($.st, {i: key(3)}), v)), n: sum(pick(filter($.nums, {i: key(3)}), n))}))
+m2: hide(each($.m, _ & {p: "" + sub(.n, 1)}))
+m3: hide(pack(pick($.m2, p), {prev: sum(pick(filter($.st, {i: key(3)}), v)), v: sum(pick(filter($.m2, {p: key(3)}), v)), n: sum(pick(filter($.m2, {p: key(3)}), n))}))
+out: emit(sort(filter($.m3, {n: above(0)}), n), {match: any, body: [sub(.v, .prev)]})

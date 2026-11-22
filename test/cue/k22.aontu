@@ -1,0 +1,2 @@
+env: prod
+out: {name: web} & match($.env, prod, {replicas: 3, tier: gold}, {})

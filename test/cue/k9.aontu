@@ -1,0 +1,4 @@
+allowed: [web, cache]
+xs: [{name: web}, {name: db}, {name: cache}]
+tmp: hide(pack($.allowed, filter($.xs, {name: key(2)})))
+out: pick(emit($.tmp, {match: any, body: [_]}), name)

@@ -8,11 +8,13 @@ exports.computeDiagnostics = computeDiagnostics;
 exports.computeHover = computeHover;
 exports.computeDefinition = computeDefinition;
 exports.computeCompletions = computeCompletions;
+exports.computeFormatting = computeFormatting;
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const walk_1 = require("./walk");
 const utility_1 = require("./utility");
 const query_1 = require("./query");
+const format_1 = require("./format");
 // LSP DiagnosticSeverity subset.
 const SEVERITY_ERROR = 1;
 exports.SEVERITY_ERROR = SEVERITY_ERROR;
@@ -156,6 +158,7 @@ function initializeResult() {
             definitionProvider: true,
             completionProvider: {},
             signatureHelpProvider: { triggerCharacters: ['(', ','] },
+            documentFormattingProvider: true,
         },
         serverInfo: {
             name: 'aontu-lsp',
@@ -291,6 +294,25 @@ function aliasBindingAt(src, position) {
 function aliasMarkdown(bind) {
     return '```aontu\n' + bind.decl + '\n```\n\n*alias' +
         ('' === bind.from ? '' : ', taken from ' + bind.from) + '*';
+}
+// The whole document as `aontu fmt` writes it: no edit where it already
+// is, and no answer where it doesn't parse, which its diagnostics say.
+function computeFormatting(text) {
+    const report = (0, format_1.format)(text);
+    if ('formatted' !== report.verdict) {
+        return null;
+    }
+    if (!report.changed) {
+        return [];
+    }
+    const lines = text.split('\n');
+    return [{
+            range: {
+                start: { line: 0, character: 0 },
+                end: { line: lines.length - 1, character: lines[lines.length - 1].length },
+            },
+            newText: report.text,
+        }];
 }
 // Go to where the name is BOUND: its declaration, or the destructure
 // that brought it in, which is where this file gets the name.
@@ -622,6 +644,14 @@ class LspHandler {
                 return [{
                         jsonrpc: '2.0', id: msg.id,
                         result: computeCompletions(text ?? ''),
+                    }];
+            }
+            case 'textDocument/formatting': {
+                const uri = msg.params?.textDocument?.uri;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                return [{
+                        jsonrpc: '2.0', id: msg.id,
+                        result: null == text ? null : computeFormatting(text),
                     }];
             }
             case 'textDocument/definition': {
