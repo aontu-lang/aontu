@@ -811,6 +811,19 @@ help isolate the syntax error.`,
             // on to write a site onto it, throwing a TypeError that escaped the
             // unifier entirely ("Cannot set properties of undefined").
             const out = addsite(rawToVal(val), r, ctx);
+            // A later argument was pathed as an element of the argument list,
+            // so a reference in it read from the wrong place. One that is
+            // no map or list reads from the call's place, as the first did; a
+            // map or list argument keeps its path, which a template's key()
+            // reads.
+            if ('' !== fname && true === out.isFunc) {
+                for (const arg of out.peg) {
+                    if (true === arg?.isVal && true !== arg.isBag &&
+                        out.path.length < arg.path.length) {
+                        rebasePaths(arg, arg.path.length, out.path, new Set());
+                    }
+                }
+            }
             return out;
         },
     };
@@ -1547,6 +1560,20 @@ function extKindOf(full) {
 // the whole reason, and a reader told only "not readable" has to guess
 // which part of the path the engine objected to. Byte-identical to Go's
 // extensionMsg.
+function rebasePaths(v, cut, base, seen) {
+    if (true !== v?.isVal || seen.has(v)) {
+        return;
+    }
+    seen.add(v);
+    if (Array.isArray(v.path) && cut <= v.path.length) {
+        v.path = [...base, ...v.path.slice(cut)];
+    }
+    const peg = v.peg;
+    const kids = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
+        null != peg && 'object' === typeof peg ? Object.values(peg) : [];
+    kids.forEach((c) => rebasePaths(c, cut, base, seen));
+    rebasePaths(v.spread?.cj, cut, base, seen);
+}
 function extensionMsg(path, ext) {
     const which = '' === ext ? 'no extension' : 'extension: .' + ext;
     return 'include not readable: ' + path + ' (' + which + ')';

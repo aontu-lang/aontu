@@ -695,9 +695,11 @@ TypeScript `@tabnas/expr` builds a cyclic tree for an argument list
 whose first argument and a later one start with a prefix operator,
 `-1` or `.a` alike, so `match(.a, .b, true, false)` overflows where
 `neq(-1, -2, -3)` does. One fix upstream closes all three, and IS3 of
-part 11 holds it. #871 and the second case of #868 are another: in
-TypeScript a relative reference inside a call that is itself a later
-argument stays unresolved.
+part 11 holds it; the fix is in tabnas/expr#121. #871 and the second
+case of #868 were another, fixed in TypeScript the same day: a later
+argument of a call was pathed as an element of the argument list, so a
+relative reference in it read from the wrong place. #754 is not
+started.
 
 ## C7: pin today's routes
 

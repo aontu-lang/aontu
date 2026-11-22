@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### A relative reference in a later argument reads from the call's place
+
+#871 and the second case of #868, in TypeScript. The parser pathed every
+argument of a call after the first as an element of the argument list,
+so a relative reference in it read from the wrong place:
+`x: { b: 2, d: sub(5, maybe(.b)) }` left `d` unresolved, with a climb
+`..y.b` it was absent in silence, and `match(.a, above(.b), true, false)`
+never settled. An argument that is no map or list now reads from the
+call's place, as the first did and as the Go engine reads it; a map or
+list argument keeps its path, which a template's `key()` reads. Six rows
+in `test/spec/maybe.tsv` pin the shapes.
+
 ### An unknown call is refused wherever it stands
 
 Decision 77 (#870), in both engines. A call to a name that is no
