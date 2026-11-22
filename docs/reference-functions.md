@@ -83,7 +83,7 @@ nothing:
 
 <!-- test: run -->
 ```sh
-$ printf 'xs: ["abc", "ab"]\nold: filter($.xs, length(3))\n' | aontu
+$ echo 'xs: ["abc", "ab"], old: filter($.xs, length(3))' | aontu
 [aontu/unknown_function]: Cannot resolve value at path $.old
 ...
 $ echo $?
@@ -214,18 +214,16 @@ n: %U
 
 There is no partial application: an under-supplied call is `func_arity`
 at parse ([Limitations and
-trade-offs](explanation.md#limitations-and-trade-offs)). A parse-time
-nil is reported where the value is reached rather than where it was
-built, so a miss inside a losing disjunct branch is silent:
+trade-offs](explanation.md#limitations-and-trade-offs)), and it is
+refused in an arm of a disjunction that would otherwise lose:
 
-```aontu
-a: *1|add(1)
-```
-
-```json
-{
-  "a": 1
-}
+<!-- test: run -->
+```sh
+$ echo 'a: *1|add(1)' | aontu
+[aontu/func_arity]: Cannot resolve value at path $.a
+...
+$ echo $?
+1
 ```
 
 ## Argument modes
