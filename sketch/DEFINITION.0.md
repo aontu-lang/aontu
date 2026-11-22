@@ -2738,8 +2738,8 @@ until the phase that encodes it lands.
    take the default at once; from the same day, after #916's review, it
    waits and is read again until the data settles it, so the data's
    `x` picks the arm, rows sr51 to sr56. A pattern that reads the
-   match's own place is #919's question: both ports wait, and the
-   definition reads it from the schema alone, an `error`.
+   match's own place is decision 85, and what a scrutinee holding a
+   marked member selects by is decision 86.
 64. **How a refusal draws its call.** Raised 2026-10-21 by #457: a
    refusal draws the call it refuses again under its frame, and where
    an argument is driven, TypeScript draws the value the engine saw,
@@ -3077,6 +3077,43 @@ until the phase that encodes it lands.
    definition's rows write the comma form alone (lx0 on in
    `test/spec/def-path.tsv`), and it holds no text, so it doesn't
    move.
+85. **A `match` pattern that reads the match's own place.** Raised
+   2026-11-22 by #919, from the review of #916: in
+   `v: match(1, $.v.z, {y: 2}, {})` the pattern `$.v.z` reads the place
+   the `match` stands at. Decision 63 rules a scrutinee that does, and
+   says nothing of a pattern. The definition reads the pattern's path
+   in the schema alone, where it names nothing, an `error`
+   (`Val.dropSelf` drops a `match` only when its scrutinee reads its
+   place), and both ports wait on the pattern for good, `incomplete`,
+   `valid` under `--partial`. **Ruled 2026-11-22 (the project's
+   owner): it reads the field.** A pattern that reads the match's own
+   place reads what the rest of the document holds there, without the
+   match's arms, as decision 63 reads the scrutinee and decision 76 a
+   condition of `must`: against `{"v": {"z": 1, "y": 2}}` the pattern
+   reads `1`, takes its arm, and the document is `valid`, and with
+   `"y": 1` it is `invalid`. **Not yet built**: the definition, where
+   `Val.dropSelf` reads a pattern's paths as it reads the
+   scrutinee's, and both ports, which hold the peer for the scrutinee
+   alone and drive a pattern without it.
+86. **What a `match` selects by.** Raised 2026-11-22 by #922, from
+   the review of #920: a scrutinee that is a map holding a `type()` or
+   `hide()` member, `w: {a: 1, z: type(number)}` beside
+   `v: match($.w, {a: 1}, {y: 1}, {y: 2})`. Output leaves the member
+   out, `{"a": 1}`; the definition reads the whole value, the member
+   included, so an open one keeps the `match` waiting, `incomplete`,
+   `valid` under `--partial`; and both ports, which match at once,
+   answer `valid` where the scrutinee reads elsewhere, and wait as the
+   definition does where it reads the match's own place (#920).
+   **Ruled 2026-11-22 (the project's owner): what its scrutinee
+   outputs.** A `match` selects by the value its scrutinee generates, as
+   the rule of `selectArm` already says, so `type()` and `hide()`
+   members are left out of it: `{a: 1, z: type(number)}` selects as
+   `{a: 1}` and takes the first arm, a record with an open `type()`
+   member holds no `match` back, and a pattern can't test a marked
+   member of a map scrutinee. **Not yet built**: the definition, which
+   leaves marked members out of the scrutinee it reads, and both
+   ports, which leave them out when they decide whether a scrutinee is
+   still open, for #920's wait and for ruling 49's (#743).
 
 ## 8. Risks
 
