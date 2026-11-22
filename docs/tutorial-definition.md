@@ -3159,15 +3159,31 @@ it wherever the name unfolds: with `%T = {n: copy({k: 1}), o?: %T}`,
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
+  ds.rounds (S.dropSelf []) (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
+  ds.rounds (S.dropSelf []) (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
     (ds.docPaths S).length
 ```
+
+Both trees leave out a `match` whose scrutinee, and a `must` whose
+condition, holds a path into the place the term itself stands at, by
+`Val.dropSelf`. Such a path reads what the rest of the document holds
+there, without the term's own arms, so the rule
+`order: match($.order.status, "shipped", {trackingNo: string}, {})`
+reads the record's `status` and meets in the arm it picks:
+`{"order": {"status": "shipped", "trackingNo": 7}}` is invalid, and a
+record the default takes is valid. In the same way
+`v: must({x: upper($.v.name)}, "m")` holds `x` to the upper case of the
+record's own `name`. The schema alone reads such a term as `any`, since
+only the data supplies what its path reads, so it can't make the
+document an error. Rows `sr0` on of `test/spec/def-path.tsv` hold
+these. Both engines still wait on such a `match` and leave such a path
+unread, and the rows they answer otherwise sit in the ledger under #818
+and #895.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -6331,15 +6347,13 @@ anywhere, so `must({b?: nil}, "m")` admits `{"x": 1}` and refuses
 holds a written `nil` refuses, so `must({x: 1} | {x: nil}, "m")` admits
 `{"x": 1}`, but both engines keep such an arm once the data meets it,
 outside `must` too, as rows `nl204` on of `test/spec/def-path.tsv`
-show: those rows sit in the ledger under #907. A path in
-the condition into the value under
-trial, `$.v.name` under `v`, names nothing in the schema alone, so the
-reading can't make a call over it, and `must({x: upper($.v.name)}, "m")`
-is an `error`. Both engines leave such a path unread and pass the
-check: rows `tq0` on, the ones that differ in the ledger under #895.
-That issue rules that such a path reads the field as the rest of the
-document settles it, so that `upper($.v.name)` reads `"A"` where `name`
-is `"a"`, and both engines and the definition move to that reading.
+show: those rows sit in the ledger under #907. A path in the condition
+into the value under trial, `$.v.name` under `v`, reads the field as
+the rest of the document settles it, as the section on paths below
+says, so `must({x: upper($.v.name)}, "m")` admits
+`{"x": "A", "name": "a"}` and refuses `{"x": "B", "name": "a"}`. Both
+engines leave such a path unread and pass the check: rows `sr0` on of
+`test/spec/def-path.tsv`, the ones that differ in the ledger under #895.
 
 Read with no position, as the schema's own tree is, a call whose
 arguments hold a `key(n)` stays as written, so that a path copies it to

@@ -25,7 +25,7 @@
 # disjunction admits what any arm admits, whatever its rank, in rows ta0 on, and
 # an argument both ports read as they build it, with a conflict below its top, in
 # rows td0 on. A written nil below the top of must's condition follows in rows
-# tn0 on, and a path in must's condition into the value under trial in rows tq0 on.
+# tn0 on.
 # An argument a trial tries against a value, with a clash below its top, admits
 # nothing, in rows tl0 on.
 t0	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid"}
@@ -1156,21 +1156,6 @@ tn14	verdict	"v": must({"b"?: (nil) & (1)}, "m")	{"v": {"x": 1}}	{"verdict":"val
 tn15	verdict	"v": nof(0, {"b"?: nil})	{"v": {"x": 1}}	{"verdict":"invalid"}
 tn16	verdict	"v": nof(0, {"b"?: nil})	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
 tn17	verdict	"v": nof(0, {"b"?: nil})	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
-tq0	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "A", "name": "a"}}	{"verdict":"error"}
-tq1	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "A", "name": "a"}}	{"verdict":"error","opts":{"noFill":true}}
-tq2	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "A", "name": "a"}}	{"verdict":"error","opts":{"partial":true}}
-tq3	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "B", "name": "a"}}	{"verdict":"error"}
-tq4	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "B", "name": "a"}}	{"verdict":"error","opts":{"noFill":true}}
-tq5	verdict	"v": must({"x": upper($.v.name)}, "m")	{"v": {"x": "B", "name": "a"}}	{"verdict":"error","opts":{"partial":true}}
-tq6	verdict	"v": must({"x": 1, "y": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid"}
-tq7	verdict	"v": must({"x": 1, "y": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
-tq8	verdict	"v": must({"x": 1, "y": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
-tq9	verdict	"v": must({"x": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid"}
-tq10	verdict	"v": must({"x": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
-tq11	verdict	"v": must({"x": $.v.x}, "m")	{"v": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
-tq12	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid"}
-tq13	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid","opts":{"noFill":true}}
-tq14	verdict	"v": must({"x": 1, "y": $.w}, "m"), "w": 1	{"v": {"x": 1}, "w": 1}	{"verdict":"invalid","opts":{"partial":true}}
 tl0	verdict	"v": when({"x": 2}, {"x": 2, "b"?: (1) & (2)})	{"v": {"x": 2}}	{"verdict":"invalid"}
 tl1	verdict	"v": when({"x": 2}, {"x": 2, "b"?: (1) & (2)})	{"v": {"x": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 tl2	verdict	"v": when({"x": 2}, {"x": 2, "b"?: (1) & (2)})	{"v": {"x": 2}}	{"verdict":"invalid","opts":{"partial":true}}

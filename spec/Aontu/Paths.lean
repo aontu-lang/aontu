@@ -1319,6 +1319,37 @@ schema's own tree reads it (`Decls.ownPlace`). -/
 def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
   ns.map ds.ownPlace
 
+mutual
+/-- The term with each selection whose scrutinee, and each `must` whose
+condition, holds a path into the place it stands at read as `any`, at
+any depth of maps, lists, meets, disjunctions, preferences and riders:
+what the rest of the document holds there, which such a path reads,
+without the term's own arms. -/
+def Val.dropSelf (here : List Seg) : Val → Val
+  | .map fs spread closed => .map (selfDropFields here fs) spread closed
+  | .list items spread closed => .list (selfDropItems here 0 items) spread closed
+  | .meet a b => .meet (a.dropSelf here) (b.dropSelf here)
+  | .or arms => .or (selfDropArms here arms)
+  | .pref r x => .pref r (x.dropSelf here)
+  | .ride k v r => .ride k (v.dropSelf here) r
+  | .link v t => .link (v.dropSelf here) t
+  | .select s arms d => if s.paths.any here.isPrefixOf then .any else .select s arms d
+  | .must c m => if c.paths.any here.isPrefixOf then .any else .must c m
+  | v => v
+
+def selfDropFields (here : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.dropSelf (here ++ [.key k])) :: selfDropFields here fs
+
+def selfDropItems (here : List Seg) (i : ℕ) : List Val → List Val
+  | [] => []
+  | v :: vs => v.dropSelf (here ++ [.idx i]) :: selfDropItems here (i + 1) vs
+
+def selfDropArms (here : List Seg) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.dropSelf here) :: selfDropArms here arms
+end
+
 /-- The roots a document's paths read, round by round, `r` reading a
 document to its root, beside the places of the bodies their own paths
 start at (`Decls.bodyRoots`): the first round with its paths unread, and
@@ -1355,7 +1386,7 @@ paths, since a round that reaches no new path changes nothing after it.
 The roots keep their keys as written, so that a key a path reaches reads
 where the path lands. -/
 def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
+  ds.rounds (S.dropSelf []) (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
 
 /-- The schema's own tree, round by round (`Decls.roundsS`). -/
 def Decls.rootsS (ds : Decls) (S : Val) : List Val := (ds.roundsS S).1
@@ -1364,7 +1395,7 @@ def Decls.rootsS (ds : Decls) (S : Val) : List Val := (ds.roundsS S).1
 data reaches: the normal form of the schema met with the data, each
 recursive name's body with its calls made, in as many rounds. -/
 def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
+  ds.rounds (S.dropSelf []) (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
     (ds.docPaths S).length
 
 /-- The tree the data reads in, round by round (`Decls.roundsD`). -/
@@ -2871,9 +2902,11 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   L.1.readArms ds' r P ns armRoot isBody (armUses ++ orNames)
 
 /-- A document as the definition reads it before any data: its links and
-its spreads read in the schema's own tree (`Decls.rootsS`). -/
+its spreads read in the schema's own tree (`Decls.rootsS`), and each
+selection and `must` that reads its own place read as `any`
+(`Val.dropSelf`), since only the data supplies what such a path reads. -/
 def Decls.preparedS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.prepared S Decls.rootsS Decls.rootsS
+  ((ds.prepared S Decls.rootsS Decls.rootsS).1, (ds.prepared S Decls.rootsS Decls.rootsS).2.dropSelf [])
 
 /-- The roots a document's links are read in beside data: the tree the
 data reads in (`Decls.rootsD`), so that an address the data supplies is
@@ -4712,6 +4745,78 @@ theorem Decls.callsMade_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Ch
   · exact readU_checkableA hb (hb d' hd')
   · exact hb d' hd'
 
+theorem mem_selfDropFields {here : List Seg} :
+    ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+    (k, o, w) ∈ selfDropFields here fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.dropSelf (here ++ [.key k])
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [selfDropFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_selfDropFields h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_selfDropItems {here : List Seg} :
+    ∀ {i : ℕ} {items : List Val} {w : Val},
+    w ∈ selfDropItems here i items → ∃ v j, v ∈ items ∧ w = v.dropSelf (here ++ [.idx j])
+  | _, [], _, h => nomatch h
+  | i, v' :: vs, w, h => by
+    simp only [selfDropItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v', i, List.mem_cons_self, rfl⟩
+    · obtain ⟨v, j, hv, rfl⟩ := mem_selfDropItems h
+      exact ⟨v, j, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_selfDropArms {here : List Seg} :
+    ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ selfDropArms here arms → ∃ a, (r, a) ∈ arms ∧ w = a.dropSelf here
+  | [], _, _, h => nomatch h
+  | (r', a') :: arms, r, w, h => by
+    simp only [selfDropArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨a', List.mem_cons_self, rfl⟩
+    · obtain ⟨a, ha, rfl⟩ := mem_selfDropArms h
+      exact ⟨a, List.mem_cons_of_mem _ ha, rfl⟩
+
+/-- A term the checker can read reads with each selection and `must`
+that reads its own place read as `any`. -/
+theorem dropSelf_checkableA {v : Val} (h : v.CheckableA) (here : List Seg) : (v.dropSelf here).CheckableA := by
+  induction h generalizing here with
+  | @map fs spread closed _ hs ihf _ =>
+    refine .map (fun k o w hm => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_selfDropFields hm
+    exact ihf k o v hv _
+  | @list items spread closed _ hs ihi _ =>
+    refine .list (fun w hm => ?_) hs
+    obtain ⟨v, j, hv, rfl⟩ := mem_selfDropItems hm
+    exact ihi v hv _
+  | @or arms _ ih =>
+    refine .or fun r w hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_selfDropArms hm
+    exact ih r a ha _
+  | pref _ ih => exact .pref (ih here)
+  | meet _ _ iha ihb => exact .meet (iha here) (ihb here)
+  | ride _ ih => exact .ride (ih here)
+  | link _ ht ih _ => exact .link (ih here) ht
+  | must hc _ =>
+    simp only [Val.dropSelf]
+    split
+    · exact .any
+    · exact .must hc
+  | selectKey hp hr hd _ _ _ =>
+    simp only [Val.dropSelf, Val.paths, List.any_nil, Bool.false_eq_true, ite_false]
+    exact .selectKey hp hr hd
+  | selectLit hp hr hd _ _ _ =>
+    simp only [Val.dropSelf, Val.paths, List.any_nil, Bool.false_eq_true, ite_false]
+    exact .selectLit hp hr hd
+  | len hc _ => exact .len hc
+  | nof hn hcs _ _ => exact .nof hn hcs
+  | call ha _ => exact .call ha
+  | when hc ht he _ _ _ => exact .when hc ht he
+  | contains hc hn _ _ => exact .contains hc hn
+  | rest ht h1 h2 h3 _ _ _ _ => exact .rest ht h1 h2 h3
+  | _ => constructor
+
 /-- Every round's root, and every place a round reads, is one the
 checker can read, where `r` reads a document the checker can read to
 one. -/
@@ -4744,7 +4849,7 @@ theorem Decls.roundsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds �
     (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsS S).1 → root.CheckableA) ∧
       ∀ root, root ∈ (ds.roundsS S).2 → root.CheckableA :=
   Decls.rounds_checkableA (fun hd hT => normaliseD_checkableA (Decls.callsMade_checkableA hd)
-    (readU_checkableA (Decls.callsMade_checkableA hd) hT)) hb hS _
+    (readU_checkableA (Decls.callsMade_checkableA hd) hT)) hb (dropSelf_checkableA hS []) _
 
 theorem Decls.roundsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsD S j).1 → root.CheckableA) ∧
@@ -4753,7 +4858,7 @@ theorem Decls.roundsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, 
     (fun hd hT => normaliseD_checkableA (Decls.callsMade_checkableA hd)
       (meetD_checkableA (Decls.callsMade_checkableA hd) (readU_checkableA (Decls.callsMade_checkableA hd) hT)
         (Data.term_checkableA j)))
-    hb hS _
+    hb (dropSelf_checkableA hS []) _
 
 theorem Decls.rootsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : ∀ root, root ∈ ds.rootsS S → root.CheckableA :=

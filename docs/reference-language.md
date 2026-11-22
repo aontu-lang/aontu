@@ -1380,7 +1380,7 @@ accepts a document the arm it selects refuses. Inside a generator's
 template the hole is the source child, the scrutinee is a value by the
 time the match runs, and the form works as documented above.
 
-The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`.
+The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Both engines still wait on such a scrutinee, #818, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold the difference.
 
 ## The placeholder `_`
 
@@ -7720,7 +7720,7 @@ A written `nil` in `c` is no conflict, and reads as it does anywhere:
 `must({b?: nil}, "m")` admits a value without `b` and refuses one that
 supplies it.
 
-`must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). The reading makes a trial `nil` where an argument both engines read as they build it holds a conflict anywhere, its staged normal form not standing: `Decls.clashes` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), held to both engines by rows `td0` on of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv).
+`must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). A path in `c` into the value under trial, `$.v.name` in `v: must(…)`, reads in the definition the field the rest of the document holds there, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). Both engines leave it unread, #895. The reading makes a trial `nil` where an argument both engines read as they build it holds a conflict anywhere, its staged normal form not standing: `Decls.clashes` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), held to both engines by rows `td0` on of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv).
 
 ### Band B: `nof`
 

@@ -2717,7 +2717,18 @@ until the phase that encodes it lands.
    that arm and meets it in, and an arm that would change the value
    its scrutinee read is an error. The four records of #818 then
    answer as the same rule written as a disjunction of the record's
-   shapes does. **Not yet built**: both ports and the definition move.
+   shapes does. **Built in the definition 2026-11-22**, with decision
+   76: `Val.dropSelf` reads each selection whose scrutinee, and each
+   `must` whose condition, holds a path into the place it stands at as
+   `any`, in the trees the paths read from (`Decls.roundsS`,
+   `Decls.roundsD`) and in the schema-only reading (`Decls.preparedS`),
+   so the scrutinee reads what the rest of the document holds there,
+   without the term, and only the data supplies it. The four records
+   answer as the disjunction of the record's shapes does, in rows sr0
+   to sr11 of `test/spec/def-path.tsv`. What such a term holds besides
+   the path reads with the data, so a conflict in it, and an arm that
+   would change the value its scrutinee read, is a refusal, `invalid`,
+   not yet the schema's `error`. **Not yet built**: both ports.
 64. **How a refusal draws its call.** Raised 2026-10-21 by #457: a
    refusal draws the call it refuses again under its frame, and where
    an argument is driven, TypeScript draws the value the engine saw,
@@ -2916,8 +2927,11 @@ until the phase that encodes it lands.
    `{"x": "A", "name": "a"}` and refuses `{"x": "B", "name": "a"}`,
    `must({x: 1, y: $.v.x}, "m")` refuses a value with no `y`, and
    `must({x: $.v.x}, "m")` admits `{"x": 1}`, which the ports and the
-   definition both refuse today. **Not yet built**: both ports and the
-   definition move.
+   definition both refused. **Built in the definition 2026-11-22**,
+   with decision 63 (`Val.dropSelf`): rows sr12 to sr26 of
+   `test/spec/def-path.tsv`, which reads the document's paths, where
+   the trial fragment had held them as tq0 to tq14 and read none.
+   **Not yet built**: both ports.
 77. **An unknown call inside a trial.** Raised 2026-11-20 by #870: a
    call to a name that is no built-in, or with the wrong count of
    arguments, is refused where it stands alone, `unknown_function` or
