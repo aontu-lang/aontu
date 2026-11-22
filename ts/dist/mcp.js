@@ -749,8 +749,14 @@ function hashOf(src, form, trust, path, host) {
         ok: true,
         hash: (0, hcanon_1.canonHash)(v),
         ...(form ? { form: (0, hcanon_1.hcanon)(v) } : {}),
+        ...bindingsOf(host),
         findings: [],
     };
+}
+// The bindings a report names, as the command line writes them.
+function bindingsOf(host) {
+    const all = Object.entries(host.hostVars ?? {}).map(([name, b]) => `${true === b.text ? '--var-text' : '--var'} ${name}=${b.value}`);
+    return 0 === all.length ? {} : { bindings: all };
 }
 // Verdict aggregation: an error anywhere makes the run an error;
 // otherwise a witness anywhere makes it breaking; otherwise an open
@@ -800,7 +806,7 @@ function breakingOf(a, trust, paths, host) {
     const mode = breakingMode(a, trust, paths, host);
     if ('none' === mode) {
         // The document declares no compatibility promise: nothing to check.
-        return { verdict: 'compatible', mode, findings: [] };
+        return { verdict: 'compatible', mode, ...bindingsOf(host), findings: [] };
     }
     const sides = {
         old: { src: str(a.old), url: paths.old ?? 'old', path: paths.old },
@@ -828,7 +834,7 @@ function breakingOf(a, trust, paths, host) {
         }
         findings.push(...report.findings);
     }
-    return { verdict: BREAKING_VERDICT[worst], mode, findings };
+    return { verdict: BREAKING_VERDICT[worst], mode, ...bindingsOf(host), findings };
 }
 // The assignments arrive structured ({path, value}) rather than as the
 // CLI's `<path>=<value>` spelling, and are re-joined for the engine's
@@ -881,7 +887,7 @@ function hostOf(a, tool, trust, paths) {
     if (!BINDS.includes(tool.name)) {
         return 'takes no vars: it evaluates no aontu document';
     }
-    const hostVars = {};
+    const hostVars = Object.create(null);
     for (const [key, text] of [['vars', false], ['varsText', true]]) {
         const given = a[key] ?? {};
         if ('object' !== typeof given || Array.isArray(given)) {
@@ -906,6 +912,10 @@ function hostOf(a, tool, trust, paths) {
         if (!(0, hostvars_1.varNamesIn)(str(a[doc]), { trust, path: paths[doc] }, read)) {
             return { hostVars };
         }
+    }
+    // `set`'s assignments are read too.
+    for (const x of Array.isArray(a.assignments) ? a.assignments : []) {
+        (0, hostvars_1.varNamesIn)('v: ' + x.value, { trust: { include: 'none' } }, read);
     }
     const unread = Object.keys(hostVars).find((name) => !read.has(name));
     return undefined === unread ? { hostVars } :

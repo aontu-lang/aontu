@@ -880,8 +880,17 @@ function hashOf(
     ok: true,
     hash: canonHash(v),
     ...(form ? { form: hcanon(v) } : {}),
+    ...bindingsOf(host),
     findings: [],
   }
+}
+
+
+// The bindings a report names, as the command line writes them.
+function bindingsOf(host: Host): { bindings?: string[] } {
+  const all = Object.entries(host.hostVars ?? {}).map(([name, b]) =>
+    `${true === b.text ? '--var-text' : '--var'} ${name}=${b.value}`)
+  return 0 === all.length ? {} : { bindings: all }
 }
 
 
@@ -949,7 +958,7 @@ function breakingOf(
 
   if ('none' === mode) {
     // The document declares no compatibility promise: nothing to check.
-    return { verdict: 'compatible', mode, findings: [] }
+    return { verdict: 'compatible', mode, ...bindingsOf(host), findings: [] }
   }
 
   const sides = {
@@ -983,7 +992,7 @@ function breakingOf(
     findings.push(...report.findings)
   }
 
-  return { verdict: BREAKING_VERDICT[worst], mode, findings }
+  return { verdict: BREAKING_VERDICT[worst], mode, ...bindingsOf(host), findings }
 }
 
 
@@ -1049,7 +1058,7 @@ function hostOf(a: any, tool: ToolDef, trust: TrustOptions,
   if (!BINDS.includes(tool.name)) {
     return 'takes no vars: it evaluates no aontu document'
   }
-  const hostVars: HostVars = {}
+  const hostVars: HostVars = Object.create(null)
   for (const [key, text] of [['vars', false], ['varsText', true]] as const) {
     const given = a[key] ?? {}
     if ('object' !== typeof given || Array.isArray(given)) {
@@ -1074,6 +1083,10 @@ function hostOf(a: any, tool: ToolDef, trust: TrustOptions,
     if (!varNamesIn(str(a[doc]), { trust, path: paths[doc] } as any, read)) {
       return { hostVars }
     }
+  }
+  // `set`'s assignments are read too.
+  for (const x of Array.isArray(a.assignments) ? a.assignments : []) {
+    varNamesIn('v: ' + x.value, { trust: { include: 'none' } }, read)
   }
   const unread = Object.keys(hostVars).find((name) => !read.has(name))
   return undefined === unread ? { hostVars } :

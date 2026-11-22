@@ -441,8 +441,8 @@ let BINDER: Aontu | undefined
 
 function hostValues(hostVars: HostVars):
   { vars: Record<string, Val>, texts: Record<string, string> } {
-  const vars: Record<string, Val> = {}
-  const texts: Record<string, string> = {}
+  const vars: Record<string, Val> = Object.create(null)
+  const texts: Record<string, string> = Object.create(null)
   for (const [name, b] of Object.entries(hostVars)) {
     const url = (b.from ?? (true === b.text ? '--var-text' : '--var')) + ' ' + name
     texts[url] = true === b.text ? new StringVal({ peg: b.value }).canon : b.value

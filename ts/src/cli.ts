@@ -928,7 +928,7 @@ function hostVarsOf(bindings: VarBinding[], read: Set<string> | undefined, io: I
   if (0 === bindings.length) {
     return undefined
   }
-  const hostVars: HostVars = {}
+  const hostVars: HostVars = Object.create(null)
   for (const b of bindings) {
     const flag = b.text ? '--var-text' : '--var'
     if (undefined !== read && !read.has(b.name) && undefined === b.from) {
@@ -965,6 +965,11 @@ function namesRead(args: string[], trust: TrustArg): Set<string> | undefined {
     catch (_err: any) {
       if (doc) {
         return undefined
+      }
+      // A `model set` assignment, path=value: its value is read too.
+      const eq = arg.indexOf('=')
+      if (0 < eq) {
+        varNamesIn('v: ' + arg.slice(eq + 1), { trust: { include: 'none' } }, read)
       }
       continue
     }

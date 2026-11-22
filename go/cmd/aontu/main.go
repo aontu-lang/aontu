@@ -980,6 +980,16 @@ func namesRead(args []string, trust trustArg) map[string]bool {
 			if doc {
 				return nil
 			}
+			// A model set assignment, path=value: its value is read too.
+			if eq := strings.Index(arg, "="); 0 < eq {
+				a := aontu.New()
+				a.Trust = &aontu.TrustOptions{IncludeNone: true}
+				if v, perr := a.Parse("v: " + arg[eq+1:]); nil == perr {
+					for _, name := range aontu.VarNames(v) {
+						read[name] = true
+					}
+				}
+			}
 			continue
 		}
 		if info.IsDir() || (!doc && !dataExt.MatchString(arg)) {

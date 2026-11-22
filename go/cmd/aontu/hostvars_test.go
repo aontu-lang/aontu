@@ -335,3 +335,14 @@ func TestHostVarsFromAFile(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 }
+
+func TestHostVarsReadInAnAssignmentAndAnyName(t *testing.T) {
+	f := hvFiles(t, map[string]string{"e.aontu": "n: number\n", "o.aontu": "", "k.aontu": "k: $constructor\n"})
+	if r := hvRun("", true, "model", "set", "n=$n", "--entry", f("e.aontu"), "--overlay", f("o.aontu"),
+		"--var", "n=3"); strings.Contains(r.err, "no document reads") {
+		t.Fatalf("%+v", r)
+	}
+	if r := hvRun("", true, "--var", "constructor=3", f("k.aontu")); "{\n  \"k\": 3\n}\n" != r.out {
+		t.Fatalf("%+v", r)
+	}
+}

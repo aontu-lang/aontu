@@ -3659,8 +3659,10 @@ tools and the protocol are a transport-free library
 Every tool but `jsonschema_import` also takes `vars` and `varsText`,
 objects of names to strings: the command line's `--var` and
 `--var-text`, refused alike when malformed, bound twice, not a value, or
-read by no document of the call. `jsonschema_import` evaluates no aontu
-document, and refuses them.
+read by no document of the call, a `set` assignment's value counting as
+read. `hash` and `breaking` name them in their reports, under
+`bindings`, as the command line's do. `jsonschema_import` evaluates no
+aontu document, and refuses them.
 
 Every tool returns **the same JSON contract the CLI prints**, so a
 report read from one is the report read from the other. A tool that

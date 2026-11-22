@@ -356,6 +356,33 @@ describe('hostvars', () => {
     Assert.deepEqual(JSON.parse(piped.out), { env: 'prod', replicas: 3 })
   })
 
+  test('a-name-the-object-prototype-holds-and-a-read-in-an-assignment-bind', () => {
+    const show = (r: any) => r.content[0].text
+    Assert.equal(JSON.parse(show(callTool('canon',
+      { src: 'n: $constructor', vars: { constructor: '3' } }))).canon, '{"n":3}')
+    const set = JSON.parse(show(callTool('set', {
+      entry: 'n: number', overlay: '', assignments: [{ path: 'n', value: '$n' }],
+      vars: { n: '3' },
+    })))
+    Assert.equal(set.verdict, 'valid')
+    Assert.deepEqual(JSON.parse(show(callTool('hash', { source: 'n: $n', vars: { n: '3' } })))
+      .bindings, ['--var n=3'])
+    Assert.deepEqual(JSON.parse(show(callTool('breaking',
+      { old: 'n: $n', new: 'n: $n', varsText: { n: 'x' } }))).bindings, ['--var-text n=x'])
+    Assert.equal(undefined, JSON.parse(show(callTool('hash', { source: 'n: 1' }))).bindings)
+    const none = JSON.parse(show(callTool('breaking', {
+      old: 'aontu_policy: compat: "none"\nn: $n', new: 'aontu_policy: compat: "none"\nn: $n',
+      vars: { n: '1' },
+    })))
+    Assert.deepEqual(none.bindings, ['--var n=1'])
+
+    const f = files({ 'e.aontu': 'n: number\n', 'o.aontu': '', 'k.aontu': 'k: $constructor\n' })
+    const cli1 = cli('model', 'set', 'n=$n', '--entry', f('e.aontu'), '--overlay', f('o.aontu'),
+      '--var', 'n=3')
+    Assert.doesNotMatch(cli1.err, /no document reads/)
+    Assert.deepEqual(JSON.parse(cli('--var', 'constructor=3', f('k.aontu')).out), { k: 3 })
+  })
+
   test('the-engine-option-binds-for-every-context-given-no-vars', () => {
     const a = new Aontu({ hostVars: { n: { value: '3' }, s: { value: '3', text: true } } })
     Assert.deepEqual(a.generate('a: $n\nb: $s\n'), { a: 3, b: '3' })

@@ -61,8 +61,9 @@ $ aontu --var env=prod --var n=3 v.aontu
 - **The REPL takes them when it starts**, task HV3, and refuses none as
   unread, since no document is there yet to read it. **The MCP server's
   tools take `vars` and `varsText`**, objects of names to strings,
-  refused as the options are; `jsonschema_import` evaluates no aontu
-  document and refuses them.
+  refused as the options are, and `hash` and `breaking` name them in
+  their reports as the command line's do; `jsonschema_import` evaluates
+  no aontu document and refuses them.
 - **`hash` and `breaking` name the bindings**: a `bindings` list in the
   JSON report, an `under:` line in `breaking`'s text, and a note on
   stderr beside `hash`'s text, which stays the hash alone.
