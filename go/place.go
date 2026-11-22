@@ -83,12 +83,10 @@ func unboundHole(ctx *Ctx, root Val) *NilVal {
 	return n
 }
 
-// An unknown name or a wrong count is decided as the document is read, so
-// it is refused wherever it stands (decision 77 of sketch/DEFINITION.0.md):
-// in a trial's argument, a disjunction's arm or under maybe it would
-// otherwise admit nothing in silence. A declaration's body is searched as
-// well, its call reported where it is declared, and of several the least
-// by path is reported, as parseNilIn picks a parse refusal.
+// An unknown name or a wrong count is refused wherever it stands, even
+// where a trial or maybe would read it as admitting nothing (decision 77
+// of sketch/DEFINITION.0.md). A declaration's body counts, reported where
+// it is declared, and of several the least by path is reported.
 func unknownCall(ctx *Ctx, root Val) *NilVal {
 	var found []refusedAt
 	seen := map[Val]bool{}

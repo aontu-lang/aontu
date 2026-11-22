@@ -688,10 +688,24 @@ today, with no finding before or after. Ruling 38 says how it is
 fixed: an unknown call is refused wherever it stands. #871 sits where C1 and C3 put
 an optional lookup, a `maybe` as a later argument of a call.
 
+Progress on 2026-11-22. #870 is fixed in both engines, as the
+definition's decision 77. #850 and the first case of #868 are the same
+defect as [#326](https://github.com/aontu-lang/aontu/issues/326): the
+TypeScript `@tabnas/expr` builds a cyclic tree for an argument list
+whose first argument and a later one start with a prefix operator,
+`-1` or `.a` alike, so `match(.a, .b, true, false)` overflows where
+`neq(-1, -2, -3)` does. One fix upstream closes all three, and IS3 of
+part 11 holds it. #871 and the second case of #868 are another: in
+TypeScript a relative reference inside a call that is itself a later
+argument stays unresolved.
+
 ## C7: pin today's routes
 
 The comparison's probes k1 to k38 are aontu documents that both
-engines answer alike. As shared rows they hold three things:
+engines answer alike. Done on 2026-11-22: they are the rows of
+`test/spec/comprehension.tsv`, 36 generated values and two refusals,
+each expectation from the parity probe. As shared rows they hold three
+things:
 
 - the routes that work today keep working;
 - each built-in of C1 to C5 is written against the answer its route
@@ -1933,7 +1947,7 @@ them are done:
 |---|---|---|---|---|
 | IS1 | Give each of the 28 issues above its row in a workstream of `admin/issue-plan.md`, with its kind, its size and its ledger rows, and bring that plan's counts and its statement on the parser issues up to date. Done 2026-11-22: 25 are in seven of its workstreams and three in a new one, none has a ledger row, and every open issue has one row there | docs | nothing | S |
 | IS2 | Enter rulings 38, 39 and 44 to 49 in section 7 of [`sketch/DEFINITION.0.md`](DEFINITION.0.md) as decisions of the definition. Rulings 42 and 43 are there already, as its decisions 74 and 76, and the `nil` of #894 as its decision 75. Done 2026-11-22, as its decisions 77 to 84: each says what both engines answer today, which was run in both, and what moves. No generated row holds any of them yet, so the rows land with each fix | definition | nothing | M |
-| IS3 | Before the pins rise: a release of `@tabnas/expr` that reads `neq(-1, -2, -3)`, or a guard in the TypeScript engine that refuses the input, with the shared row #326 asks for | fix | nothing | S |
+| IS3 | Before the pins rise: a release of `@tabnas/expr` that reads `neq(-1, -2, -3)`, or a guard in the TypeScript engine that refuses the input, with the shared row #326 asks for. Found 2026-11-22: the same cyclic argument list is behind #850 and the first case of #868, and the cycle forms inside the library, before the engine sees a term, so the fix is upstream | fix | nothing | S |
 
 IS3 comes before the task that raises the pins. IS2 is how a ruling made
 here reaches the workstream that builds it: the rulings of this plan are

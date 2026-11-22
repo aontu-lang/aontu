@@ -148,14 +148,13 @@ describe('cli', () => {
 
   // Mirrors TestRunCanonUnknownFunction in go/cmd/aontu/run_test.go.
   test('cli-canon-refuses-an-unknown-function', () => {
-    for (const src of ['x: nosuchfn(1)', 'x: rel() & path($.a)', 'x: {a: nosuchfn(1)}']) {
+    // An arm is no exception: the call is refused wherever it stands.
+    for (const src of ['x: nosuchfn(1)', 'x: rel() & path($.a)', 'x: {a: nosuchfn(1)}',
+      'x: nosuchfn(1) | 2']) {
       const r = run(['--canon'], src)
       Assert.equal(r.code, 1, src)
       Assert.match(r.out, /\[aontu\/unknown_function\]/, src)
     }
-    const dead = run(['--canon'], 'x: nosuchfn(1) | 2')
-    Assert.equal(dead.code, 0)
-    Assert.equal(dead.out.trim(), '{"x":2}')
   })
 
   // Mirrors TestRunExactNumbers in go/cmd/aontu/run_test.go.
