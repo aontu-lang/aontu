@@ -4,6 +4,7 @@ package aontu
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -97,7 +98,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		ctx.trial = true
 		ctx.slot = slot
 		r := ctx.holdArm(d.path, prefInnerPeg(m), member, false, func() Val { return unite(ctx, m, member) })
-		failed := len(ctx.err) > 0 || r.Nil()
+		failed := len(ctx.err) > 0 || r.Nil() || holdsUnmetNil(r)
 		ctx.err = saved
 		ctx.trial = savedTrial
 		if failed {
@@ -723,4 +724,23 @@ func rankedPlace(home Val, b *base) {
 	b.site.sp, b.site.spu, b.site.url, b.site.src = home.pos(), home.posu(), home.srcurl(), home.srctext()
 	b.fwrt = home.written()
 	b.finner = home.innerOf()
+}
+
+// An arm that holds a written nil at a member it must have refuses (ruling 54).
+func holdsUnmetNil(v Val) bool {
+	unmet := func(c Val) bool {
+		n, ok := c.(*NilVal)
+		return (ok && "literal_nil" == n.why) || holdsUnmetNil(c)
+	}
+	switch t := v.(type) {
+	case *MapVal:
+		for _, k := range t.keys {
+			if !slices.Contains(t.optional, k) && unmet(t.peg[k]) {
+				return true
+			}
+		}
+	case *ListVal:
+		return slices.ContainsFunc(t.peg, unmet)
+	}
+	return false
 }

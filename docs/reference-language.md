@@ -975,7 +975,9 @@ reads it as `invalid`. A conflict is no written `nil`: `{k?: 1 & 2}`
 still makes the document an error. A preference over a written `nil`,
 `*nil`, reads as `nil | super(nil)`: neither arm holds a value, so, like
 `nil | nil`, it makes the document an error, and an optional key doesn't
-spare it. The definition reads a written `nil` as `Val.void`.
+spare it. An arm of a disjunction that holds one where the value must
+have a member refuses, so `{x: 1} | {x: nil}` admits `{"x": 1}` and
+generates it. The definition reads a written `nil` as `Val.void`.
 
 **An optional key never drops a refusal the parser made.** It drops a
 value that fails to resolve, and raises a parse refusal from anywhere
