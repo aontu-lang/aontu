@@ -1320,11 +1320,11 @@ def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
   ns.map ds.ownPlace
 
 mutual
-/-- The term with each selection whose scrutinee, and each `must` whose
-condition, holds a path into the place it stands at read as `any`, at
-any depth of maps, lists, meets, disjunctions, preferences and riders:
-what the rest of the document holds there, which such a path reads,
-without the term's own arms. -/
+/-- The term with each selection whose scrutinee or a pattern, and each
+`must` whose condition, holds a path into the place it stands at read as
+`any`, at any depth of maps, lists, meets, disjunctions, preferences and
+riders: what the rest of the document holds there, which such a path
+reads, without the term's own arms (decisions 63, 76 and 85). -/
 def Val.dropSelf (here : List Seg) : Val → Val
   | .map fs spread closed => .map (selfDropFields here fs) spread closed
   | .list items spread closed => .list (selfDropItems here 0 items) spread closed
@@ -1333,7 +1333,9 @@ def Val.dropSelf (here : List Seg) : Val → Val
   | .pref r x => .pref r (x.dropSelf here)
   | .ride k v r => .ride k (v.dropSelf here) r
   | .link v t => .link (v.dropSelf here) t
-  | .select s arms d => if s.paths.any here.isPrefixOf then .any else .select s arms d
+  | .select s arms d =>
+    if s.paths.any here.isPrefixOf || arms.any (fun a => a.1.paths.any here.isPrefixOf) then .any
+    else .select s arms d
   | .must c m => if c.paths.any here.isPrefixOf then .any else .must c m
   | v => v
 
@@ -4804,11 +4806,15 @@ theorem dropSelf_checkableA {v : Val} (h : v.CheckableA) (here : List Seg) : (v.
     · exact .any
     · exact .must hc
   | selectKey hp hr hd _ _ _ =>
-    simp only [Val.dropSelf, Val.paths, List.any_nil, Bool.false_eq_true, ite_false]
-    exact .selectKey hp hr hd
+    simp only [Val.dropSelf]
+    split
+    · exact .any
+    · exact .selectKey hp hr hd
   | selectLit hp hr hd _ _ _ =>
-    simp only [Val.dropSelf, Val.paths, List.any_nil, Bool.false_eq_true, ite_false]
-    exact .selectLit hp hr hd
+    simp only [Val.dropSelf]
+    split
+    · exact .any
+    · exact .selectLit hp hr hd
   | len hc _ => exact .len hc
   | nof hn hcs _ _ => exact .nof hn hcs
   | call ha _ => exact .call ha
