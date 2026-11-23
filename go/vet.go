@@ -5,6 +5,7 @@ package aontu
 import (
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -711,6 +712,13 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 				}
 			}
 			stampURL(meetAnchor, schemaURL)
+			// A root meet holding a bare directive settles before the data meets it, as a key's does.
+			if cj, ok := meetAnchor.(*ConjunctVal); ok && slices.ContainsFunc(cj.peg, func(t Val) bool {
+				f, isF := t.(*FuncVal)
+				return isF && ("close" == f.name || "open" == f.name) && 0 == len(f.peg)
+			}) {
+				meetAnchor = unifyRoot(meetAnchor, &Ctx{root: meetAnchor, vars: hostVals(options.HostVars), src: schemaSrc, collect: true})
+			}
 		}
 	}
 

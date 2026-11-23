@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### A bare `close()` at a schema's root seals the schema, not the data
+
+#726, in part, in both engines. `vet` reads a schema written as one
+meet with a bare `close()` or `open()` among its terms by settling those
+terms before the data meets them, as it already settles the terms at a
+key. So `close() & {x: 1}` refuses `{"x": 1, "y": 2}`, as the definition
+does, where both engines folded the data in among the terms the seal
+covers and admitted `y`.
+
+- `ts/src/vet.ts` and `go/vet.go`.
+- Rows dirp12 to dirp14 of `test/spec/def-path.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 189 to 186, and three rows
+  of `test/spec/vet.tsv` hold a bare `close()`, a bare `open()` and a
+  `close()` of a value at the root.
+
 ### The language servers map a cursor to a path
 
 Task LS1, in both ports. The analysis layer answers what a cursor is

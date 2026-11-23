@@ -579,6 +579,10 @@ function vet(schemaSrc, dataSrc, opts) {
                 meetAnchor.closed = true;
             }
             stampUrl(meetAnchor, schemaUrl);
+            // A root meet holding a bare directive settles before the data meets it, as a key's does.
+            if (true === meetAnchor.isConjunct && meetAnchor.peg.some((t) => (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length)) {
+                meetAnchor = aontu.unify(meetAnchor, undefined, aontu.ctx({ collect: true }));
+            }
         }
     }
     else {

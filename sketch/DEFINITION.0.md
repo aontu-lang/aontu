@@ -2320,6 +2320,12 @@ until the phase that encodes it lands.
    the definition does, and the other 21 alike, listed in the ledger
    under #726: both ports fold `close()` into the template's term or the
    member's and read the other's keys as a conflict.
+   **Built in both ports 2026-11-23, the root** (#726): `vet` settles a
+   schema written as one meet with a bare directive among its terms
+   before the data meets it, as the terms at a key settle, so
+   `close() & {x: 1}` refuses `{"x": 1, "y": 2}`, where both ports had
+   folded the data in among the terms the seal covers; rows dirp12 to
+   dirp14 leave the ledger, its bound 186.
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`

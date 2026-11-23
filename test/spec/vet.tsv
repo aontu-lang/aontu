@@ -516,3 +516,8 @@ vet-an-absent-optional-key-skips-a-match-nil-arm	vet	{ foo?:any &: match(key(0),
 # A hole in a spread's template is one nothing binds, named at the
 # template's own member.
 vet-spread-unfilled-member-path	vet	v:{&:{n:upper(_)}}	v:{a:{}}	{"findings":[{"class":"parse","code":"hole_unbound","path":"$.v.n","pointer":"/v/n","severity":"error","sites":[{"col":15,"file":"schema","len":1,"role":"schema","row":1,"src":"_","value":"_"}]}],"truncated":false,"verdict":"error"}
+# A bare directive at the root of a schema written as one meet seals or
+# lifts the schema's own terms before the data meets them, as a key's do.
+vet-root-bare-close-seals-the-schema	verdict	close() & {x: 1}	{"x": 1, "y": 2}	{"verdict":"invalid"}
+vet-root-bare-open-lifts-the-seal	verdict	open() & close({x: 1})	{"x": 1, "y": 2}	{"verdict":"valid"}
+vet-root-close-of-a-value-is-no-directive	verdict	close({x: 1}) & {x: 1}	{"x": 1, "y": 2}	{"verdict":"invalid"}
