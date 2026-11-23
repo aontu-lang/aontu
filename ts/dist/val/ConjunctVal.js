@@ -1,8 +1,9 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConjunctVal = void 0;
+exports.ConjunctVal = exports.bareDirective = void 0;
 exports.norm = norm;
+exports.placeTerms = placeTerms;
 exports.unmarkedTemplate = unmarkedTemplate;
 const type_1 = require("../type");
 const err_1 = require("../err");
@@ -165,24 +166,47 @@ exports.ConjunctVal = ConjunctVal;
 function sameTerms(cj, t0, t1) {
     return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1);
 }
+const bareDirective = (t) => (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length;
+exports.bareDirective = bareDirective;
+// A bare directive in the argument of a call whose value holds the
+// argument acts where that value lands, so it stands beside the call
+// among the terms at the call's place (decision 46).
+function landed(t) {
+    if ((true === t.isCopyFunc || true === t.isPrefFunc || true === t.isSuperFunc) && 1 === t.peg.length) {
+        const inner = placeTerms(t.peg[0]);
+        const rest = inner.filter((u) => !bareDirective(u));
+        if (0 < rest.length && rest.length < inner.length) {
+            const call = t.make(undefined, {
+                peg: [1 === rest.length ? rest[0] : new ConjunctVal({ peg: rest })],
+                mark: { type: t.mark.type, hide: t.mark.hide },
+            });
+            call.site = t.site;
+            call.path = t.path;
+            return [...inner.filter(bareDirective), call];
+        }
+    }
+    return [t];
+}
+// The terms a meet holds at its place, written as a chain or not.
+function placeTerms(t) {
+    return true === t.isConjunct ? t.peg.flatMap(placeTerms) : landed(t);
+}
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms
 function norm(terms, carried) {
     let expand = [];
-    for (let tI = 0, pI = 0; tI < terms.length; tI++, pI++) {
-        if (terms[tI].isConjunct) {
-            if ((0, rider_1.rides)(terms[tI])) {
-                carried.push(terms[tI]);
+    for (const t of terms) {
+        if (t.isConjunct) {
+            if ((0, rider_1.rides)(t)) {
+                carried.push(t);
             }
-            const cterms = terms[tI].peg;
-            for (let cI = 0; cI < cterms.length; cI++) {
-                expand[pI + cI] = cterms[cI];
+            for (const u of t.peg) {
+                expand.push(...landed(u));
             }
-            pI += cterms.length - 1;
         }
         else {
-            expand[pI] = terms[tI];
+            expand.push(...landed(t));
         }
     }
     // Consistent ordering ensures order independent unification.

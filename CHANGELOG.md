@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### A bare `close()` in a call's argument seals the place where the call lands
+
+#726, in part, in both engines. A bare `close()` or `open()` at the own
+level of an argument to `copy`, `pref` or `super` now stands beside the
+call, among the terms at the place where the call's value lands, as the
+definition reads it. So `v: copy(close() & {x: 1}) & {y: 2}` seals `v`
+with both keys: it admits `{"v": {"x": 1, "y": 2}}` and refuses a `z`
+there, where both engines had sealed the copy with `x` alone and read
+`y` as a conflict. `pref` and `super` read the same.
+
+- `ts/src/val/ConjunctVal.ts` and `go/conjunct.go`, where a meet's terms
+  are gathered, and `vet`'s root and template checks, which read the
+  terms the same way.
+- Rows dirp30 to dirp32 of `test/spec/def-path.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 177 to 174, and rows of
+  `test/spec/vet.tsv` hold `pref` and `super` beside a term, a copy of a
+  copy, two terms in the argument, and a copy at the root and in a
+  template.
+
 ### A bare `close()` in a spread's template seals what the data adds
 
 #726, in part, in both engines. A bare `close()` or `open()` at a
@@ -28,6 +47,15 @@ data unsettled again, as it did before. A directive in a meet written as
 a chain, `close() & {x: 1} & {y?: 2}`, is now found at the root as in a
 template, where both engines had sealed `{x: 1}` before `{y?: 2}` met it
 and refused `{"x": 1, "y": 2}`.
+
+Review found two more cases, now fixed. TypeScript missed a path held
+in a default, `x: *$.y`, so it settled such a schema and answered
+`incomplete` where Go answered `valid`; both now read the default's
+value. And a `type()` or `hide()` around a template's term stayed on the
+argument form as a mark, so `{&: close() & type({x: integer})}` admitted
+a member without `x`; the form now holds each term without the marks
+written around it, as a template does, and both engines answer
+`incomplete`, as the definition does.
 
 - `ts/src/vet.ts` and `go/vet.go`.
 - Rows dir93 to dir101 of `test/spec/def-alias.tsv` leave

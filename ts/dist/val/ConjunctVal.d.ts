@@ -13,6 +13,8 @@ declare class ConjunctVal extends JunctionVal {
     getJunctionSymbol(): string;
     gen(ctx?: AontuContext): any;
 }
+declare const bareDirective: (t: any) => boolean;
+declare function placeTerms(t: any): Val[];
 declare function norm(terms: Val[], carried: Val[]): Val[];
 declare function unmarkedTemplate(cj: Val, ctx: AontuContext): Val;
-export { norm, ConjunctVal, unmarkedTemplate, };
+export { norm, bareDirective, placeTerms, ConjunctVal, unmarkedTemplate, };

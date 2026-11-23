@@ -250,6 +250,53 @@ func sameTerms(cj *ConjunctVal, t0, t1 Val) bool {
 	return 2 == len(cj.peg) && has(t0) && has(t1)
 }
 
+func bareDirective(t Val) bool {
+	f, isF := t.(*FuncVal)
+	return isF && ("close" == f.name || "open" == f.name) && 0 == len(f.peg)
+}
+
+// A bare directive in the argument of a call whose value holds the
+// argument acts where that value lands, so it stands beside the call
+// among the terms at the call's place (decision 46).
+func landed(t Val) []Val {
+	f, ok := t.(*FuncVal)
+	if !ok || ("copy" != f.name && "pref" != f.name && "super" != f.name) || 1 != len(f.peg) {
+		return []Val{t}
+	}
+	inner := placeTerms(f.peg[0])
+	var dirs, rest []Val
+	for _, u := range inner {
+		if bareDirective(u) {
+			dirs = append(dirs, u)
+		} else {
+			rest = append(rest, u)
+		}
+	}
+	if 0 == len(dirs) || 0 == len(rest) {
+		return []Val{t}
+	}
+	arg := rest[0]
+	if 1 < len(rest) {
+		arg = newConjunct(rest)
+	}
+	call := newFunc(f.name, []Val{arg})
+	call.site, call.path, call.mtype, call.mhide = f.site, f.path, f.mtype, f.mhide
+	return append(dirs, call)
+}
+
+// The terms a meet holds at its place, written as a chain or not.
+func placeTerms(v Val) []Val {
+	cj, ok := v.(*ConjunctVal)
+	if !ok {
+		return landed(v)
+	}
+	var terms []Val
+	for _, t := range cj.peg {
+		terms = append(terms, placeTerms(t)...)
+	}
+	return terms
+}
+
 // norm flattens nested conjuncts and orders terms by cjo so that
 // unification is order-independent (lower cjo sorts first).
 func norm(terms []Val, carried *[]Val) []Val {
@@ -259,9 +306,11 @@ func norm(terms []Val, carried *[]Val) []Val {
 			if rides(cj) {
 				*carried = append(*carried, cj)
 			}
-			expand = append(expand, cj.peg...)
+			for _, u := range cj.peg {
+				expand = append(expand, landed(u)...)
+			}
 		} else {
-			expand = append(expand, t)
+			expand = append(expand, landed(t)...)
 		}
 	}
 	sort.SliceStable(expand, func(i, j int) bool {

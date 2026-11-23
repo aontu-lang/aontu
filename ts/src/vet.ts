@@ -12,7 +12,7 @@ import {
 import { descErr, getHint } from './err'
 import { codeClass } from './hints'
 import { aliasPathSegment } from './aliasname'
-import { ConjunctVal } from './val/ConjunctVal'
+import { ConjunctVal, bareDirective, placeTerms, unmarkedTemplate } from './val/ConjunctVal'
 import { CloseFuncVal } from './val/CloseFuncVal'
 import { OpenFuncVal } from './val/OpenFuncVal'
 import { spreadId } from './val/Val'
@@ -631,26 +631,27 @@ export function vetCoverage(
 
 // The first failure a schema holds by key and index, but a written `nil`:
 // one built as the schema is read stands in its tree, not among its errors.
-const bareDirective = (t: any): boolean =>
-  (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length
-
-
 function holdsRef(v: any): boolean {
   let found = false
-  walkVals(v, (t: any) => !(found = found || true === t.isRef), new Set())
+  const seen = new Set()
+  const visit = (t: any): boolean => {
+    found = found || true === t.isRef
+    // A default's value is its peg, which the walk reads as a key table.
+    if (!found && true === t.peg?.isVal) {
+      walkVals(t.peg, visit, seen)
+    }
+    return !found
+  }
+  walkVals(v, visit, seen)
   return found
 }
-
-
-const meetTerms = (v: any): any[] =>
-  true === v.isConjunct ? v.peg.flatMap(meetTerms) : [v]
 
 
 // The maps and lists whose template holds a bare directive at its own level, beside a term.
 function directedTemplates(v: any): any[] {
   const found: any[] = []
   walkVals(v, (t: any) => {
-    const terms = null == t.spread?.cj ? [] : meetTerms(t.spread.cj)
+    const terms = null == t.spread?.cj ? [] : placeTerms(t.spread.cj)
     if (terms.some(bareDirective) && !terms.every(bareDirective)) {
       found.push(t)
     }
@@ -663,8 +664,9 @@ function directedTemplates(v: any): any[] {
 // A member only the data adds holds the template's terms alone: `close() & {x: 1}` reads there as
 // `close({x: 1})`, keeping its identity, so a member the schema declares doesn't meet it again.
 function argumentForm(cj: any, ctx: any): any {
-  const terms = meetTerms(cj).filter((t: any) => !bareDirective(t))
-  const dirs = meetTerms(cj).filter(bareDirective)
+  const all = placeTerms(cj)
+  const terms = all.filter((t: any) => !bareDirective(t)).map((t: any) => unmarkedTemplate(t, ctx))
+  const dirs = all.filter(bareDirective)
   let out: any = 1 === terms.length ? terms[0] : new ConjunctVal({ peg: terms }, ctx)
   if (dirs.some((t: any) => true === t.isOpenFunc)) {
     out = new OpenFuncVal({ peg: [out] }, ctx)
@@ -839,7 +841,7 @@ export function vet(
       stampUrl(meetAnchor, schemaUrl)
       // A root meet or a template holding a bare directive settles before the data meets it, as a
       // key's does, unless a reference in the schema, which reads the data, would settle with it.
-      if ((meetTerms(meetAnchor).some(bareDirective) ||
+      if ((placeTerms(meetAnchor).some(bareDirective) ||
         0 < directedTemplates(meetAnchor).length) && !holdsRef(meetAnchor)) {
         meetAnchor = aontu.unify(meetAnchor, undefined, aontu.ctx({ collect: true }))
       }
