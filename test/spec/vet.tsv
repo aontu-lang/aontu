@@ -521,3 +521,19 @@ vet-spread-unfilled-member-path	vet	v:{&:{n:upper(_)}}	v:{a:{}}	{"findings":[{"c
 vet-root-bare-close-seals-the-schema	verdict	close() & {x: 1}	{"x": 1, "y": 2}	{"verdict":"invalid"}
 vet-root-bare-open-lifts-the-seal	verdict	open() & close({x: 1})	{"x": 1, "y": 2}	{"verdict":"valid"}
 vet-root-close-of-a-value-is-no-directive	verdict	close({x: 1}) & {x: 1}	{"x": 1, "y": 2}	{"verdict":"invalid"}
+vet-root-bare-close-beside-two-terms	verdict	close() & {x: 1} & {y?: 2}	{"x": 1, "y": 2, "z": 3}	{"verdict":"invalid"}
+vet-root-bare-close-admits-what-its-terms-name	verdict	close() & {x: 1} & {y?: 2}	{"x": 1, "y": 2}	{"verdict":"valid"}
+# A schema that holds a path reads the data through it, so it meets the
+# data unsettled, as before.
+vet-root-bare-close-reads-the-data-through-a-path	verdict	close() & {x: $.y, y: integer}	{"x": 1, "y": 2}	{"verdict":"invalid"}
+vet-root-bare-close-admits-what-a-path-reads	verdict	close() & {x: $.y, y: integer}	{"x": 2, "y": 2}	{"verdict":"valid"}
+vet-root-bare-open-reads-the-data-through-a-path	verdict	open() & {x: $.y, y: integer}	{"x": 1, "y": 2}	{"verdict":"invalid"}
+# A bare directive at a template's own level acts, at a member only the
+# data adds, on the template's terms alone; a member the schema declares
+# met the template among its own terms already.
+vet-template-bare-close-seals-a-member-the-data-adds	verdict	v: {m: {x: 1}, &: close() & {x: 1}}	{"v": {"m": {"x": 1}, "n": {"x": 1, "y": 2}}}	{"verdict":"invalid"}
+vet-template-bare-close-admits-what-the-template-names	verdict	v: {m: {x: 1}, &: close() & {x: 1}}	{"v": {"m": {"x": 1}, "n": {"x": 1}}}	{"verdict":"valid"}
+vet-template-bare-close-beside-two-terms	verdict	v: {&: close() & {x: 1} & {y?: 2}}	{"v": {"m": {"x": 1, "y": 2, "z": 3}}}	{"verdict":"invalid"}
+vet-template-bare-close-reads-the-data-through-a-path	verdict	v: {&: close() & {x: $.v.n.y, y: integer}}	{"v": {"n": {"x": 1, "y": 2}}}	{"verdict":"invalid"}
+vet-template-bare-close-admits-what-a-path-reads	verdict	v: {&: close() & {x: $.v.n.y, y: integer}}	{"v": {"n": {"x": 2, "y": 2}}}	{"verdict":"valid"}
+vet-template-bare-close-at-an-element-the-data-adds	verdict	v: [{x: 1}, &: close() & {x: 1}]	{"v": [{"x": 1}, {"x": 1, "y": 2}]}	{"verdict":"invalid"}

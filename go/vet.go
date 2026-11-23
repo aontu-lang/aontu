@@ -432,6 +432,98 @@ func valAt(root Val, path []string) Val {
 	return v
 }
 
+func bareDirective(t Val) bool {
+	f, isF := t.(*FuncVal)
+	return isF && ("close" == f.name || "open" == f.name) && 0 == len(f.peg)
+}
+
+func holdsRef(v Val) bool {
+	found := false
+	walkVals(v, func(t Val) bool {
+		_, isRef := t.(*RefVal)
+		found = found || isRef
+		return !found
+	}, map[Val]bool{})
+	return found
+}
+
+func meetTerms(v Val) []Val {
+	cj, ok := v.(*ConjunctVal)
+	if !ok {
+		return []Val{v}
+	}
+	var terms []Val
+	for _, t := range cj.peg {
+		terms = append(terms, meetTerms(t)...)
+	}
+	return terms
+}
+
+// The maps and lists whose template holds a bare directive at its own level, beside a term.
+func directedTemplates(v Val) []Val {
+	var found []Val
+	walkVals(v, func(t Val) bool {
+		var spread Val
+		switch n := t.(type) {
+		case *MapVal:
+			spread = n.spread
+		case *ListVal:
+			spread = n.spread
+		}
+		terms := meetTerms(spread)
+		if slices.ContainsFunc(terms, bareDirective) && slices.ContainsFunc(terms, func(t Val) bool { return !bareDirective(t) }) {
+			found = append(found, t)
+		}
+		return true
+	}, map[Val]bool{})
+	return found
+}
+
+// A member only the data adds holds the template's terms alone: `close() & {x: 1}` reads there as
+// `close({x: 1})`, and a member the schema declares, which met the template, keeps its mark.
+func landTemplate(bag Val) {
+	var spread *Val
+	var members []Val
+	switch n := bag.(type) {
+	case *MapVal:
+		spread = &n.spread
+		for _, k := range n.keys {
+			members = append(members, n.peg[k])
+		}
+	case *ListVal:
+		spread, members = &n.spread, n.peg
+	}
+	cj := (*spread).(*ConjunctVal)
+	var terms []Val
+	opens, closes := false, false
+	for _, t := range meetTerms(cj) {
+		if !bareDirective(t) {
+			terms = append(terms, t)
+			continue
+		}
+		closes = closes || "close" == t.(*FuncVal).name
+		opens = opens || "open" == t.(*FuncVal).name
+	}
+	out := terms[0]
+	if 1 < len(terms) {
+		out = newConjunct(terms)
+	}
+	if opens {
+		out = newFunc("open", []Val{out})
+	}
+	if closes {
+		out = newFunc("close", []Val{out})
+	}
+	out.(*FuncVal).site, out.(*FuncVal).path = cj.site, cj.path
+	old := unmarkedTemplate(cj)
+	for _, m := range members {
+		if sprOf(m) == old {
+			setSprOn(m, out)
+		}
+	}
+	*spread = out
+}
+
 func anchorSegs(at string) []string {
 	out := []string{}
 	for _, part := range strings.Split(strings.TrimPrefix(at, "$"), ".") {
@@ -712,13 +804,17 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 				}
 			}
 			stampURL(meetAnchor, schemaURL)
-			// A root meet holding a bare directive settles before the data meets it, as a key's does.
-			if cj, ok := meetAnchor.(*ConjunctVal); ok && slices.ContainsFunc(cj.peg, func(t Val) bool {
-				f, isF := t.(*FuncVal)
-				return isF && ("close" == f.name || "open" == f.name) && 0 == len(f.peg)
-			}) {
+			// A root meet or a template holding a bare directive settles before the data meets it, as a
+			// key's does, unless a reference in the schema, which reads the data, would settle with it.
+			if (slices.ContainsFunc(meetTerms(meetAnchor), bareDirective) || 0 < len(directedTemplates(meetAnchor))) &&
+				!holdsRef(meetAnchor) {
 				meetAnchor = unifyRoot(meetAnchor, &Ctx{root: meetAnchor, vars: hostVals(options.HostVars), src: schemaSrc, collect: true})
 			}
+		}
+	}
+	if directed := directedTemplates(meetAnchor); 0 < len(directed) && !holdsRef(meetAnchor) {
+		for _, bag := range directed {
+			landTemplate(bag)
 		}
 	}
 

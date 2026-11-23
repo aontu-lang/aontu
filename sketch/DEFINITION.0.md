@@ -2326,6 +2326,24 @@ until the phase that encodes it lands.
    `close() & {x: 1}` refuses `{"x": 1, "y": 2}`, where both ports had
    folded the data in among the terms the seal covers; rows dirp12 to
    dirp14 leave the ledger, its bound 186.
+   **Built in both ports 2026-11-23, a template's own level** (#726):
+   `vet` settles a schema whose template holds a bare directive beside a
+   term before the data meets it, then reads each such template in its
+   argument form, `close() & {x: 1}` as `close({x: 1})`, the form keeping
+   the template's identity, so a member the data alone adds holds the
+   template's terms and no others, and a member the schema declares,
+   which met the template among its own terms, doesn't meet it again;
+   rows dir93 to dir101 leave the ledger, its bound 177. A member the
+   schema declares beside such a template still folds `close()` into one
+   of its terms, as the rows dir189 on record. Review of the root's
+   change found that settling the schema alone reads a path in it as the
+   schema's own value rather than the data's, so that `close() & {x:
+   $.y, y: integer}` admitted `{"x": 1, "y": 2}`; neither the root nor a
+   template settles first now when the schema holds a path, and such a
+   schema folds the data in among the terms a seal covers, as before:
+   with `{"x": 2, "y": 2, "z": 1}` both ports answer `valid` where the
+   definition refuses `z`. The directive is now found in a meet written
+   as a chain, `close() & {x: 1} & {y?: 2}`, at the root as in a template.
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`
