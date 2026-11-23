@@ -537,6 +537,9 @@ vet-template-bare-close-beside-two-terms	verdict	v: {&: close() & {x: 1} & {y?: 
 vet-template-bare-close-reads-the-data-through-a-path	verdict	v: {&: close() & {x: $.v.n.y, y: integer}}	{"v": {"n": {"x": 1, "y": 2}}}	{"verdict":"invalid"}
 vet-template-bare-close-admits-what-a-path-reads	verdict	v: {&: close() & {x: $.v.n.y, y: integer}}	{"v": {"n": {"x": 2, "y": 2}}}	{"verdict":"valid"}
 vet-template-bare-close-at-an-element-the-data-adds	verdict	v: [{x: 1}, &: close() & {x: 1}]	{"v": [{"x": 1}, {"x": 1, "y": 2}]}	{"verdict":"invalid"}
+vet-template-bare-close-beside-a-default-that-reads-a-path	verdict	v: {&: close() & {x: 1}}, x: *$.y, y: integer	{"v": {"m": {"x": 1}}, "y": 2}	{"verdict":"valid"}
+vet-template-bare-close-beside-a-typed-term	verdict	v: {&: close() & type({x: integer})}	{"v": {"m": {}}}	{"verdict":"incomplete"}
+vet-template-bare-close-beside-a-hidden-term	verdict	v: {&: close() & hide({x: integer})}	{"v": {"m": {}}}	{"verdict":"incomplete"}
 # A bare directive in the argument of copy, pref or super stands beside
 # the call, among the terms at the place where its value lands.
 vet-call-bare-close-in-pref-seals-the-place	verdict	v: pref(close() & {x: 1}) & {y: 2}	{"v": {"x": 1, "y": 2}}	{"verdict":"valid"}

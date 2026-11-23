@@ -12,7 +12,7 @@ import {
 import { descErr, getHint } from './err'
 import { codeClass } from './hints'
 import { aliasPathSegment } from './aliasname'
-import { ConjunctVal, bareDirective, placeTerms } from './val/ConjunctVal'
+import { ConjunctVal, bareDirective, placeTerms, unmarkedTemplate } from './val/ConjunctVal'
 import { CloseFuncVal } from './val/CloseFuncVal'
 import { OpenFuncVal } from './val/OpenFuncVal'
 import { spreadId } from './val/Val'
@@ -633,7 +633,16 @@ export function vetCoverage(
 // one built as the schema is read stands in its tree, not among its errors.
 function holdsRef(v: any): boolean {
   let found = false
-  walkVals(v, (t: any) => !(found = found || true === t.isRef), new Set())
+  const seen = new Set()
+  const visit = (t: any): boolean => {
+    found = found || true === t.isRef
+    // A default's value is its peg, which the walk reads as a key table.
+    if (!found && true === t.peg?.isVal) {
+      walkVals(t.peg, visit, seen)
+    }
+    return !found
+  }
+  walkVals(v, visit, seen)
   return found
 }
 
@@ -656,7 +665,7 @@ function directedTemplates(v: any): any[] {
 // `close({x: 1})`, keeping its identity, so a member the schema declares doesn't meet it again.
 function argumentForm(cj: any, ctx: any): any {
   const all = placeTerms(cj)
-  const terms = all.filter((t: any) => !bareDirective(t))
+  const terms = all.filter((t: any) => !bareDirective(t)).map((t: any) => unmarkedTemplate(t, ctx))
   const dirs = all.filter(bareDirective)
   let out: any = 1 === terms.length ? terms[0] : new ConjunctVal({ peg: terms }, ctx)
   if (dirs.some((t: any) => true === t.isOpenFunc)) {

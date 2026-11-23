@@ -439,7 +439,16 @@ function vetCoverage(anchor, dataVal, coverageAt, root) {
 // one built as the schema is read stands in its tree, not among its errors.
 function holdsRef(v) {
     let found = false;
-    (0, walk_1.walkVals)(v, (t) => !(found = found || true === t.isRef), new Set());
+    const seen = new Set();
+    const visit = (t) => {
+        found = found || true === t.isRef;
+        // A default's value is its peg, which the walk reads as a key table.
+        if (!found && true === t.peg?.isVal) {
+            (0, walk_1.walkVals)(t.peg, visit, seen);
+        }
+        return !found;
+    };
+    (0, walk_1.walkVals)(v, visit, seen);
     return found;
 }
 // The maps and lists whose template holds a bare directive at its own level, beside a term.
@@ -458,7 +467,7 @@ function directedTemplates(v) {
 // `close({x: 1})`, keeping its identity, so a member the schema declares doesn't meet it again.
 function argumentForm(cj, ctx) {
     const all = (0, ConjunctVal_1.placeTerms)(cj);
-    const terms = all.filter((t) => !(0, ConjunctVal_1.bareDirective)(t));
+    const terms = all.filter((t) => !(0, ConjunctVal_1.bareDirective)(t)).map((t) => (0, ConjunctVal_1.unmarkedTemplate)(t, ctx));
     const dirs = all.filter(ConjunctVal_1.bareDirective);
     let out = 1 === terms.length ? terms[0] : new ConjunctVal_1.ConjunctVal({ peg: terms }, ctx);
     if (dirs.some((t) => true === t.isOpenFunc)) {

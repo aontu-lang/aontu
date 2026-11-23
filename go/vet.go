@@ -481,7 +481,7 @@ func landTemplate(bag Val) {
 	opens, closes := false, false
 	for _, t := range placeTerms(tmpl) {
 		if !bareDirective(t) {
-			terms = append(terms, t)
+			terms = append(terms, unmarkedTemplate(t))
 			continue
 		}
 		closes = closes || "close" == t.(*FuncVal).name

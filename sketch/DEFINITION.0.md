@@ -2344,6 +2344,12 @@ until the phase that encodes it lands.
    with `{"x": 2, "y": 2, "z": 1}` both ports answer `valid` where the
    definition refuses `z`. The directive is now found in a meet written
    as a chain, `close() & {x: 1} & {y?: 2}`, at the root as in a template.
+   Review of the template's change found that TypeScript's reading of
+   paths missed one held in a default, `x: *$.y`, which Go's walk
+   reaches, and that a `type()` or `hide()` around a template's term
+   stayed on the argument form as a mark; both ports now read the
+   default's value, and the form holds each term unmarked, as a
+   template does (ruling 39).
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`
