@@ -14,7 +14,8 @@ declare class ConjunctVal extends JunctionVal {
     gen(ctx?: AontuContext): any;
 }
 declare const bareDirective: (t: any) => boolean;
+declare function holdsRef(v: any): boolean;
 declare function placeTerms(t: any): Val[];
-declare function norm(terms: Val[], carried: Val[]): Val[];
+declare function norm(terms: Val[], carried: Val[], lift: boolean): Val[];
 declare function unmarkedTemplate(cj: Val, ctx: AontuContext): Val;
-export { norm, bareDirective, placeTerms, ConjunctVal, unmarkedTemplate, };
+export { norm, bareDirective, holdsRef, placeTerms, ConjunctVal, unmarkedTemplate, };

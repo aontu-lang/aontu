@@ -432,16 +432,6 @@ func valAt(root Val, path []string) Val {
 	return v
 }
 
-func holdsRef(v Val) bool {
-	found := false
-	walkVals(v, func(t Val) bool {
-		_, isRef := t.(*RefVal)
-		found = found || isRef
-		return !found
-	}, map[Val]bool{})
-	return found
-}
-
 // The maps and lists whose template holds a bare directive at its own level, beside a term.
 func directedTemplates(v Val) []Val {
 	var found []Val
@@ -487,22 +477,31 @@ func landTemplate(bag Val) {
 		closes = closes || "close" == t.(*FuncVal).name
 		opens = opens || "open" == t.(*FuncVal).name
 	}
+	// An open() holds each term open before the terms meet.
+	for i := range terms {
+		if opens {
+			terms[i] = newFunc("open", []Val{terms[i]})
+		}
+	}
 	out := terms[0]
 	if 1 < len(terms) {
 		out = newConjunct(terms)
 	}
-	if opens {
-		out = newFunc("open", []Val{out})
-	}
 	if closes {
 		out = newFunc("close", []Val{out})
 	}
-	call := out.(*FuncVal)
+	var place *base
 	switch t := tmpl.(type) {
 	case *ConjunctVal:
-		call.site, call.path = t.site, t.path
+		place = &t.base
 	case *FuncVal:
-		call.site, call.path = t.site, t.path
+		place = &t.base
+	}
+	switch o := out.(type) {
+	case *FuncVal:
+		o.site, o.path = place.site, place.path
+	case *ConjunctVal:
+		o.site, o.path = place.site, place.path
 	}
 	old := unmarkedTemplate(tmpl)
 	for _, m := range members {

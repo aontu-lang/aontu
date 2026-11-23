@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### A member held open stays open whichever term comes first
+
+#726, in part, in both engines. When two maps or lists meet, the result
+is held open where either side was, not only where the first was. So
+`close() & ({x: {y: 1}} & {x: open({y: 1})})` admits `{"x": {"y": 1,
+"z": 2}}`, as it did with the terms the other way round and as the
+definition does: `close()` stops beneath its place at a member a term
+holds open.
+
+- `ts/src/val/MapVal.ts`, `ts/src/val/ListVal.ts`, `go/mapval.go` and
+  `go/listval.go`.
+- Rows dir111 to dir113 of `test/spec/def-alias.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 174 to 171, and two rows of
+  `test/spec/vet.tsv` hold a list element held open and the place's
+  own level, which `close()` still seals.
+
+### A directive in a call's argument stays there beside a path or the data
+
+Review of the change below found that lifting a directive out of a
+call's argument could seal the data in with the schema. A template
+`{&: pref(close() & {x: $.s})}` admitted a member with a key it doesn't
+declare, as `vet` meets such a template with the data's member, and
+the lifted `close()` sealed the member's own keys. A directive now
+leaves the argument only where the meet holds the schema's own terms,
+and not beside a path. `open()` leaves only the argument of `copy`,
+since the value of `pref` or `super` keeps its argument's seals. And
+the argument form a template takes in `vet` holds each term open,
+where `open()` stands, before the terms meet, so `{&: open() &
+close({x: 1}) & {y: 2}}` admits `{"x": 1, "y": 2, "z": 3}`, as the
+definition does.
+
+- `ts/src/val/ConjunctVal.ts`, `go/conjunct.go`, `ts/src/vet.ts` and
+  `go/vet.go`.
+- Three rows of `test/spec/vet.tsv` hold the path case, `open()` in a
+  copy in a template, and `open()` beside two terms in a template.
+
 ### A bare `close()` in a call's argument seals the place where the call lands
 
 #726, in part, in both engines. A bare `close()` or `open()` at the own

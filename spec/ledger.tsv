@@ -3,7 +3,7 @@
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, both where the ruled answer is neither side's, and the
 # cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 174.
+# A listed case that comes to agree fails the run. Bounded at 171.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -107,9 +107,6 @@ dir104	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"
 dir105	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2, "w": 3}}	invalid	error	ports	decision 44 (section 7): the terms at a member are what every map at its parent declares for its key, so close() seals the meet of all of them; both ports fold close() into the term written beside it and read the others as a conflict (#726)
 dir106	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2, "w": 3}}	invalid	error	ports	decision 44 (section 7): the terms at a member are what every map at its parent declares for its key, so close() seals the meet of all of them; both ports fold close() into the term written beside it and read the others as a conflict (#726)
 dir107	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2, "w": 3}}	invalid	error	ports	decision 44 (section 7): the terms at a member are what every map at its parent declares for its key, so close() seals the meet of all of them; both ports fold close() into the term written beside it and read the others as a conflict (#726)
-dir111	v: (close()) & (({"x": {"y": 1}}) & ({"x": open({"y": 1})}))	v: {"x": {"y": 1, "z": 2}}	valid	invalid	ports	decision 44 (section 7): close() stops beneath its place at a member a term holds open, in whichever order the terms come; both ports hold the member open only where the term held open comes first (#726)
-dir112	v: (close()) & (({"x": {"y": 1}}) & ({"x": open({"y": 1})}))	v: {"x": {"y": 1, "z": 2}}	valid	invalid	ports	decision 44 (section 7): close() stops beneath its place at a member a term holds open, in whichever order the terms come; both ports hold the member open only where the term held open comes first (#726)
-dir113	v: (close()) & (({"x": {"y": 1}}) & ({"x": open({"y": 1})}))	v: {"x": {"y": 1, "z": 2}}	valid	invalid	ports	decision 44 (section 7): close() stops beneath its place at a member a term holds open, in whichever order the terms come; both ports hold the member open only where the term held open comes first (#726)
 dirp6	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	invalid	valid	ports	decision 44 (section 7): close() seals every term at its place, the target a path reference copies among them; both ports leave the copy unsealed (#726)
 dirp7	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	invalid	valid	ports	decision 44 (section 7): close() seals every term at its place, the target a path reference copies among them; both ports leave the copy unsealed (#726)
 dirp8	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	invalid	valid	ports	decision 44 (section 7): close() seals every term at its place, the target a path reference copies among them; both ports leave the copy unsealed (#726)
