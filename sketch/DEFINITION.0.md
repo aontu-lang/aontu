@@ -3122,14 +3122,14 @@ until the phase that encodes it lands.
    `match({a: 1, z: type(number)}, {a: 1}, …)` written in place does,
    which selects by `{a: 1}` and takes the first arm. **Built in the
    definition 2026-11-23**: `resolveD` reads a selection's scrutinee
-   as the output does (`outputD`), rows os24 to os35 of
-   `test/spec/def-path.tsv`, the path read among them, and rows sr63
-   to sr68, a path into the match's own place. Both ports already take
-   the first arm for a scrutinee written with its marks, and take it at
-   once for one read through a path, where the definition waits, rows
-   the ledger holds under #743 until ruling 49 is built. **Not yet
-   built**: both ports leave marked members out when they decide
-   whether a scrutinee is still open, with #743.
+   as the output does (`outputD`), rows os24 to os32 of
+   `test/spec/def-path.tsv`, which both ports answer alike, taking the
+   first arm for a scrutinee written with its marks. No row reads a
+   marked member through a path, which the checker can't read
+   (`Decls.readsPD` is false there): the definition waits on it, and
+   both ports take the first arm at once, which ruling 49 (#743) moves.
+   **Not yet built**: both ports leave marked members out when they
+   decide whether a scrutinee is still open, with #743.
 
 ## 8. Risks
 

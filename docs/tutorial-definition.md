@@ -3191,8 +3191,8 @@ reads the match's own place reads the field too, so with
 `v: match(1, $.v.z, {y: 2}, {})` the data `{"v": {"z": 1, "y": 2}}` is
 valid and `{"v": {"z": 1, "y": 1}}` invalid. Both engines still read
 such a pattern without the rest of the document and wait on it, and the
-rows they answer otherwise, `sr57` to `sr62`, sit in the ledger under
-#919.
+five of rows `sr57` to `sr62` they answer otherwise sit in the ledger
+under #919.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -6246,8 +6246,9 @@ takes the first arm though `z` is open, as both engines take it. A path
 copies its target without its marks, so `match($.w, …)` over
 `w: {a: 1, z: type(number)}` reads `z` as an open `number` and waits for
 the data, as a `match` over any open scrutinee does. Both engines take
-the first arm there at once, and the rows they answer otherwise, `os33`
-on of `test/spec/def-path.tsv`, sit in the ledger under #743.
+the first arm there at once, as #743 tracks. The checker can't read a
+marked member through a path, so no row holds that case. Rows `os24` to
+`os32` of `test/spec/def-path.tsv` hold the scrutinee written in place.
 
 A made `filter` tries each child as written, as ruling 51 asks, and
 holds each child its condition takes as the child itself: the member

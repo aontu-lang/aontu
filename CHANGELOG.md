@@ -21,12 +21,11 @@ takes the first arm, as both engines do. A path still copies its target
 without its marks, so `match($.w, …)` over `w: {a: 1, z: type(number)}`
 waits for the data, where both engines take the first arm at once.
 
-- Rows sr57 to sr74 and os24 to os35 of `test/spec/def-path.tsv`: the
-  pattern, the marked members written in place and read through a path,
-  and a bound over a path into the value under trial.
-- `spec/ledger.tsv` takes the seven rows both engines answer otherwise,
-  five under #919 and two under #743, and its bound rises from 201 to
-  208.
+- Rows sr57 to sr68 and os24 to os32 of `test/spec/def-path.tsv`: the
+  pattern, a bound over a path into the value under trial, and the
+  marked members written in place.
+- `spec/ledger.tsv` takes the five pattern rows both engines answer
+  otherwise, under #919, and its bound rises from 201 to 206.
 
 ### `aontu fmt` keeps a comment on its own line before a `&:` entry
 
