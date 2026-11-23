@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The language servers map a cursor to a path
+
+Task LS1, in both ports. The analysis layer answers what a cursor is
+on, a key, a value or a reference, and the path that stands there,
+with the absolute path a reference reads (`computePathAt` and
+`computeSitesOf` in TypeScript, `PathAt` and `SitesOf` in Go). It also
+answers every site that writes a path, as `aontu model why` lists
+them. Nothing in the servers' protocol changes yet: definition on a
+key, key completion and references build on it next. A new shared-row
+mode, `at`, holds both ports to one answer, in 77 rows of
+`test/spec/cursor.tsv`.
+
+### The language servers report a conflict once
+
+#858, in both servers. A conflict that a reference copied to another
+path was sent once for each path, at the same range with the same
+message. Two diagnostics alike in range, code and message are now sent
+once.
+
 ### `aontu fmt` keeps a comment on its own line before a `&:` entry
 
 #747, in both formatters. A comment on a line of its own before a `&:`

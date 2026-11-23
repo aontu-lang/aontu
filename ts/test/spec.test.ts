@@ -23,6 +23,7 @@ import { traceRun } from '../dist/trace'
 import { codeClasses } from '../dist/hints'
 import { canonRiders } from '../dist/utility'
 import { tlogRunGroup } from './tlog-vectors'
+import { computePathAt, computeSitesOf } from '../dist/lsp'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
@@ -138,7 +139,7 @@ function loadRows(): Row[] {
         'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
         'diff' === parts[1] || 'agentsmd' === parts[1] ||
         'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
-        'jsonschema-output' === parts[1]
+        'jsonschema-output' === parts[1] || 'at' === parts[1]
       const want = vetRow ? 5 : 4
       if (parts.length < want) {
         throw new Error(
@@ -465,6 +466,14 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(golden),
       `subsume report mismatch: ${row.name}`)
+  }
+  else if ('at' === row.mode) {
+    const [line, character] = (row.data as string).split(':').map(Number)
+    const at = computePathAt(row.src, { line, character })
+    Assert.strictEqual(
+      exactJSON(null == at ? null : { ...at, sites: computeSitesOf(row.src, at.path) }),
+      exactJSON(JSON.parse(row.expect)),
+      `at mismatch: ${row.name}`)
   }
   else if ('trim' === row.mode) {
     const report = trimCheck(row.src)

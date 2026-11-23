@@ -11,6 +11,8 @@ import { collectDeprecations, deprecationMessage,
 } from './utility'
 import { why } from './query'
 import { format } from './format'
+import { pathAt, sitesOf } from './cursor'
+import type { CursorPath, PathSite } from './cursor'
 import type { WhyConjunct } from './provenance'
 
 
@@ -92,7 +94,12 @@ function computeDiagnostics(
     }
   }
 
-  const out = nils.map(nilToDiagnostic)
+  // A conflict copied to another path is still one conflict at one site.
+  const said = new Set<string>()
+  const out = nils.map(nilToDiagnostic).filter((d) => {
+    const key = JSON.stringify([d.range, d.code, d.message])
+    return !said.has(key) && undefined !== said.add(key)
+  })
 
   for (const { val } of collectDeprecations(root)) {
     const v: any = val
@@ -381,6 +388,18 @@ function computeFormatting(text: string): TextEdit[] | null {
     },
     newText: report.text,
   }]
+}
+
+
+// The path under a cursor, and every site that writes a path: the
+// mapping the features beyond formatting stand on.
+function computePathAt(text: string, pos: Position, trust?: any): CursorPath | null {
+  return pathAt(text, pos, { trust }) ?? null
+}
+
+
+function computeSitesOf(text: string, path: string[], trust?: any): PathSite[] | null {
+  return sitesOf(text, path, { trust }) ?? null
 }
 
 
@@ -798,6 +817,8 @@ export {
   computeDefinition,
   computeCompletions,
   computeFormatting,
+  computePathAt,
+  computeSitesOf,
   LspHandler,
   LSP_VERSION,
   BUILTIN_FUNCS,
@@ -821,4 +842,6 @@ export type {
   CompletionItem,
   Location,
   TextEdit,
+  CursorPath,
+  PathSite,
 }

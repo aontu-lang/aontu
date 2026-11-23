@@ -264,6 +264,35 @@ The document as `aontu fmt` writes it: one `TextEdit`, `{ range,
 newText }`, over the whole document, none where it already is that
 text, and `null` where it doesn't parse.
 
+#### `computePathAt(src, position, trust?) => CursorPath | null`
+
+What the cursor at a 0-based position is on, and the path that stands
+there: `{ on, path, range, reads? }`. `on` is `key`, `value` or `ref`;
+`path` holds the path's segments, with `&` for a spread's template;
+`range` is the span of the key, value or reference itself; and `reads`
+is the absolute path a reference reads. The answer is `null` where the
+document has a syntax error or the cursor is on none of the three.
+
+<!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by test/spec/cursor.tsv -->
+```ts
+const src = 'base: { port: 8080 }\ndb: { port: $.base.port }\n'
+computePathAt(src, { line: 1, character: 7 })
+// { on: 'key', path: ['db', 'port'],
+//   range: { start: { line: 1, character: 6 }, end: { line: 1, character: 10 } } }
+computePathAt(src, { line: 1, character: 15 })
+// { on: 'ref', path: ['db', 'port'], reads: ['base', 'port'],
+//   range: { start: { line: 1, character: 12 }, end: { line: 1, character: 23 } } }
+```
+
+#### `computeSitesOf(src, path, trust?) => PathSite[] | null`
+
+Every site that writes `path`, as `aontu model why` lists them:
+`{ canon, role, file, range }`, where `role` is `literal`, `spread`,
+`ref` or `pref`, and `file` is empty for the document itself. The
+answer is `null` where the document doesn't evaluate or has no such
+path. For the document above, `['db', 'port']` has two sites: `8080`,
+a literal, and `$.base.port`, a reference.
+
 #### `class LspHandler`
 
 The transport-agnostic protocol state machine. Construct one per session
@@ -352,6 +381,19 @@ The document as `aontu fmt` writes it: one `TextEdit`, `{ Range Range;
 NewText string }`, over the whole document, none where it already is
 that text, and `nil` where it doesn't parse.
 
+#### `func PathAt(src string, line, character int, trust *aontu.TrustOptions) *aontu.CursorPath`
+
+What the cursor at a 0-based position is on, and the path that stands
+there, as `computePathAt` answers it: `CursorPath` is `{ On string;
+Path []string; Range CursorRange; Reads []string }`, or `nil`.
+
+#### `func SitesOf(src string, path []string, trust *aontu.TrustOptions) []aontu.PathSite`
+
+Every site that writes `path`, as `computeSitesOf` answers it:
+`PathSite` is `{ Canon, File, Role string; Range CursorRange }`, or
+`nil`. Both functions wrap `(*aontu.Aontu).PathAt` and `SitesOf`,
+which live in `package aontu` because they read the parsed tree.
+
 #### `type Handler`
 
 The transport-agnostic protocol state machine (mirrors `LspHandler`).
@@ -428,7 +470,9 @@ The analysis layer turns source into diagnostics in three steps:
    an unknown function, …). Valid-but-non-concrete values (scalar kinds
    like `string`, unresolved references, conjuncts) are **not** `NilVal`s,
    so schemas and partial documents produce no diagnostics. Nodes are
-   de-duplicated by identity.
+   de-duplicated by identity, and two diagnostics alike in range, code
+   and message are sent once, so a conflict that a reference copies to
+   another path is reported once.
 3. **Map to LSP.** Each `NilVal` carries a source position (1-based
    row/col in TS; a byte offset in Go) and the offending value's canon.
    These become a 0-based LSP range whose end extends across the canon
@@ -468,7 +512,7 @@ Both libraries are unit-tested (`ts/test/lsp.test.ts`,
 ## Limitations and extension points
 
 Current scope is diagnostics, hover, completion, go-to-definition on an
-alias name, and signature help. The layered design
+alias name, signature help and formatting. The layered design
 makes additions localised: most new features are implemented once in the
 analysis layer (layer 1) and advertised in `initialize` (layer 2):
 
@@ -477,10 +521,14 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   line; a value resolved from a reference is shown at its definition
   site. Hovering a multi-line container or the cursor exactly on a `{`
   brace may not resolve.
-- **Completion** has no cursor-to-path awareness: it offers the
-  built-ins and the names the document binds, but not sibling keys.
-  Adding key completion needs a position→path mapping in the analysis
-  layer.
+- **Completion** offers the built-ins and the names the document
+  binds, but not sibling keys yet. The analysis layer maps a cursor to
+  a path and a path to its sites (`computePathAt`, `computeSitesOf`),
+  which key completion, definition on a key, and references will use.
+- **The cursor mapping** answers nothing on a reference inside a
+  call's arguments or on the second reference of a conjunction, since
+  the parser doesn't record such a reference where it's written; on a
+  key spelled with an escape; or on what an included file holds.
 - **The alias features read the document's text**, not its tree, so
   they answer while a document is half-written and would not parse. The
   cost is that they know only what the text says: a name arriving

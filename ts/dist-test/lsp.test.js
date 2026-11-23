@@ -37,6 +37,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const lsp_1 = require("../dist/lsp");
+const cursor_1 = require("../dist/cursor");
 const alias_1 = require("../dist/alias");
 const lsp_server_1 = require("../dist/lsp-server");
 (0, node_test_1.describe)('lsp-diagnostics', () => {
@@ -723,6 +724,34 @@ const lsp_server_1 = require("../dist/lsp-server");
             },
         })[0];
         Assert.doesNotMatch(plain.result.contents.value, /Contributions/);
+    });
+});
+(0, node_test_1.describe)('lsp-cursor', () => {
+    (0, node_test_1.test)('a-colon-at-the-start-has-no-key-before-it', () => {
+        Assert.strictEqual((0, cursor_1.keySpan)(': 1', 2, 'a'), undefined);
+    });
+    (0, node_test_1.test)('the-walk-visits-a-shared-value-once-and-steps-over-nothing', () => {
+        const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } };
+        const both = {
+            isVal: true, isConjunct: true, peg: [one, one, null],
+            site: { row: 1, col: 1, src: '1', url: '' },
+        };
+        const { values } = (0, cursor_1.hitsOf)('1', both);
+        Assert.deepStrictEqual(values.map((h) => [h.on, h.start, h.end]), [['value', 0, 1]]);
+    });
+    (0, node_test_1.test)('the-server-layer-answers-as-the-library', () => {
+        const src = 'a: { b: 1 }\nc: $.a.b\n';
+        const at = (0, lsp_1.computePathAt)(src, { line: 1, character: 5 });
+        Assert.deepStrictEqual([at.on, at.path, at.reads], ['ref', ['c'], ['a', 'b']]);
+        Assert.deepStrictEqual((0, lsp_1.computeSitesOf)(src, ['c'])?.map((s) => [s.role, s.canon]), [['literal', '1'], ['ref', '$.a.b']]);
+        Assert.strictEqual((0, lsp_1.computePathAt)(src, { line: 0, character: 2 }), null);
+        Assert.strictEqual((0, lsp_1.computeSitesOf)(src, ['nope']), null);
+    });
+});
+(0, node_test_1.describe)('lsp-diagnostics-once', () => {
+    (0, node_test_1.test)('a-conflict-copied-to-another-path-is-reported-once', () => {
+        const ds = (0, lsp_1.computeDiagnostics)('a:{b:1&"s"} c:$.a d:$.a');
+        Assert.deepStrictEqual(ds.map((d) => [d.range.start.character, d.code]), [[7, 'scalar_kind']]);
     });
 });
 //# sourceMappingURL=lsp.test.js.map

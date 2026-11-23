@@ -1,4 +1,5 @@
 import type { Val } from './type';
+import type { CursorPath, PathSite } from './cursor';
 import type { WhyConjunct } from './provenance';
 declare const SEVERITY_ERROR = 1;
 declare const SEVERITY_WARNING = 2;
@@ -61,6 +62,8 @@ type TextEdit = {
     newText: string;
 };
 declare function computeFormatting(text: string): TextEdit[] | null;
+declare function computePathAt(text: string, pos: Position, trust?: any): CursorPath | null;
+declare function computeSitesOf(text: string, path: string[], trust?: any): PathSite[] | null;
 declare function computeDefinition(src: string, position: Position, uri: string): Location | null;
 declare function computeHover(src: string, position: Position, provenance?: boolean, trust?: any): Hover | null;
 type CompletionItem = {
@@ -86,5 +89,5 @@ declare class LspHandler {
     handle(msg: Message): OutMessage[];
     private publish;
 }
-export { computeDiagnostics, computeHover, computeDefinition, computeCompletions, computeFormatting, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_VARIABLE, COMPLETION_KEYWORD, };
-export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, };
+export { computeDiagnostics, computeHover, computeDefinition, computeCompletions, computeFormatting, computePathAt, computeSitesOf, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_VARIABLE, COMPLETION_KEYWORD, };
+export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, CursorPath, PathSite, };

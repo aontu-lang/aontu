@@ -17,7 +17,10 @@ import {
   COMPLETION_VARIABLE,
   COMPLETION_KEYWORD,
   computeFormatting,
+  computePathAt,
+  computeSitesOf,
 } from '../dist/lsp'
+import { hitsOf, keySpan } from '../dist/cursor'
 
 
 import { aliasScope } from '../dist/alias'
@@ -850,6 +853,48 @@ describe('lsp-hover-provenance', () => {
       },
     } as any)[0]
     Assert.doesNotMatch(plain.result.contents.value, /Contributions/)
+  })
+
+})
+
+
+describe('lsp-cursor', () => {
+
+  test('a-colon-at-the-start-has-no-key-before-it', () => {
+    Assert.strictEqual(keySpan(': 1', 2, 'a'), undefined)
+  })
+
+  test('the-walk-visits-a-shared-value-once-and-steps-over-nothing', () => {
+    const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } }
+    const both = {
+      isVal: true, isConjunct: true, peg: [one, one, null],
+      site: { row: 1, col: 1, src: '1', url: '' },
+    }
+    const { values } = hitsOf('1', both)
+    Assert.deepStrictEqual(values.map((h: any) => [h.on, h.start, h.end]),
+      [['value', 0, 1]])
+  })
+
+  test('the-server-layer-answers-as-the-library', () => {
+    const src = 'a: { b: 1 }\nc: $.a.b\n'
+    const at: any = computePathAt(src, { line: 1, character: 5 })
+    Assert.deepStrictEqual([at.on, at.path, at.reads], ['ref', ['c'], ['a', 'b']])
+    Assert.deepStrictEqual(
+      computeSitesOf(src, ['c'])?.map((s: any) => [s.role, s.canon]),
+      [['literal', '1'], ['ref', '$.a.b']])
+    Assert.strictEqual(computePathAt(src, { line: 0, character: 2 }), null)
+    Assert.strictEqual(computeSitesOf(src, ['nope']), null)
+  })
+
+})
+
+
+describe('lsp-diagnostics-once', () => {
+
+  test('a-conflict-copied-to-another-path-is-reported-once', () => {
+    const ds = computeDiagnostics('a:{b:1&"s"} c:$.a d:$.a')
+    Assert.deepStrictEqual(ds.map((d) => [d.range.start.character, d.code]),
+      [[7, 'scalar_kind']])
   })
 
 })
