@@ -3578,6 +3578,7 @@ def openSelectCases : List (Decls × Val × Data) :=
     ([], marked .hide, dv [("y", j 1)]),
     ([], viaPath, .map [("w", .map [("a", j 1)]), ("v", .map [("y", j 1)])])]
 
+set_option maxHeartbeats 2000000 in
 set_option maxRecDepth 16384 in
 theorem openSelectCases_reads : ∀ c ∈ openSelectCases, c.1.readsPD c.2.1 c.2.2 = true := by
   decide +kernel
@@ -3648,6 +3649,7 @@ def selfReadCases : List (Decls × Val × Data) :=
     ([], boundMust, .map [("v", .map [("x", .integer 1), ("y", .integer 2)])]),
     ([], boundMust, .map [("v", .map [("x", .integer 3), ("y", .integer 2)])])]
 
+set_option maxHeartbeats 2000000 in
 set_option maxRecDepth 16384 in
 theorem selfReadCases_reads : ∀ c ∈ selfReadCases, c.1.readsPD c.2.1 c.2.2 = true := by
   decide +kernel
