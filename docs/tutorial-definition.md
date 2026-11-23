@@ -3189,10 +3189,9 @@ such a condition. Where that rest leaves the scrutinee open, as
 waits for the data, so the data's `x` picks the arm. A pattern that
 reads the match's own place reads the field too, so with
 `v: match(1, $.v.z, {y: 2}, {})` the data `{"v": {"z": 1, "y": 2}}` is
-valid and `{"v": {"z": 1, "y": 1}}` invalid. Both engines still read
-such a pattern without the rest of the document and wait on it, and the
-five of rows `sr57` to `sr62` they answer otherwise sit in the ledger
-under #919.
+valid and `{"v": {"z": 1, "y": 1}}` invalid. Both engines read such a
+pattern the same way, as #919 asked, and rows `sr57` to `sr62` hold
+it.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -6245,8 +6244,8 @@ carries: `match({a: 1, z: type(number)}, {a: 1}, {y: 1}, {y: 2})`
 takes the first arm though `z` is open, as both engines take it. A path
 copies its target without its marks, so `match($.w, …)` over
 `w: {a: 1, z: type(number)}` reads `z` as an open `number` and waits for
-the data, as a `match` over any open scrutinee does. Both engines take
-the first arm there at once, as #743 tracks. The checker can't read a
+the data, as a `match` over any open scrutinee does, and both engines
+wait there too, as ruling 49 asks, #743. The checker can't read a
 marked member through a path, so no row holds that case. Rows `os24` to
 `os32` of `test/spec/def-path.tsv` hold the scrutinee written in place.
 
