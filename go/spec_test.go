@@ -76,7 +76,8 @@ func TestSpec(t *testing.T) {
 				"subsumption" == mode || "query" == mode ||
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
-				"fmt-template-lint" == mode || "jsonschema-output" == mode
+				"fmt-template-lint" == mode || "jsonschema-output" == mode ||
+				"at" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -581,6 +582,25 @@ func TestSpec(t *testing.T) {
 							golden.Code, golden.Class, golden.Note, code, class, note)
 					}
 					assertViewSubsumes(t, name, src, data, report, qopts.View)
+
+				case "at":
+					ls, cs, _ := strings.Cut(data, ":")
+					line, lerr := strconv.Atoi(ls)
+					character, cerr := strconv.Atoi(cs)
+					if nil != lerr || nil != cerr {
+						t.Fatalf("bad at position %q", data)
+					}
+					var got any
+					if at := New().PathAt(src, CursorPosition{line, character}); nil != at {
+						got = struct {
+							*CursorPath
+							Sites []PathSite `json:"sites"`
+						}{at, New().SitesOf(src, at.Path)}
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("at mismatch\n want: %s\n got:  %s", expect, gj)
+					}
 
 				case "trim":
 					// trimCheck(src) must equal the expect object

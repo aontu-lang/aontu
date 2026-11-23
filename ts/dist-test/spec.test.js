@@ -52,6 +52,7 @@ const trace_1 = require("../dist/trace");
 const hints_1 = require("../dist/hints");
 const utility_1 = require("../dist/utility");
 const tlog_vectors_1 = require("./tlog-vectors");
+const lsp_1 = require("../dist/lsp");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
@@ -137,7 +138,7 @@ function loadRows() {
                 'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
                 'diff' === parts[1] || 'agentsmd' === parts[1] ||
                 'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
-                'jsonschema-output' === parts[1];
+                'jsonschema-output' === parts[1] || 'at' === parts[1];
             const want = vetRow ? 5 : 4;
             if (parts.length < want) {
                 throw new Error(`malformed spec row: ${file} line ${lineno}: ${want} columns` +
@@ -380,6 +381,11 @@ function runRow(row) {
             verdict: report.verdict,
             findings: report.findings,
         }), (0, aontu_1.exactJSON)(golden), `subsume report mismatch: ${row.name}`);
+    }
+    else if ('at' === row.mode) {
+        const [line, character] = row.data.split(':').map(Number);
+        const at = (0, lsp_1.computePathAt)(row.src, { line, character });
+        Assert.strictEqual((0, aontu_1.exactJSON)(null == at ? null : { ...at, sites: (0, lsp_1.computeSitesOf)(row.src, at.path) }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `at mismatch: ${row.name}`);
     }
     else if ('trim' === row.mode) {
         const report = (0, aontu_1.trimCheck)(row.src);

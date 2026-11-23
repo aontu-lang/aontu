@@ -59,6 +59,7 @@ export declare function displayFile(url: string, label: string, path?: string): 
 export declare function engineFinding(nil: any, ctx: any, path: string): VetFinding;
 export declare function failureFinding(ctx: any, url?: string, failed?: any): VetFinding;
 export declare function anchorAt(root: any, at: string): Val | undefined;
+export declare function anchorParts(root: any, parts: string[]): Val | undefined;
 export declare function throughResidue(v: any): any;
 export declare function coverThrough(v: any, root: any): any;
 export declare function vetCoverage(anchor: any, dataVal: any, coverageAt: string | undefined, root: any): VetCoverage;

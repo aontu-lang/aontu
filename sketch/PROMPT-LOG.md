@@ -2046,6 +2046,12 @@ When a match's scrutinee is a map holding a type() or hide() member, which value
 Continue
 ```
 
+## 2026-11-23 08:45:29 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Go ahead
+```
+
 ## 2026-11-23 08:45:48 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -2053,6 +2059,12 @@ The answers to the agent's questions, each question followed by the option chose
 ```text
 Correction to the #922 ruling (decision 86): I said `match($.w, {a: 1}, …)` with `w: {a: 1, z: type(number)}` would take the first arm under 'the output'. It won't. A path copies its target without the target's marks (decision 27: what a body hides, the place that refers to it asks for), so the scrutinee is `{a: 1, z: number}`, z is open, and the match still waits. Decision 86 changes only a scrutinee that carries its own marks, e.g. `match({a: 1, z: type(number)}, …)` written in place. Should a match's scrutinee be an exception that keeps the marks of what its path reads?
 → No exception (Recommended)
+```
+
+## 2026-11-23 19:06:45 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+merge; [redacted: session set-up]; what is next?
 ```
 
 ## 2026-11-23 19:06:57 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2

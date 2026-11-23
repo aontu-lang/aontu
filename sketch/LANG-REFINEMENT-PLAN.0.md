@@ -1047,6 +1047,20 @@ document doesn't parse. #747, which the order puts before it, is fixed
 in both formatters in the same change: a comment on its own line
 before a later `&:` entry keeps its line.
 
+Progress on 2026-11-23. LS1 is built in both ports. `computePathAt`
+and `PathAt` answer what a cursor is on, a key, a value or a
+reference, and the path that stands there, with the absolute path a
+reference reads; `computeSitesOf` and `SitesOf` answer every site that
+writes a path, as `model why` reads them. A new shared-row mode, `at`,
+holds the two ports to one answer in the 91 rows of
+`test/spec/cursor.tsv`. #858 is fixed with it: two diagnostics alike
+in range, code and message are sent once. #320 is still open: placing
+a diagnostic sited in an included file needs the site of the include
+in the open document, which neither parse keeps. Two parser faults
+leave the mapping without an answer: a reference inside a call's
+arguments is sited differently in each port (#327), and the second
+reference of a conjunction is sited at the first in both.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same

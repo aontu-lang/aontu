@@ -9,12 +9,15 @@ exports.computeHover = computeHover;
 exports.computeDefinition = computeDefinition;
 exports.computeCompletions = computeCompletions;
 exports.computeFormatting = computeFormatting;
+exports.computePathAt = computePathAt;
+exports.computeSitesOf = computeSitesOf;
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const walk_1 = require("./walk");
 const utility_1 = require("./utility");
 const query_1 = require("./query");
 const format_1 = require("./format");
+const cursor_1 = require("./cursor");
 // LSP DiagnosticSeverity subset.
 const SEVERITY_ERROR = 1;
 exports.SEVERITY_ERROR = SEVERITY_ERROR;
@@ -52,7 +55,12 @@ function computeDiagnostics(src, opts) {
             nils.push(e);
         }
     }
-    const out = nils.map(nilToDiagnostic);
+    // A conflict copied to another path is still one conflict at one site.
+    const said = new Set();
+    const out = nils.map(nilToDiagnostic).filter((d) => {
+        const key = JSON.stringify([d.range, d.code, d.message]);
+        return !said.has(key) && undefined !== said.add(key);
+    });
     for (const { val } of (0, utility_1.collectDeprecations)(root)) {
         const v = val;
         if (1 > (v.site?.row ?? -1) || 1 > (v.site?.col ?? -1)) {
@@ -313,6 +321,14 @@ function computeFormatting(text) {
             },
             newText: report.text,
         }];
+}
+// The path under a cursor, and every site that writes a path: the
+// mapping the features beyond formatting stand on.
+function computePathAt(text, pos, trust) {
+    return (0, cursor_1.pathAt)(text, pos, { trust }) ?? null;
+}
+function computeSitesOf(text, path, trust) {
+    return (0, cursor_1.sitesOf)(text, path, { trust }) ?? null;
 }
 // Go to where the name is BOUND: its declaration, or the destructure
 // that brought it in, which is where this file gets the name.

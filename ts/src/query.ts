@@ -6,7 +6,7 @@ import { riderText } from './rider'
 import { Aontu } from './aontu'
 import type { AontuOptions, HostVars, TrustOptions } from './type'
 import { exactJSON } from './exactjson'
-import { anchorAt, engineFinding } from './vet'
+import { anchorAt, anchorParts, engineFinding } from './vet'
 import type { VetFinding } from './vet'
 import { cmpCodePoint } from './keyorder'
 import { relateText } from './val/PathVal'
@@ -283,6 +283,14 @@ export type WhyReport = {
 
 export function why(
   src: string, path: string, opts?: QueryOptions): WhyReport {
+  return whyParts(src, pathParts(path), opts)
+}
+
+
+// why, for a path given by its segments, so a key holding a dot is one.
+export function whyParts(
+  src: string, parts: string[], opts?: QueryOptions): WhyReport {
+  const path = '$' + parts.map((p) => '.' + p).join('')
   const options = opts ?? {}
   const aontu = new Aontu(queryOpts(options))
   const prov = new Provenance()
@@ -300,7 +308,7 @@ export function why(
     return { ok: false, findings: [evalFailure(ctx, root)] }
   }
 
-  const node: any = anchorAt(root, path)
+  const node: any = anchorParts(root, parts)
   if (null == node) {
     return { ok: false, findings: [noPathFinding(root, path)] }
   }
@@ -309,14 +317,13 @@ export function why(
   // (see Provenance.stands): a generator places a value without a
   // meet, and "nothing met at this path" is not an answer to "where
   // did this come from".
-  const parts = pathParts(path)
   prov.stands(parts, node)
 
   return {
     ok: true,
     record: {
       conjuncts: prov.at(parts),
-      path: pathText(path),
+      path,
       value: node.canon,
     },
     findings: [],

@@ -378,6 +378,11 @@ type WhyReport struct {
 // contributions that met there — the positive twin of G2's error
 // report. Mirrors why in ts/src/query.ts.
 func (a *Aontu) Why(src, path string) WhyReport {
+	return a.whyParts(src, queryPathParts(path))
+}
+
+func (a *Aontu) whyParts(src string, parts []string) WhyReport {
+	path := subPathText(parts)
 	parsed, perr := a.parseEntry(src)
 	if nil != perr {
 		return whyFailed(perr)
@@ -420,7 +425,7 @@ func (a *Aontu) Why(src, path string) WhyReport {
 		return whyFailed(evalError(uerr, root, ctx))
 	}
 
-	node := anchorAt(root, path)
+	node := anchorParts(root, parts)
 	if nil == node {
 		return WhyReport{
 			OK:       false,
@@ -432,14 +437,13 @@ func (a *Aontu) Why(src, path string) WhyReport {
 	// (see Provenance.stands): a generator places a value without a
 	// meet, and "nothing met at this path" is not an answer to "where
 	// did this come from".
-	parts := queryPathParts(path)
 	prov.stands(parts, node)
 
 	return WhyReport{
 		OK: true,
 		Record: &WhyRecord{
 			Conjuncts: prov.at(parts),
-			Path:      queryPathText(path),
+			Path:      path,
 			Value:     node.Canon(),
 		},
 		Findings: []VetFinding{},

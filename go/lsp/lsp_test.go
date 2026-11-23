@@ -831,3 +831,30 @@ func TestFormattingThroughTheHandler(t *testing.T) {
 		}
 	}
 }
+
+func TestServerLayerAnswersAsTheLibrary(t *testing.T) {
+	src := "a: { b: 1 }\nc: $.a.b\n"
+	at := PathAt(src, 1, 5, nil)
+	if nil == at || "ref" != at.On || !reflect.DeepEqual(at.Path, []string{"c"}) ||
+		!reflect.DeepEqual(at.Reads, []string{"a", "b"}) {
+		t.Fatalf("PathAt = %+v", at)
+	}
+	sites := SitesOf(src, []string{"c"}, nil)
+	got := [][2]string{}
+	for _, s := range sites {
+		got = append(got, [2]string{s.Role, s.Canon})
+	}
+	if !reflect.DeepEqual(got, [][2]string{{"literal", "1"}, {"ref", "$.a.b"}}) {
+		t.Fatalf("SitesOf = %v", got)
+	}
+	if nil != PathAt(src, 0, 2, nil) || nil != SitesOf(src, []string{"nope"}, nil) {
+		t.Fatal("a colon is on nothing, and no site writes a path that isn't there")
+	}
+}
+
+func TestAConflictCopiedToAnotherPathIsReportedOnce(t *testing.T) {
+	ds := Diagnostics(`a:{b:1&"s"} c:$.a d:$.a`)
+	if 1 != len(ds) || 7 != ds[0].Range.Start.Character || "scalar_kind" != ds[0].Code {
+		t.Fatalf("got %+v", ds)
+	}
+}

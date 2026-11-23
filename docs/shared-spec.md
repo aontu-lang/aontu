@@ -28,21 +28,23 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `verdict`, `subsume`, `subsumption`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace`, `template` or `tlog` (see below) |
+| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `verdict`, `subsume`, `subsumption`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace`, `template`, `tlog` or `at` (see below) |
 | `src`    | aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
-Ten modes take a FIFTH column. `vet` validates a data document
+Thirteen modes take a FIFTH column. `vet` validates a data document
 against a schema document, `verdict` does the same and compares the
-verdict alone, `subsume` compares two documents, `query`
-and `why` each select a path within one, and `patch` carries the
+verdict alone, `jsonschema-output` checks data against an imported
+schema, `subsume` and `subsumption` compare two documents, `query`
+and `why` each select a path within one, `patch` carries the
 overlay and the assignments as a JSON object, `diff` carries the
-second document, `agentsmd` carries the name to call the document, and
+second document, `agentsmd` carries the name to call the document,
 `fmt-template` and `fmt-template-lint` each carry the marker that opens
-an aontu line, so each has a second input: `src` is the schema (or the
+an aontu line, and `at` carries a cursor's position, so each has a
+second input: `src` is the schema (or the
 general document, or the document), the fourth column is the data (or
-the specific document, or the path, or the marker), and `expect` moves
-to the fifth. Every other mode reads the first four columns and ignores
+the specific document, or the path, the marker or the position), and
+`expect` moves to the fifth. Every other mode reads the first four columns and ignores
 anything after them, which is what makes the extra column additive
 rather than a format change:
 
@@ -50,6 +52,8 @@ rather than a format change:
 name <TAB> vet <TAB> schema <TAB> data <TAB> expect
 name <TAB> verdict <TAB> schema <TAB> data <TAB> expect
 name <TAB> subsume <TAB> general <TAB> specific <TAB> expect
+name <TAB> subsumption <TAB> general <TAB> specific <TAB> expect
+name <TAB> jsonschema-output <TAB> schema <TAB> data <TAB> expect
 name <TAB> query <TAB> src <TAB> path <TAB> expect
 name <TAB> why <TAB> src <TAB> path <TAB> expect
 name <TAB> patch <TAB> entry <TAB> {overlay,set} <TAB> expect
@@ -57,6 +61,7 @@ name <TAB> diff <TAB> left <TAB> {right,at} <TAB> expect
 name <TAB> agentsmd <TAB> src <TAB> document-name <TAB> expect
 name <TAB> fmt-template <TAB> src <TAB> marker <TAB> expect
 name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
+name <TAB> at <TAB> src <TAB> line:character <TAB> expect
 ```
 
 ### Modes
@@ -97,6 +102,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | `fmt-refuse` | `format(src)` must be refused: `expect` is the verdict and the finding codes, joined by a colon and commas (`error:format_check`), so that both ports refuse the same sources; nothing is written on a refusal |
 | `fmt-lint` | `format(src, {lint: true})` must format, and its style findings, one `line:col: rule: message` per finding joined by newlines and empty when there is none, must equal `expect` |
 | `fmt-template` | five columns: `format(src, {template: marker})` must format the GENERATOR, and its text must equal `expect` byte for byte, with `expect` a fixed point under the same marker. The fourth column is the marker that opens an aontu line, so a block comment marker is as testable as a line one |
+| `at` | five columns: what a cursor at `line:character` is on, as both language servers answer it (`computePathAt`, and `PathAt` of `package aontu`, which the Go server wraps), with `sites`, every site that writes its path, added, must equal `expect` as JSON, or `null` where the cursor is on nothing. The position is zero-based, the character in UTF-16 units, as LSP counts |
 | `fmt-template-lint` | five columns: `format(src, {template: marker, lint: true})` must format, and its style findings, in the shape `fmt-lint` pins them, must equal `expect`. What the row is for is the COLUMN a finding reports: a site is in the template, not in the document the template carries |
 
 Every mode above is dispatched by name in `ts/test/spec.test.ts` and

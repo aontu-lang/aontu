@@ -83,6 +83,8 @@ func DiagnosticsTrust(src string, vars map[string]aontu.Val, trust *aontu.TrustO
 	idx := newLineIndex(src)
 
 	out := make([]Diagnostic, 0, len(probs))
+	// A conflict copied to another path is still one conflict at one site.
+	said := map[string]bool{}
 	for _, p := range probs {
 		var rng Range
 		if p.Pos < 0 {
@@ -93,6 +95,12 @@ func DiagnosticsTrust(src string, vars map[string]aontu.Val, trust *aontu.TrustO
 			end := idx.position(p.Pos + p.Len)
 			rng = Range{start, end}
 		}
+		key := strings.Join([]string{strconv.Itoa(rng.Start.Line), strconv.Itoa(rng.Start.Character),
+			strconv.Itoa(rng.End.Line), strconv.Itoa(rng.End.Character), p.Why, p.Message}, "\x00")
+		if said[key] {
+			continue
+		}
+		said[key] = true
 		out = append(out, Diagnostic{
 			Range:    rng,
 			Severity: SeverityError,
@@ -253,6 +261,20 @@ func contributionsMarkdown(conjuncts []aontu.WhyConjunct) string {
 		lines = append(lines, "- `"+c.Canon+"` — "+c.Role+where)
 	}
 	return "\n\n---\n\nContributions:\n" + strings.Join(lines, "\n")
+}
+
+// PathAt is the path under a cursor, nil where there is none.
+func PathAt(src string, line, character int, trust *aontu.TrustOptions) *aontu.CursorPath {
+	a := aontu.New()
+	a.Trust = trust
+	return a.PathAt(src, aontu.CursorPosition{Line: line, Character: character})
+}
+
+// SitesOf is every site that writes a path.
+func SitesOf(src string, path []string, trust *aontu.TrustOptions) []aontu.PathSite {
+	a := aontu.New()
+	a.Trust = trust
+	return a.SitesOf(src, path)
 }
 
 // --- Aliases ----------------------------------------------------------
