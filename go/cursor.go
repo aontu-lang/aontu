@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf16"
@@ -45,6 +46,8 @@ type cursorHit struct {
 
 const keyDelims = " \t\r\n{}[](),:;\"'"
 
+const tokenEnd = keyDelims + "&|"
+
 type srcLines struct {
 	src    string
 	starts []int
@@ -72,6 +75,16 @@ func (l srcLines) offsetAt(pos CursorPosition) int {
 	return off
 }
 
+// advance moves a byte offset on by n code units, as LSP counts them.
+func (l srcLines) advance(off, units int) int {
+	for 0 < units && off < len(l.src) {
+		r, size := utf8.DecodeRuneInString(l.src[off:])
+		off += size
+		units -= len(utf16.Encode([]rune{r}))
+	}
+	return off
+}
+
 func (l srcLines) positionOf(off int) CursorPosition {
 	line := len(l.starts) - 1
 	for 0 < line && off < l.starts[line] {
@@ -84,13 +97,52 @@ func (l srcLines) positionOf(off int) CursorPosition {
 	return CursorPosition{Line: line, Character: n}
 }
 
-// keySpan is the key written just before a value, where it is the
-// path's last segment: `seg:`, `seg?:` or `"seg":` with blanks between.
-func keySpan(src string, at int, seg string) (int, int, bool) {
-	i := at - 1
-	for 0 <= i && strings.IndexByte(" \t\r\n", src[i]) >= 0 {
-		i--
+// quoteEnd is where quoted text that opens at k closes, or the end.
+func quoteEnd(src string, k int) int {
+	e := k + 1
+	for e < len(src) && src[k] != src[e] {
+		if '\\' == src[e] {
+			e++
+		}
+		e++
 	}
+	return e
+}
+
+// commentStart is where a `#` comment starts between from and to, or -1.
+func commentStart(src string, from, to int) int {
+	for k := from; k < to; k++ {
+		if strings.IndexByte("\"'`", src[k]) >= 0 {
+			k = quoteEnd(src, k)
+		} else if '#' == src[k] {
+			return k
+		}
+	}
+	return -1
+}
+
+// skipTrivia steps back from i over blanks and comments.
+func skipTrivia(src string, i int) int {
+	for {
+		for 0 <= i && strings.IndexByte(" \t\r\n", src[i]) >= 0 {
+			i--
+		}
+		c := -1
+		if 0 <= i {
+			c = commentStart(src, strings.LastIndexByte(src[:i+1], '\n')+1, i+1)
+		}
+		if 0 > c {
+			return i
+		}
+		i = c - 1
+	}
+}
+
+// keySpan is the key written just before a value, where it is the
+// path's last segment: `seg:`, `seg?:` or `"seg":` with blanks or
+// comments between.
+func keySpan(src string, at int, seg string) (int, int, bool) {
+	i := skipTrivia(src, at-1)
 	if 0 > i || ':' != src[i] {
 		return 0, 0, false
 	}
@@ -142,7 +194,7 @@ func cursorKids(v Val, path []string) []cursorKid {
 		sort.Strings(keys)
 		out := make([]cursorKid, 0, len(keys)+1)
 		for _, k := range keys {
-			if !strings.HasPrefix(k, "%") {
+			if !slices.Contains(b.aliasKeys, k) {
 				out = append(out, cursorKid{b.peg[k], step(k)})
 			}
 		}
@@ -173,6 +225,56 @@ func cursorKids(v Val, path []string) []cursorKid {
 	return nil
 }
 
+// refSpan reads a reference as written at a site, to its end, with a
+// quoted segment read as its text: `$."a b"` spells `$.a b`.
+func refSpan(src string, at int) (int, string) {
+	p := at
+	out := ""
+	if p < len(src) && '$' == src[p] {
+		out = "$"
+		p++
+	}
+	for p < len(src) && '.' == src[p] {
+		p++
+		s := p
+		if p < len(src) && ('"' == src[p] || '\'' == src[p]) {
+			p = quoteEnd(src, p) + 1
+			out += "." + src[s+1:min(p-1, len(src))]
+			continue
+		}
+		for p < len(src) && '.' != src[p] && strings.IndexByte(tokenEnd, src[p]) < 0 {
+			p++
+		}
+		out += "." + src[s:p]
+	}
+	return p, out
+}
+
+// valueEnd is where the value sited at `at` ends: a sign runs to its
+// number's end, and an open paren to the one that closes it.
+func valueEnd(src string, at int, text string) int {
+	p := at + 1
+	switch text {
+	case "-", "+":
+		for p < len(src) && strings.IndexByte(tokenEnd, src[p]) < 0 {
+			p++
+		}
+		return p
+	case "(":
+		for depth := 1; p < len(src) && 0 < depth; p++ {
+			if strings.IndexByte("\"'`", src[p]) >= 0 {
+				p = quoteEnd(src, p)
+			} else if '(' == src[p] {
+				depth++
+			} else if ')' == src[p] {
+				depth--
+			}
+		}
+		return p
+	}
+	return at + len(text)
+}
+
 func valueHit(src string, v Val, at int, path []string) (cursorHit, bool) {
 	text := v.srctext()
 	switch b := v.(type) {
@@ -188,17 +290,17 @@ func valueHit(src string, v Val, at int, path []string) (cursorHit, bool) {
 		}
 		// A reference whose spelling is not at its site was sited
 		// elsewhere by the parser, so the cursor can't be said to be on it.
-		spelt := b.spelling()
-		if !strings.HasPrefix(src[at:], spelt) {
+		end, spelt := refSpan(src, at)
+		if spelt != b.spelling() {
 			return cursorHit{}, false
 		}
-		return cursorHit{on: "ref", path: path, start: at, end: at + len(spelt),
+		return cursorHit{on: "ref", path: path, start: at, end: end,
 			reads: b.plainRefPath()}, true
 	}
 	if "" == text {
 		return cursorHit{}, false
 	}
-	return cursorHit{on: "value", path: path, start: at, end: at + len(text)}, true
+	return cursorHit{on: "value", path: path, start: at, end: valueEnd(src, at, text)}, true
 }
 
 func cursorHits(src string, root Val) (keys, values []cursorHit) {
@@ -276,25 +378,20 @@ func (a *Aontu) PathAt(src string, pos CursorPosition) *CursorPath {
 // SitesOf is every site that writes a path, as `model why` reads them;
 // nil where the document does not evaluate or names no such path.
 func (a *Aontu) SitesOf(src string, path []string) []PathSite {
-	text := "$"
-	for _, p := range path {
-		text += "." + p
-	}
-	report := a.Why(src, text)
+	report := a.whyParts(src, path)
 	if !report.OK || nil == report.Record {
 		return nil
 	}
+	lines := newSrcLines(src)
 	out := make([]PathSite, 0, len(report.Record.Conjuncts))
 	for _, c := range report.Record.Conjuncts {
-		out = append(out, PathSite{
-			Canon: c.Canon,
-			File:  c.Site.File,
-			Range: CursorRange{
-				Start: CursorPosition{Line: c.Site.Row - 1, Character: c.Site.Col - 1},
-				End:   CursorPosition{Line: c.Site.Row - 1, Character: c.Site.Col - 1 + c.Site.Len},
-			},
-			Role: c.Role,
-		})
+		start := CursorPosition{Line: c.Site.Row - 1, Character: c.Site.Col - 1}
+		end := CursorPosition{Line: start.Line, Character: start.Character + c.Site.Len}
+		if "" == c.Site.File && c.Site.Row <= len(lines.starts) {
+			end = lines.positionOf(lines.advance(lines.offsetAt(start), c.Site.Len))
+		}
+		out = append(out, PathSite{Canon: c.Canon, File: c.Site.File,
+			Range: CursorRange{Start: start, End: end}, Role: c.Role})
 	}
 	return out
 }

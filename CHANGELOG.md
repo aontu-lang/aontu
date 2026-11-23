@@ -17,7 +17,7 @@ with the absolute path a reference reads (`computePathAt` and
 answers every site that writes a path, as `aontu model why` lists
 them. Nothing in the servers' protocol changes yet: definition on a
 key, key completion and references build on it next. A new shared-row
-mode, `at`, holds both ports to one answer, in 77 rows of
+mode, `at`, holds both ports to one answer, in 91 rows of
 `test/spec/cursor.tsv`.
 
 ### The language servers report a conflict once

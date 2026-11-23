@@ -28,3 +28,4 @@ export type WhyReport = {
     findings: VetFinding[];
 };
 export declare function why(src: string, path: string, opts?: QueryOptions): WhyReport;
+export declare function whyParts(src: string, parts: string[], opts?: QueryOptions): WhyReport;

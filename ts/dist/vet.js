@@ -6,6 +6,7 @@ exports.displayFile = displayFile;
 exports.engineFinding = engineFinding;
 exports.failureFinding = failureFinding;
 exports.anchorAt = anchorAt;
+exports.anchorParts = anchorParts;
 exports.throughResidue = throughResidue;
 exports.coverThrough = coverThrough;
 exports.vetCoverage = vetCoverage;
@@ -211,7 +212,9 @@ function failureFinding(ctx, url, failed) {
 // bare `a.b` a shell is likely to hand over unquoted.
 function anchorAt(root, at) {
     const trimmed = at.startsWith('$') ? at.slice(1) : at;
-    const parts = trimmed.split('.').filter((p) => '' !== p);
+    return anchorParts(root, trimmed.split('.').filter((p) => '' !== p));
+}
+function anchorParts(root, parts) {
     let node = root;
     for (const part of parts) {
         node = throughResidue(node);

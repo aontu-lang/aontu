@@ -7,7 +7,9 @@ exports.keySpan = keySpan;
 exports.hitsOf = hitsOf;
 const aontu_1 = require("./aontu");
 const query_1 = require("./query");
+const keyorder_1 = require("./keyorder");
 const KEY_DELIMS = ' \t\r\n{}[](),:;"\'';
+const TOKEN_END = KEY_DELIMS + '&|';
 function lineStarts(src) {
     const starts = [0];
     for (let i = 0; i < src.length; i++) {
@@ -34,12 +36,41 @@ function siteOffset(starts, v) {
     const col = v.site?.col ?? -1;
     return 1 > row || 1 > col || starts.length < row ? -1 : starts[row - 1] + col - 1;
 }
+// Where quoted text that opens at k closes, or the end of the source.
+function quoteEnd(src, k) {
+    let e = k + 1;
+    while (e < src.length && src[k] !== src[e])
+        e += '\\' === src[e] ? 2 : 1;
+    return e;
+}
+// Where a `#` comment starts between from and to, or -1.
+function commentStart(src, from, to) {
+    for (let k = from; k < to; k++) {
+        if ('"\'`'.includes(src[k])) {
+            k = quoteEnd(src, k);
+        }
+        else if ('#' === src[k]) {
+            return k;
+        }
+    }
+    return -1;
+}
+// Back from i over blanks and comments to the last character of neither.
+function skipTrivia(src, i) {
+    for (;;) {
+        while (0 <= i && ' \t\r\n'.includes(src[i]))
+            i--;
+        const c = 0 > i ? -1 : commentStart(src, src.lastIndexOf('\n', i) + 1, i + 1);
+        if (0 > c) {
+            return i;
+        }
+        i = c - 1;
+    }
+}
 // The key written just before a value, where it is the path's last
-// segment: `seg:`, `seg?:` or `"seg":` with blanks between.
+// segment: `seg:`, `seg?:` or `"seg":` with blanks or comments between.
 function keySpan(src, at, seg) {
-    let i = at - 1;
-    while (0 <= i && ' \t\r\n'.includes(src[i]))
-        i--;
+    let i = skipTrivia(src, at - 1);
     if (':' !== src[i]) {
         return undefined;
     }
@@ -68,9 +99,10 @@ function kids(v, path) {
     if ((true === v.isMap || true === v.isList) && null != v.peg) {
         const keys = Object.keys(v.peg);
         if (true === v.isMap) {
-            keys.sort(cmpCodePoint);
+            keys.sort(keyorder_1.cmpCodePoint);
         }
-        const out = keys.filter((k) => !k.startsWith('%'))
+        const aliases = v.aliasKeys ?? [];
+        const out = keys.filter((k) => !aliases.includes(k))
             .map((k) => [v.peg[k], [...path, k]]);
         if (null != v.spread?.cj) {
             out.push([v.spread.cj, [...path, '&']]);
@@ -83,15 +115,44 @@ function kids(v, path) {
     }
     return true === v.isPref ? [[v.peg, path]] : [];
 }
-function cmpCodePoint(a, b) {
-    const x = [...a].map((c) => c.codePointAt(0));
-    const y = [...b].map((c) => c.codePointAt(0));
-    for (let i = 0; i < x.length && i < y.length; i++) {
-        if (x[i] !== y[i]) {
-            return x[i] - y[i];
+// A reference as written at a site, read to its end, with a quoted
+// segment read as its text: `$."a b"` spells `$.a b`.
+function refSpan(src, at) {
+    let p = at;
+    let out = '$' === src[p] ? (p++, '$') : '';
+    while ('.' === src[p]) {
+        p++;
+        const s = p;
+        if ('"' === src[p] || '\'' === src[p]) {
+            p = quoteEnd(src, p) + 1;
+            out += '.' + src.slice(s + 1, p - 1);
+            continue;
         }
+        while (p < src.length && '.' !== src[p] && !TOKEN_END.includes(src[p]))
+            p++;
+        out += '.' + src.slice(s, p);
     }
-    return x.length - y.length;
+    return [p, out];
+}
+// Where the value sited at `at` ends: a sign runs to its number's end,
+// and an open paren to the one that closes it.
+function valueEnd(src, at, text) {
+    let p = at + 1;
+    if ('-' === text || '+' === text) {
+        while (p < src.length && !TOKEN_END.includes(src[p]))
+            p++;
+        return p;
+    }
+    if ('(' === text) {
+        for (let depth = 1; p < src.length && 0 < depth; p++) {
+            if ('"\'`'.includes(src[p]))
+                p = quoteEnd(src, p);
+            else
+                depth += '(' === src[p] ? 1 : ')' === src[p] ? -1 : 0;
+        }
+        return p;
+    }
+    return at + text.length;
 }
 function valueHit(src, v, at, path) {
     if (true === v.isConjunct || true === v.isDisjunct || true === v.isNil) {
@@ -107,12 +168,12 @@ function valueHit(src, v, at, path) {
         if (undefined !== v.aliasName) {
             return undefined;
         }
-        const spelt = v.spelling;
-        return src.startsWith(spelt, at) ? {
-            on: 'ref', path, start: at, end: at + spelt.length, reads: v.plainRefPath(),
+        const [end, spelt] = refSpan(src, at);
+        return spelt === v.spelling ? {
+            on: 'ref', path, start: at, end, reads: v.plainRefPath(),
         } : undefined;
     }
-    return '' === text ? undefined : { on: 'value', path, start: at, end: at + text.length };
+    return '' === text ? undefined : { on: 'value', path, start: at, end: valueEnd(src, at, text) };
 }
 function hitsOf(src, root) {
     const starts = lineStarts(src);
@@ -178,18 +239,17 @@ function pathAt(src, pos, opts) {
 // Every site that writes a path, as `model why` reads them; nothing
 // where the document does not evaluate or names no such path.
 function sitesOf(src, path, opts) {
-    const report = (0, query_1.why)(src, '$' + path.map((p) => '.' + p).join(''), { trust: opts?.trust });
+    const report = (0, query_1.whyParts)(src, path, { trust: opts?.trust });
     if (!report.ok || null == report.record) {
         return undefined;
     }
-    return report.record.conjuncts.map((c) => ({
-        canon: c.canon,
-        file: c.site.file,
-        range: {
-            start: { line: c.site.row - 1, character: c.site.col - 1 },
-            end: { line: c.site.row - 1, character: c.site.col - 1 + c.site.len },
-        },
-        role: c.role,
-    }));
+    const starts = lineStarts(src);
+    return report.record.conjuncts.map((c) => {
+        const start = { line: c.site.row - 1, character: c.site.col - 1 };
+        const end = '' === c.site.file && c.site.row <= starts.length ?
+            positionOf(starts, starts[c.site.row - 1] + c.site.col - 1 + c.site.len) :
+            { line: start.line, character: start.character + c.site.len };
+        return { canon: c.canon, file: c.site.file, range: { start, end }, role: c.role };
+    });
 }
 //# sourceMappingURL=cursor.js.map

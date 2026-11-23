@@ -367,8 +367,11 @@ export function failureFinding(
 // bare `a.b` a shell is likely to hand over unquoted.
 export function anchorAt(root: any, at: string): Val | undefined {
   const trimmed = at.startsWith('$') ? at.slice(1) : at
-  const parts = trimmed.split('.').filter((p) => '' !== p)
+  return anchorParts(root, trimmed.split('.').filter((p) => '' !== p))
+}
 
+
+export function anchorParts(root: any, parts: string[]): Val | undefined {
   let node: any = root
   for (const part of parts) {
     node = throughResidue(node)

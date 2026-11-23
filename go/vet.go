@@ -338,12 +338,12 @@ func failureFinding(ctx *Ctx, url, src string, failed ...Val) VetFinding {
 // `$.a.b` are both accepted, as is the bare `a.b` a shell is likely to
 // hand over unquoted.
 func anchorAt(root Val, at string) Val {
-	trimmed := strings.TrimPrefix(at, "$")
+	return anchorParts(root, queryPathParts(at))
+}
+
+func anchorParts(root Val, parts []string) Val {
 	node := root
-	for _, part := range strings.Split(trimmed, ".") {
-		if "" == part {
-			continue
-		}
+	for _, part := range parts {
 		node = throughResidue(node)
 		switch n := node.(type) {
 		case *MapVal:

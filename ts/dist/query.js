@@ -7,6 +7,7 @@ exports.evalFailure = evalFailure;
 exports.noPathFinding = noPathFinding;
 exports.get = get;
 exports.why = why;
+exports.whyParts = whyParts;
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 const utility_1 = require("./utility");
 const rider_1 = require("./rider");
@@ -197,6 +198,11 @@ function get(src, path, opts) {
     };
 }
 function why(src, path, opts) {
+    return whyParts(src, pathParts(path), opts);
+}
+// why, for a path given by its segments, so a key holding a dot is one.
+function whyParts(src, parts, opts) {
+    const path = '$' + parts.map((p) => '.' + p).join('');
     const options = opts ?? {};
     const aontu = new aontu_1.Aontu(queryOpts(options));
     const prov = new provenance_1.Provenance();
@@ -211,7 +217,7 @@ function why(src, path, opts) {
     if (0 < ctx.err.length || null == root || true === root.isNil) {
         return { ok: false, findings: [evalFailure(ctx, root)] };
     }
-    const node = (0, vet_1.anchorAt)(root, path);
+    const node = (0, vet_1.anchorParts)(root, parts);
     if (null == node) {
         return { ok: false, findings: [noPathFinding(root, path)] };
     }
@@ -219,13 +225,12 @@ function why(src, path, opts) {
     // (see Provenance.stands): a generator places a value without a
     // meet, and "nothing met at this path" is not an answer to "where
     // did this come from".
-    const parts = pathParts(path);
     prov.stands(parts, node);
     return {
         ok: true,
         record: {
             conjuncts: prov.at(parts),
-            path: pathText(path),
+            path,
             value: node.canon,
         },
         findings: [],

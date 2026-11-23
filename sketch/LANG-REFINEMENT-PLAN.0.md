@@ -1052,7 +1052,7 @@ and `PathAt` answer what a cursor is on, a key, a value or a
 reference, and the path that stands there, with the absolute path a
 reference reads; `computeSitesOf` and `SitesOf` answer every site that
 writes a path, as `model why` reads them. A new shared-row mode, `at`,
-holds the two ports to one answer in the 77 rows of
+holds the two ports to one answer in the 91 rows of
 `test/spec/cursor.tsv`. #858 is fixed with it: two diagnostics alike
 in range, code and message are sent once. #320 is still open: placing
 a diagnostic sited in an included file needs the site of the include
