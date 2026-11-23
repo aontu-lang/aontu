@@ -330,46 +330,59 @@ func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 	return stagedDriveAt(ctx, f, base, stagedArgIdx(f))
 }
 
-// matchDrive holds the peer for the scrutinee alone, as TypeScript does, and
-// a scrutinee reading the match's own place waits while the peer leaves it open.
+// matchDrive: a path to the match's own place reads the peer held there, as
+// TypeScript's does; a scrutinee waits, read again, until it generates a value.
 func matchDrive(ctx *Ctx, f *FuncVal, base []string, peer Val) bool {
 	idx := stagedArgIdx(f)
-	var own Val
-	if readsPlace(f.peg[0], f.path) {
-		own = cloneAt(f.peg[0], f.peg[0].vpath(), true)
+	drive := func(at []int, own bool) (ok bool) {
+		if !own || nil == peer || isTop(peer) {
+			return stagedDriveAt(ctx, f, base, at)
+		}
+		ctx.holdArm(f.path, peer, nil, true, func() Val { ok = stagedDriveAt(ctx, f, base, at); return nil })
+		return ok
 	}
-	var ready bool
-	ctx.holdArm(f.path, peer, nil, true, func() Val { ready = stagedDriveAt(ctx, f, base, idx[:1]); return nil })
-	if nil != own && ready && !generates(f.peg[0]) {
-		peg := append([]Val{}, f.peg...)
-		peg[0] = own
-		f.peg = peg
+	var scrut Val
+	if f.peg[0].Dc() != DONE {
+		scrut = cloneAt(f.peg[0], f.peg[0].vpath(), true)
+	}
+	ready := drive(idx[:1], true)
+	if ready && !generates(f.peg[0]) {
+		if nil != scrut {
+			peg := append([]Val{}, f.peg...)
+			peg[0] = scrut
+			f.peg = peg
+		}
 		ready = false
 	}
-	return stagedDriveAt(ctx, f, base, idx[1:]) && ready
+	for _, i := range idx[1:] {
+		ready = drive([]int{i}, readsPlace(f.peg[i], f.path)) && ready
+	}
+	return ready
 }
 
-// generates: a scalar, or a bag of such; a nil refuses as before.
+// generates: a scalar, or a bag whose output members are such; a nil or an absence goes on as before.
 func generates(v Val) bool {
+	unseen := func(c Val) bool { return c.markedType() || c.markedHide() }
 	switch t := effectiveScrutinee(v).(type) {
 	case *ScalarVal:
 		return true
 	case *MapVal:
 		for _, k := range t.keys {
-			if !t.isOptional(k) && !generates(t.peg[k]) {
+			c := t.peg[k]
+			if !t.isOptional(k) && !t.isAliasKey(k) && !unseen(c) && !generates(c) {
 				return false
 			}
 		}
 		return true
 	case *ListVal:
 		for _, c := range t.peg {
-			if !generates(c) {
+			if !unseen(c) && !generates(c) {
 				return false
 			}
 		}
 		return true
 	}
-	return v.Nil()
+	return v.Nil() || isAbsent(v)
 }
 
 func stagedDriveAt(ctx *Ctx, f *FuncVal, base []string, idx []int) bool {

@@ -1366,8 +1366,14 @@ true, false)` answers `false` when `side_effect` is unset (the effective
 value is `"readonly"`), and `true` only when it is genuinely
 `destructive`. Before this rule a pattern could *select* an arm by
 overriding the default, deriving a value that contradicted the one
-generated beside it. A pref-free open disjunction still matches by plain
-unifiability.
+generated beside it. **A scrutinee that generates no value waits for
+the data**: a kind, a bound or a disjunction with no default among its
+arms. So `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}` takes its
+arm from the data's `kind`, and where nothing settles the scrutinee the
+`match` stays incomplete, as `match(1|2, integer, a, b)` does though
+every arm meets the pattern. The `match` reads its scrutinee as the
+output reads it, so its arms never see a `type()` or `hide()` member
+the scrutinee carries.
 
 Both wait for the model to settle before they answer, for the reason
 `pack` and `each` do: a bag that is still being merged into is the
@@ -1382,7 +1388,7 @@ accepts a document the arm it selects refuses. Inside a generator's
 template the hole is the source child, the scrutinee is a value by the
 time the match runs, and the form works as documented above.
 
-The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way in the definition, where both engines still wait on it, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, so the arms never see a `type()` or `hide()` member written in the scrutinee, #922. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked.
+The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way, in both engines too, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, #922, and a scrutinee that generates nothing waits, rows `os0` on. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked, and waits while that member is open.
 
 ## The placeholder `_`
 

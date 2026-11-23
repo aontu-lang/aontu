@@ -2426,7 +2426,15 @@ until the phase that encodes it lands.
    data that leaves the result to the fill, agrees, conflicts and takes
    no arm. Both ports agree where the `match` has a default. With none
    they refuse it as `match_none` before any data, and its twelve rows
-   stand in the ledger. A literal now meets a term of the fragment that
+   stand in the ledger. **Built in both ports 2026-11-23** (#743): a
+   `match` whose scrutinee generates no value as the output reads it, a
+   kind, a bound or a disjunction with no default among its arms,
+   waits, read again on each pass until the data settles it, so os0 to
+   os11 leave the ledger; a scrutinee that is `nil` or an absence goes
+   on as before. Two shared rows of `test/spec/gen-match.tsv` that held
+   the ports' earlier reading, `match(1|2, integer, a, b)` and a
+   disjunction of three names, now answer `mapval_no_gen`, as the
+   definition reads them. A literal now meets a term of the fragment that
    reads no name whatever the bodies hold (`litMeetD`), so a recursive
    body whose own place keeps such a selection waiting leaves no other
    literal meet undecided.
@@ -3094,10 +3102,10 @@ until the phase that encodes it lands.
    `"y": 1` it is `invalid`. **Built in the definition 2026-11-23**:
    `Val.dropSelf` reads a selection whose pattern holds a path into
    its own place as it reads one whose scrutinee does, rows sr57 to
-   sr62 of `test/spec/def-path.tsv`. **Not yet built**: both ports,
-   which hold the peer for the scrutinee alone and drive a pattern
-   without it, so those rows the ports answer otherwise sit in the
-   ledger under #919.
+   sr62 of `test/spec/def-path.tsv`. **Built in both ports the same
+   day**: each port's `match` drives a pattern that reads its own place
+   with the peer held there, as it drives its scrutinee, so the five of
+   those rows the ledger held under #919 leave it.
 86. **What a `match` selects by.** Raised 2026-11-22 by #922, from
    the review of #920: a scrutinee that is a map holding a `type()` or
    `hide()` member, `w: {a: 1, z: type(number)}` beside
@@ -3127,9 +3135,10 @@ until the phase that encodes it lands.
    first arm for a scrutinee written with its marks. No row reads a
    marked member through a path, which the checker can't read
    (`Decls.readsPD` is false there): the definition waits on it, and
-   both ports take the first arm at once, which ruling 49 (#743) moves.
-   **Not yet built**: both ports leave marked members out when they
-   decide whether a scrutinee is still open, with #743.
+   both ports, which took the first arm at once, wait there too since
+   ruling 49 was built. **Built in both ports the same day**, with
+   #743: each port's wait leaves out a marked member, an optional key
+   and an alias key, as its output does.
 
 ## 8. Risks
 
