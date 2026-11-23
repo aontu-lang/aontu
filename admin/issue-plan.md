@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 201 on 2026-11-22),
+  on 2026-11-22), ledger rows (394 at most then, 208 on 2026-11-23),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -200,7 +200,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-22 issues (3 S, 19 M), 15 ledger rows.
+22 issues (3 S, 19 M), 22 ledger rows.
 
 Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63 and built 2026-11-22, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, built in the definition the same day), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, built the same day), and #917, the same path written as a relative one, fixed the same day; #919, a pattern that reads the match's own place, and #922, what a scrutinee holding a `type()` or `hide()` member selects by, both ruled 2026-11-22 (85: the pattern reads the field; 86: the scrutinee's output). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
@@ -213,15 +213,15 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#466](https://github.com/aontu-lang/aontu/issues/466) | parity | S |  | TS `pack` keeps only the first colliding instance, losing riders; Go unifies them. |
 | [#812](https://github.com/aontu-lang/aontu/issues/812) | parity | M |  | `must()` reading siblings in a spread template is `no_path` in TypeScript; Go and definition read per member. |
 | [#818](https://github.com/aontu-lang/aontu/issues/818) | def | M |  | `match()` met with the map whose field it reads never settles: incomplete in ports, error in definition. Built in the definition 2026-11-22 (`Val.dropSelf`) and in both ports the same day. |
-| [#743](https://github.com/aontu-lang/aontu/issues/743) | def | M | 12 | A `match` over an open scrutinee is refused before data; ruling 49 says wait for the data. |
+| [#743](https://github.com/aontu-lang/aontu/issues/743) | def | M | 14 | A `match` over an open scrutinee is refused before data; ruling 49 says wait for the data. |
 | [#527](https://github.com/aontu-lang/aontu/issues/527) | def | S |  | neq over a nested list written in place expands it twice; path form expands once |
 | [#892](https://github.com/aontu-lang/aontu/issues/892) | def | M |  | A conflict below the top of a trial argument read against a value: both ports make the argument admit nothing, the definition reads it in place. Ruled as 74: the whole argument admits nothing, so the definition moves. Built 2026-11-22. |
 | [#894](https://github.com/aontu-lang/aontu/issues/894) | def | M |  | A written `nil` below the top of `must`'s condition refuses every value in both ports (`invalid-arg`), where ruling 54 reads it where it stands. Ruled as 75: `must` reads it as ruling 54 does, so both ports drop the builder's check. Built 2026-11-22; rows tn9 to tn11 moved to #907. |
 | [#907](https://github.com/aontu-lang/aontu/issues/907) | def | M |  | A disjunction arm that holds a written `nil` doesn't refuse once the data meets it, in either port, so `v: {x: 1} \| {x: nil}` refuses `{"v": {"x": 1}}`; the definition admits it. Fixed in both ports 2026-11-22. |
 | [#895](https://github.com/aontu-lang/aontu/issues/895) | def | M |  | A path in `must`'s condition into the value under trial: both ports leave it unread and pass the check, the definition reads `error` or `invalid`. Ruled as 76: the path reads the field, as 63 reads one in `match`, so both ports and the definition move. Built in the definition 2026-11-22 and in both ports the same day. |
 | [#917](https://github.com/aontu-lang/aontu/issues/917) | def | S |  | A relative path in `must`'s condition into the value under trial, `.name` in `v: must({x: .name}, "m")`, is unread in both ports, where the definition reads it as the absolute one. Fixed in both ports 2026-11-22. |
-| [#919](https://github.com/aontu-lang/aontu/issues/919) | def | M |  | A `match` pattern that reads the match's own place: both ports wait, the definition answers `error`. Ruled as 85: the pattern reads the field, as 63 reads the scrutinee, so the definition and both ports move. |
-| [#922](https://github.com/aontu-lang/aontu/issues/922) | def | M |  | A scrutinee holding an open `type()` or `hide()` member keeps a `match` waiting in the definition, which reads the whole value, where both ports match at once. Ruled as 86: a `match` selects by what its scrutinee outputs, so the definition moves and both ports leave marked members out of the wait. |
+| [#919](https://github.com/aontu-lang/aontu/issues/919) | def | M | 5 | A `match` pattern that reads the match's own place: both ports wait, the definition answers `error`. Ruled as 85: the pattern reads the field, as 63 reads the scrutinee, so the definition and both ports move. Built in the definition 2026-11-23; both ports still wait. |
+| [#922](https://github.com/aontu-lang/aontu/issues/922) | def | M |  | A scrutinee holding an open `type()` or `hide()` member keeps a `match` waiting in the definition, which reads the whole value, where both ports match at once. Ruled as 86: a `match` selects by what its scrutinee outputs, so the definition moves and both ports leave marked members out of the wait; 2026-11-23, no exception for a path, which copies its target without its marks. Built in the definition 2026-11-23. |
 | [#847](https://github.com/aontu-lang/aontu/issues/847) | bug | M |  | `filter` and `match` miss a default inside a map: the member is dropped or another arm taken, with no finding. Ruled as 78: the trial reads the value the member generates. |
 | [#870](https://github.com/aontu-lang/aontu/issues/870) | bug | M | 3 | A call to an unknown name, or with a wrong count, is silent inside a trial, in a disjunction's arm and under `maybe`. Ruled as 77: refused wherever it stands. Built 2026-11-22; rows x2250 to x2252 wait on the definition. |
 | [#850](https://github.com/aontu-lang/aontu/issues/850) | parity | M |  | A `match` whose result is a relative reference overflows the TypeScript stack; Go answers. |
