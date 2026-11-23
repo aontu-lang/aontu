@@ -122,6 +122,7 @@ class MapVal extends BagVal_1.BagVal {
         let out = (peer.isTop ? this : new MapVal({ peg: (0, BagVal_1.keyTable)() }, ctx));
         out.copied = peer.isTop || this.copied === peer.copied ? this.copied : undefined;
         out.closed = this.closed;
+        out.dirSealed = this.dirSealed && (true !== peer.closed || true === peer.dirSealed);
         // A member any term holds open stays open, whichever side holds it.
         out.opened = this.opened || true === peer.opened;
         out.optionalKeys = [...this.optionalKeys];
@@ -225,7 +226,7 @@ class MapVal extends BagVal_1.BagVal {
                 for (let peerkey in upeer.peg) {
                     let peerchild = upeer.peg[peerkey];
                     // An optional key the closed side lacks is one no instance holds.
-                    if (this.closed && !allowedKeys.includes(peerkey) &&
+                    if (this.closed && !(0, SealVal_1.takes)(this, upeer) && !allowedKeys.includes(peerkey) &&
                         !upeer.aliasKeys.includes(peerkey)) {
                         if (upeer.optionalKeys.includes(peerkey)) {
                             continue;
@@ -249,7 +250,7 @@ class MapVal extends BagVal_1.BagVal {
                     let child = out.peg[peerkey];
                     const peerctx = ctx.descend(peerkey);
                     if (this.closed && undefined !== child) {
-                        child = out.peg[peerkey] = (0, SealVal_1.sealChild)(peerctx, child);
+                        child = out.peg[peerkey] = (0, SealVal_1.sealChild)(peerctx, child, this.dirSealed);
                     }
                     let oval = out.peg[peerkey] =
                         undefined === child
@@ -303,7 +304,7 @@ class MapVal extends BagVal_1.BagVal {
                 out = (0, err_1.makeNilErr)(ctx, 'map', this, peer);
             }
             // Both sides closed: each must declare the other's keys too.
-            if (null == bad && this.closed && peer instanceof MapVal && peer.closed &&
+            if (null == bad && this.closed && peer instanceof MapVal && peer.closed && !(0, SealVal_1.takes)(peer, this) &&
                 !out.isNil) {
                 for (const key of [...allowedKeys].sort(keyorder_1.cmpCodePoint)) {
                     if (!(key in peer.peg) && !this.aliasKeys.includes(key)) {
@@ -323,7 +324,7 @@ class MapVal extends BagVal_1.BagVal {
             }
             if (!out.isNil && out.closed) {
                 for (const key of Object.keys(out.peg)) {
-                    out.peg[key] = (0, SealVal_1.sealChild)(ctx.descend(key), out.peg[key]);
+                    out.peg[key] = (0, SealVal_1.sealChild)(ctx.descend(key), out.peg[key], out.dirSealed);
                 }
             }
             if (!out.isNil) {
@@ -365,6 +366,8 @@ class MapVal extends BagVal_1.BagVal {
         };
         out.closed = this.closed;
         out.opened = this.opened;
+        out.dirSealed = this.dirSealed;
+        out.isData = this.isData;
         out.optionalKeys = [...this.optionalKeys];
         out.aliasKeys = [...this.aliasKeys];
         return out;
@@ -390,6 +393,8 @@ class MapVal extends BagVal_1.BagVal {
         }
         out.closed = this.closed;
         out.opened = this.opened;
+        out.dirSealed = this.dirSealed;
+        out.isData = this.isData;
         out.optionalKeys = [...this.optionalKeys];
         out.aliasKeys = [...this.aliasKeys];
         return out;

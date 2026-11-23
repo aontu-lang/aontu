@@ -12,10 +12,14 @@ import (
 // order is preserved for canon output and generation.
 type MapVal struct {
 	base
-	keys     []string
-	peg      map[string]Val
-	closed   bool     // close() — no keys beyond those present may be added
-	opened   bool     // an explicit open(): a recursive close stops here
+	keys   []string
+	peg    map[string]Val
+	closed bool // close() — no keys beyond those present may be added
+	opened bool // an explicit open(): a recursive close stops here
+	// dirSealed: a bare close() sealed it, so it takes what every term at its place declares (decision 44).
+	dirSealed bool
+	// isData: a bag of the data vet meets the schema with, whose keys such a seal refuses.
+	isData   bool
 	spread   Val      // &: spread constraint applied to every key (nil if none)
 	optional []string // keys marked optional (a?:1) — dropped if unresolved
 
@@ -545,6 +549,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		// A member any term holds open stays open, whichever side holds it.
 		pm, isMap := peer.(*MapVal)
 		out.opened = m.opened || (isMap && pm.opened)
+		out.dirSealed = m.dirSealed && (!isMap || !pm.closed || pm.dirSealed)
 		out.path = cp(home)
 		// The site survives unification, as TS's `out.site = this.site`
 		// keeps it, so a unified bag frames at its brace and keeps its mark.
@@ -577,7 +582,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		for _, k := range pm.keys {
 			if pm.isOptional(k) {
 				if _, declared := m.peg[k]; !declared && !out.isOptional(k) &&
-					(!m.closed || pm.isAliasKey(k)) {
+					(!m.closed || takes(m.dirSealed, pm) || pm.isAliasKey(k)) {
 					out.optional = append(out.optional, k)
 				}
 			} else {
@@ -668,7 +673,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			// A DECLARATION IS NOT A FIELD: `close` never counts one. No
 			// instance can hold an optional key the closed side does not
 			// declare, so it adds nothing rather than refusing.
-			if _, allowed := m.peg[pk]; m.closed && !allowed &&
+			if _, allowed := m.peg[pk]; m.closed && !takes(m.dirSealed, pm) && !allowed &&
 				!pm.isAliasKey(pk) {
 				if pm.isOptional(pk) {
 					continue
@@ -681,7 +686,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			if ex, ok := out.peg[pk]; ok {
 				ctx.slot = pkslot
 				if m.closed {
-					ex = sealChild(ex)
+					ex = sealChild(ex, m.dirSealed)
 				}
 				if nv, isNil := ex.(*NilVal); isNil && literalNilMeets(nv, pc) {
 					uv = makeNilErr(nil, "literal_nil", ex, pc)
@@ -738,7 +743,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	// Both sides closed: each must declare the other's keys too.
-	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed {
+	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed && !takes(pm.dirSealed, m) {
 		own := append([]string{}, m.keys...)
 		sort.Strings(own)
 		for _, k := range own {
@@ -760,7 +765,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if out.closed {
 		for _, k := range out.keys {
 			ctx.slot = append(cp(dbase), k)
-			out.peg[k] = sealChild(out.peg[k])
+			out.peg[k] = sealChild(out.peg[k], out.dirSealed)
 		}
 	}
 

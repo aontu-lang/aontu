@@ -17,6 +17,10 @@ open-inside-close-holds-below	gens	a: close({x: open({y: {}})})\na: {x: {y: {q: 
 close-then-open-reopens-all	gens	a: open(close({x: {y: 1}}))\na: {x: {z: 2}, w: 3}	{"a":{"w":3,"x":{"y":1,"z":2}}}
 bare-close-reaches-nested	gens	a: close() & {x: {y: 1}}\na: {x: {z: 2}}	{"a":{"x":{"y":1,"z":2}}}
 bare-open-reaches-nested	gens	a: open() & close({x: {y: 1}})\na: {x: {z: 2}}	{"a":{"x":{"y":1,"z":2}}}
+bare-close-takes-every-map-at-its-place	gens	v: {x: close()} & {x: {y: 1}} & {x: {z: 2}}	{"v":{"x":{"y":1,"z":2}}}
+bare-close-takes-every-statement-at-its-place	gens	v: {x: close()}\nv: {x: {y: 1}}\nv: {x: {z: 2}}	{"v":{"x":{"y":1,"z":2}}}
+bare-close-in-a-template-takes-a-declared-member	gens	v: {m: {y: 1}, &: close() & {x: 1}}	{"v":{"m":{"x":1,"y":1}}}
+bare-close-copy-is-sealed-where-it-lands	errc	a: close() & {x: 1}\nb: $.a & {y: 1}	closed
 close-reaches-a-reference	errc	b: {y: 1}\na: close({x: $.b})\na: {x: {z: 2}}	closed
 close-reaches-a-reference-later-value	gens	b: {y: 1}\na: close({x: $.b})\na: {x: {y: 1}}	{"a":{"x":{"y":1}},"b":{"y":1}}
 closed-spread-refuses-an-undeclared-key	errc	a: close({x: 1, &: integer})\na: {y: 2}	closed

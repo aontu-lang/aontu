@@ -2355,6 +2355,18 @@ until the phase that encodes it lands.
    both ports had kept the first side's flag only, so `close()` stops at
    a member a term holds open whichever term comes first; rows dir111
    to dir113 leave the ledger, its bound 171.
+   **Built in both ports 2026-11-23, every term at the place** (#726): a
+   bag a bare `close()` seals carries that as a mark of its own
+   (`dirSealed`), and such a seal takes the keys of every term that meets
+   it at its place, so the terms a member gets from several maps, a
+   later statement, a spread's template and a declared member, or a
+   disjunction's arm are sealed together once they have met. It refuses
+   the keys of `vet`'s data, whose bags `vet` marks (`isData`), at every
+   level beneath, and a copy a path takes carries a plain seal where it
+   lands (`fixSeals`), as the definition reads a sealed place's copy.
+   Rows dir102 to dir107, dir177 to dir182, dir189 to dir203 and dir210
+   to dir215 leave the ledger, its bound 138, which leaves #726 the six
+   rows of a directive beside a path.
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`

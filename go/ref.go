@@ -662,6 +662,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		out = instanceClone(node, cp(rv.path))
 	}
 	out = undeclared(out)
+	fixSeals(out)
 	if lifted {
 		if staged {
 			ownArgs(out)
@@ -673,7 +674,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		// A type is a definition: its own statements extend it, a
 		// copy taken by reference is an instance and adds nothing.
 		if typed && !rv.copyFound {
-			sealTree(out, true)
+			sealTree(out, true, false)
 		}
 	}
 	if rv.copyFound {

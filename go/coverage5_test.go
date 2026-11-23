@@ -125,26 +125,26 @@ func TestSealHelpersApiOnlyArms(t *testing.T) {
 	if isOpened(one) || nil != pathOf(one) {
 		t.Fatalf("a scalar is neither opened nor addressed")
 	}
-	sealBag(one, true)
-	if out := sealChild(one); out != one {
+	sealBag(one, true, false)
+	if out := sealChild(one, false); out != one {
 		t.Fatalf("a done scalar child is itself: got %T", out)
 	}
 	held := newMap()
 	held.opened = true
-	if out := sealChild(held); out != held {
+	if out := sealChild(held, false); out != held {
 		t.Fatalf("a held-open child is itself")
 	}
 	shut := &ListVal{}
 	shut.closed = true
-	if out := sealChild(shut); out != shut {
+	if out := sealChild(shut, false); out != shut {
 		t.Fatalf("a closed child is itself")
 	}
 	plain := newMap()
-	if out := sealChild(plain); out == plain || !out.(*MapVal).closed {
+	if out := sealChild(plain, false); out == plain || !out.(*MapVal).closed {
 		t.Fatalf("an open child closes as a copy")
 	}
 	list := &ListVal{}
-	if out := sealChild(list); out == list || !out.(*ListVal).closed {
+	if out := sealChild(list, false); out == list || !out.(*ListVal).closed {
 		t.Fatalf("an open list child closes as a copy")
 	}
 }

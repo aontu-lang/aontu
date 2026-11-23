@@ -22,7 +22,7 @@ import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
 import { RecurseVal, containsRecurseOf, declaration, throughRider } from './RecurseVal'
-import { sealTree, unsealTree } from './SealVal'
+import { fixSeals, sealTree, unsealTree } from './SealVal'
 import { unite } from '../unify'
 
 
@@ -638,6 +638,7 @@ class RefVal extends FeatureVal {
 
           const staged = out.holdsStaged
           out = undeclared(out.clone(ctx, { dup: !staged }))
+          fixSeals(out)
 
           if (lifted) {
             if (staged) {

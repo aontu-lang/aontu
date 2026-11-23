@@ -1194,7 +1194,7 @@ func setClosed(ctx *Ctx, f *FuncVal, args []Val, closed bool) Val {
 		s.path = f.path
 		return s
 	}
-	sealBag(args[0], closed)
+	sealBag(args[0], closed, false)
 	return args[0]
 }
 

@@ -11,8 +11,10 @@ declare class SealVal extends FeatureVal {
     same(peer: any): boolean;
 }
 declare function sealCjo(closed: boolean): number;
-declare function sealTree(v: any, closed: boolean): void;
+declare function sealTree(v: any, closed: boolean, dir?: boolean): void;
 declare function unsealTree(v: any): void;
-declare function sealBag(v: any, closed: boolean): void;
-declare function sealChild(ctx: AontuContext, child: any): Val;
-export { SealVal, sealCjo, sealTree, sealBag, sealChild, unsealTree, };
+declare function fixSeals(v: any): void;
+declare function sealBag(v: any, closed: boolean, dir?: boolean): void;
+declare function sealChild(ctx: AontuContext, child: any, dir?: boolean): Val;
+declare const takes: (bag: any, peer: any) => boolean;
+export { SealVal, sealCjo, sealTree, sealBag, sealChild, takes, fixSeals, unsealTree, };

@@ -750,6 +750,10 @@ export function vet(
   }
   stampUrl(schemaVal, schemaUrl)
   const dataUrls = stampUrl(dataVal, dataUrl)
+  walkVals(dataVal, (v: any) => {
+    v.isData = true === v.isMap || true === v.isList
+    return true
+  }, new Set())
   // The projection every site in this report goes through: roles by
   // url-set membership, names by how the caller reached each document.
   const prov: Prov = {

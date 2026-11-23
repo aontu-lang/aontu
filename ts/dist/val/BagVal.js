@@ -25,6 +25,9 @@ class BagVal extends FeatureVal_1.FeatureVal {
         this.isGenable = true;
         this.closed = false;
         this.opened = false;
+        // Sealed by a bare close(), taking every term at its place (decision 44); the data, which it refuses.
+        this.dirSealed = false;
+        this.isData = false;
         this.optionalKeys = [];
         this.aliasKeys = [];
         // THE NAMES THIS FILE PUBLISHES, read at parse time by a destructure,

@@ -519,6 +519,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     const typed = true === out.mark.type;
                     const staged = out.holdsStaged;
                     out = (0, IdentFuncVal_1.undeclared)(out.clone(ctx, { dup: !staged }));
+                    (0, SealVal_1.fixSeals)(out);
                     if (lifted) {
                         if (staged) {
                             out = ownArgs(ctx, out);

@@ -7,6 +7,8 @@ declare abstract class BagVal extends FeatureVal {
     isGenable: boolean;
     closed: boolean;
     opened: boolean;
+    dirSealed: boolean;
+    isData: boolean;
     optionalKeys: string[];
     aliasKeys: string[];
     exportKeys: string[];

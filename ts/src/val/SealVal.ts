@@ -47,7 +47,7 @@ class SealVal extends FeatureVal {
     // against one peer, and a seal set in place would leak across them.
     if (true === p.isMap || true === p.isList) {
       const out: any = p.clone(ctx)
-      sealBag(out, this.closed)
+      sealBag(out, this.closed, true)
       return out
     }
     return peer
@@ -71,14 +71,15 @@ function sealCjo(closed: boolean): number {
 
 // Closing is recursive, except into a subtree an explicit `open()`
 // holds; opening is recursive and marks each bag so a later close stops.
-function sealTree(v: any, closed: boolean): void {
+function sealTree(v: any, closed: boolean, dir: boolean = false): void {
   if ((true !== v?.isMap && true !== v?.isList) || (closed && true === v.opened)) {
     return
   }
   v.closed = closed
   v.opened = !closed
+  v.dirSealed = closed && dir
   for (const key of Object.keys(v.peg)) {
-    sealTree(v.peg[key], closed)
+    sealTree(v.peg[key], closed, dir)
   }
 }
 
@@ -88,6 +89,7 @@ function unsealTree(v: any): void {
   if (true === v?.isMap || true === v?.isList) {
     v.closed = false
     v.opened = false
+    v.dirSealed = false
     for (const key of Object.keys(v.peg)) {
       unsealTree(v.peg[key])
     }
@@ -95,17 +97,28 @@ function unsealTree(v: any): void {
 }
 
 
+// A copy stands at another place, so a seal its target's place made is a seal of the value there.
+function fixSeals(v: any): void {
+  if (true === v?.isMap || true === v?.isList) {
+    v.dirSealed = false
+    for (const key of Object.keys(v.peg)) {
+      fixSeals(v.peg[key])
+    }
+  }
+}
+
+
 // An explicit seal: the bag it names obeys whatever it said before.
-function sealBag(v: any, closed: boolean): void {
+function sealBag(v: any, closed: boolean, dir: boolean = false): void {
   if (true === v?.isMap || true === v?.isList) {
     v.opened = false
-    sealTree(v, closed)
+    sealTree(v, closed, dir)
   }
 }
 
 
 // A child of a closed bag closes as a copy (a reference answers a shared value).
-function sealChild(ctx: AontuContext, child: any): Val {
+function sealChild(ctx: AontuContext, child: any, dir: boolean = false): Val {
   if (true !== child?.isMap && true !== child?.isList) {
     return child
   }
@@ -113,9 +126,13 @@ function sealChild(ctx: AontuContext, child: any): Val {
     return child
   }
   const out: any = child.clone(ctx)
-  sealTree(out, true)
+  sealTree(out, true, dir)
   return out
-} /* node:coverage ignore next 10 */
+}
+
+
+// A directive's seal takes the keys of the other terms at its place, and refuses the data's.
+const takes = (bag: any, peer: any): boolean => true === bag.dirSealed && true !== peer?.isData /* node:coverage ignore next 10 */
 
 
 export {
@@ -124,5 +141,7 @@ export {
   sealTree,
   sealBag,
   sealChild,
+  takes,
+  fixSeals,
   unsealTree,
 }
