@@ -8,6 +8,35 @@ each change affects.
 
 ## Unreleased
 
+### A bare `close()` in a spread's template seals what the data adds
+
+#726, in part, in both engines. A bare `close()` or `open()` at a
+template's own level acts, at a member only the data adds, on the
+template's terms alone, as the definition reads it. So `{&: close() &
+{x: 1}}` refuses the member `{"x": 1, "y": 2}`, where both engines had
+met the template with the data and sealed `y` in with it, and `{&:
+open() & close({x: 1})}` admits it. `vet` settles such a schema before
+the data meets it, then reads each such template in its argument form,
+`close({x: 1})`, keeping its identity, so a member the schema declares,
+which met the template among its own terms, doesn't meet it again.
+
+`vet` no longer settles a schema that holds a path, at its root or for a
+template. A path reads the data, and the schema settled alone had read
+it as the schema's own value, so since the change below `close() & {x:
+$.y, y: integer}` admitted `{"x": 1, "y": 2}`. Such a schema meets the
+data unsettled again, as it did before. A directive in a meet written as
+a chain, `close() & {x: 1} & {y?: 2}`, is now found at the root as in a
+template, where both engines had sealed `{x: 1}` before `{y?: 2}` met it
+and refused `{"x": 1, "y": 2}`.
+
+- `ts/src/vet.ts` and `go/vet.go`.
+- Rows dir93 to dir101 of `test/spec/def-alias.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 186 to 177. Rows of
+  `test/spec/vet.tsv` hold a member the data adds beside a declared one,
+  an element the data adds, two terms beside a directive at the root and
+  in a template, and a path read through the data at the root and in a
+  template.
+
 ### A bare `close()` at a schema's root seals the schema, not the data
 
 #726, in part, in both engines. `vet` reads a schema written as one
