@@ -103,8 +103,10 @@ end
 /-! ## Selecting: `match` and `filter`
 
 A `match` holds a value to the result of the first arm whose pattern
-admits the value its scrutinee generates, and a `filter` to the members
-of its source that its condition takes, each tried as the term it is.
+admits the value its scrutinee generates, as the output reads it, its
+`type()` and `hide()` members left out (decision 86), and a `filter` to
+the members of its source that its condition takes, each tried as the
+term it is.
 Each selects by a value the document has settled, so each is made once
 the document is read, before the meet, and a document reads as its
 expansion with its selections made. -/
@@ -2025,7 +2027,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
     if ds.clashes s' then .nil else
-    match genD ds s' with
+    match outputD ds s' with
     | some x =>
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
       else (selectArm ds x arms' d').rideMoves s'.moves
