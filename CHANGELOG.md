@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### A bare `close()` in a call's argument seals the place where the call lands
+
+#726, in part, in both engines. A bare `close()` or `open()` at the own
+level of an argument to `copy`, `pref` or `super` now stands beside the
+call, among the terms at the place where the call's value lands, as the
+definition reads it. So `v: copy(close() & {x: 1}) & {y: 2}` seals `v`
+with both keys: it admits `{"v": {"x": 1, "y": 2}}` and refuses a `z`
+there, where both engines had sealed the copy with `x` alone and read
+`y` as a conflict. `pref` and `super` read the same.
+
+- `ts/src/val/ConjunctVal.ts` and `go/conjunct.go`, where a meet's terms
+  are gathered, and `vet`'s root and template checks, which read the
+  terms the same way.
+- Rows dirp30 to dirp32 of `test/spec/def-path.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 177 to 174, and rows of
+  `test/spec/vet.tsv` hold `pref` and `super` beside a term, a copy of a
+  copy, two terms in the argument, and a copy at the root and in a
+  template.
+
 ### A bare `close()` in a spread's template seals what the data adds
 
 #726, in part, in both engines. A bare `close()` or `open()` at a

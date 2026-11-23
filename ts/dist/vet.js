@@ -437,19 +437,17 @@ function vetCoverage(anchor, dataVal, coverageAt, root) {
 }
 // The first failure a schema holds by key and index, but a written `nil`:
 // one built as the schema is read stands in its tree, not among its errors.
-const bareDirective = (t) => (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length;
 function holdsRef(v) {
     let found = false;
     (0, walk_1.walkVals)(v, (t) => !(found = found || true === t.isRef), new Set());
     return found;
 }
-const meetTerms = (v) => true === v.isConjunct ? v.peg.flatMap(meetTerms) : [v];
 // The maps and lists whose template holds a bare directive at its own level, beside a term.
 function directedTemplates(v) {
     const found = [];
     (0, walk_1.walkVals)(v, (t) => {
-        const terms = null == t.spread?.cj ? [] : meetTerms(t.spread.cj);
-        if (terms.some(bareDirective) && !terms.every(bareDirective)) {
+        const terms = null == t.spread?.cj ? [] : (0, ConjunctVal_1.placeTerms)(t.spread.cj);
+        if (terms.some(ConjunctVal_1.bareDirective) && !terms.every(ConjunctVal_1.bareDirective)) {
             found.push(t);
         }
         return true;
@@ -459,8 +457,9 @@ function directedTemplates(v) {
 // A member only the data adds holds the template's terms alone: `close() & {x: 1}` reads there as
 // `close({x: 1})`, keeping its identity, so a member the schema declares doesn't meet it again.
 function argumentForm(cj, ctx) {
-    const terms = meetTerms(cj).filter((t) => !bareDirective(t));
-    const dirs = meetTerms(cj).filter(bareDirective);
+    const all = (0, ConjunctVal_1.placeTerms)(cj);
+    const terms = all.filter((t) => !(0, ConjunctVal_1.bareDirective)(t));
+    const dirs = all.filter(ConjunctVal_1.bareDirective);
     let out = 1 === terms.length ? terms[0] : new ConjunctVal_1.ConjunctVal({ peg: terms }, ctx);
     if (dirs.some((t) => true === t.isOpenFunc)) {
         out = new OpenFuncVal_1.OpenFuncVal({ peg: [out] }, ctx);
@@ -620,7 +619,7 @@ function vet(schemaSrc, dataSrc, opts) {
             stampUrl(meetAnchor, schemaUrl);
             // A root meet or a template holding a bare directive settles before the data meets it, as a
             // key's does, unless a reference in the schema, which reads the data, would settle with it.
-            if ((meetTerms(meetAnchor).some(bareDirective) ||
+            if (((0, ConjunctVal_1.placeTerms)(meetAnchor).some(ConjunctVal_1.bareDirective) ||
                 0 < directedTemplates(meetAnchor).length) && !holdsRef(meetAnchor)) {
                 meetAnchor = aontu.unify(meetAnchor, undefined, aontu.ctx({ collect: true }));
             }

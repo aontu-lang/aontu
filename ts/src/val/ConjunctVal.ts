@@ -248,25 +248,54 @@ function sameTerms(cj: any, t0: Val, t1: Val): boolean {
 }
 
 
+const bareDirective = (t: any): boolean =>
+  (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length
+
+
+// A bare directive in the argument of a call whose value holds the
+// argument acts where that value lands, so it stands beside the call
+// among the terms at the call's place (decision 46).
+function landed(t: any): Val[] {
+  if ((true === t.isCopyFunc || true === t.isPrefFunc || true === t.isSuperFunc) && 1 === t.peg.length) {
+    const inner = placeTerms(t.peg[0])
+    const rest = inner.filter((u: any) => !bareDirective(u))
+    if (0 < rest.length && rest.length < inner.length) {
+      const call: any = t.make(undefined, {
+        peg: [1 === rest.length ? rest[0] : new ConjunctVal({ peg: rest })],
+        mark: { type: t.mark.type, hide: t.mark.hide },
+      })
+      call.site = t.site
+      call.path = t.path
+      return [...inner.filter(bareDirective), call]
+    }
+  }
+  return [t]
+}
+
+
+// The terms a meet holds at its place, written as a chain or not.
+function placeTerms(t: any): Val[] {
+  return true === t.isConjunct ? t.peg.flatMap(placeTerms) : landed(t)
+}
+
+
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms
 function norm(terms: Val[], carried: Val[]): Val[] {
 
   let expand: Val[] = []
-  for (let tI = 0, pI = 0; tI < terms.length; tI++, pI++) {
-    if (terms[tI].isConjunct) {
-      if (rides(terms[tI])) {
-        carried.push(terms[tI])
+  for (const t of terms) {
+    if (t.isConjunct) {
+      if (rides(t)) {
+        carried.push(t)
       }
-      const cterms = terms[tI].peg
-      for (let cI = 0; cI < cterms.length; cI++) {
-        expand[pI + cI] = cterms[cI]
+      for (const u of t.peg) {
+        expand.push(...landed(u))
       }
-      pI += cterms.length - 1
     }
     else {
-      expand[pI] = terms[tI]
+      expand.push(...landed(t))
     }
   }
 
@@ -326,6 +355,8 @@ function unmarkedTemplate(cj: Val, ctx: AontuContext): Val {
 
 export {
   norm,
+  bareDirective,
+  placeTerms,
   ConjunctVal,
   unmarkedTemplate,
 }

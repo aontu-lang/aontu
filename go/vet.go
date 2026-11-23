@@ -432,11 +432,6 @@ func valAt(root Val, path []string) Val {
 	return v
 }
 
-func bareDirective(t Val) bool {
-	f, isF := t.(*FuncVal)
-	return isF && ("close" == f.name || "open" == f.name) && 0 == len(f.peg)
-}
-
 func holdsRef(v Val) bool {
 	found := false
 	walkVals(v, func(t Val) bool {
@@ -445,18 +440,6 @@ func holdsRef(v Val) bool {
 		return !found
 	}, map[Val]bool{})
 	return found
-}
-
-func meetTerms(v Val) []Val {
-	cj, ok := v.(*ConjunctVal)
-	if !ok {
-		return []Val{v}
-	}
-	var terms []Val
-	for _, t := range cj.peg {
-		terms = append(terms, meetTerms(t)...)
-	}
-	return terms
 }
 
 // The maps and lists whose template holds a bare directive at its own level, beside a term.
@@ -470,7 +453,7 @@ func directedTemplates(v Val) []Val {
 		case *ListVal:
 			spread = n.spread
 		}
-		terms := meetTerms(spread)
+		terms := placeTerms(spread)
 		if slices.ContainsFunc(terms, bareDirective) && slices.ContainsFunc(terms, func(t Val) bool { return !bareDirective(t) }) {
 			found = append(found, t)
 		}
@@ -493,10 +476,10 @@ func landTemplate(bag Val) {
 	case *ListVal:
 		spread, members = &n.spread, n.peg
 	}
-	cj := (*spread).(*ConjunctVal)
+	tmpl := *spread
 	var terms []Val
 	opens, closes := false, false
-	for _, t := range meetTerms(cj) {
+	for _, t := range placeTerms(tmpl) {
 		if !bareDirective(t) {
 			terms = append(terms, t)
 			continue
@@ -514,8 +497,14 @@ func landTemplate(bag Val) {
 	if closes {
 		out = newFunc("close", []Val{out})
 	}
-	out.(*FuncVal).site, out.(*FuncVal).path = cj.site, cj.path
-	old := unmarkedTemplate(cj)
+	call := out.(*FuncVal)
+	switch t := tmpl.(type) {
+	case *ConjunctVal:
+		call.site, call.path = t.site, t.path
+	case *FuncVal:
+		call.site, call.path = t.site, t.path
+	}
+	old := unmarkedTemplate(tmpl)
 	for _, m := range members {
 		if sprOf(m) == old {
 			setSprOn(m, out)
@@ -806,7 +795,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			stampURL(meetAnchor, schemaURL)
 			// A root meet or a template holding a bare directive settles before the data meets it, as a
 			// key's does, unless a reference in the schema, which reads the data, would settle with it.
-			if (slices.ContainsFunc(meetTerms(meetAnchor), bareDirective) || 0 < len(directedTemplates(meetAnchor))) &&
+			if (slices.ContainsFunc(placeTerms(meetAnchor), bareDirective) || 0 < len(directedTemplates(meetAnchor))) &&
 				!holdsRef(meetAnchor) {
 				meetAnchor = unifyRoot(meetAnchor, &Ctx{root: meetAnchor, vars: hostVals(options.HostVars), src: schemaSrc, collect: true})
 			}

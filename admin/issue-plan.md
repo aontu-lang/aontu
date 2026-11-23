@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 177 on 2026-11-23),
+  on 2026-11-22), ledger rows (394 at most then, 174 on 2026-11-23),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -111,13 +111,13 @@ How both engines read a preference, a lone preference and a live disjunction arm
 
 ### Seals, marks, moves and generation-time checks
 
-11 issues (1 S, 7 M, 3 L), 53 ledger rows.
+11 issues (1 S, 7 M, 3 L), 50 ledger rows.
 
-A seal, a mark or a move, and the checks that wait for generation: #726 (bare `close()` and `open()`, decisions 44 to 46) carries 45 rows. #748 and #749 (a path into a container met with a deferred atom or a seal) also block the relations workstream.
+A seal, a mark or a move, and the checks that wait for generation: #726 (bare `close()` and `open()`, decisions 44 to 46) carries 42 rows. #748 and #749 (a path into a container met with a deferred atom or a seal) also block the relations workstream.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
-| [#726](https://github.com/aontu-lang/aontu/issues/726) | def | L | 45 | Bare `close()`/`open()` act on their own conjunct, not on the place's met terms (decisions 44–46). The document's root and a template's own level built in both ports 2026-11-23. |
+| [#726](https://github.com/aontu-lang/aontu/issues/726) | def | L | 42 | Bare `close()`/`open()` act on their own conjunct, not on the place's met terms (decisions 44–46). The document's root, a template's own level and a call's argument built in both ports 2026-11-23. |
 | [#749](https://github.com/aontu-lang/aontu/issues/749) | bug | M |  | close() or open() wrapping a map whose member reads a sibling never resolves: mapval_no_gen. |
 | [#748](https://github.com/aontu-lang/aontu/issues/748) | bug | L |  | Paths into a container met with len, unique, when, must, nof, contains or rest resolve to nothing. |
 | [#817](https://github.com/aontu-lang/aontu/issues/817) | def | M |  | Generation-time checks (len, contains, when) never run under `hide()` or `type()`; definition reads invalid. |
