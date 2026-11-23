@@ -52,7 +52,7 @@ func (s *SealVal) Unify(peer Val, ctx *Ctx) Val {
 	// against one peer, and a seal set in place would leak across them.
 	case *MapVal, *ListVal:
 		c := clonePath(p, cp(pathOf(p)))
-		sealBag(c, s.closed)
+		sealBag(c, s.closed, true)
 		return c
 	}
 	return peer
@@ -80,20 +80,20 @@ func isOpened(v Val) bool {
 
 // Closing is recursive, except into a subtree an explicit `open()`
 // holds; opening is recursive and marks each bag so a later close stops.
-func sealTree(v Val, closed bool) {
+func sealTree(v Val, closed, dir bool) {
 	if closed && isOpened(v) {
 		return
 	}
 	switch b := v.(type) {
 	case *MapVal:
-		b.closed, b.opened = closed, !closed
+		b.closed, b.opened, b.dirSealed = closed, !closed, closed && dir
 		for _, k := range b.keys {
-			sealTree(b.peg[k], closed)
+			sealTree(b.peg[k], closed, dir)
 		}
 	case *ListVal:
-		b.closed, b.opened = closed, !closed
+		b.closed, b.opened, b.dirSealed = closed, !closed, closed && dir
 		for _, e := range b.peg {
-			sealTree(e, closed)
+			sealTree(e, closed, dir)
 		}
 	}
 }
@@ -102,45 +102,72 @@ func sealTree(v Val, closed bool) {
 func unsealTree(v Val) {
 	switch b := v.(type) {
 	case *MapVal:
-		b.closed, b.opened = false, false
+		b.closed, b.opened, b.dirSealed = false, false, false
 		for _, k := range b.keys {
 			unsealTree(b.peg[k])
 		}
 	case *ListVal:
-		b.closed, b.opened = false, false
+		b.closed, b.opened, b.dirSealed = false, false, false
 		for _, e := range b.peg {
 			unsealTree(e)
 		}
 	}
 }
 
+// A copy stands at another place, so a seal its target's place made is a seal of the value there.
+func fixSeals(v Val) {
+	switch b := v.(type) {
+	case *MapVal:
+		b.dirSealed = false
+		for _, k := range b.keys {
+			fixSeals(b.peg[k])
+		}
+	case *ListVal:
+		b.dirSealed = false
+		for _, e := range b.peg {
+			fixSeals(e)
+		}
+	}
+}
+
+// A directive's seal takes the keys of the other terms at its place, and refuses the data's.
+func takes(dirSealed bool, peer Val) bool {
+	switch p := peer.(type) {
+	case *MapVal:
+		return dirSealed && !p.isData
+	case *ListVal:
+		return dirSealed && !p.isData
+	}
+	return dirSealed
+}
+
 // An explicit seal: the bag it names obeys whatever it said before.
-func sealBag(v Val, closed bool) {
+func sealBag(v Val, closed, dir bool) {
 	switch b := v.(type) {
 	case *MapVal:
 		b.opened = false
 	case *ListVal:
 		b.opened = false
 	}
-	sealTree(v, closed)
+	sealTree(v, closed, dir)
 }
 
 // A child of a closed bag closes as a copy (a reference answers a shared value).
-func sealChild(child Val) Val {
+func sealChild(child Val, dir bool) Val {
 	switch b := child.(type) {
 	case *MapVal:
 		if b.closed || b.opened {
 			return child
 		}
 		out := clonePath(b, cp(b.path))
-		sealTree(out, true)
+		sealTree(out, true, dir)
 		return out
 	case *ListVal:
 		if b.closed || b.opened {
 			return child
 		}
 		out := clonePath(b, cp(b.path))
-		sealTree(out, true)
+		sealTree(out, true, dir)
 		return out
 	}
 	return child

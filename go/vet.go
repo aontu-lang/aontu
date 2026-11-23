@@ -738,6 +738,15 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	}
 	stampURL(schemaVal, schemaURL)
 	dataURLs := stampURL(dataVal, dataURL)
+	walkVals(dataVal, func(v Val) bool {
+		switch b := v.(type) {
+		case *MapVal:
+			b.isData = true
+		case *ListVal:
+			b.isData = true
+		}
+		return true
+	}, map[Val]bool{})
 	// The projection every site in this report goes through: roles by
 	// url-set membership, names by how the caller reached each document.
 	prov := vetProv{

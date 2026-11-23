@@ -32,6 +32,9 @@ abstract class BagVal extends FeatureVal {
 
   closed: boolean = false
   opened: boolean = false
+  // Sealed by a bare close(), taking every term at its place (decision 44); the data, which it refuses.
+  dirSealed: boolean = false
+  isData: boolean = false
   optionalKeys: string[] = []
 
   aliasKeys: string[] = []

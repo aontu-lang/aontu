@@ -11,10 +11,12 @@ import (
 // element-wise by index; a longer peer extends the result.
 type ListVal struct {
 	base
-	peg    []Val
-	closed bool
-	opened bool
-	spread Val // &: spread applied to every element
+	peg       []Val
+	closed    bool
+	opened    bool
+	dirSealed bool
+	isData    bool
+	spread    Val // &: spread applied to every element
 }
 
 func newList(elems []Val) *ListVal {
@@ -143,6 +145,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		// A member any term holds open stays open, whichever side holds it.
 		pl, isList := peer.(*ListVal)
 		out.opened = l.opened || (isList && pl.opened)
+		out.dirSealed = l.dirSealed && (!isList || !pl.closed || pl.dirSealed)
 		out.path = cp(l.path)
 		out.site.sp = l.site.sp
 		out.site.spu = l.site.spu
@@ -256,7 +259,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		for i, pe := range peerPeg {
 			// A spread declares every element; each past a closed list's end is refused.
-			if l.closed && l.spread == nil && i >= len(l.peg) {
+			if l.closed && !takes(l.dirSealed, pl) && l.spread == nil && i >= len(l.peg) {
 				bad = makeNilErr(ctx, "closed", pe, nil)
 			}
 			islot := append(cp(dbase), itoa(i))
@@ -264,7 +267,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			if i < len(out.peg) {
 				ctx.slot = islot
 				if l.closed {
-					out.peg[i] = sealChild(out.peg[i])
+					out.peg[i] = sealChild(out.peg[i], l.dirSealed)
 				}
 				uv = unite(ctx, out.peg[i], pe)
 				// The spread meets an element once, and meeting a marked one
@@ -311,7 +314,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	if out.closed {
 		for i := range out.peg {
 			ctx.slot = append(cp(dbase), itoa(i))
-			out.peg[i] = sealChild(out.peg[i])
+			out.peg[i] = sealChild(out.peg[i], out.dirSealed)
 		}
 	}
 

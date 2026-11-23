@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### A bare `close()` seals every term at its place, from whichever map
+
+#726, in part, in both engines. A bare `close()` seals the terms at
+its place once they have met, as the definition reads it, wherever the
+document writes them: in another map that meets this one, a later
+statement, a spread's template beside a member a map declares, or the
+arm of a disjunction. So `v: {x: close()} & {x: {y: 1}} & {x: {z: 2}}`
+is `{"v": {"x": {"y": 1, "z": 2}}}`, where both engines had sealed `x`
+with the first map's terms and refused `z`, and `{m: {y: 1}, &: close()
+& {x: 1}}` seals `m` with both keys.
+
+A map or a list a bare `close()` seals now carries that as a mark of its
+own. It takes the keys of every other term that meets it at its place,
+and still refuses what `vet`'s data adds there, at every level beneath.
+A copy a path takes is sealed where it lands, as before.
+
+- `ts/src/val/SealVal.ts`, `ts/src/val/BagVal.ts`, `ts/src/val/MapVal.ts`,
+  `ts/src/val/ListVal.ts`, `ts/src/val/RefVal.ts` and `ts/src/vet.ts`;
+  `go/seal.go`, `go/mapval.go`, `go/listval.go`, `go/clone.go`,
+  `go/ref.go`, `go/func.go` and `go/vet.go`.
+- Rows dir102 to dir107, dir177 to dir182, dir189 to dir203 and dir210
+  to dir215 of `test/spec/def-alias.tsv`, 33 in all, leave
+  `spec/ledger.tsv`, whose bound falls from 171 to 138. Rows of
+  `test/spec/seal.tsv` hold the eval answers, and rows of
+  `test/spec/vet.tsv` the data a seal still refuses.
+
 ### A member held open stays open whichever term comes first
 
 #726, in part, in both engines. When two maps or lists meet, the result

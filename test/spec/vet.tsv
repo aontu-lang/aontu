@@ -557,3 +557,8 @@ vet-template-bare-open-holds-each-term-open	verdict	v: {&: open() & close({x: 1}
 # close() still seals its own level.
 vet-held-open-element-stays-open-in-either-order	verdict	v: close() & ([{y: 1}] & [open({y: 1})])	{"v": [{"y": 1, "z": 2}]}	{"verdict":"valid"}
 vet-held-open-member-leaves-the-place-sealed	verdict	v: close() & ({x: {y: 1}} & {x: open({y: 1})})	{"v": {"x": {"y": 1}, "w": 1}}	{"verdict":"invalid"}
+# A bare close() takes what every term at its place declares, from any
+# map, and refuses what only the data adds, at every level beneath.
+vet-bare-close-takes-every-map-and-refuses-the-data	verdict	v: {x: close()} & {x: {y: 1}} & {x: {z: 2}}	{"v": {"x": {"y": 1, "z": 2, "w": 3}}}	{"verdict":"invalid"}
+vet-bare-close-refuses-the-data-beneath	verdict	v: {x: close()} & {x: {y: 1}}	{"v": {"x": {"y": 1, "z": 2}}}	{"verdict":"invalid"}
+vet-bare-close-refuses-the-data-in-a-list	verdict	v: {x: close()} & {x: [1]}	{"v": {"x": [1, 2]}}	{"verdict":"invalid"}

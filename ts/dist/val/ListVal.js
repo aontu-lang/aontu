@@ -94,6 +94,7 @@ class ListVal extends BagVal_1.BagVal {
         let out = (peer.isTop ? this : new ListVal({ peg: [] }, ctx));
         out.copied = peer.isTop || this.copied === peer.copied ? this.copied : undefined;
         out.closed = this.closed;
+        out.dirSealed = this.dirSealed && (true !== peer.closed || true === peer.dirSealed);
         // A member any term holds open stays open, whichever side holds it.
         out.opened = this.opened || true === peer.opened;
         out.optionalKeys = [...this.optionalKeys];
@@ -190,14 +191,14 @@ class ListVal extends BagVal_1.BagVal {
                     let peerchild = peerpeg[peerkey];
                     // A spread declares every element, so a closed list with one
                     // fixes nothing here; the template judges the element.
-                    if (this.closed && null == out.spread.cj &&
+                    if (this.closed && !(0, SealVal_1.takes)(this, upeer) && null == out.spread.cj &&
                         !allowedKeys.includes(peerkey)) {
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }
                     let child = out.peg[peerkey];
                     const peerctx = ctx.descend(peerkey);
                     if (this.closed && undefined !== child) {
-                        child = out.peg[peerkey] = (0, SealVal_1.sealChild)(peerctx, child);
+                        child = out.peg[peerkey] = (0, SealVal_1.sealChild)(peerctx, child, this.dirSealed);
                     }
                     let oval = out.peg[peerkey] =
                         undefined === child ? peerchild :
@@ -248,7 +249,7 @@ class ListVal extends BagVal_1.BagVal {
             }
             if (!out.isNil && out.closed) {
                 for (const key of Object.keys(out.peg)) {
-                    out.peg[key] = (0, SealVal_1.sealChild)(ctx.descend(key), out.peg[key]);
+                    out.peg[key] = (0, SealVal_1.sealChild)(ctx.descend(key), out.peg[key], out.dirSealed);
                 }
             }
             if (!out.isNil) {
@@ -291,6 +292,8 @@ class ListVal extends BagVal_1.BagVal {
         };
         out.closed = this.closed;
         out.opened = this.opened;
+        out.dirSealed = this.dirSealed;
+        out.isData = this.isData;
         out.optionalKeys = [...this.optionalKeys];
         return out;
     }
@@ -312,6 +315,8 @@ class ListVal extends BagVal_1.BagVal {
         }
         out.closed = this.closed;
         out.opened = this.opened;
+        out.dirSealed = this.dirSealed;
+        out.isData = this.isData;
         out.optionalKeys = [...this.optionalKeys];
         return out;
     }

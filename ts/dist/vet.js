@@ -543,6 +543,10 @@ function vet(schemaSrc, dataSrc, opts) {
     }
     stampUrl(schemaVal, schemaUrl);
     const dataUrls = stampUrl(dataVal, dataUrl);
+    (0, walk_1.walkVals)(dataVal, (v) => {
+        v.isData = true === v.isMap || true === v.isList;
+        return true;
+    }, new Set());
     // The projection every site in this report goes through: roles by
     // url-set membership, names by how the caller reached each document.
     const prov = {
