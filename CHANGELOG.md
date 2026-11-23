@@ -8,6 +8,35 @@ each change affects.
 
 ## Unreleased
 
+### A `match` waits for a scrutinee that generates no value
+
+#743, #919 and #922, in both engines, as the definition reads them.
+
+- **Ruling 49.** A `match` whose scrutinee generates no value waits for
+  the data, which picks the arm: a kind, a bound, or a disjunction with
+  no default among its arms. So
+  `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}` takes its arm
+  from the data's `kind`, where both engines refused it as `match_none`
+  before any data. Where nothing settles the scrutinee, the `match`
+  stays incomplete. That includes `match(1|2, integer, a, b)`, which
+  took the first arm though its scrutinee is open. A scrutinee that is
+  `nil` or an absence goes on as before.
+- **A pattern that reads the match's own place** reads the rest of the
+  document there, as a scrutinee does. `v: match(1, $.v.z, {y: 2}, {})`
+  admits `{"v": {"z": 1, "y": 2}}`, where both engines waited for good.
+- **Whether a scrutinee is still open** is read as the output reads it,
+  so a `type()` or `hide()` member it carries holds no `match` back.
+
+Changed files and rows:
+
+- `ts/src/val/MatchFuncVal.ts`, `go/generate.go` and `go/func.go`: the
+  changes above.
+- Rows os0 to os11, sr57, sr58 and sr60 to sr62 of
+  `test/spec/def-path.tsv` leave `spec/ledger.tsv`, whose bound falls
+  from 206 to 189.
+- Two rows of `test/spec/gen-match.tsv` that held the earlier reading
+  answer `mapval_no_gen`.
+
 ### The definition reads a `match` pattern at its own place, and selects by the output
 
 #919 and #922, in the definition only. A pattern that reads the place

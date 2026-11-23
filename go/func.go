@@ -353,7 +353,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 
 	if stagedFuncs[f.name] {
 		var driven bool
-		if "match" == f.name && nil != peer && !isTop(peer) {
+		if "match" == f.name {
 			driven = matchDrive(ctx, f, base, peer)
 		} else {
 			driven = stagedDrive(ctx, f, base)

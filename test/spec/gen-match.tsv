@@ -37,9 +37,10 @@ match-defaulted-scrutinee-default	gen	t:{s:*readonly|write|destructive,r:match(.
 match-defaulted-scrutinee-hit	gen	t:{s:*readonly|write|destructive,r:match(.s,destructive,true,false)}\nt:s:destructive	{"t":{"r":true,"s":"destructive"}}
 match-defaulted-scrutinee-other	gen	t:{s:*readonly|write|destructive,r:match(.s,destructive,true,false)}\nt:s:write	{"t":{"r":false,"s":"write"}}
 match-bare-pref-scrutinee	gen	k:*5\nz:match($.k,6,a,b)	{"k":5,"z":"b"}
-# ... and a PREF-FREE open disjunction is untouched: no effective
-# default, so it matches by unifiability as documented.
-match-open-disjunct-scrutinee	gen	z:match(1|2,integer,a,b)	{"z":"a"}
+# ... and a PREF-FREE open disjunction generates no value, so the
+# match waits for the data (ruling 49, #743): alone it is incomplete,
+# as the definition reads it, though every arm meets the pattern.
+match-open-disjunct-scrutinee	errc	z:match(1|2,integer,a,b)	mapval_no_gen
 match-none-no-default	errc	t:mid\nz:match($.t,small,{cpu:1},large,{cpu:8})\n	match_none
 match-none-single-arm	errc	z:match(1,string,a)\n	match_none
 match-arity-two	errc	z:match(1,string)\n	func_arity
@@ -59,7 +60,7 @@ match-list-same-length-hits	gens	x:match([],[],"hit","miss")	{"x":"hit"}
 # question and the arm matches.
 match-list-spread-pattern-hits	gens	x:match([1,2],[&:integer],"hit","miss")	{"x":"hit"}
 match-absent-key-is-a-miss	gens	m:match({n:"b"},{pk:true},"hit","miss")	{"m":"miss"}
-match-disjunct-whole-still-hits	gens	m:match(free|pro|enterprise,free,1,pro,2,enterprise,3)	{"m":1}
+match-disjunct-whole-waits	errc	m:match(free|pro|enterprise,free,1,pro,2,enterprise,3)	mapval_no_gen
 match-unfilled-optional-is-not-a-member	gens	m:match({},{a?:integer},"hit","miss")	{"m":"hit"}
 # A waiting match is a function of its arguments and its key, so a
 # second of one canon in a meet at one place is written once.

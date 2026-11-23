@@ -20,12 +20,15 @@ function effectiveScrutinee(v) {
     }
     return (0, PrefVal_1.prefInnerPeg)(out);
 }
-// A value a selection is made by: a scalar, or a bag of such; a nil refuses as before.
+// What a selection is made by, as the output reads it: a scalar, or a bag
+// whose output members are such; a nil or an absence goes on as before.
 function generates(v) {
     const s = effectiveScrutinee(v);
-    return true === s?.isScalar || true === s?.isNil ||
-        (true === s?.isMap && Object.keys(s.peg).every((k) => s.optionalKeys.includes(k) || generates(s.peg[k]))) ||
-        (true === s?.isList && s.peg.every((c) => generates(c)));
+    const unseen = (k, c) => true === c.mark?.type || true === c.mark?.hide ||
+        true === s.optionalKeys?.includes(k) || true === s.aliasKeys?.includes(k);
+    return true === s?.isScalar || true === s?.isNil || true === s?.isAbsent ||
+        ((true === s?.isMap || true === s?.isList) &&
+            Object.entries(s.peg).every(([k, c]) => unseen(k, c) || generates(c)));
 }
 // A result stands where the selection stands, so the relative paths
 // written in it read from there, as a template's instance reads them.
@@ -53,20 +56,20 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // The scrutinee and the PATTERNS are driven; the results are not
         // (see the header). driveStagedArgs takes a prefix, so the odd
         // positions are driven one at a time.
-        // A scrutinee reading the match's own place reads the peer held there,
-        // and waits, to be read again, while the peer leaves it open.
-        const own = !peer.isTop && (0, ConstraintVal_1.readsPlace)(this.peg[0], this.path) ?
-            this.peg[0].clone(ctx, { dup: true }) : undefined;
-        let ready = this.driveStagedArgs(peer.isTop ? ctx : ctx.holdArm(this.path, peer, undefined, true), 1);
-        if (undefined !== own && ready && !generates(this.peg[0])) {
-            this.peg[0] = own;
+        // A path to the match's own place reads the peer held there; a
+        // scrutinee waits, read again, until it generates a value.
+        const held = peer.isTop ? ctx : ctx.holdArm(this.path, peer, undefined, true);
+        const scrut = this.peg[0].done ? undefined : this.peg[0].clone(ctx, { dup: true });
+        let ready = this.driveStagedArgs(held, 1);
+        if (ready && !generates(this.peg[0])) {
+            this.peg[0] = scrut ?? this.peg[0];
             ready = false;
         }
         const last = this.peg.length - (this.hasDefault() ? 1 : 0);
         for (let i = 1; i < last; i += 2) {
             const arg = this.peg[i];
             if (!arg.done) {
-                this.peg[i] = arg.unify((0, top_1.top)(), ctx);
+                this.peg[i] = arg.unify((0, top_1.top)(), (0, ConstraintVal_1.readsPlace)(arg, this.path) ? held : ctx);
             }
             ready = ready && true === this.peg[i].done;
         }
