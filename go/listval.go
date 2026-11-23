@@ -140,7 +140,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			out.copied = l.copied
 		}
 		out.closed = l.closed
-		out.opened = l.opened
+		// A member any term holds open stays open, whichever side holds it.
+		pl, isList := peer.(*ListVal)
+		out.opened = l.opened || (isList && pl.opened)
 		out.path = cp(l.path)
 		out.site.sp = l.site.sp
 		out.site.spu = l.site.spu

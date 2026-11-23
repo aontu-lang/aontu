@@ -542,7 +542,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			out.copied = m.copied
 		}
 		out.closed = m.closed
-		out.opened = m.opened
+		// A member any term holds open stays open, whichever side holds it.
+		pm, isMap := peer.(*MapVal)
+		out.opened = m.opened || (isMap && pm.opened)
 		out.path = cp(home)
 		// The site survives unification, as TS's `out.site = this.site`
 		// keeps it, so a unified bag frames at its brace and keeps its mark.

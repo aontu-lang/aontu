@@ -2350,6 +2350,11 @@ until the phase that encodes it lands.
    stayed on the argument form as a mark; both ports now read the
    default's value, and the form holds each term unmarked, as a
    template does (ruling 39).
+   **Built in both ports 2026-11-23, a member held open** (#726): a map
+   or a list met with another is held open where either side was, where
+   both ports had kept the first side's flag only, so `close()` stops at
+   a member a term holds open whichever term comes first; rows dir111
+   to dir113 leave the ledger, its bound 171.
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`
@@ -2423,7 +2428,17 @@ until the phase that encodes it lands.
    the same holds for `pref` and `super` beside a term, which no row of
    the definition covered and both ports read as a conflict. A directive
    beneath the call's own level, as in `copy({x: close() & {y: 1}}) &
-   {x: {z: 2}}`, still seals inside the argument.
+   {x: {z: 2}}`, still seals inside the argument. Review then found the
+   lift sealing the data in: `vet` meets a template with the data's
+   member, so `{&: pref(close() & {x: $.s})}` admitted a key it doesn't
+   declare. A directive now leaves the argument only in a meet of the
+   schema's own terms (one with no peer) and not beside a path, and
+   `open()` leaves only `copy`'s, as `pref` and `super` keep their
+   argument's seals. The definition refuses `{&: pref(open() & close({x:
+   1})) & {y: 2}}` with `{"x": 1, "y": 2}`, and reads `v: pref(open() &
+   close({x: 1})) & {y: 2}` as an error, as it does with `super`: `open()`
+   at the place doesn't reach into the call's value, which keeps the
+   seal. Both ports admit both, as they did before; no row covers them.
 
 47. **Modules.** Raised 2026-11-12 while planning P10: the module
    imports `@"corp.example/schemas/service"` and `@"alias:legacy"`, and

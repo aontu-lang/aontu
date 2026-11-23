@@ -122,7 +122,8 @@ class MapVal extends BagVal_1.BagVal {
         let out = (peer.isTop ? this : new MapVal({ peg: (0, BagVal_1.keyTable)() }, ctx));
         out.copied = peer.isTop || this.copied === peer.copied ? this.copied : undefined;
         out.closed = this.closed;
-        out.opened = this.opened;
+        // A member any term holds open stays open, whichever side holds it.
+        out.opened = this.opened || true === peer.opened;
         out.optionalKeys = [...this.optionalKeys];
         out.aliasKeys = [...this.aliasKeys];
         out.spread.cj = this.spread.cj;

@@ -550,3 +550,10 @@ vet-call-bare-close-in-a-copy-of-a-copy	verdict	v: copy(copy(close() & {x: 1})) 
 vet-call-bare-close-beside-two-terms-in-copy	verdict	v: copy(close() & {x: 1} & {y?: 2}) & {z: 3}	{"v": {"x": 1, "y": 2, "z": 3, "w": 4}}	{"verdict":"invalid"}
 vet-call-bare-close-in-copy-at-the-root	verdict	copy(close() & {x: 1}) & {y: 2}	{"x": 1, "y": 2, "z": 3}	{"verdict":"invalid"}
 vet-call-bare-close-in-copy-in-a-template	verdict	v: {&: copy(close() & {x: 1})}	{"v": {"m": {"x": 1, "y": 2}}}	{"verdict":"invalid"}
+vet-call-bare-close-beside-a-path-stays-in-the-call	verdict	v: {&: pref(close() & {x: $.s})}, s: 1	{"v": {"m": {"x": 1, "rogue": 2}}, "s": 1}	{"verdict":"invalid"}
+vet-call-bare-open-in-copy-in-a-template	verdict	v: {&: copy(open() & close({x: 1})) & {y: 2}}	{"v": {"m": {"x": 1, "y": 2}}}	{"verdict":"valid"}
+vet-template-bare-open-holds-each-term-open	verdict	v: {&: open() & close({x: 1}) & {y: 2}}	{"v": {"m": {"x": 1, "y": 2, "z": 3}}}	{"verdict":"valid"}
+# A member a term holds open stays open whichever term comes first, and
+# close() still seals its own level.
+vet-held-open-element-stays-open-in-either-order	verdict	v: close() & ([{y: 1}] & [open({y: 1})])	{"v": [{"y": 1, "z": 2}]}	{"verdict":"valid"}
+vet-held-open-member-leaves-the-place-sealed	verdict	v: close() & ({x: {y: 1}} & {x: open({y: 1})})	{"v": {"x": {"y": 1}, "w": 1}}	{"verdict":"invalid"}

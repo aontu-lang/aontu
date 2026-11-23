@@ -143,7 +143,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	slot := ctx.slot
 
 	var carried []Val
-	terms := norm(c.peg, &carried)
+	terms := norm(c.peg, &carried, isTop(peer))
 
 	upeer := make([]Val, len(terms))
 	for i, t := range terms {
@@ -158,7 +158,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	upeer = norm(upeer, &carried)
+	upeer = norm(upeer, &carried, false)
 
 	var outvals []Val
 	open := false
@@ -255,18 +255,29 @@ func bareDirective(t Val) bool {
 	return isF && ("close" == f.name || "open" == f.name) && 0 == len(f.peg)
 }
 
-// A bare directive in the argument of a call whose value holds the
-// argument acts where that value lands, so it stands beside the call
-// among the terms at the call's place (decision 46).
-func landed(t Val) []Val {
+func holdsRef(v Val) bool {
+	found := false
+	walkVals(v, func(t Val) bool {
+		_, isRef := t.(*RefVal)
+		found = found || isRef
+		return !found
+	}, map[Val]bool{})
+	return found
+}
+
+// A bare directive in the argument of copy, pref or super acts where the value lands, beside the
+// call (decision 46); not in a meet with a peer or beside a path, which may hold or read the data.
+// An open() leaves only copy's, as the value of pref or super keeps its argument's seals.
+func landed(t Val, lift bool) []Val {
 	f, ok := t.(*FuncVal)
-	if !ok || ("copy" != f.name && "pref" != f.name && "super" != f.name) || 1 != len(f.peg) {
+	if !lift || !ok || ("copy" != f.name && "pref" != f.name && "super" != f.name) || 1 != len(f.peg) ||
+		holdsRef(f.peg[0]) {
 		return []Val{t}
 	}
 	inner := placeTerms(f.peg[0])
 	var dirs, rest []Val
 	for _, u := range inner {
-		if bareDirective(u) {
+		if bareDirective(u) && ("copy" == f.name || "close" == u.(*FuncVal).name) {
 			dirs = append(dirs, u)
 		} else {
 			rest = append(rest, u)
@@ -288,7 +299,7 @@ func landed(t Val) []Val {
 func placeTerms(v Val) []Val {
 	cj, ok := v.(*ConjunctVal)
 	if !ok {
-		return landed(v)
+		return landed(v, true)
 	}
 	var terms []Val
 	for _, t := range cj.peg {
@@ -299,7 +310,7 @@ func placeTerms(v Val) []Val {
 
 // norm flattens nested conjuncts and orders terms by cjo so that
 // unification is order-independent (lower cjo sorts first).
-func norm(terms []Val, carried *[]Val) []Val {
+func norm(terms []Val, carried *[]Val, lift bool) []Val {
 	var expand []Val
 	for _, t := range terms {
 		if cj, ok := t.(*ConjunctVal); ok {
@@ -307,10 +318,10 @@ func norm(terms []Val, carried *[]Val) []Val {
 				*carried = append(*carried, cj)
 			}
 			for _, u := range cj.peg {
-				expand = append(expand, landed(u)...)
+				expand = append(expand, landed(u, lift)...)
 			}
 		} else {
-			expand = append(expand, landed(t)...)
+			expand = append(expand, landed(t, lift)...)
 		}
 	}
 	sort.SliceStable(expand, func(i, j int) bool {

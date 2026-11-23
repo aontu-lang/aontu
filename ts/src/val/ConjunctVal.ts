@@ -24,6 +24,7 @@ import {
 import { JunctionVal } from './JunctionVal'
 import { sizingResidue } from './BagVal'
 import { spreadId } from './Val'
+import { walkVals } from '../walk'
 
 import {
   explainOpen,
@@ -75,7 +76,7 @@ class ConjunctVal extends JunctionVal {
 
 
     const carried: Val[] = []
-    this.peg = norm(this.peg, carried)
+    this.peg = norm(this.peg, carried, true === peer.isTop)
 
 
     // Unify each term of conjunct against peer
@@ -105,7 +106,7 @@ class ConjunctVal extends JunctionVal {
       }
     }
 
-    upeer = norm(upeer, carried)
+    upeer = norm(upeer, carried, false)
     // console.log('CONJUNCT-UPEER', this.id, upeer.map((v: Val) => v.canon))
 
     // Unify terms against each other
@@ -251,14 +252,31 @@ function sameTerms(cj: any, t0: Val, t1: Val): boolean {
 const bareDirective = (t: any): boolean =>
   (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length
 
+function holdsRef(v: any): boolean {
+  let found = false
+  const seen = new Set()
+  const visit = (t: any): boolean => {
+    found = found || true === t.isRef
+    // A default's value is its peg, which the walk reads as a key table.
+    if (!found && true === t.peg?.isVal) {
+      walkVals(t.peg, visit, seen)
+    }
+    return !found
+  }
+  walkVals(v, visit, seen)
+  return found
+}
 
-// A bare directive in the argument of a call whose value holds the
-// argument acts where that value lands, so it stands beside the call
-// among the terms at the call's place (decision 46).
-function landed(t: any): Val[] {
-  if ((true === t.isCopyFunc || true === t.isPrefFunc || true === t.isSuperFunc) && 1 === t.peg.length) {
+
+// A bare directive in the argument of copy, pref or super acts where the value lands, beside the
+// call (decision 46); not in a meet with a peer or beside a path, which may hold or read the data.
+// An open() leaves only copy's, as the value of pref or super keeps its argument's seals.
+function landed(t: any, lift: boolean): Val[] {
+  if (lift && (true === t.isCopyFunc || true === t.isPrefFunc || true === t.isSuperFunc) &&
+    1 === t.peg.length && !holdsRef(t.peg[0])) {
     const inner = placeTerms(t.peg[0])
-    const rest = inner.filter((u: any) => !bareDirective(u))
+    const lifts = (u: any): boolean => bareDirective(u) && (true === t.isCopyFunc || true === u.isCloseFunc)
+    const rest = inner.filter((u: any) => !lifts(u))
     if (0 < rest.length && rest.length < inner.length) {
       const call: any = t.make(undefined, {
         peg: [1 === rest.length ? rest[0] : new ConjunctVal({ peg: rest })],
@@ -266,7 +284,7 @@ function landed(t: any): Val[] {
       })
       call.site = t.site
       call.path = t.path
-      return [...inner.filter(bareDirective), call]
+      return [...inner.filter(lifts), call]
     }
   }
   return [t]
@@ -275,14 +293,14 @@ function landed(t: any): Val[] {
 
 // The terms a meet holds at its place, written as a chain or not.
 function placeTerms(t: any): Val[] {
-  return true === t.isConjunct ? t.peg.flatMap(placeTerms) : landed(t)
+  return true === t.isConjunct ? t.peg.flatMap(placeTerms) : landed(t, true)
 }
 
 
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms
-function norm(terms: Val[], carried: Val[]): Val[] {
+function norm(terms: Val[], carried: Val[], lift: boolean): Val[] {
 
   let expand: Val[] = []
   for (const t of terms) {
@@ -291,11 +309,11 @@ function norm(terms: Val[], carried: Val[]): Val[] {
         carried.push(t)
       }
       for (const u of t.peg) {
-        expand.push(...landed(u))
+        expand.push(...landed(u, lift))
       }
     }
     else {
-      expand.push(...landed(t))
+      expand.push(...landed(t, lift))
     }
   }
 
@@ -356,6 +374,7 @@ function unmarkedTemplate(cj: Val, ctx: AontuContext): Val {
 export {
   norm,
   bareDirective,
+  holdsRef,
   placeTerms,
   ConjunctVal,
   unmarkedTemplate,

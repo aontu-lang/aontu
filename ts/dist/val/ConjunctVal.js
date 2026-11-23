@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConjunctVal = exports.bareDirective = void 0;
 exports.norm = norm;
+exports.holdsRef = holdsRef;
 exports.placeTerms = placeTerms;
 exports.unmarkedTemplate = unmarkedTemplate;
 const type_1 = require("../type");
@@ -13,6 +14,7 @@ const err_2 = require("../err");
 const JunctionVal_1 = require("./JunctionVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
+const walk_1 = require("../walk");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
 class ConjunctVal extends JunctionVal_1.JunctionVal {
@@ -42,7 +44,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         peer = peer ?? (0, top_1.top)();
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
         const carried = [];
-        this.peg = norm(this.peg, carried);
+        this.peg = norm(this.peg, carried, true === peer.isTop);
         // Unify each term of conjunct against peer
         let upeer = [];
         let newtype = this.mark.type || peer.mark.type;
@@ -62,7 +64,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                 return upeer[vI];
             }
         }
-        upeer = norm(upeer, carried);
+        upeer = norm(upeer, carried, false);
         // console.log('CONJUNCT-UPEER', this.id, upeer.map((v: Val) => v.canon))
         // Unify terms against each other
         let outvals = [];
@@ -168,13 +170,29 @@ function sameTerms(cj, t0, t1) {
 }
 const bareDirective = (t) => (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length;
 exports.bareDirective = bareDirective;
-// A bare directive in the argument of a call whose value holds the
-// argument acts where that value lands, so it stands beside the call
-// among the terms at the call's place (decision 46).
-function landed(t) {
-    if ((true === t.isCopyFunc || true === t.isPrefFunc || true === t.isSuperFunc) && 1 === t.peg.length) {
+function holdsRef(v) {
+    let found = false;
+    const seen = new Set();
+    const visit = (t) => {
+        found = found || true === t.isRef;
+        // A default's value is its peg, which the walk reads as a key table.
+        if (!found && true === t.peg?.isVal) {
+            (0, walk_1.walkVals)(t.peg, visit, seen);
+        }
+        return !found;
+    };
+    (0, walk_1.walkVals)(v, visit, seen);
+    return found;
+}
+// A bare directive in the argument of copy, pref or super acts where the value lands, beside the
+// call (decision 46); not in a meet with a peer or beside a path, which may hold or read the data.
+// An open() leaves only copy's, as the value of pref or super keeps its argument's seals.
+function landed(t, lift) {
+    if (lift && (true === t.isCopyFunc || true === t.isPrefFunc || true === t.isSuperFunc) &&
+        1 === t.peg.length && !holdsRef(t.peg[0])) {
         const inner = placeTerms(t.peg[0]);
-        const rest = inner.filter((u) => !bareDirective(u));
+        const lifts = (u) => bareDirective(u) && (true === t.isCopyFunc || true === u.isCloseFunc);
+        const rest = inner.filter((u) => !lifts(u));
         if (0 < rest.length && rest.length < inner.length) {
             const call = t.make(undefined, {
                 peg: [1 === rest.length ? rest[0] : new ConjunctVal({ peg: rest })],
@@ -182,19 +200,19 @@ function landed(t) {
             });
             call.site = t.site;
             call.path = t.path;
-            return [...inner.filter(bareDirective), call];
+            return [...inner.filter(lifts), call];
         }
     }
     return [t];
 }
 // The terms a meet holds at its place, written as a chain or not.
 function placeTerms(t) {
-    return true === t.isConjunct ? t.peg.flatMap(placeTerms) : landed(t);
+    return true === t.isConjunct ? t.peg.flatMap(placeTerms) : landed(t, true);
 }
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms
-function norm(terms, carried) {
+function norm(terms, carried, lift) {
     let expand = [];
     for (const t of terms) {
         if (t.isConjunct) {
@@ -202,11 +220,11 @@ function norm(terms, carried) {
                 carried.push(t);
             }
             for (const u of t.peg) {
-                expand.push(...landed(u));
+                expand.push(...landed(u, lift));
             }
         }
         else {
-            expand.push(...landed(t));
+            expand.push(...landed(t, lift));
         }
     }
     // Consistent ordering ensures order independent unification.

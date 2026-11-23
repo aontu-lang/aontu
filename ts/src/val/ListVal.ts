@@ -144,7 +144,8 @@ class ListVal extends BagVal {
     out.copied = peer.isTop || this.copied === peer.copied ? this.copied : undefined
 
     out.closed = this.closed
-    out.opened = this.opened
+    // A member any term holds open stays open, whichever side holds it.
+    out.opened = this.opened || true === (peer as any).opened
     out.optionalKeys = [...this.optionalKeys]
     out.spread.cj = this.spread.cj
     out.relates = this.relates
