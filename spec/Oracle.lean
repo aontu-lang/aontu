@@ -3547,14 +3547,20 @@ theorem recursiveCopy_verdict_exact : ∀ c ∈ recursiveCopyCases, ∀ (m : Mod
 for the data, the data's scrutinee picking the arm, one no arm and no
 default takes `invalid`. With no default, data that leaves the result to
 the fill, data that agrees, data that conflicts, and a scrutinee no arm
-takes; with a default, the same and a scrutinee the default takes. The
-schema's own reading leaves the selection unmade, so each case's
-reading with the data is read whole (`Decls.readsPD`). -/
+takes; with a default, the same and a scrutinee the default takes. A
+scrutinee written with its own `type()` or `hide()` member, which the
+selection leaves out as the output does (decision 86). The schema's own
+reading leaves the selection unmade, so each case's reading with the
+data is read whole (`Decls.readsPD`). -/
 def openSelectCases : List (Decls × Val × Data) :=
   let sel (d : Option Val) : Val :=
     .select (.path [.up 1, .key "kind"]) [(.lit (.str "a"), int 1), (.lit (.str "b"), int 2)] d
   let doc (d : Option Val) : Val := m [("x", m [("kind", .string), ("v", sel d)])]
   let x (fs : List (String × Data)) : Data := .map [("x", .map fs)]
+  let arms : List (Val × Val) := [(m [("a", int 1)], m [("y", int 1)])]
+  let marked (k : Rider) : Val :=
+    m [("v", .select (m [("a", int 1), ("z", .ride k .number [])]) arms (some (m [("y", int 2)])))]
+  let dv (fs : List (String × Data)) : Data := .map [("v", .map fs)]
   [([], doc none, x [("kind", .str "a")]),
     ([], doc none, x [("kind", .str "a"), ("v", j 1)]),
     ([], doc none, x [("kind", .str "a"), ("v", j 2)]),
@@ -3562,7 +3568,10 @@ def openSelectCases : List (Decls × Val × Data) :=
     ([], doc (some (int 3)), x [("kind", .str "a")]),
     ([], doc (some (int 3)), x [("kind", .str "a"), ("v", j 2)]),
     ([], doc (some (int 3)), x [("kind", .str "c")]),
-    ([], doc (some (int 3)), x [("kind", .str "c"), ("v", j 3)])]
+    ([], doc (some (int 3)), x [("kind", .str "c"), ("v", j 3)]),
+    ([], marked .type, dv [("y", j 1)]),
+    ([], marked .type, dv [("y", j 2)]),
+    ([], marked .hide, dv [("y", j 1)])]
 
 set_option maxRecDepth 16384 in
 theorem openSelectCases_reads : ∀ c ∈ openSelectCases, c.1.readsPD c.2.1 c.2.2 = true := by
@@ -3585,7 +3594,10 @@ any path does; then the same reads written as relative paths, which read
 where they stand (#917): `.name` alone and through a call, `.x` beside a
 required member and alone, and the rule's scrutinee as `.order.status`;
 and a scrutinee the rest of the schema leaves open, `number`, which the
-data's own `x` settles. -/
+data's own `x` settles; a pattern that reads the match's own place,
+which reads the field (decision 85); and a bound over a path into the
+value under trial. No case reads a `type()` or `hide()` member through
+a path, which the checker can't read. -/
 def selfReadCases : List (Decls × Val × Data) :=
   let rule : Val := m [("order", .select (.path [.key "order", .key "status"])
     [(str "shipped", m [("trackingNo", .string)])] (some (m [])))]
@@ -3593,6 +3605,8 @@ def selfReadCases : List (Decls × Val × Data) :=
     [(str "shipped", m [("trackingNo", .string)])] (some (m [])))]
   let openRule : Val := m [("v", .meet (m [("x", .number)])
     (.select (.path [.key "v", .key "x"]) [(int 1, m [("y", int 1)])] (some (m [("y", int 2)]))))]
+  let patRule : Val := m [("v", .select (int 1) [(.path [.key "v", .key "z"], m [("y", int 2)])] (some (m [])))]
+  let boundMust : Val := m [("v", .must (m [("x", .call (.bnd .min) [.path [.key "v", .key "y"]])]) "m")]
   let ord (fs : List (String × Data)) : Data := .map [("order", .map fs)]
   let mu (c : Val) : Val := .must c "m"
   let vx : Val := .path [.key "v", .key "x"]
@@ -3618,7 +3632,11 @@ def selfReadCases : List (Decls × Val × Data) :=
     ([], relRule, ord [("status", .str "shipped"), ("trackingNo", j 7)]),
     ([], relRule, ord [("status", .str "placed")]),
     ([], openRule, .map [("v", .map [("x", .integer 1), ("y", .integer 2)])]),
-    ([], openRule, .map [("v", .map [("x", .integer 1), ("y", .integer 1)])])]
+    ([], openRule, .map [("v", .map [("x", .integer 1), ("y", .integer 1)])]),
+    ([], patRule, .map [("v", .map [("z", .integer 1), ("y", .integer 2)])]),
+    ([], patRule, .map [("v", .map [("z", .integer 1), ("y", .integer 1)])]),
+    ([], boundMust, .map [("v", .map [("x", .integer 1), ("y", .integer 2)])]),
+    ([], boundMust, .map [("v", .map [("x", .integer 3), ("y", .integer 2)])])]
 
 set_option maxRecDepth 16384 in
 theorem selfReadCases_reads : ∀ c ∈ selfReadCases, c.1.readsPD c.2.1 c.2.2 = true := by

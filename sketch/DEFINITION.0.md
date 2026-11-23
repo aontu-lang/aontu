@@ -3091,10 +3091,13 @@ until the phase that encodes it lands.
    match's arms, as decision 63 reads the scrutinee and decision 76 a
    condition of `must`: against `{"v": {"z": 1, "y": 2}}` the pattern
    reads `1`, takes its arm, and the document is `valid`, and with
-   `"y": 1` it is `invalid`. **Not yet built**: the definition, where
-   `Val.dropSelf` reads a pattern's paths as it reads the
-   scrutinee's, and both ports, which hold the peer for the scrutinee
-   alone and drive a pattern without it.
+   `"y": 1` it is `invalid`. **Built in the definition 2026-11-23**:
+   `Val.dropSelf` reads a selection whose pattern holds a path into
+   its own place as it reads one whose scrutinee does, rows sr57 to
+   sr62 of `test/spec/def-path.tsv`. **Not yet built**: both ports,
+   which hold the peer for the scrutinee alone and drive a pattern
+   without it, so those rows the ports answer otherwise sit in the
+   ledger under #919.
 86. **What a `match` selects by.** Raised 2026-11-22 by #922, from
    the review of #920: a scrutinee that is a map holding a `type()` or
    `hide()` member, `w: {a: 1, z: type(number)}` beside
@@ -3106,14 +3109,27 @@ until the phase that encodes it lands.
    definition does where it reads the match's own place (#920).
    **Ruled 2026-11-22 (the project's owner): what its scrutinee
    outputs.** A `match` selects by the value its scrutinee generates, as
-   the rule of `selectArm` already says, so `type()` and `hide()`
-   members are left out of it: `{a: 1, z: type(number)}` selects as
-   `{a: 1}` and takes the first arm, a record with an open `type()`
-   member holds no `match` back, and a pattern can't test a marked
-   member of a map scrutinee. **Not yet built**: the definition, which
-   leaves marked members out of the scrutinee it reads, and both
-   ports, which leave them out when they decide whether a scrutinee is
-   still open, for #920's wait and for ruling 49's (#743).
+   the rule of `selectArm` already says, so the `type()` and `hide()`
+   members it carries are left out of it, and a pattern can't test a
+   marked member of a map scrutinee. The question had said the example
+   above takes the first arm; it doesn't, since a path copies its target
+   without its marks (decision 27), so `$.w` is `{a: 1, z: number}`,
+   its `z` open. Put again 2026-11-23 with that reading, **ruled the
+   same day (the project's owner): no exception for a path.** A
+   scrutinee read through a path drops the marks as any copy does, and
+   waits while the member it then holds is open; the ruling applies to
+   a scrutinee that carries its own marks, as
+   `match({a: 1, z: type(number)}, {a: 1}, …)` written in place does,
+   which selects by `{a: 1}` and takes the first arm. **Built in the
+   definition 2026-11-23**: `resolveD` reads a selection's scrutinee
+   as the output does (`outputD`), rows os24 to os32 of
+   `test/spec/def-path.tsv`, which both ports answer alike, taking the
+   first arm for a scrutinee written with its marks. No row reads a
+   marked member through a path, which the checker can't read
+   (`Decls.readsPD` is false there): the definition waits on it, and
+   both ports take the first arm at once, which ruling 49 (#743) moves.
+   **Not yet built**: both ports leave marked members out when they
+   decide whether a scrutinee is still open, with #743.
 
 ## 8. Risks
 
