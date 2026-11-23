@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a `match` pattern at its own place, and selects by the output
+
+#919 and #922, in the definition only. A pattern that reads the place
+the `match` stands at reads what the rest of the document holds there,
+as a scrutinee does, so `v: match(1, $.v.z, {y: 2}, {})` admits
+`{"v": {"z": 1, "y": 2}}` and refuses `{"v": {"z": 1, "y": 1}}`. Both
+engines still wait on such a pattern. A `match` selects by what its
+scrutinee outputs, so its arms never see a `type()` or `hide()` member
+written in it: `match({a: 1, z: type(number)}, {a: 1}, {y: 1}, {y: 2})`
+takes the first arm, as both engines do. A path still copies its target
+without its marks, so `match($.w, …)` over `w: {a: 1, z: type(number)}`
+waits for the data, where both engines take the first arm at once.
+
+- Rows sr57 to sr74 and os24 to os35 of `test/spec/def-path.tsv`: the
+  pattern, the marked members written in place and read through a path,
+  and a bound over a path into the value under trial.
+- `spec/ledger.tsv` takes the seven rows both engines answer otherwise,
+  five under #919 and two under #743, and its bound rises from 201 to
+  208.
+
 ### `aontu fmt` keeps a comment on its own line before a `&:` entry
 
 #747, in both formatters. A comment on a line of its own before a `&:`

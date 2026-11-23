@@ -3169,9 +3169,9 @@ def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
     (ds.docPaths S).length
 ```
 
-Both trees leave out a `match` whose scrutinee, and a `must` whose
-condition, holds a path into the place the term itself stands at, by
-`Val.dropSelf`. Such a path reads what the rest of the document holds
+Both trees leave out a `match` whose scrutinee or a pattern, and a
+`must` whose condition, holds a path into the place the term itself
+stands at, by `Val.dropSelf`. Such a path reads what the rest of the document holds
 there, without the term's own arms, so the rule
 `order: match($.order.status, "shipped", {trackingNo: string}, {})`
 reads the record's `status` and meets in the arm it picks:
@@ -3186,7 +3186,13 @@ these. Both engines answer each as the definition does, as #818 and
 held at its own place, and a `must` waits for that rest before it reads
 such a condition. Where that rest leaves the scrutinee open, as
 `v: {x: number} & match($.v.x, 1, {y: 1}, {y: 2})` does, the `match`
-waits for the data, so the data's `x` picks the arm.
+waits for the data, so the data's `x` picks the arm. A pattern that
+reads the match's own place reads the field too, so with
+`v: match(1, $.v.z, {y: 2}, {})` the data `{"v": {"z": 1, "y": 2}}` is
+valid and `{"v": {"z": 1, "y": 1}}` invalid. Both engines still read
+such a pattern without the rest of the document and wait on it, and the
+rows they answer otherwise, `sr57` to `sr62`, sit in the ledger under
+#919.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -6198,7 +6204,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
     if ds.clashes s' then .nil else
-    match genD ds s' with
+    match outputD ds s' with
     | some x =>
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
       else (selectArm ds x arms' d').rideMoves s'.moves
@@ -6232,6 +6238,16 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | some _ => .nil
     | none => .filter s' (resolveD ds none none c)
 ```
+
+A `match` selects by what its scrutinee outputs, as `outputD` reads
+it, so its arms never see a `type()` or `hide()` member the scrutinee
+carries: `match({a: 1, z: type(number)}, {a: 1}, {y: 1}, {y: 2})`
+takes the first arm though `z` is open, as both engines take it. A path
+copies its target without its marks, so `match($.w, …)` over
+`w: {a: 1, z: type(number)}` reads `z` as an open `number` and waits for
+the data, as a `match` over any open scrutinee does. Both engines take
+the first arm there at once, and the rows they answer otherwise, `os33`
+on of `test/spec/def-path.tsv`, sit in the ledger under #743.
 
 A made `filter` tries each child as written, as ruling 51 asks, and
 holds each child its condition takes as the child itself: the member
