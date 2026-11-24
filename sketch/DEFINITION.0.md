@@ -3285,6 +3285,62 @@ until the phase that encodes it lands.
    ruling 49 was built. **Built in both ports the same day**, with
    #743: each port's wait leaves out a marked member, an optional key
    and an alias key, as its output does.
+87. **A `match` over a scrutinee that generates no value.** Raised
+   2026-11-24 by #938. Since ruling 49 was built a `match` whose
+   scrutinee generates no value waits for the data, and a kind
+   generates none, so `match(integer, integer, "number", string,
+   "string", "unknown")` waits, in the definition and both ports. A
+   walk over a schema that names each field's kind then can't be
+   written, and use case 10's two transforms stopped generating.
+   **Ruled 2026-11-24 (the project's owner): select where no data could
+   change the arm.** The arms are read in order. Where every value the
+   scrutinee admits satisfies the pattern, the arm is taken. Where the
+   scrutinee and the pattern admit nothing in common, the next arm is
+   read. Otherwise the data decides, and the `match` waits. So
+   `match(integer, integer, "number", …)` is `"number"` and
+   `match(1 | 2, integer, "a", "b")` is `"a"`, while
+   `match(integer, 1, "one", integer, "number", …)` waits, since data of
+   `1` would take its first arm, and ruling 49's own case,
+   `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}`, waits as it
+   did. The definition and both ports move.
+88. **A key that reads inside an unused declaration's body.** Raised
+   2026-11-24 by #942, while building #528. `Decls.bodyIll` reads every
+   `key(n)` in a body as any string (`Val.unplaced`), which is right
+   for a key that climbs out of the body and too wide for one that
+   reads a member inside it: `%T = {a: key(0) & "b"}`, unused, stands
+   in the definition and is `scalar_value` in both ports. **Ruled
+   2026-11-24 (the project's owner): the definition moves.** A key that
+   reads a step inside the body is that step's text at every use, so
+   `Decls.bodyIll` reads it so: the step's text where the step is
+   inside the body, `""` where the level is negative, and any string
+   only where the key reaches the body's own top or above.
+89. **A default that reaches a disjunction through `pref()`, a path or
+   a name.** Raised 2026-11-24 by #954, while fixing #482. An arm `*x`
+   written in a disjunction is the arm `x` of rank one, with no parent
+   type. The definition read a default that arrives another way, from a
+   `pref()` call, a path to a lone preference or a name whose body is
+   one, as the lone preference it is, its parent type an arm too, so
+   `pref(1) | "a"` admitted `3`. Both ports read it as the written arm
+   where it settles at once and as the definition did where it settles
+   late. **Ruled 2026-11-24 (the project's owner): an arm.** A
+   preference that stands as an arm of a disjunction is that arm at its
+   rank, with no parent type, however it got there, so a disjunction
+   admits what its arms say and nothing wider:
+   `level: $.defaults.level | "debug"` beside
+   `defaults: level: *"info"` admits `"info"` and `"debug"`. The
+   definition moves, and both ports hold the reading whenever the arm
+   settles.
+90. **Two clashing defaults in a spread's template.** Raised 2026-11-24
+   by #957, while fixing #482. `x: *1 | *2` is the schema's error. As a
+   template, `x: {&: *1 | *2}`, the definition read no error and let a
+   member the data gives as `1` pick that arm, and both ports refused
+   every member the data wrote, `pref_rank_clash` at the member, with
+   the schema itself still standing. **Ruled 2026-11-24 (the project's
+   owner): the schema's error.** A template that holds two defaults of
+   the picked rank that disagree can give no member a default, so it is
+   refused where it is written, whatever the data, as decision 77
+   refuses a miscounted call wherever it stands. The definition and
+   both ports move.
 
 ## 8. Risks
 
