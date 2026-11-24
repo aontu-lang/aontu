@@ -4455,6 +4455,15 @@ $ echo $?
 1
 ```
 
+An arm whose value is a path reads the same way. In
+`x: (*$.a | "a") & 3` beside `a: 1` the arm is `1`, and neither arm
+admits `3`, wherever `a` stands in the document. Both engines hold a
+disjunction back from a peer until they have read each default arm's
+own value, so the answer doesn't turn on the order of the statements,
+and `vet` refuses `{"x": 3}` against `a: 1` beside `x: *$.a | "a"`. Rows
+from `pref-arm-late-path-refuses-what-no-arm-admits` on of
+`test/spec/pref.tsv` hold them to it.
+
 ### A preference alone
 
 `*x` outside a disjunction is a default its type can override: it

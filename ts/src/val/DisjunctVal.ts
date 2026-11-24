@@ -36,6 +36,7 @@ import { PrefVal, prefInnerPeg } from '../val/PrefVal'
 import { trialUnify } from '../val/FuncBaseVal'
 import { armAdmits } from '../val/admission'
 import { JunctionVal } from '../val/JunctionVal'
+import { ConjunctVal } from '../val/ConjunctVal'
 import { joinFlows } from '../val/PathVal'
 
 
@@ -121,6 +122,7 @@ class DisjunctVal extends JunctionVal {
       Object.prototype.hasOwnProperty.call(ctx, '_trialMode')
     ctx._trialMode = true
     let gate: number[] | undefined = undefined
+    let waits = false
     try {
       for (let vI = 0; vI < this.peg.length; vI++) {
         const v = this.peg[vI]
@@ -157,6 +159,9 @@ class DisjunctVal extends JunctionVal {
           if (0 < admitErr.length || met.isNil) {
             oval[gI] = TRIAL_NIL
           }
+          else if (unread(met)) {
+            waits = true
+          }
         }
       }
     }
@@ -173,6 +178,13 @@ class DisjunctVal extends JunctionVal {
       else {
         delete (ctx as any).err
       }
+    }
+
+    // A default arm whose own value a path hasn't read can't answer its gate, so the meet is tried again.
+    if (waits) {
+      const held = this.place(new ConjunctVal({ peg: [this, peer] }, ctx))
+      explainClose(te, held)
+      return held
     }
 
     // Remove duplicates, and normalize
@@ -328,6 +340,12 @@ class DisjunctVal extends JunctionVal {
 
     return super.gen(ctx)
   }
+}
+
+
+function unread(v: any): boolean {
+  const kids = true === v.isBag || true === v.isJunction || true === v.isFunc || true === v.isOp
+  return true === v.isRef || kids && Object.values(v.peg).some(unread)
 }
 
 

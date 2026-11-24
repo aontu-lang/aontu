@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### A default arm over a path no longer admits what its parent type admits
+
+#953, in both engines. An arm `*x` of a disjunction has no parent type,
+so `(*1 | "a") & 3` is refused. Where the arm's value was a path the
+engine hadn't read yet, the arm survived the peer as a lone default,
+and a lone default gives way to what its parent type admits:
+
+- `x: (*$.a | "a") & 3` beside `a: $.b` and `b: 1` evaluated to
+  `{"x": 3}` with `x` written first, and was `empty` with `x` written
+  last. It is `empty` in every order now.
+- `aontu vet` admitted data that a schema refuses, since the data meets
+  the schema before a path into it is read: `a: 1` beside
+  `x: *$.a | "a"` was `valid` against `{"x": 3}`. It is `invalid` now.
+
+A disjunction now waits for a default arm's own value before it meets a
+term that isn't `top`: a path, or a map, a list, a call or a sum that
+holds one, and in a spread's template too.
+`test/spec/pref.tsv` gains 24 rows and `test/spec/vet.tsv` 16.
+
+A `pref()` call in an arm is untouched: what it reads as is #954.
+
 ### A clash of defaults that a meet or a call makes is the schema's error
 
 #482, in both engines. Two defaults of one rank that disagree are

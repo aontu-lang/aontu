@@ -687,3 +687,22 @@ vet-rank-clash-the-data-makes-is-invalid-with-no-fill	verdict	a: number\nx: pref
 vet-rank-no-clash-where-the-data-agrees	verdict	a: number\nx: pref($.a) | *2	{"a": 2}	{"verdict":"valid"}
 vet-rank-no-clash-before-the-data	verdict	a: number\nx: pref($.a) | *2	{}	{"verdict":"incomplete"}
 vet-rank-no-clash-before-the-data-under-partial	verdict	a: number\nx: pref($.a) | *2	{}	{"verdict":"valid","opts":{"partial":true}}
+# A DEFAULT ARM OVER A PATH, UNDER VET (#953). The data meets the schema
+# before a path into the schema is read, so the disjunction waits for its
+# default arm's value before it meets the data's.
+vet-pref-arm-path-refuses-what-no-arm-admits	verdict	a: 1\nx: *$.a | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-pref-arm-path-refuses-with-no-fill	verdict	a: 1\nx: *$.a | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-pref-arm-path-refuses-under-partial	verdict	a: 1\nx: *$.a | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-pref-arm-path-admits-its-own-value	verdict	a: 1\nx: *$.a | "a"	{"x": 1}	{"verdict":"valid"}
+vet-pref-arm-path-admits-the-other-arm	verdict	a: 1\nx: *$.a | "a"	{"x": "a"}	{"verdict":"valid"}
+vet-pref-arm-path-fills-the-default	verdict	a: 1\nx: *$.a | "a"	{}	{"verdict":"valid"}
+vet-pref-arm-path-the-data-gives-refuses	verdict	a: number\nx: *$.a | "a"	{"a": 1, "x": 3}	{"verdict":"invalid"}
+vet-pref-arm-path-the-data-gives-admits	verdict	a: number\nx: *$.a | "a"	{"a": 3, "x": 3}	{"verdict":"valid"}
+vet-pref-arm-path-the-data-leaves-open	verdict	a: number\nx: *$.a | "a"	{"x": 3}	{"verdict":"incomplete"}
+vet-pref-arm-path-the-data-leaves-open-under-partial	verdict	a: number\nx: *$.a | "a"	{"x": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-pref-arm-path-in-a-map-refuses	verdict	a: 1\nx: *{k: $.a} | "a"	{"x": {"k": 3}}	{"verdict":"invalid"}
+vet-pref-arm-path-in-a-map-admits	verdict	a: 1\nx: *{k: $.a} | "a"	{"x": {"k": 1}}	{"verdict":"valid"}
+vet-pref-arm-relative-path-refuses	verdict	x: {p: 1, y: *.p | "a"}	{"x": {"y": 3}}	{"verdict":"invalid"}
+vet-pref-arm-relative-path-the-data-gives	verdict	x: {p: number, y: *.p | "a"}	{"x": {"p": 3, "y": 3}}	{"verdict":"valid"}
+vet-pref-arm-path-in-a-template-refuses	verdict	a: 1\nx: {&: *$.a | "a"}	{"x": {"k": 3}}	{"verdict":"invalid"}
+vet-pref-arm-path-in-a-template-admits	verdict	a: 1\nx: {&: *$.a | "a"}	{"x": {"k": 1, "j": "a"}}	{"verdict":"valid"}

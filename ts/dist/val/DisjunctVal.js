@@ -15,6 +15,7 @@ const PrefVal_1 = require("../val/PrefVal");
 const FuncBaseVal_1 = require("../val/FuncBaseVal");
 const admission_1 = require("../val/admission");
 const JunctionVal_1 = require("../val/JunctionVal");
+const ConjunctVal_1 = require("../val/ConjunctVal");
 const PathVal_1 = require("../val/PathVal");
 class DisjunctVal extends JunctionVal_1.JunctionVal {
     constructor(spec, ctx, _sites) {
@@ -76,6 +77,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         const ownTrialMode = Object.prototype.hasOwnProperty.call(ctx, '_trialMode');
         ctx._trialMode = true;
         let gate = undefined;
+        let waits = false;
         try {
             for (let vI = 0; vI < this.peg.length; vI++) {
                 const v = this.peg[vI];
@@ -107,6 +109,9 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     if (0 < admitErr.length || met.isNil) {
                         oval[gI] = NilVal_1.TRIAL_NIL;
                     }
+                    else if (unread(met)) {
+                        waits = true;
+                    }
                 }
             }
         }
@@ -123,6 +128,12 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             else {
                 delete ctx.err;
             }
+        }
+        // A default arm whose own value a path hasn't read can't answer its gate, so the meet is tried again.
+        if (waits) {
+            const held = this.place(new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx));
+            (0, utility_1.explainClose)(te, held);
+            return held;
         }
         // Remove duplicates, and normalize
         if (1 < oval.length) {
@@ -250,6 +261,10 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.DisjunctVal = DisjunctVal;
+function unread(v) {
+    const kids = true === v.isBag || true === v.isJunction || true === v.isFunc || true === v.isOp;
+    return true === v.isRef || kids && Object.values(v.peg).some(unread);
+}
 function dedupArms(ctx, oval, ranked) {
     // Dedup: duplicate Vals in the disjunct are replaced with the
     // trial sentinel, which is filtered out a few lines below.
