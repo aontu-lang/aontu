@@ -2078,3 +2078,9 @@ merge; get the latest version of [redacted: session set-up], read instructions; 
 ```text
 Continue
 ```
+
+## 2026-11-24 17:44:52 UTC · Claude Code · session_01D35vdYhiqu2EZWfmZvcH3W
+
+```text
+compare aontu to https://davidtemkin.github.io/declarelang/ - what can it do that aontu cannot
+```
