@@ -4197,8 +4197,8 @@ theorem integer_le_mulof {d : Number} (hd : d.Positive) (h : (d.shown.2 : ℤ) %
     .integer ⊑[env] .mulof d := by
 ```
 
-`leDecF` reads these rows, and two patterns, formats or grammars
-written alike, each below itself. A `match` reads the order by it too,
+`leDecF` reads these rows, and a pattern below one written alike, as a
+format and a grammar are. A `match` reads the order by it too,
 as step 16 shows, so a row added here is an arm a `match` can take
 before the data comes.
 

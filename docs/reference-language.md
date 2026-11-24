@@ -1378,7 +1378,7 @@ generated beside it.
 
 **A scrutinee that generates no value takes the arm no data could
 change**: a kind, a bound or a disjunction with no default among its
-arms (ruling 87). The `match` reads its arms in order. It takes an arm
+arms. Ruling 87 has the `match` read its arms in order. It takes an arm
 whose pattern every value of the scrutinee satisfies, passes over an arm
 that shares no value with the scrutinee, and waits for the data at any
 other arm. So `match(1 | 2, integer, a, b)` is `a`, and a walk over a
@@ -1404,8 +1404,9 @@ stays incomplete.
 
 "Every value satisfies" is the order [`aontu subsume`](#subsumption)
 asks under its `values` profile: a kind sits under itself and under
-`number`, a bound under a looser one, a map or a list under a pattern
-member by member with its seal, and a disjunction arm by arm. So
+`number`, and a bound under a looser one. A map sits under a pattern
+member by member, with its seal, as a list does, and a disjunction arm
+by arm. So
 `integer & min(1) | biginteger & min(1)` takes a `number` arm and waits
 at an `integer` one, which only half of it satisfies, and an open map
 waits at a sealed pattern, which data with one more key would fail. The
@@ -7350,7 +7351,7 @@ subsume each other in both directions. `min(0)&max(10)` and `max(10)&min(0)`
 normalise identically, and the canonical atom order below is what makes
 that true by construction rather than by a special case.
 
-The algebra's own table is theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): an interval below one that contains it (`min_le_min_iff`, `max_le_max_iff`, `min_le_above_iff`, `max_le_beneath_iff`, `above_le_min_of_le`, `beneath_le_max_of_le`, and `min_str_le_min_iff` and `max_str_le_max_iff` for strings), a concrete number below the bounds that admit it (`lit_le_min_iff` and the rest), `neq_le_neq` and `len_le_len`, a divisor below one it is a multiple of (`mulof_le_mulof`), and an integral side below a divisor of one (`integer_le_mulof`, `biginteger_le_mulof`, and `lit_num_le_mulof` for a number that is a multiple). `leDecF` decides them with its proof, and `not_le_of_witness` refutes with one instance.
+The algebra's own table is theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): an interval below one that contains it (`min_le_min_iff`, `max_le_max_iff`, `min_le_above_iff`, `max_le_beneath_iff`, `above_le_min_of_le`, `beneath_le_max_of_le`, and `min_str_le_min_iff` and `max_str_le_max_iff` for strings), a concrete number below the bounds that admit it (`lit_le_min_iff` and the rest), `neq_le_neq` and `len_le_len`, `mulof_le_mulof` for a divisor below one that divides it, and `integer_le_mulof`, `biginteger_le_mulof`, and `lit_num_le_mulof` for an integral side or a whole multiple below a divisor of one. `leDecF` decides them with its proof, and `not_le_of_witness` refutes with one instance.
 
 ### Endpoint tightening: lazy endpoints, eager emptiness
 
