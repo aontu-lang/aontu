@@ -2899,12 +2899,17 @@ until the phase that encodes it lands.
    `must($.t & string, "m")` is sited at the `$` and at the `(`.
    **Ruled 2026-11-19 (the project's owner): the value's own span.** A
    value inside a call is sited where it begins, the `$` of `$.t`, in
-   every argument position. **Not yet built**: both parsers move, the
-   rows that pin today's call-site answers are derived again from both
-   engines, and the OPEN entry of `test/spec/divergent.tsv` goes with
-   it. #331, #391 and #685, where a value is sited at different
-   columns in each port, follow the same rule. The definition holds no
-   site and doesn't move.
+   every argument position. **Built 2026-11-24** in both parsers, in
+   its general form: an operator's result is sited where it is written,
+   a prefix's at the operator and an infix's at its first term, where
+   both had sited it at the first token of the whole expression. So a
+   later operand, `$.b` in `$.a & $.b`, and a signed number, `+7`, are
+   sited where they stand too. The rows of `test/spec/site.tsv` hold
+   it, the two rows that pinned a call-site answer are derived again
+   from both engines, and the OPEN entry of `test/spec/divergent.tsv`
+   is gone. #391 is settled with it. #331 and #685, a hoisted or placed
+   value and a call's name, are other shapes and stay open. The
+   definition holds no site and doesn't move.
 66. **A relation's member under `subsume`.** Raised 2026-11-17 by #819:
    `relate() & { a: path($.x) }` against the same relation one member
    longer is `undecided` in both ports, `sub_unresolved` at the added

@@ -121,16 +121,19 @@ func commentStart(src string, from, to int) int {
 	return -1
 }
 
-// skipTrivia steps back from i over blanks and comments.
+// skipTrivia steps back from i, the place before a value, over blanks and
+// comments. A comment ends its line, so the value's own line holds none
+// before it, and only a line above it is read for one.
 func skipTrivia(src string, i int) int {
-	for {
+	for crossed := false; ; crossed = false {
 		for 0 <= i && strings.IndexByte(" \t\r\n", src[i]) >= 0 {
+			crossed = crossed || '\n' == src[i]
 			i--
 		}
-		c := -1
-		if 0 <= i {
-			c = commentStart(src, strings.LastIndexByte(src[:i+1], '\n')+1, i+1)
+		if !crossed || 0 > i {
+			return i
 		}
+		c := commentStart(src, strings.LastIndexByte(src[:i+1], '\n')+1, i+1)
 		if 0 > c {
 			return i
 		}

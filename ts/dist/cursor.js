@@ -55,12 +55,18 @@ function commentStart(src, from, to) {
     }
     return -1;
 }
-// Back from i over blanks and comments to the last character of neither.
+// Back from i, the place before a value, over blanks and comments. A
+// comment ends its line, so the value's own line holds none before it,
+// and only a line above it is read for one.
 function skipTrivia(src, i) {
     for (;;) {
-        while (0 <= i && ' \t\r\n'.includes(src[i]))
+        let crossed = false;
+        while (0 <= i && ' \t\r\n'.includes(src[i])) {
+            crossed = crossed || '\n' === src[i];
             i--;
-        const c = 0 > i ? -1 : commentStart(src, src.lastIndexOf('\n', i) + 1, i + 1);
+        }
+        const c = !crossed || 0 > i ? -1 :
+            commentStart(src, src.lastIndexOf('\n', i) + 1, i + 1);
         if (0 > c) {
             return i;
         }
