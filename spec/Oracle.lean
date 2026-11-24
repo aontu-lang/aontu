@@ -4,6 +4,7 @@ import Aontu.Verdict
 import Aontu.Paths
 import Oracle.Print
 import Aontu.Subsume
+import Aontu.Profiles
 import Aontu.Reorder
 import Aontu.Written
 
@@ -3589,6 +3590,47 @@ theorem openSelectCases_reads : ∀ c ∈ openSelectCases, c.1.readsPD c.2.1 c.2
 theorem openSelect_verdict_exact : ∀ c ∈ openSelectCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_readsD (openSelectCases_reads c hc) v
+
+/-- Ruling 87: a `match` whose scrutinee generates no value takes the
+arm no data could change. An arm whose pattern the scrutinee sits below
+is taken: a kind under itself and under `number`, a bound under a looser
+one, a disjunction each of whose arms does, and a sealed map under its
+own seal. An arm that shares nothing with the scrutinee is passed over,
+for a later arm, for the default, and for no arm at all, which is an
+error. And an open map under a sealed pattern waits for the data, which
+keeps to the pattern or adds a key. Each beside no data, and some beside
+data that agrees with the arm taken and data that names another. -/
+def certainSelectCases : List (Decls × Val × Data) :=
+  let sel (s : Val) (arms : List (Val × Val)) (d : Option Val := some (str "other")) : Val :=
+    m [("t", .select s arms d)]
+  let t (x : String) : Data := .map [("t", .str x)]
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let shut : Val := .map [("a", false, .integer)] none true
+  let kinds : Val := sel .integer [(.integer, str "number"), (.string, str "string")]
+  let both : Val := sel (.or [(0, int 1), (0, int 2)]) [(.integer, str "a")] (some (str "b"))
+  let later : Val := sel .integer [(.string, str "s"), (.number, str "n")]
+  let sealedPat : Val := m [("x", m [("a", .integer)]),
+    ("t", .select (.path [.key "x"]) [(shut, str "T")] (some (str "D")))]
+  [([], kinds, .map []), ([], kinds, t "number"), ([], kinds, t "string"),
+    ([], sel .integer [(.number, str "number")], .map []),
+    ([], sel (.meet .integer (min 3)) [(min 1, str "big")], .map []),
+    ([], both, .map []), ([], both, t "b"),
+    ([], sel (.or [(0, .meet .integer (min 1)), (0, .meet .biginteger (min 1))])
+      [(.number, str "number")], .map []),
+    ([], later, .map []), ([], later, t "s"),
+    ([], sel .integer [(.string, str "s"), (.boolean, str "b")], .map []),
+    ([], sel .integer [(.string, str "s")] none, .map []),
+    ([], sel shut [(shut, str "T")] (some (str "D")), .map []),
+    ([], sealedPat, .map [("x", .map [("a", j 1)])]),
+    ([], sealedPat, .map [("x", .map [("a", j 1), ("b", j 2)])])]
+
+set_option maxRecDepth 16384 in
+theorem certainSelectCases_reads : ∀ c ∈ certainSelectCases, c.1.readsPD c.2.1 c.2.2 = true := by
+  decide +kernel
+
+theorem certainSelect_verdict_exact : ∀ c ∈ certainSelectCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_readsD (certainSelectCases_reads c hc) v
 
 /-- A `match` whose scrutinee, and a `must` whose condition, reads the
 place the term stands at, which reads what the rest of the document
@@ -8835,6 +8877,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A match whose scrutinee the schema leaves open waits for the data (ruling 49),"
     IO.println "# in rows os0 on."
     pathRows "os" openSelectCases
+    IO.println "# A match whose scrutinee generates no value takes the arm no data could change"
+    IO.println "# (ruling 87), in rows ca0 on: an arm the scrutinee sits below is taken, one"
+    IO.println "# that shares nothing with it is passed over, and any other waits for the data."
+    pathRows "ca" certainSelectCases
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases

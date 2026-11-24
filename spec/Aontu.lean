@@ -7,6 +7,7 @@ import Aontu.Alias
 import Aontu.Order
 import Aontu.Reorder
 import Aontu.Subsume
+import Aontu.Profiles
 import Aontu.Meet
 import Aontu.Output
 import Aontu.Written
