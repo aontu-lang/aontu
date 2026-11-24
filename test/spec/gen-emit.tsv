@@ -224,3 +224,10 @@ emit-table-from-a-name-reads-the-field	gens	%T = {match: any, body: [key()]}\nv:
 emit-table-from-a-name-with-a-map-piece	gens	%T = {match: any, body: [{k: key()}]}\nv: emit([1, 2], %T)	{"v":[{"k":"0"},{"k":"1"}]}
 emit-table-of-rules-from-a-name	gens	%T = [{match: 1, body: [key(0)]}, {match: any, body: [{k: key()}]}]\nv: emit([1, 2], %T)	{"v":["0",{"k":"1"}]}
 emit-table-from-a-name-reads-the-node	gens	%T = {match: any, body: [_, key(0)]}\nv: emit([7, 8], %T)	{"v":[7,"1",8,"3"]}
+#
+# A NAMED TABLE'S BARE KEY (#783) reads where its piece lands, at the
+# top of the document as below it.
+emit-named-table-key-at-the-top	gens	%w = emit(_, { match:number body: [key(0)] })\nx: emit([1 2], %w)	{"x":["0","1"]}
+emit-named-table-key-after-a-piece-at-the-top	gens	%w = emit(_, { match:number body: ["a" key(0)] })\nx: emit([1 2], %w)	{"x":["a","1","a","3"]}
+emit-named-table-key-after-a-piece-below-the-top	gens	%w = emit(_, { match:number body: ["a" key(0)] })\ny: {x: emit([1 2], %w)}	{"y":{"x":["a","1","a","3"]}}
+emit-named-table-call-over-a-key-at-the-top	gens	%w = emit(_, { match:number body: [upper(key(0))] })\nx: emit([1 2], %w)	{"x":["0","1"]}

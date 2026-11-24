@@ -8,6 +8,49 @@ each change affects.
 
 ## Unreleased
 
+### A key in a declaration's body waits for the use that places it
+
+#528, #783 and the emit half of #539, in both engines, and the rest of
+#520.
+
+A `key(n)` in a declaration's body read the declaration's own place. A
+key that climbs out of the body answered the declaration's internal
+name there, a different one in each engine, so a body that fits every
+use was an error. Such a key now waits at the declaration, as any
+string, and a call over it waits with it:
+
+- `%T = key(0) & "x"` with `x: %T` is `"x"`, where both engines
+  answered `scalar_value`. `y: %T` is still a conflict, and
+  `%T = key(0) & 1` is still an error with no use at all.
+- A template that `pack`, `each`, `apply` or `emit` takes from a name
+  reads its keys as one written in place does. With
+  `%r = {match: number, body: [key(0)]}`, `emit([1, 2], %r)` is
+  `["0", "1"]`, where both answered `["0", "0"]`.
+- A key that reads a member inside the body is still that member's key.
+
+A resolved key now keeps its call as written, as a relative path does,
+so every copy reads it again where it stands. A path into a generator's
+output read the keys the generator wrote: with
+`x: pack(["a"], {n: key()})`, `y: $.x.a` is now `{n: "y"}`, where both
+engines answered `{n: "a"}`.
+
+An `emit` piece that carries a mark of its own, `hide()` or `type()`,
+or that reads as absence, takes no position. So in
+`emit([1, 2], {match: any, body: [hide("h"), key(0)]})` the keys read
+`"0"` and `"1"`, where both engines answered `"1"` and `"3"`. A bare
+`key(n)` in a named table's body reads where its piece lands at the top
+of the document too, where TypeScript read the body's own index.
+
+Twelve rows leave the ledger, its bound 64. `test/spec/gen-key.tsv`
+gains 30 rows, `test/spec/gen-emit.tsv` 18 and `test/spec/vet.tsv` 15.
+
+Filed while building it, both in the definition: #942, which admits an
+unused declaration whose key reads inside its own body and clashes
+there, and #943, which keeps a marked element of a list in a
+declaration's body when the name is read. A `key()` after an absent
+element of a plain list still reads the written index, which #539
+keeps.
+
 ### A sealed list keeps its length when it meets a spread
 
 #346, in both engines. A list sealed with no spread has a fixed length.

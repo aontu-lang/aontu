@@ -1551,16 +1551,16 @@ every node and after the pieces the elements before it splice, so
 the `emit`. A list in a body reads its own elements' indexes inside it,
 before it splices, and a nested `emit` reads the positions in its own
 answer. A piece that carries a mark of its own, `hide()` or `type()`,
-takes no position, as a list holds none for it, though both engines
-still give it one, which
-[#539](https://github.com/aontu-lang/aontu/issues/539) tracks:
+or that reads as absence, takes no position, as a list holds none for
+it, so a `key(0)` after it reads the index its own piece takes:
 
 ```aontu
 lines: emit([1 2], { match:number body: ["n" key(0)] })
+marks: emit([1 2], { match:number body: [hide("n") key(0)] })
 ```
 
 ```json
-{"lines": ["n", "1", "n", "3"]}
+{"lines": ["n", "1", "n", "3"], "marks": ["0", "1"]}
 ```
 
 **A generator in a body reads its template where each instance
@@ -1634,6 +1634,11 @@ The nodes are passed by call, the one use that binds a name's hole: a
 meet never fills one, so `$.client & %wire` is `hole_unbound`. A named
 table is also how one rule set serves two outputs: naming a value is
 something the language already does, so no keyword is needed for it.
+
+A name may hold a template, or a list of them, as it holds any value:
+with `%rule = { match:number body: [key(0)] }`, `emit([1 2], %rule)` is
+`["0", "1"]`. A `key(n)` in such a body reads where its piece lands, as
+in a table written in place.
 
 ### Recursion, and what bounds it
 
@@ -1792,7 +1797,9 @@ again there: with `a: {x: "p", b: {v: upper(..x)}}` and
 `c: {x: "q", d: $.a.b}`, `c.d.v` is `"Q"`. A path reads through a place
 that's itself a relative path, so with `a: {c: 1, d: .c}`, `e: $.a.d`
 is 1. A copy stands at its reference's own place whatever the target's
-depth, and `key()` in it reads the copy's own key.
+depth, and `key()` in it reads the copy's own key. A path into a
+generator's output reads the same way: with
+`x: pack(["a"], {n: key()})`, `y: $.x.a` is `{n: "y"}`.
 
 The definition reads a use of a name, and a path reference's copy, where
 it stands, in the schema and in a body at its own place alike, from a
@@ -2104,6 +2111,36 @@ text can write the alias out. With `payload: %json` and
 `{"payload":{&:%json,"user":{&:%json,"id":1}}}`. Such a document
 generates and hashes, and its canon is the same in both
 implementations, but the canon does not reparse on its own.
+
+**A `key(n)` in a body reads where the name is used.** A key that reads
+a member inside the body is that member's key at every use. One that
+climbs out of the body has no place until a use gives it one, so at the
+declaration it waits, as any string, and a call over it waits with it.
+So `%T = key(0) & "x"` is the body that fits a member named `x`:
+`x: %T` is `"x"`, `y: %T` is a conflict, and a document that never
+uses `%T` stands. A body no use could fit is still an error, as
+`%T = key(0) & 1` is. A template a generator takes from a name reads
+its keys as one written in place does:
+
+```aontu
+%row = { name: key() tag: "svc-" + key() }
+
+services: pack([web api], %row)
+```
+
+```json
+{"services": {"api": {"name": "api", "tag": "svc-api"},
+              "web": {"name": "web", "tag": "svc-web"}}}
+```
+
+The definition reads a body with each key as any string (`Val.unplaced`
+in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and a use
+with each key placed. Rows from `key-in-a-body-fits-its-use` on of
+[`test/spec/gen-key.tsv`](../test/spec/gen-key.tsv) hold both engines to
+it. The definition reads a key inside the body as any string too, where
+both engines read the member's key, so it admits an unused
+`%T = {a: key(0) & "b"}` that both refuse, which
+[#942](https://github.com/aontu-lang/aontu/issues/942) tracks.
 
 **An alias is not a path segment.** `$.%foo` is refused, at any depth:
 the alias namespace and the path namespace are disjoint, and an alias
