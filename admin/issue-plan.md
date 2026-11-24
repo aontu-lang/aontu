@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 58 on 2026-11-24),
+  on 2026-11-22), ledger rows (394 at most then, 55 on 2026-11-24),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,7 +64,7 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-25 of its 58 on 2026-11-24. In order:
+22 of its 55 on 2026-11-24. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
@@ -94,7 +94,7 @@ A name or a path that reaches itself consuming no key or element is a static `er
 
 ### Preferences and disjunction arms
 
-11 issues (4 S, 5 M, 2 L), 18 ledger rows.
+16 issues (5 S, 9 M, 2 L), 15 ledger rows.
 
 How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714, the layers, was built and closed on 2026-11-20, and its rows left the ledger with most of #700's, #702's and #704's. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
 
@@ -104,13 +104,18 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#702](https://github.com/aontu-lang/aontu/issues/702) | def | M | 6 | Lone preference with an outside path: both ports' vet contradicts their own eval; definition sides with eval. |
 | [#704](https://github.com/aontu-lang/aontu/issues/704) | def | M | 6 | A lone preference's parent arm lifts a path inside it to any, not the parent type it reads. |
 | [#714](https://github.com/aontu-lang/aontu/issues/714) | def | L |  | Meeting preferences of different ranks drops the higher rank's constraint and default; rulings 41, 42, decision 43. |
-| [#482](https://github.com/aontu-lang/aontu/issues/482) | def | M | 3 | A made default clash (`pref(1 \| 2)`, meets) reads invalid under vet, where a written clash is error. |
+| [#482](https://github.com/aontu-lang/aontu/issues/482) | def | M |  | A made default clash (`pref(1 \| 2)`, meets) reads invalid under vet, where a written clash is error. Built in both ports 2026-11-24. |
 | [#719](https://github.com/aontu-lang/aontu/issues/719) | diag | S |  | TypeScript leaks the internal trial-nil sentinel, unsited, where Go answers `pref_rank_clash`. |
 | [#349](https://github.com/aontu-lang/aontu/issues/349) | bug | S |  | `*(` before a literal container reads as an implicit bag: an error alone, silently dropped in a disjunction. |
 | [#348](https://github.com/aontu-lang/aontu/issues/348) | parity | M |  | Disjunction arms written differently but generating the same value: Go generates it, TypeScript answers disjunct_no_gen. |
 | [#832](https://github.com/aontu-lang/aontu/issues/832) | parity | S |  | A made default's pref_rank_clash: Go sites $, TypeScript loses the position. |
 | [#431](https://github.com/aontu-lang/aontu/issues/431) | bug | S |  | A concrete value lost to a default by declaration order (`**default`, value, `*default`). |
 | [#857](https://github.com/aontu-lang/aontu/issues/857) | def | M |  | Two same-rank defaults, each narrowed by a bound that refuses the other's, clash as `pref_rank_clash` when written as one meet; the definition reads no default (decision 43). |
+| [#953](https://github.com/aontu-lang/aontu/issues/953) | bug | M |  | A default arm over a path not read yet admits what its parent type admits, so `(*$.a \| "a") & 3` is `3` or `empty` by the order of the statements, and `vet` admits data the schema refuses. |
+| [#954](https://github.com/aontu-lang/aontu/issues/954) | design | M |  | A default that reaches a disjunction through `pref()`, a path or a name: the definition keeps its parent type as an arm, both engines mostly don't. Needs a ruling. |
+| [#955](https://github.com/aontu-lang/aontu/issues/955) | def | M |  | A disjunction ranks its defaults pair by pair as parsed, so `**1 \| **2 \| *3 \| number` clashes where `*3 \| **1 \| **2 \| number` is `3`, and two map defaults fold only where they stand together. |
+| [#956](https://github.com/aontu-lang/aontu/issues/956) | def | M |  | Two defaults of one rank clash as soon as they meet, before a later schema term settles between them: `(*1 \| *7) & 1` is `pref_rank_clash`, where the definition reads `1`. |
+| [#957](https://github.com/aontu-lang/aontu/issues/957) | design | S |  | Two clashing defaults in a spread's template: both engines refuse every member the data gives, the definition admits one that picks an arm. Needs a ruling. |
 
 ### Seals, marks, moves and generation-time checks
 
@@ -449,7 +454,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 49 | 25 |
+| 2 | alias cycles, preferences, seals and marks, copies | 54 | 22 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 21 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
@@ -458,6 +463,6 @@ workstream above meets its tasks.
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
-#944 and #946 on 2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
+#944, #946 and #953 to #957 on 2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
 each row's cause names. The ledger's other 10 rows name decision 3 and
 no issue: they're #343's.

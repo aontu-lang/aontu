@@ -649,3 +649,41 @@ vet-seal-member-reads-a-sibling-another-term-settles	verdict	a: close({x: .y, y:
 vet-seal-member-reads-a-sibling-another-term-settles-otherwise	verdict	a: close({x: .y, y: integer}) & {y: 2}	{"a": {"x": 3}}	{"verdict":"invalid"}
 vet-rider-member-reads-a-sibling-another-term-gives	verdict	a: meta({x: .y}, {}) & {y: 2}	{"a": {"x": 2, "y": 2}}	{"verdict":"valid"}
 vet-rider-member-reads-a-sibling-another-term-gives-otherwise	verdict	a: meta({x: .y}, {}) & {y: 2}	{"a": {"x": 3, "y": 2}}	{"verdict":"invalid"}
+# A RANK CLASH A MEET OR A CALL MAKES (#482). Two defaults of the picked
+# rank that disagree are the schema's error however the disjunction that
+# holds them came about, as the written `*1 | *7` is: whatever the data.
+vet-rank-clash-a-meet-makes	verdict	x: (*1 | 7) & (*7 | 1)	{}	{"verdict":"error"}
+vet-rank-clash-a-meet-makes-with-no-fill	verdict	x: (*1 | 7) & (*7 | 1)	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-rank-clash-a-meet-makes-under-partial	verdict	x: (*1 | 7) & (*7 | 1)	{}	{"verdict":"error","opts":{"partial":true}}
+vet-rank-clash-a-meet-makes-whatever-the-data	verdict	x: (*1 | 7) & (*7 | 1)	{"x": 1}	{"verdict":"error"}
+vet-rank-clash-two-statements-make	verdict	x: number | *1\nx: number | *2	{}	{"verdict":"error"}
+vet-rank-clash-two-disjunctions-met	verdict	x: (number | *1) & (number | *2)	{}	{"verdict":"error"}
+vet-rank-clash-two-disjunctions-met-whatever-the-data	verdict	x: (number | *1) & (number | *2)	{"x": 1}	{"verdict":"error"}
+vet-rank-clash-the-parse-hides	verdict	x: number | *1 | *2	{}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-disjunction	verdict	x: pref(1 | 2)	{}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-disjunction-whatever-the-data	verdict	x: pref("a" | "b")	{"x": "a"}	{"verdict":"error"}
+vet-rank-clash-pref-beside-a-default	verdict	x: pref(1) | *2	{}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-path-beside-a-default	verdict	a: 1\nx: pref($.a) | *2	{"x": 2}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-path-beside-a-default-with-no-fill	verdict	a: 1\nx: pref($.a) | *2	{"x": 2}	{"verdict":"error","opts":{"noFill":true}}
+vet-rank-clash-move-beside-a-default	verdict	a: 1\nx: move($.a) | *2	{}	{"verdict":"error"}
+vet-rank-clash-in-a-list	verdict	x: [pref(1 | 2)]	{}	{"verdict":"error"}
+vet-rank-clash-in-a-nested-map	verdict	x: {y: pref(1 | 2)}	{}	{"verdict":"error"}
+vet-rank-clash-under-hide	verdict	x: hide(pref(1 | 2))	{}	{"verdict":"error"}
+vet-rank-clash-under-type	verdict	x: type(pref(1 | 2))	{}	{"verdict":"error"}
+vet-rank-clash-at-an-optional-key	verdict	x?: pref(1 | 2)	{}	{"verdict":"error"}
+vet-rank-clash-beside-another-arm	verdict	x: pref(1 | 2) | "a"	{"x": "a"}	{"verdict":"error"}
+vet-rank-clash-under-maybe	verdict	x: maybe(pref(1 | 2))	{}	{"verdict":"error"}
+vet-rank-clash-in-an-unused-declaration	verdict	%T = pref(1 | 2)\nx: 1	{}	{"verdict":"error"}
+vet-rank-clash-in-a-used-declaration	verdict	%T = pref(1 | 2)\nx: %T	{}	{"verdict":"error"}
+# No clash: the same default twice, an arm the meet drops, and a default
+# beside one that generates nothing.
+vet-rank-twins-a-meet-makes-are-one-default	verdict	x: (*1 | number) & (*1 | integer)	{}	{"verdict":"valid"}
+vet-rank-clash-in-an-arm-the-meet-drops	verdict	x: ((*1 | *7) & string) | "a"	{}	{"verdict":"valid"}
+vet-rank-default-beside-a-kind-default	verdict	x: *1 | *number	{}	{"verdict":"valid"}
+vet-rank-map-defaults-a-meet-makes-fold	verdict	x: (*{a: 1} | string) & (*{b: 2} | string)	{}	{"verdict":"valid"}
+# A clash only the data makes is the data's: the place admits nothing.
+vet-rank-clash-the-data-makes-is-invalid	verdict	a: number\nx: pref($.a) | *2	{"a": 1}	{"verdict":"invalid"}
+vet-rank-clash-the-data-makes-is-invalid-with-no-fill	verdict	a: number\nx: pref($.a) | *2	{"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-rank-no-clash-where-the-data-agrees	verdict	a: number\nx: pref($.a) | *2	{"a": 2}	{"verdict":"valid"}
+vet-rank-no-clash-before-the-data	verdict	a: number\nx: pref($.a) | *2	{}	{"verdict":"incomplete"}
+vet-rank-no-clash-before-the-data-under-partial	verdict	a: number\nx: pref($.a) | *2	{}	{"verdict":"valid","opts":{"partial":true}}

@@ -3,7 +3,7 @@
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, both where the ruled answer is neither side's, and the
 # cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 58.
+# A listed case that comes to agree fails the run. Bounded at 55.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -32,9 +32,6 @@ lpl65	"y": 1, "x": *{"a": 1, "b": $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	invalid
 lq27	"x": (*{"a": 1, "b": .d}) & (*{"c": 2})	{}	error	invalid	ports	lone preferences met at one place read as one disjunction, and a path in one's value that names nothing makes the document an error there, as it does outside a preference (ruling 53); both ports leave the path waiting and never find that it names nothing, so the document reads invalid (#700)
 lq28	"x": (*{"a": 1, "b": .d}) & (*{"c": 2})	{}	error	invalid	ports	lone preferences met at one place read as one disjunction, and a path in one's value that names nothing makes the document an error there, as it does outside a preference (ruling 53); both ports leave the path waiting and never find that it names nothing, so the document reads invalid (#700)
 lq29	"x": (*{"a": 1, "b": .d}) & (*{"c": 2})	{}	error	invalid	ports	lone preferences met at one place read as one disjunction, and a path in one's value that names nothing makes the document an error there, as it does outside a preference (ruling 53); both ports leave the path waiting and never find that it names nothing, so the document reads invalid (#700)
-rk60	v: {"x": (*(1) | (7)) & (*(7) | (1))}	v: {}	error	invalid	ports	a clash a meet makes, two defaults of one rank that disagree, is an error as the written clash is; both ports' eval answers empty and their vet answers invalid (#482)
-rk61	v: {"x": (*(1) | (7)) & (*(7) | (1))}	v: {}	error	invalid	ports	a clash a meet makes, two defaults of one rank that disagree, is an error as the written clash is; both ports' eval answers empty and their vet answers invalid (#482)
-rk62	v: {"x": (*(1) | (7)) & (*(7) | (1))}	v: {}	error	invalid	ports	a clash a meet makes, two defaults of one rank that disagree, is an error as the written clash is; both ports' eval answers empty and their vet answers invalid (#482)
 j210	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": %T	{}	incomplete	valid	ports	#762: a recursive name used alone stays residual where no data reaches it, as one whose body holds no link does, so the schema generates nothing there; both ports expand it because its body links to its own member, and answer valid
 dirp6	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	invalid	valid	ports	decision 44 (section 7): close() seals every term at its place, the target a path reference copies among them; both ports leave the copy unsealed (#726)
 dirp7	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	invalid	valid	ports	decision 44 (section 7): close() seals every term at its place, the target a path reference copies among them; both ports leave the copy unsealed (#726)

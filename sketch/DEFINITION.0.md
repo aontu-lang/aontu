@@ -2284,6 +2284,11 @@ until the phase that encodes it lands.
    where the disjunction holds it while the disjunction meets that arm,
    which part of #700 asks. rk45 to rk50, dj177 to dj182, djl177 to
    djl182 and dir172 leave the ledger with 18 rows of #700.
+   **Built further in both ports 2026-11-24** (#482): a disjunction a
+   meet or a call leaves is ranked once it settles (`rankSettled`), as
+   a written one is when it unifies, so `(*1 | 7) & (*7 | 1)`,
+   `pref(1 | 2)` and `number | *1 | *2` are the schema's error under
+   `vet` too, and rk60 to rk62 leave the ledger.
 
 44. **`open()`, and the seals it lifts.** Raised 2026-11-11 while
    working through the definition's limits. `open()` reverses a seal,

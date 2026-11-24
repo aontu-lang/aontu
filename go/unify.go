@@ -80,6 +80,39 @@ func holds(v Val, mark func(Val) bool) bool {
 	return slices.ContainsFunc(kids, func(k Val) bool { return holds(k, mark) })
 }
 
+// A disjunction a meet or a call leaves ranks its defaults as a written one does, so its clash is
+// the same error (foldArms in spec/Aontu/Meet.lean). A copy is ranked: generation folds the tree's own.
+func rankSettled(ctx *Ctx, v Val, seen map[Val]bool) {
+	if seen[v] {
+		return
+	}
+	seen[v] = true
+	var kids []Val
+	switch n := v.(type) {
+	case *DisjunctVal:
+		if !n.prefsRanked {
+			slot := ctx.slot
+			ctx.slot = n.vpath()
+			clonePath(n, n.vpath()).(*DisjunctVal).rankPrefs(ctx)
+			ctx.slot = slot
+		}
+		kids = n.peg
+	case *PrefVal:
+		kids = []Val{n.peg}
+	case *MapVal:
+		for _, k := range n.keys {
+			kids = append(kids, n.peg[k])
+		}
+	case *ListVal:
+		kids = n.peg
+	case *ConjunctVal:
+		kids = n.peg
+	}
+	for _, k := range kids {
+		rankSettled(ctx, k, seen)
+	}
+}
+
 func rereadsMark(v Val) bool { return nil != v.rereads() }
 
 // A copy makes a call over what a relative path read again (ruling 26), but for a wrapper's: its value is its argument.
@@ -619,6 +652,8 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 		ctx.snapmap = map[string]Val{}
 		res = newConjunct([]Val{instanceClone(pristine, pristine.vpath()), flowDoc(res, flows, 0)})
 	}
+
+	rankSettled(ctx, res, map[Val]bool{})
 
 	// A link the output takes names something the document holds.
 	for _, l := range links {
