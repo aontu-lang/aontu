@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### A value is sited where it is written
+
+Ruling 65 of the definition, built in both parsers: #327 and #391. An
+operator's result was sited at the first token of the whole
+expression, so a reference, a negative number or a default that
+wasn't the first operand was reported at the wrong place, and a few
+shapes were reported at a different column in each port. It is now
+sited where it is written: a prefix's result at the operator, and an
+infix's at its first term.
+
+- `c: 1 & $.nope` frames `$.nope`, where it had framed the `1`.
+- An unresolved reference inside a call, `must($.t, "m")` or
+  `when(string, $.t)`, is reported at its own `$`, in every argument
+  position, where it had been reported at the `.` inside it, at the
+  call's name or at the `(`.
+- `+7` is sited at its sign in both ports, where Go had sited the `7`.
+- A refusal inside `meta()` or `deprecate()` over a disjunction is
+  sited at the value's own first member in both ports.
+- The language servers' cursor mapping now answers on a reference in a
+  call's arguments and on a later operand.
+
+28 rows in the new `test/spec/site.tsv` hold the rule, nine more rows
+of `test/spec/cursor.tsv` hold the cursor's answers, and two rows that
+pinned a call-site answer are derived again from both engines. The
+entry for #327 leaves `test/spec/divergent.tsv`.
+
 ### A default arm over a path no longer admits what its parent type admits
 
 #953, in both engines. An arm `*x` of a disjunction has no parent type,

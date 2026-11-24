@@ -1061,6 +1061,19 @@ leave the mapping without an answer: a reference inside a call's
 arguments is sited differently in each port (#327), and the second
 reference of a conjunction is sited at the first in both.
 
+Progress on 2026-11-24. Both faults are fixed in both parsers, and
+with them a third, `+7`, which each port sited at a different column.
+The cause was one rule in aontu's own grammar: an operator's result
+was sited at the first token of the whole expression. It is now sited
+where it is written, a prefix's at the operator and an infix's at its
+first term, which is ruling 65 of the definition in its general form.
+The cursor answers on a reference in a call and on a later operand,
+and #327 and #391 are settled with it; the rows are in
+`test/spec/site.tsv`. Nothing in the parser library changed. Go reads
+a prefix operator's place back from its operand's, since the pinned
+library gives an evaluator no token for the operator. The library has
+one from 0.6, so Go takes the token when the pins rise.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same

@@ -525,12 +525,10 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   binds, but not sibling keys yet. The analysis layer maps a cursor to
   a path and a path to its sites (`computePathAt`, `computeSitesOf`),
   which key completion, definition on a key, and references will use.
-- **The cursor mapping** answers nothing on a reference inside a
-  call's arguments or on the second reference of a conjunction, since
-  the parser doesn't record such a reference where it's written; on a
-  key spelled with an escape; or on what an included file holds. The
-  sites of a top-level key written `""` include the document's own,
-  since provenance keeps a path by its segments joined with dots.
+- **The cursor mapping** answers nothing on a key spelled with an
+  escape, or on what an included file holds. The sites of a top-level
+  key written `""` include the document's own, since provenance keeps
+  a path by its segments joined with dots.
 - **The alias features read the document's text**, not its tree, so
   they answer while a document is half-written and would not parse. The
   cost is that they know only what the text says: a name arriving

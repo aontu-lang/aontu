@@ -1999,6 +1999,27 @@ func incompleteNil(r *jsonic.Rule) Val {
 	return n
 }
 
+// AN OPERATOR'S RESULT STANDS WHERE IT IS WRITTEN, not at the rule's
+// first token. The pinned parser hands no token for the operator, so a
+// prefix's place is the last character before its operand, past blanks.
+func siteAtOp(v Val, ctx *jsonic.Context, operand any, ch byte) {
+	o, ok := operand.(Val)
+	if !ok || nil == ctx || nil == ctx.Lex || 0 >= o.pos() || len(ctx.Lex.Src) < o.pos() {
+		return
+	}
+	if i := skipTrivia(ctx.Lex.Src, o.pos()-1); 0 <= i && ch == ctx.Lex.Src[i] {
+		v.setPos(i)
+		v.setSrctext(string(ch))
+	}
+}
+
+func siteAtTerm(v Val, term any) {
+	if t, ok := term.(Val); ok && 0 <= t.pos() {
+		v.setPos(t.pos())
+		v.setSrctext(t.srctext())
+	}
+}
+
 func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interface{}) interface{} {
 	// Top-level expression wrappers are evaluated outside any rule
 	// (expr.Evaluation(nil, nil, ...) in asValDepth); the NoRule
@@ -2050,6 +2071,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				nv.site.sp = r.O0.SI
 			}
 			stampSrc(nv, r)
+			siteAtOp(nv, ctx, inner, '*')
 			return nv
 		}
 
@@ -2061,6 +2083,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			pv.site.sp = r.O0.SI
 		}
 		stampSrc(pv, r)
+		siteAtOp(pv, ctx, inner, '*')
 		return pv
 	case "negative-prefix":
 		if len(terms) < 1 {
@@ -2071,17 +2094,21 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			nv.setPos(r.O0.SI)
 		}
 		stampSrc(nv, r)
+		siteAtOp(nv, ctx, terms[0], '-')
 		return nv
 	case "positive-prefix":
 		if len(terms) < 1 {
 			return incompleteNil(r)
 		}
-		return asVal(terms[0])
+		pv := asVal(terms[0])
+		siteAtOp(pv, ctx, terms[0], '+')
+		return pv
 	case "dot-prefix":
 		if len(terms) < 1 {
 			return incompleteNil(r)
 		}
 		if nv := refuseAliasSegment(terms, r); nv != nil {
+			siteAtOp(nv, ctx, terms[0], '.')
 			return nv
 		}
 		rv := newRef(terms, true)
@@ -2089,12 +2116,14 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			rv.site.sp = r.O0.SI
 		}
 		stampSrc(rv, r)
+		siteAtOp(rv, ctx, terms[0], '.')
 		return rv
 	case "dot-infix":
 		if len(terms) < 1 {
 			return incompleteNil(r)
 		}
 		if nv := refuseAliasSegment(terms, r); nv != nil {
+			siteAtTerm(nv, terms[0])
 			return nv
 		}
 		rv := newRef(terms, false)
@@ -2102,6 +2131,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			rv.site.sp = r.O0.SI
 		}
 		stampSrc(rv, r)
+		siteAtTerm(rv, terms[0])
 		return rv
 	case "dollar-prefix":
 		if len(terms) < 1 {
@@ -2117,16 +2147,14 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		// as the alias reference rather than through a dot arm, and is
 		// refused for the same reason.
 		if nv := refuseAliasSegment(terms, r); nv != nil {
+			siteAtOp(nv, ctx, terms[0], '$')
 			return nv
 		}
 		// $.a.b -> absolute reference; $name -> variable (the name is
 		// wrapped as a StringVal so canon renders as $"name").
 		if r0, ok := terms[0].(*RefVal); ok {
 			r0.absolute = true
-			if r.ON > 0 {
-				r0.site.sp = r.O0.SI
-			}
-			stampSrc(r0, r)
+			siteAtOp(r0, ctx, r0, '$')
 			return r0
 		}
 		// `$` takes a name or a path; anything else is refused where written.
@@ -2136,6 +2164,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				nv.site.sp = r.O0.SI
 			}
 			stampSrc(nv, r)
+			siteAtOp(nv, ctx, terms[0], '$')
 			return nv
 		}
 		vv := newVar(asVal(terms[0]))
@@ -2143,6 +2172,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			vv.site.sp = r.O0.SI
 		}
 		stampSrc(vv, r)
+		siteAtOp(vv, ctx, terms[0], '$')
 		return vv
 	case "addition-infix":
 		if len(terms) < 2 {
@@ -2153,6 +2183,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			ov.site.sp = r.O0.SI
 		}
 		stampSrc(ov, r)
+		siteAtTerm(ov, terms[0])
 		return ov
 	case "func-paren":
 		if len(terms) > 0 {
