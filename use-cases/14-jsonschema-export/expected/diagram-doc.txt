@@ -5,4 +5,4 @@ $
     ├── attempts [&:mulof(1)]
     ├── audit "kept-off-the-wire"
     ├── slugs {&:key(0)}
-    └── total nil
+    └── total number&must(min(0),"total mus...

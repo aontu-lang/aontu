@@ -808,7 +808,7 @@ class LspHandler {
     return publishDiagnosticsMsg(uri,
       computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }))
   }
-} /* node:coverage ignore next 31 */
+} /* node:coverage ignore next 36 */
 
 
 export {

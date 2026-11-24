@@ -14,6 +14,9 @@ test/vectors/isemail/** -text
 test/vectors/idna/** -text
 test/vectors/test262/** -text
 test/vectors/re2/** -text
+# The comparison's probes: ts/test/cuecorpus.test.ts asks that each aontu
+# file is byte for byte the source of its shared row, which holds LF.
+test/cue/** text eol=lf
 # The Go sources keep LF on every platform: go/gofmt_test.go asks that
 # each one is byte for byte what gofmt writes, and gofmt writes LF.
 *.go text eol=lf

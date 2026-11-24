@@ -302,6 +302,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 	keys := append([]string(nil), m.keys...)
 	sort.Strings(keys)
 	outer := genPlace(ctx)
+	stalled := false
 	for _, k := range keys {
 		at := append(cp(m.path), k)
 		child := placeShared(m.peg[k], at)
@@ -316,6 +317,12 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		}
 		optional := m.isOptional(k)
 
+		if stalled {
+			if nil != ctx && !optional && genable(child) {
+				alsoIncomplete(ctx, child, k, at)
+			}
+			continue
+		}
 		if !genable(child) {
 			if optional {
 				continue
@@ -341,7 +348,8 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			details := map[string]string{"key": k}
 			n := makeNilErrFull(ctx, code, va, vb, "", details)
 			n.path = append(cp(m.path), k)
-			break
+			stalled = true
+			continue
 		}
 
 		// An optional child generates in an isolated collect context so
@@ -403,6 +411,20 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		return genWriteMap(ctx, m, out)
 	}
 	return out, nil
+}
+
+// Past a member that can't generate, the rest still say what else is incomplete.
+func alsoIncomplete(ctx *Ctx, child Val, key any, at []string) {
+	ctx.trialsOf()
+	c2 := *ctx
+	c2.err = nil
+	c2.collect = true
+	genAt(child, &c2, key, at)
+	for _, e := range c2.err {
+		if "incomplete" == codeClass(e.why) {
+			ctx.adderr(e)
+		}
+	}
 }
 
 func withoutKey(keys []string, k string) []string {

@@ -105,6 +105,6 @@ function sealChild(ctx, child, dir = false) {
     return out;
 }
 // A directive's seal takes the keys of the other terms at its place, and refuses the data's.
-const takes = (bag, peer) => true === bag.dirSealed && true !== peer?.isData; /* node:coverage ignore next 10 */
+const takes = (bag, peer) => true === bag.dirSealed && true !== peer?.isData; /* node:coverage ignore next 12 */
 exports.takes = takes;
 //# sourceMappingURL=SealVal.js.map

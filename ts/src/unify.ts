@@ -735,7 +735,7 @@ class Unify {
 
 
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
-  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 13 */
+  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 15 */
 
 
 export {

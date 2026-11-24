@@ -14,6 +14,7 @@ import {
 } from '../utility'
 
 import { makeNilErr } from '../err'
+import { codeClass } from '../hints'
 import { parseNilIn } from '../walk'
 import { empty, repathInstance } from './Val'
 import { towardMember } from './admission'
@@ -130,6 +131,8 @@ abstract class BagVal extends FeatureVal {
         .sort((a: any, b: any) => cmpCodePoint(String(a[0]), String(b[0])))
     }
 
+    let stalled = false
+
     for (let item of entries) {
       const p = item[0]
       let child = item[1]
@@ -153,6 +156,17 @@ abstract class BagVal extends FeatureVal {
       }
 
       const optional = this.optionalKeys.includes('' + p)
+
+      // Past a member that can't generate, the rest still say what else is incomplete.
+      if (stalled) {
+        if (null != ctx && !optional && bagGenable(child)) {
+          const sctx = ctx.clone({ err: [], collect: true })
+          child.gen(towardAt(this, sctx, p, out, at))
+          sctx.err.filter((e: any) => 'incomplete' === codeClass(e.why))
+            .forEach((e: any) => ctx.adderr(e))
+        }
+        continue
+      }
 
       // Lists append compactly, as in Go: a skipped element (hidden, a
       // dropped optional) leaves no hole at its index.
@@ -221,7 +235,7 @@ abstract class BagVal extends FeatureVal {
         const nerr = makeNilErr(ctx, code, va, vb, undefined, details)
         nerr.path = [...this.path, p]
 
-        break
+        stalled = true
       }
 
     }

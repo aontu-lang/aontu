@@ -9,9 +9,9 @@
 #
 # What each field becomes (probed, not guessed):
 #
-#   total       must() is evaluate-only, and the engine holds the WHOLE
-#               value residual, so the export is {} and the report says
-#               `nil` -- the `number` bound beside it is lost too.
+#   total       must() crosses as allOf of its trial's schema, so the
+#               bound it checks is kept; JSON Schema has no keyword for
+#               its message, which is dropped and reported under `must`.
 #   amountEur   bigdecimal exports as "number" with the exactness loss
 #               reported; money.aontu is the convention that avoids this.
 #   audit       hide() is omitted entirely, and reported: a consumer
@@ -27,7 +27,7 @@
 #               len() with no bag or string beside it is the loss.
 
 report: {
-  total: number & must((v) => 0 <= v, "total must not be negative")
+  total: number & must(min(0), "total must not be negative")
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
   annotations: { &: string & len(max(63)) }

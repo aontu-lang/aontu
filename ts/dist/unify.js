@@ -625,6 +625,6 @@ class Unify {
     }
 }
 exports.Unify = Unify;
-const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 13 */
+const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 15 */
 exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map

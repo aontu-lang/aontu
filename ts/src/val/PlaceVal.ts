@@ -373,7 +373,7 @@ function rebuild(v: Val, peg: any, ctx: AontuContext): Val {
   out.peg = peg
   out.dc = 0
   return out
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 12 */
 
 
 export {

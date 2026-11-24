@@ -68,7 +68,6 @@ const view_1 = require("./view");
 const agentsmd_1 = require("./agentsmd");
 const format_1 = require("./format");
 const utility_1 = require("./utility");
-const walk_1 = require("./walk");
 const helpdoc_1 = require("./helpdoc");
 const hints_1 = require("./hints");
 const keyorder_1 = require("./keyorder");
@@ -650,7 +649,7 @@ function evalFinding(code, text) {
 function evalSource(aontu, src, mode) {
     try {
         const text = 'canon' === mode
-            ? canonOf(aontu, src)
+            ? (0, utility_1.canonRiders)(aontu.unify(src))
             : (0, aontu_1.exactJSON)(aontu.generate(src), 2);
         return { ok: true, text, findings: [] };
     }
@@ -666,16 +665,6 @@ function evalSource(aontu, src, mode) {
             findings: null == first ? [] : [evalFinding(first.why, msg)],
         };
     }
-}
-// A call to a function the language lacks is a nil the parse makes and no
-// meet reports, so canon would print it as nil: it is refused as evaluation
-// refuses it.
-function canonOf(aontu, src) {
-    const v = aontu.unify(src);
-    if ((0, walk_1.collectNils)(v, new Set()).some((n) => 'unknown_function' === n.why)) {
-        aontu.generate(src);
-    }
-    return (0, utility_1.canonRiders)(v);
 }
 // The bare command's answer, in the form the caller asked for. The
 // text form is what it has always printed, on the stream the verdict

@@ -41,6 +41,9 @@ match-bare-pref-scrutinee	gen	k:*5\nz:match($.k,6,a,b)	{"k":5,"z":"b"}
 # match waits for the data (ruling 49, #743): alone it is incomplete,
 # as the definition reads it, though every arm meets the pattern.
 match-open-disjunct-scrutinee	errc	z:match(1|2,integer,a,b)	mapval_no_gen
+match-open-scrutinee-is-named-too	err	t: { plan: "free" | "pro"\n  limits: match(.plan, "free", {m: 3}, "pro", {m: 50}) }\n	Cannot resolve value at path $.t.plan
+match-map-scrutinee-with-an-open-member-waits	errc	z:match({a:1,b:integer},{a:1},yes,other)	mapval_no_gen
+match-list-scrutinee-with-an-open-element-waits	errc	z:match([1,integer],[&:integer],yes,other)	mapval_no_gen
 match-none-no-default	errc	t:mid\nz:match($.t,small,{cpu:1},large,{cpu:8})\n	match_none
 match-none-single-arm	errc	z:match(1,string,a)\n	match_none
 match-arity-two	errc	z:match(1,string)\n	func_arity
