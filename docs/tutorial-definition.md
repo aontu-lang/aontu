@@ -5140,13 +5140,42 @@ names a waiting body waits too, through a call or another name, so
 stays a name, though, so it reads its own body read the same way, and
 what that body fixes holds: `%T = %U & 2` beside `%U = _ & 1` is an
 `error`, as both engines answer. Both engines read a `key(n)` that
-climbs out of the body as waiting too. One that reads a member inside
-the body they read as that member's key, where the definition reads any
-string, so it admits an unused `%T = {a: key(0) & "b"}` that both
-refuse, which #942 tracks. And both skip a
+climbs out of the body as waiting too. And both skip a
 conflict met with a call that waits through a name, so they answer
 `valid` for `%T = add(%U, 1) & (1 & 2)`, which the definition reads as
 an `error` and #530 tracks.
+
+A `key(n)` that reads a step inside the body waits for nothing: it is
+that step's text at every use. Ruling 88 has the check read it so,
+before anything is read as waiting, by `Val.keysIn`, which walks the
+body with the steps from its top and reads each key by `keyUpIn`:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- `key(n)` read in a declaration's body at `pos`, the steps from the
+body's own top down, outermost first: the text of a step inside the
+body and `""` below none, as `keyUpAt` reads them, and `key(n)` as
+written, which only a use places, where it reaches the body's top or
+above (ruling 88). -/
+def keyUpIn (pos : List Step) (n : ℤ) : Val :=
+  if n < 0 then .lit (.str "") else
+  match pos.reverse[n.toNat]? with
+  | some (.seg s) => .lit (.str s.text)
+  | some .spread => if n = 0 then .key else .keyUp n
+  | none => .keyUp n
+```
+
+So `%T = {a: key(0) & "b"}` is an `error` unused, `"a"` met with `"b"`,
+and so are `%T = [key(0) & "9"]` and `%T = {a: upper(key(0)) & 1}`,
+whose call is made once its key is text. `%T = {a: {b: key(2) & "z"}}`
+stands, its key reaching the body's own top, which only a use places.
+Rows `a378` on of `test/spec/def-alias.tsv` hold both engines to each.
+A list's element past one that could be absence or carry a mark stands
+at an index only a reading shows, so its keys are read from the element
+down (`Val.evident`). One case is left: a key inside the body that a
+relative path reads, `%T = {a: key(0), b: .a & "q"}`, is any string
+still where the path lands, and both engines refuse that body, which
+#942 tracks.
 
 A call or a trial that waits for its hole still reads the arguments
 both engines read as written: a call's own, a size, the count of `nof`
@@ -5169,11 +5198,12 @@ source publishes is read where a destructure takes it, so not here:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.bodyIll (ds : Decls) : Bool :=
-  let ws := ds.waitNames
+  let ks : Decls := ds.map fun d => (d.1, d.2.keysIn [])
+  let ws := ks.waitNames
   let w : String → Bool := fun n => ws.contains n
-  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
+  let d0 : Decls := ks.map fun d => (d.1, d.2.unplaced w fun _ => false)
   let ill : Val → Bool := fun t => ((normaliseD d0 (d0.readU t)).staged d0).illFormed
-  let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
+  let du : Decls := ks.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
     (((normaliseD du (du.readU (.alias d.1))).staged du).illFormed || ((normaliseD du (du.readU d.2)).staged du).illFormed)
 ```
