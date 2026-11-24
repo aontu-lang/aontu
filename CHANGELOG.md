@@ -8,6 +8,41 @@ each change affects.
 
 ## Unreleased
 
+### `keyed(p, t, e?)`: a short form for a key pattern
+
+Task KP1 of the lang refinement plan, on its ruling 18, in both
+engines. `keyed(p, t, e)` holds each member whose key `p` admits to
+`t`, and every other member to `e`, or to `any` where `e` is left
+out:
+
+```aontu
+cfg: { &: keyed(re("^env_"), string), env_name: prod, other: 1 }
+```
+
+It is a spelling of the guarded spread and adds no form. Each reader
+rewrites the call to `match(key(0), p, t, e)` where it builds it, so
+the two spellings have one canonical form and one hash, a refusal and
+`model why` show the `match`, and the JSON Schema exporter writes
+`patternProperties` for it. The formatter keeps the spelling the
+author wrote. A seal is unchanged, on ruling 19: a closed map and a
+type's instance still refuse a key that only the pattern admits.
+
+- The name is in the signature table, the four published grammars,
+  the functions reference and both language servers' rosters.
+- `Val.keyedCall` in `spec/Aontu/Syntax.lean` is its reading in the
+  definition, and rows yk0 on of `test/spec/def-trial.tsv` are
+  generated from it.
+- The 47 rows of the new `test/spec/keyed.tsv` hold both engines to
+  it.
+
+The wording of a wrong count is corrected with it. The message
+collapsed several intervals, so it would have said `keyed takes one to
+three arguments`, as it said `rep takes exactly one argument` and
+`match takes one or more arguments`. It now words each interval the
+signature table declares, `rep takes exactly three arguments` among
+them, and a test in each port refuses a declared interval that has no
+wording.
+
 ### A value is sited where it is written
 
 Ruling 65 of the definition, built in both parsers: #327 and #391. An

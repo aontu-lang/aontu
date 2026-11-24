@@ -49,6 +49,40 @@ func TestSigDeclaredNamesAreTheBuiltinNames(t *testing.T) {
 	}
 }
 
+// A declared interval with no wording of its own fails here.
+func TestEveryDeclaredIntervalIsWorded(t *testing.T) {
+	wording := map[[2]int]string{
+		{0, 0}:  "no arguments",
+		{0, 1}:  "no arguments or one",
+		{0, 2}:  "at most two arguments",
+		{1, 1}:  "exactly one argument",
+		{1, 2}:  "one argument or two",
+		{1, 3}:  "one to three arguments",
+		{1, -1}: "one or more arguments",
+		{2, 2}:  "exactly two arguments",
+		{2, 3}:  "two or three arguments",
+		{2, -1}: "two or more arguments",
+		{3, 3}:  "exactly three arguments",
+		{3, -1}: "three or more arguments",
+	}
+	for name, ar := range funcArity {
+		want, ok := wording[ar]
+		if !ok {
+			t.Fatalf("%s has an interval with no wording: %v", name, ar)
+		}
+		given := ar[1] + 1
+		if 0 < ar[0] {
+			given = ar[0] - 1
+		}
+		src := "x:" + name + "(" + strings.TrimSuffix(strings.Repeat("1,", given), ",") + ")"
+		_, err := New().Generate(src)
+		line := name + " takes " + want + ", but was given " + itoa(given)
+		if nil == err || !strings.Contains(err.Error(), line) {
+			t.Fatalf("%s: want %q in %v", src, line, err)
+		}
+	}
+}
+
 func TestCanonCallsAreDeclaredBuiltins(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join("..", "test", "spec", "*.tsv"))
 	if nil != err {

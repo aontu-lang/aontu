@@ -41,6 +41,7 @@ const expect_1 = require("./expect");
 const sig_1 = require("../dist/sig");
 const sigdecl_1 = require("../dist/sigdecl");
 const lsp_1 = require("../dist/lsp");
+const aontu_1 = require("../dist/aontu");
 const SHARED = Path.join(__dirname, '..', '..', 'test', 'spec', 'signature.tsv');
 (0, node_test_1.describe)('sig', () => {
     (0, node_test_1.test)('sigdecl-is-the-shared-declaration', () => {
@@ -56,6 +57,46 @@ const SHARED = Path.join(__dirname, '..', '..', 'test', 'spec', 'signature.tsv')
             }
             const sig = (0, sig_1.parseSigLine)(line);
             (0, expect_1.expect)((0, sig_1.renderSig)(sig)).equal(line);
+        }
+    });
+    // A declared interval with no wording of its own fails here.
+    (0, node_test_1.test)('every-declared-interval-is-worded', () => {
+        const wording = {
+            '0,0': 'no arguments',
+            '0,1': 'no arguments or one',
+            '0,2': 'at most two arguments',
+            '1,1': 'exactly one argument',
+            '1,2': 'one argument or two',
+            '1,3': 'one to three arguments',
+            '1,-1': 'one or more arguments',
+            '2,2': 'exactly two arguments',
+            '2,3': 'two or three arguments',
+            '2,-1': 'two or more arguments',
+            '3,3': 'exactly three arguments',
+            '3,-1': 'three or more arguments',
+        };
+        const reg = (0, sig_1.parseSigText)(sigdecl_1.SIGDECL);
+        for (const name of Object.keys(reg)) {
+            let lo = 0;
+            let hi = 0;
+            for (const a of reg[name].args) {
+                lo += true === a.opt ? 0 : true === a.rest && undefined !== a.group ? a.group.length : 1;
+                hi = true === a.rest || -1 === hi ? -1 : hi + 1;
+            }
+            const want = wording[lo + ',' + hi];
+            if (undefined === want) {
+                throw new Error(name + ' has an interval with no wording: ' + lo + ',' + hi);
+            }
+            const given = 0 < lo ? lo - 1 : hi + 1;
+            const src = 'x:' + name + '(' + Array(given).fill('1').join(',') + ')';
+            let msg = '';
+            try {
+                new aontu_1.Aontu().generate(src);
+            }
+            catch (err) {
+                msg = String(err.message);
+            }
+            (0, expect_1.expect)(msg).include(name + ' takes ' + want + ', but was given ' + given);
         }
     });
     (0, node_test_1.test)('declared-names-are-the-builtin-names', () => {

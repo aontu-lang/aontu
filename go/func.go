@@ -82,6 +82,7 @@ var funcSet = map[string]bool{
 	"apply":     true,
 	"filter":    true,
 	"match":     true,
+	"keyed":     true,
 	"emit":      true,
 	"esc":       true,
 	"usc":       true,
@@ -203,29 +204,31 @@ func writtenArgVals(terms []any) []Val {
 	return out
 }
 
+var countWords = []string{"no", "one", "two", "three"}
+
+// arityText is a built-in's permitted count, in words. Each arm words an
+// interval the signature table holds, and the suite refuses a declared
+// one it lacks.
 func arityText(lo, hi int) string {
 	switch {
 	case -1 == hi:
-		return "one or more arguments"
-	case lo != hi:
-		if 0 == lo {
-			return "no arguments or one"
-		}
-		// The case range gave upper and lower a span rather than a pair,
-		// and a two-arm phrasing cannot say it: [1,3] read as "one
-		// argument or two", a wrong count rather than an imprecise one.
-		if 3 == hi {
-			return "one to three arguments"
-		}
-		return "one argument or two"
-	// The {0,0} arm returned with the container kinds and acyclic()
-	// (ADR-015): map(1) must not claim map takes exactly one.
-	case 0 == hi:
+		return countWords[lo] + " or more arguments"
+	case lo == hi && 0 == lo:
 		return "no arguments"
-	case 2 == hi:
-		return "exactly two arguments"
-	default:
+	case lo == hi && 1 == lo:
 		return "exactly one argument"
+	case lo == hi:
+		return "exactly " + countWords[lo] + " arguments"
+	case 0 == lo && 1 == hi:
+		return "no arguments or one"
+	case 0 == lo:
+		return "at most " + countWords[hi] + " arguments"
+	case 2 == hi:
+		return "one argument or two"
+	case 1 == lo:
+		return "one to three arguments"
+	default:
+		return countWords[lo] + " or " + countWords[hi] + " arguments"
 	}
 }
 

@@ -487,6 +487,13 @@ def keyUpAt (pos : List Step) (n : ℤ) : Val :=
   | some .spread => if n = 0 then .key else .keyUp n
   | none => .lit (.str "")
 
+/-- `keyed(p, t)` and `keyed(p, t, e)` as the reader carries them into
+the terms: the selection on `key(0)` whose one arm holds a key `p` admits
+to `t`, and whose default is `e`, `any` where none is written. It is a
+spelling of that selection and adds no form. -/
+def Val.keyedCall (p t : Val) (e : Option Val := none) : Val :=
+  .select (.keyUp 0) [(p, t)] (some (e.getD .any))
+
 /-- A position one step down, where there is one. -/
 def stepped (here : Option (List Step)) (s : Step) : Option (List Step) := here.map (· ++ [s])
 

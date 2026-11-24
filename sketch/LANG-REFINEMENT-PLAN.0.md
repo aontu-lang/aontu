@@ -1173,7 +1173,7 @@ Both refuse `other: 1` there, CUE as `field not allowed` and aontu as
 
 ### The short form
 
-aontu, proposed:
+aontu, as KP1 built it:
 
 ```aontu
 short: { &: keyed(re("^env_"), string), env_name: prod }
@@ -1185,7 +1185,8 @@ left out. It is rewritten as it is read, so canon, the text of a
 refusal and the JSON Schema exporter all write the guarded spread, and
 the two spellings have one canonical form. That is L2's condition, and
 it is how the short form avoids the cost ADR-008 names for a second
-spelling. Today each line is `unknown_function` in both engines.
+spelling. Each line was `unknown_function` in both engines until KP1
+built it.
 
 The other spelling proposed was N3's, a pattern in the key, which
 ruling 18 did not take:
@@ -1208,6 +1209,22 @@ of the four published grammars and of both parsers.
 KP1 delivers what
 [a built-in task delivers](#what-a-built-in-task-delivers), and
 records in G1 that N3 is taken up.
+
+Progress on 2026-11-24. KP1 is built in both engines. Each reader
+rewrites the call where it builds it, so `keyed(p, t, e)` is the
+`match` it means from there on: one canonical form and one hash for
+the two spellings, the `match` in a refusal and in `model why`, and
+`patternProperties` from the exporter. The count is `keyed`'s own, two
+or three, and a refusal for it names `keyed`. The formatter keeps the
+spelling the author wrote, and both language servers list the name.
+The rows are the 47 of `test/spec/keyed.tsv`. In the definition
+`Val.keyedCall` is the reading, and rows yk0 on of
+`test/spec/def-trial.tsv` are generated from it. A probe of 432
+documents, each written both ways, found no difference in either
+engine or between them. The wording of a wrong count is corrected in
+the same change, since it would have said `keyed takes one to three
+arguments`: the message now words each interval the signature table
+declares.
 
 ### Questions for the ruling on part 4
 

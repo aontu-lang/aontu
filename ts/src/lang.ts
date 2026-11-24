@@ -956,6 +956,15 @@ help isolate the syntax error.`,
       terms = terms[0]
     }
     const args = terms.map(rawToVal)
+    // keyed IS READ AS THE GUARDED SPREAD IT MEANS, so canon, a refusal
+    // and the JSON Schema exporter all write the one form.
+    if ('keyed' === fname) {
+      const up = addsite(new IntegerVal({ peg: 0 }), r, ctx)
+      const key = addsite(new KeyFuncVal({ peg: [up] }), r, ctx)
+      return new MatchFuncVal({
+        peg: [key, args[0], args[1], args[2] ?? addsite(top(), r, ctx)],
+      })
+    }
     const val: any = null == funcval ?
       new NilVal({ why: 'unknown_function' }) :
       new funcval({ peg: args })
@@ -2435,29 +2444,26 @@ function writtenArgs(terms: any[]): any[] {
 }
 
 
-// arityText renders a built-in's permitted count for the error message.
-// The fixed-arity case says "one" outright rather than counting: every
-// fixed arity in the table IS one, and a phrasing for a count no entry
-// carries would be untested prose pretending to be tested.
+const COUNT_WORDS = ['no', 'one', 'two', 'three']
+
+// A built-in's permitted count, in words. Each arm words an interval the
+// signature table holds, and the suite refuses a declared one it lacks.
 function arityText(lo: number, hi: number): string {
   if (-1 === hi) {
-    return 'one or more arguments'
+    return COUNT_WORDS[lo] + ' or more arguments'
   }
-  if (lo !== hi) {
-    if (0 === lo) {
-      return 'no arguments or one'
-    }
-    return 3 === hi ? 'one to three arguments' : 'one argument or two'
+  if (lo === hi) {
+    return 0 === lo ? 'no arguments' :
+      'exactly ' + COUNT_WORDS[lo] + (1 === lo ? ' argument' : ' arguments')
   }
-  // The {0,0} arm returned with the container kinds and acyclic()
-  // (ADR-015): `map(1)` must not claim map takes exactly one.
-  if (0 === hi) {
-    return 'no arguments'
+  if (0 === lo) {
+    return 1 === hi ? 'no arguments or one' : 'at most ' + COUNT_WORDS[hi] + ' arguments'
   }
   if (2 === hi) {
-    return 'exactly two arguments'
+    return 'one argument or two'
   }
-  return 'exactly one argument'
+  return 1 === lo ? 'one to three arguments' :
+    COUNT_WORDS[lo] + ' or ' + COUNT_WORDS[hi] + ' arguments'
 }
 
 
