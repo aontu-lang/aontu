@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition refuses a miscounted call wherever it is written
+
+Decision 77, in the definition. Both engines refuse a call written with
+a count of arguments its function doesn't take as they read the
+document, wherever it stands. The definition found one only where a
+reading reached it, so `v: {&: add(1)}` against `{"v": {}}` was `valid`
+in it and `func_arity` in both engines: the spread meets no member, and
+its template was never read.
+
+A document now doesn't stand where its schema or a declaration's body
+writes such a call, at any depth (`Val.miscounts`, in
+`Decls.illFormedR`). The count each function takes is `Fn.takes`, which
+I checked against both engines for every function they share.
+
+- `spec/Aontu/Verdict.lean`. No proof changes: each reads the check as
+  one answer.
+- Rows x2250 to x2252 of `test/spec/def-call.tsv` now read `error`, and
+  leave `spec/ledger.tsv`, whose bound falls from 64 to 61.
+- `spec/Oracle.lean` gains five cases and `def-call.tsv` 15 rows, x2322
+  to x2336: the template of an `each` and of a `pack` over no member, a
+  `match` result another arm takes, a list's spread, and a member of a
+  spread's template. Both engines answer each as the definition does.
+- No other generated row file changes.
+
 ### The definition's copy of a list leaves a marked element out
 
 #943, in the definition. A list holds no position for an element that

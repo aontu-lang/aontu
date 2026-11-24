@@ -5065,14 +5065,16 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 Read the four in order. `error` is a document that refers to a name it
 doesn't declare, one whose names break the alias-cycle rule, one with
 an `ident()` out of the place step 8 gives it, one with a hole that
-nothing binds (step 27), or a schema or a declaration's body whose
-normal form doesn't stand. The clauses that aren't about names are one
-check:
+nothing binds (step 27), one that writes a call with a count of
+arguments its function doesn't take, or a schema or a declaration's
+body whose normal form doesn't stand. The clauses that aren't about
+names are one check:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+  ds.identMisplaced S || ds.bodyIll || S.miscounts || ds.any (·.2.miscounts) ||
+    S.freeHole (fun n => ds.holeNames.contains n) ||
     ((normaliseD ds (ds.readR S)).staged ds).illFormed
 ```
 
@@ -5087,6 +5089,11 @@ beside `v: 1` is an `error`:
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
 ```
+
+A call's count belongs to the text too, so `Val.miscounts` reads the
+schema and every body as written, a spread's template that meets no
+member among them: `v: {&: add(1)}` is an `error` against `{"v": {}}`,
+as both engines refuse it with `func_arity`.
 
 Every declaration's body is read too, whether or not a reference
 reaches it, so `%T = 1 & 2` beside `v: 1` is an `error`, as both
@@ -8248,7 +8255,8 @@ and the schema doesn't stand where the document holds either:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+  ds.identMisplaced S || ds.bodyIll || S.miscounts || ds.any (·.2.miscounts) ||
+    S.freeHole (fun n => ds.holeNames.contains n) ||
     ((normaliseD ds (ds.readR S)).staged ds).illFormed
 ```
 

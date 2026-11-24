@@ -4541,13 +4541,22 @@ def Decls.holeNames (ds : Decls) : List String :=
   (List.range ds.length).foldl
     (fun hs _ => (ds.filter fun d => d.2.freeHole fun n => hs.contains n).map (·.1)) []
 
+/-- Whether a term writes a call with a count of arguments its function
+doesn't take (`Fn.takes`), at any depth, a spread's template among them. -/
+def Val.miscounts : Val → Bool := Val.holds fun | .call f args => !f.takes args.length | _ => false
+
 /-- Whether a document does not stand: an `ident()` out of its place, a
-declaration's body that does not stand, a hole that nothing binds where
+declaration's body that does not stand, a call written with a count of
+arguments its function doesn't take, in the schema or a body and
+wherever it stands, an unreached template among them, as both ports
+refuse one as they read the document (decision 77 of the design note's
+§7), a hole that nothing binds where
 it is written, in the schema as written or in the body of a name it
 reads, in a trial, an arm or a spread's template alike (ruling 34), or
 the schema with a normal form that does not stand. -/
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+  ds.identMisplaced S || ds.bodyIll || S.miscounts || ds.any (·.2.miscounts) ||
+    S.freeHole (fun n => ds.holeNames.contains n) ||
     ((normaliseD ds (ds.readR S)).staged ds).illFormed
 
 /-! ## The value a document gives with its trials unread
