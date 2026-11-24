@@ -336,7 +336,7 @@ Seventeen issues where the verdict agrees and a code, site, frame or message doe
 
 ### Tooling: coverage, LSP, CLI, playground, docs
 
-16 issues (9 S, 6 M, 1 L).
+17 issues (10 S, 6 M, 1 L).
 
 Coverage (#318, #732, #733), the language servers (#320, #834, #858, #859), the command line (#340, #322, #747, #833, #860, #862), the playground bundle (#814), the documented deep imports (#789) and a count the pages state (#869).
 
@@ -358,6 +358,7 @@ Coverage (#318, #732, #733), the language servers (#320, #834, #858, #859), the 
 | [#860](https://github.com/aontu-lang/aontu/issues/860) | tool | M |  | `trim --check` examines nothing below a key stated twice, an explicit `&` or a call, and answers `clean`. |
 | [#862](https://github.com/aontu-lang/aontu/issues/862) | design | M |  | No verb of either CLI, the REPL or the MCP tools can bind a host variable `$name`. HV1 of the lang refinement plan. |
 | [#869](https://github.com/aontu-lang/aontu/issues/869) | docs | S |  | `llms.txt` and `docs/lsp.md` count 68 built-ins where `test/spec/signature.tsv` declares 72. |
+| [#939](https://github.com/aontu-lang/aontu/issues/939) | bug | S |  | Coverage: `ts/src/cursor.ts` has 13 uncovered items on `main`, and `labelLength` in `ts/src/lsp.ts` one arm (ADR-002). |
 
 ## With the lang refinement plan: three language changes
 
@@ -446,13 +447,13 @@ workstream above meets its tasks.
 | 1 | quick wins | 18 | |
 | 2 | alias cycles, preferences, seals and marks, copies | 45 | 47 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 25 |
-| 4 | diagnostics, tooling | 33 | |
+| 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | 2 |
 
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
-they stand on 2026-11-22 with #907 added, and #936 to #938 on
+they stand on 2026-11-22 with #907 added, and #936 to #939 on
 2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
 each row's cause names. The ledger's other 10 rows name decision 3 and
 no issue: they're #343's.
