@@ -756,3 +756,7 @@ vet-template-no-clash-a-default-is-a-path-under-partial	verdict	x: {&: *$.d | *2
 vet-template-clash-beside-a-move	verdict	a: 1\nb: {&: move($.a), c: {&: *1 | *2}}	{}	{"verdict":"error"}
 vet-template-clash-beside-a-move-with-no-fill	verdict	a: 1\nb: {&: move($.a), c: {&: *1 | *2}}	{}	{"verdict":"error","opts":{"noFill":true}}
 vet-template-clash-beside-a-move-under-partial	verdict	a: 1\nb: {&: move($.a), c: {&: *1 | *2}}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-template-no-clash-a-generator-over-a-hole	verdict	x: {&: each([1], _)}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-generator-over-a-hole-with-no-fill	verdict	x: {&: each([1], _)}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-generator-over-a-hole-under-partial	verdict	x: {&: each([1], _)}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-generator-over-a-hole-at-a-member	verdict	x: {&: each([1], _)}	{"x": {"k": [1]}}	{"verdict":"valid"}
