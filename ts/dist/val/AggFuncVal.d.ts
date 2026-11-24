@@ -5,8 +5,10 @@ type AggOp = 'sum' | 'least' | 'greatest';
 declare class AggFuncVal extends FuncBaseVal {
     isAggFunc: boolean;
     staged: boolean;
+    folds: boolean;
     op: AggOp;
     constructor(spec: ValSpec, ctx: AontuContext | undefined, op: AggOp);
+    make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): AggOp;
     prepare(_ctx: AontuContext, _args: Val[]): null;
     unify(peer: Val, ctx: AontuContext): Val;
@@ -15,7 +17,9 @@ declare class AggFuncVal extends FuncBaseVal {
 declare class PickFuncVal extends FuncBaseVal {
     isPickFunc: boolean;
     staged: boolean;
+    folds: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
+    make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
     prepare(_ctx: AontuContext, _args: Val[]): null;
     unify(peer: Val, ctx: AontuContext): Val;
@@ -24,7 +28,9 @@ declare class PickFuncVal extends FuncBaseVal {
 declare class SortFuncVal extends FuncBaseVal {
     isSortFunc: boolean;
     staged: boolean;
+    folds: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
+    make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
     prepare(_ctx: AontuContext, _args: Val[]): null;
     unify(peer: Val, ctx: AontuContext): Val;
@@ -33,6 +39,7 @@ declare class SortFuncVal extends FuncBaseVal {
 declare class JoinFuncVal extends FuncBaseVal {
     isJoinFunc: boolean;
     staged: boolean;
+    folds: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;

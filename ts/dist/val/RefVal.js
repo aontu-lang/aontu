@@ -30,7 +30,8 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable';
 // wrapper is left for the caller, which defers on it. So is an `each`'s
 // template, whose mark leaves every instance out of the list it makes.
 function rereadKids(v, made) {
-    const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg);
+    const args = (true === made || true === v.folds) && (true === v.isFunc || true === v.isOp) &&
+        Array.isArray(v.peg);
     return true === v.isMap || true === v.isList || args || true === v.isConjunct ||
         true === v.isDisjunct ? v.peg : true === v.isPref ? v : undefined;
 }
@@ -117,7 +118,8 @@ function ownArgs(ctx, v) {
             return val;
         }
         const out = val.clone(ctx, { path: [...val.path] });
-        out.peg = val.peg.map((a) => a.clone(ctx, { path: [...a.path] }));
+        // A fold's argument reads where the fold stands (ruling 26).
+        out.peg = val.peg.map((a) => a.clone(ctx, { path: [...(true === val.folds ? val.path : a.path)] }));
         return out;
     });
 }

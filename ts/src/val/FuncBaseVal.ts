@@ -149,6 +149,9 @@ class FuncBaseVal extends FeatureVal {
 
   staged = false
 
+  // A fold drives its own argument, and a copy still makes it again (ruling 26).
+  folds = false
+
   constructor(
     spec: ValSpec,
     ctx?: AontuContext
@@ -332,7 +335,7 @@ class FuncBaseVal extends FeatureVal {
           out.path = true === peer.isMap && 0 < (peer as any).aliasKeys.length ?
             peer.path : this.path
 
-          if (null !== pegprep) {
+          if (null !== pegprep || this.folds) {
             out = rereadCall(ctx, out, newpeg, peer, () => {
               const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } })
               again.path = this.path

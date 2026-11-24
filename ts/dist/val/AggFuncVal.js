@@ -20,7 +20,11 @@ class AggFuncVal extends FuncBaseVal_1.FuncBaseVal {
         super(spec, ctx);
         this.isAggFunc = true;
         this.staged = true;
+        this.folds = true;
         this.op = op;
+    }
+    make(_ctx, spec) {
+        return new this.constructor(spec);
     }
     funcname() {
         return this.op;
@@ -92,6 +96,10 @@ class PickFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // The bag must settle before it is projected, exactly as it must
         // before it is folded.
         this.staged = true;
+        this.folds = true;
+    }
+    make(_ctx, spec) {
+        return new PickFuncVal(spec);
     }
     funcname() {
         return 'pick';
@@ -185,6 +193,10 @@ class SortFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // The bag must settle before it is ordered, exactly as it must
         // before it is projected.
         this.staged = true;
+        this.folds = true;
+    }
+    make(_ctx, spec) {
+        return new SortFuncVal(spec);
     }
     funcname() {
         return 'sort';
@@ -269,6 +281,7 @@ class JoinFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // The bag must settle before it is folded, exactly as it must before
         // it is summed or projected.
         this.staged = true;
+        this.folds = true;
     }
     make(_ctx, spec) {
         return new JoinFuncVal(spec);

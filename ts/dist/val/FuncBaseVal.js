@@ -107,6 +107,8 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         this.forgives = false;
         this.isGenable = true;
         this.staged = false;
+        // A fold drives its own argument, and a copy still makes it again (ruling 26).
+        this.folds = false;
     }
     validateArgs(args, min) {
         if (min < args.length) {
@@ -244,7 +246,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     // A meet with the root's declaring map lands at the root.
                     out.path = true === peer.isMap && 0 < peer.aliasKeys.length ?
                         peer.path : this.path;
-                    if (null !== pegprep) {
+                    if (null !== pegprep || this.folds) {
                         out = (0, unify_1.rereadCall)(ctx, out, newpeg, peer, () => {
                             const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } });
                             again.path = this.path;
