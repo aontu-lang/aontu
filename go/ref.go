@@ -757,8 +757,13 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	} else {
 		out = instanceClone(node, cp(rv.path))
 	}
-	// The copy stands at the reference's own place, whatever the target's depth.
-	if len(rv.path) < len(node.vpath()) && !slices.Contains(node.vpath(), "&") {
+	// The copy stands at the reference's own place, whatever the target's depth,
+	// on arguments of its own: setting their paths would move the target's.
+	moved := len(rv.path) != len(node.vpath()) && !slices.Contains(node.vpath(), "&")
+	if staged && moved {
+		ownArgs(out)
+	}
+	if moved && (staged || len(rv.path) < len(node.vpath())) {
 		setPaths(out, cp(rv.path))
 	}
 	out = undeclared(out)
@@ -772,7 +777,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 	fixSeals(out)
 	if lifted {
-		if staged {
+		if staged && !moved {
 			ownArgs(out)
 		}
 		dropMarkedElements(out)

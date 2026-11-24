@@ -269,3 +269,14 @@ ref-copy-shallower-sum	gens	a: {x: {s: [3, 1], b: {v: sum(..s)}}}\nc: {s: [9, 4]
 ref-copy-deeper-written-first-sum	gens	c: {x: {s: [9, 4], d: $.a.b}}\na: {s: [3, 1], b: {v: sum(..s)}}	{"a":{"b":{"v":4},"s":[3,1]},"c":{"x":{"d":{"v":13},"s":[9,4]}}}
 ref-copy-shallower-written-first-sum	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: sum(..s)}}}	{"a":{"x":{"b":{"v":4},"s":[3,1]}},"c":{"d":{"v":13},"s":[9,4]}}
 ref-name-holds-a-sum	gens	%T = {s: [3, 1], v: sum(.s)}\nc: %T	{"c":{"s":[3,1],"v":4}}
+#
+# A GENERATOR'S COPY WRITTEN FIRST, AT ANOTHER DEPTH (#946). The copy
+# takes arguments of its own before its paths are set, so it reads a
+# relative source where it stands and the target keeps reading its own.
+ref-copy-first-deeper-each-reads-at-the-copy	gens	c: {x: {s: [9, 4], d: $.a.b}}\na: {s: [3, 1], b: {v: each(..s, _)}}	{"a":{"b":{"v":[3,1]},"s":[3,1]},"c":{"x":{"d":{"v":[9,4]},"s":[9,4]}}}
+ref-copy-first-deeper-pack-reads-at-the-copy	gens	c: {x: {s: [p, q], d: $.a.b}}\na: {s: [x, y], b: {v: pack(..s, {n: key()})}}	{"a":{"b":{"v":{"x":{"n":"x"},"y":{"n":"y"}}},"s":["x","y"]},"c":{"x":{"d":{"v":{"p":{"n":"p"},"q":{"n":"q"}}},"s":["p","q"]}}}
+ref-copy-first-deeper-filter-reads-at-the-copy	gens	c: {x: {s: [9, 4], d: $.a.b}}\na: {s: [3, 1], b: {v: filter(..s, min(2))}}	{"a":{"b":{"v":[3]},"s":[3,1]},"c":{"x":{"d":{"v":[9,4]},"s":[9,4]}}}
+ref-copy-first-shallower-each-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: each(..s, _)}}}	{"a":{"x":{"b":{"v":[3,1]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}
+ref-copy-first-shallower-pack-leaves-the-target	gens	c: {s: [p, q], d: $.a.x.b}\na: {x: {s: [x, y], b: {v: pack(..s, {n: key()})}}}	{"a":{"x":{"b":{"v":{"x":{"n":"x"},"y":{"n":"y"}}},"s":["x","y"]}},"c":{"d":{"v":{"p":{"n":"p"},"q":{"n":"q"}}},"s":["p","q"]}}
+ref-copy-first-shallower-filter-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: filter(..s, min(2))}}}	{"a":{"x":{"b":{"v":[3]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}
+ref-copy-first-shallower-apply-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: apply(..s, _)}}}	{"a":{"x":{"b":{"v":[3,1]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}
