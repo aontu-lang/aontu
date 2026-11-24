@@ -7,7 +7,7 @@ declare function rideOn(ctx: AontuContext, out: any, a: any, b: any): any;
 declare const rereadTerms: (t: any) => Val[];
 declare function holds(v: any, mark: (v: any) => boolean): boolean;
 declare const unplaced: (v: any) => boolean;
-declare function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: () => Val): Val;
+declare function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: () => Val, wraps?: boolean): Val;
 declare const unite: (ctx: AontuContext, a: any, b: any, whence: string) => any;
 type LinkSite = {
     link: any;

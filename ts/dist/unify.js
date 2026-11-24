@@ -118,9 +118,9 @@ function holds(v, mark) {
 const rereads = (v) => undefined !== v.reread;
 const unplaced = (v) => true === v.unplaced;
 exports.unplaced = unplaced;
-// A call over what a relative path read is made again where a copy stands (ruling 26).
-function rereadCall(ctx, out, args, peer, again) {
-    if (true === out.isNil || !args.some((a) => holds(a, rereads))) {
+// A copy makes a call over what a relative path read again (ruling 26), but for a wrapper's: its value is its argument.
+function rereadCall(ctx, out, args, peer, again, wraps) {
+    if (true === out.isNil || !args.some((a) => true === wraps ? rereads(a) : holds(a, rereads))) {
         return out;
     }
     const kept = out.clone(ctx, { path: out.path });
@@ -128,10 +128,11 @@ function rereadCall(ctx, out, args, peer, again) {
     return kept;
 }
 // A meet keeps what a relative path read as written, beside the term it met (ruling 26).
-// The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+// The mark goes on a value of this place's own, a meet's residue or a copy, and on none that holds a conflict.
 function rereadOn(ctx, out, a, b) {
     const alone = plain(a) || plain(b);
-    if (null == out || true === out.isNil || (alone && (out === a || out === b || undefined !== out.reread))) {
+    if (null == out || (alone && (out === a || out === b || undefined !== out.reread)) ||
+        holds(out, (v) => true === v.isNil)) {
         return out;
     }
     const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path });

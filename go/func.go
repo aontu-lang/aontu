@@ -527,7 +527,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 					nf.declared, nf.mtype, nf.mhide = f.declared, newtype, newhide
 					nf.path, nf.site = cp(f.path), f.site
 					return nf
-				})
+				}, wrapperFuncs[f.name])
 			}
 		}
 	} else if isTop(peer) {

@@ -2123,7 +2123,7 @@ uses `%T` stands. A body no use could fit is still an error, as
 its keys as one written in place does:
 
 ```aontu
-%row = { name: key() tag: "svc-" + key() }
+%row = { name:key() tag:"svc-" + key() }
 
 services: pack([web api], %row)
 ```

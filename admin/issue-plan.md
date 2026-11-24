@@ -135,9 +135,9 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 
 ### Where copies, bodies and templates read paths and key()
 
-19 issues (1 S, 16 M, 2 L), 3 ledger rows.
+20 issues (1 S, 17 M, 2 L), 3 ledger rows.
 
-Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #528 was built in both ports the same day, with the emit rows of #539, the rest of #520 and #783, its 12 rows gone; it found #942 and #943, both in the definition. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
+Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #528 was built in both ports the same day, with the emit rows of #539, the rest of #520 and #783, its 12 rows gone; it found #942 and #943, both in the definition, and #944 in TypeScript. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -151,6 +151,7 @@ Where a copy, a declaration's body or a template reads its relative paths and `k
 | [#539](https://github.com/aontu-lang/aontu/issues/539) | def | M |  | key() after an absent list element reads the written index, not the element's position. The emit rows are built in both ports, 2026-11-24; the plain list is left. |
 | [#942](https://github.com/aontu-lang/aontu/issues/942) | def | M |  | The definition admits an unused declaration whose key reads inside its own body and clashes there; both engines refuse it. |
 | [#943](https://github.com/aontu-lang/aontu/issues/943) | def | M |  | The definition keeps a marked element of a list in a declaration's body when the name is read, and drops its mark. |
+| [#944](https://github.com/aontu-lang/aontu/issues/944) | parity | M |  | A copy of `sum`, `least`, `greatest`, `sort`, `pick` or `join` over a relative path keeps the target's value in TypeScript; Go and the definition make the call again. |
 | [#330](https://github.com/aontu-lang/aontu/issues/330) | diag | M |  | A key missing under a reference to a deeper target is reported at a nonexistent path. Answered by #504's build, 2026-11-24. |
 | [#692](https://github.com/aontu-lang/aontu/issues/692) | parity | M |  | A name bound to a multi-step path, written first, misreads the target's relative paths; TS and Go differ. Answered by #504's build, 2026-11-24. |
 | [#698](https://github.com/aontu-lang/aontu/issues/698) | parity | S |  | TypeScript places a relative path in a `match` result under a NaN step; Go matches the definition. |
@@ -447,7 +448,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 47 | 27 |
+| 2 | alias cycles, preferences, seals and marks, copies | 48 | 27 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 25 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
@@ -455,7 +456,7 @@ workstream above meets its tasks.
 
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
-they stand on 2026-11-22 with #907 added, and #936 to #939, #942 and
-#943 on 2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
+they stand on 2026-11-22 with #907 added, and #936 to #939 and #942 to
+#944 on 2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
 each row's cause names. The ledger's other 10 rows name decision 3 and
 no issue: they're #343's.

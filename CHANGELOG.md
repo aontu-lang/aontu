@@ -41,15 +41,25 @@ or that reads as absence, takes no position. So in
 `key(n)` in a named table's body reads where its piece lands at the top
 of the document too, where TypeScript read the body's own index.
 
+`aontu vet --at` names the key again in a `closed` finding where the
+anchor is a relative path's copy. Since a copy began to read its
+relative paths where it stands, such a finding named the map that holds
+the key: with `t1: .t0` as the anchor it read `$.guard.t1.arguments`,
+and it reads `$.arguments.b` again. A meet result that holds a conflict
+is no longer copied for the mark a relative path or a key leaves, and a
+seal, a mark or a rider over a value takes no such mark of its own.
+
 Twelve rows leave the ledger, its bound 64. `test/spec/gen-key.tsv`
-gains 30 rows, `test/spec/gen-emit.tsv` 18 and `test/spec/vet.tsv` 15.
+gains 30 rows, `test/spec/gen-emit.tsv` 18 and `test/spec/vet.tsv` 18.
 
 Filed while building it, both in the definition: #942, which admits an
 unused declaration whose key reads inside its own body and clashes
 there, and #943, which keeps a marked element of a list in a
-declaration's body when the name is read. A `key()` after an absent
-element of a plain list still reads the written index, which #539
-keeps.
+declaration's body when the name is read. And #944, in TypeScript: a
+copy of `sum`, `least`, `greatest`, `sort`, `pick` or `join` over a
+relative path keeps the target's value, where Go makes the call again.
+A `key()` after an absent element of a plain list still reads the
+written index, which #539 keeps.
 
 ### A sealed list keeps its length when it meets a spread
 

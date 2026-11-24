@@ -337,7 +337,7 @@ class FuncBaseVal extends FeatureVal {
               const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } })
               again.path = this.path
               return again
-            })
+            }, WRAPPERS.has(this.funcname()))
           }
 
           why += 'pegdone'
