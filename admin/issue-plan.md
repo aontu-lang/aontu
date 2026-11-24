@@ -112,10 +112,10 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#431](https://github.com/aontu-lang/aontu/issues/431) | bug | S |  | A concrete value lost to a default by declaration order (`**default`, value, `*default`). |
 | [#857](https://github.com/aontu-lang/aontu/issues/857) | def | M |  | Two same-rank defaults, each narrowed by a bound that refuses the other's, clash as `pref_rank_clash` when written as one meet; the definition reads no default (decision 43). |
 | [#953](https://github.com/aontu-lang/aontu/issues/953) | bug | M |  | A default arm over a path not read yet admits what its parent type admits, so `(*$.a \| "a") & 3` is `3` or `empty` by the order of the statements, and `vet` admits data the schema refuses. Built in both ports 2026-11-24. |
-| [#954](https://github.com/aontu-lang/aontu/issues/954) | design | M |  | A default that reaches a disjunction through `pref()`, a path or a name: the definition keeps its parent type as an arm, both engines mostly don't. Needs a ruling. |
+| [#954](https://github.com/aontu-lang/aontu/issues/954) | design | M |  | A default that reaches a disjunction through `pref()`, a path or a name: the definition keeps its parent type as an arm, both engines mostly don't. Ruled as 89: an arm at its rank, with no parent type, however it got there. |
 | [#955](https://github.com/aontu-lang/aontu/issues/955) | def | M |  | A disjunction ranks its defaults pair by pair as parsed, so `**1 \| **2 \| *3 \| number` clashes where `*3 \| **1 \| **2 \| number` is `3`, and two map defaults fold only where they stand together. |
 | [#956](https://github.com/aontu-lang/aontu/issues/956) | def | M |  | Two defaults of one rank clash as soon as they meet, before a later schema term settles between them: `(*1 \| *7) & 1` is `pref_rank_clash`, where the definition reads `1`. |
-| [#957](https://github.com/aontu-lang/aontu/issues/957) | design | S |  | Two clashing defaults in a spread's template: both engines refuse every member the data gives, the definition admits one that picks an arm. Needs a ruling. |
+| [#957](https://github.com/aontu-lang/aontu/issues/957) | design | S |  | Two clashing defaults in a spread's template: both engines refuse every member the data gives, the definition admits one that picks an arm. Ruled as 90: the schema's error, where it is written. |
 
 ### Seals, marks, moves and generation-time checks
 
@@ -154,7 +154,7 @@ Where a copy, a declaration's body or a template reads its relative paths and `k
 | [#520](https://github.com/aontu-lang/aontu/issues/520) | def | M |  | Path into generator output or landing above its target rereads key() wrongly, both engines. The landing half is answered by #504's build, and the path into a generator's output by #528's, both 2026-11-24. |
 | [#528](https://github.com/aontu-lang/aontu/issues/528) | def | M |  | key(n) in a declaration body reads the internal name %T@file, so fitting bodies error. Built in both ports 2026-11-24. |
 | [#539](https://github.com/aontu-lang/aontu/issues/539) | def | M |  | key() after an absent list element reads the written index, not the element's position. The emit rows are built in both ports, 2026-11-24; the plain list is left. |
-| [#942](https://github.com/aontu-lang/aontu/issues/942) | def | M |  | The definition admits an unused declaration whose key reads inside its own body and clashes there; both engines refuse it. |
+| [#942](https://github.com/aontu-lang/aontu/issues/942) | def | M |  | The definition admits an unused declaration whose key reads inside its own body and clashes there; both engines refuse it. Ruled as 88: the definition moves. |
 | [#943](https://github.com/aontu-lang/aontu/issues/943) | def | M |  | The definition keeps a marked element of a list in a declaration's body when the name is read, and drops its mark. Fixed in the definition 2026-11-24. |
 | [#944](https://github.com/aontu-lang/aontu/issues/944) | parity | M |  | A copy of `sum`, `least`, `greatest`, `sort`, `pick` or `join` over a relative path keeps the target's value in TypeScript; Go and the definition make the call again. Fixed in TypeScript 2026-11-24. |
 | [#946](https://github.com/aontu-lang/aontu/issues/946) | parity | M |  | A copied `each`, `pack` or `filter` over a relative source, the copy written first at another depth: the engines differ, and where the copy is shallower Go changes the target's own value. Fixed in Go 2026-11-24. |
@@ -242,7 +242,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#868](https://github.com/aontu-lang/aontu/issues/868) | parity | M |  | A `match` whose pattern is a relative reference overflows the TypeScript stack, and a bound over it is `mapval_no_gen`; Go answers both. The bound is fixed 2026-11-22; the overflow is the parser defect of #326, fixed upstream in tabnas/expr#121. |
 | [#871](https://github.com/aontu-lang/aontu/issues/871) | parity | M |  | `maybe(v)` of a relative reference as a call's second or later argument never resolves in TypeScript; Go answers. Fixed 2026-11-22, with the second case of #868. |
 | [#861](https://github.com/aontu-lang/aontu/issues/861) | design | M |  | No single call projects one field of each member into a map that keeps the source's keys. C1 and C2 of the lang refinement plan: `at`, and a key for `pack`. |
-| [#938](https://github.com/aontu-lang/aontu/issues/938) | def | M |  | A `match` over a kind can't walk a schema since ruling 49 was built; use case 10's transforms wait on a ruling. |
+| [#938](https://github.com/aontu-lang/aontu/issues/938) | def | M |  | A `match` over a kind can't walk a schema since ruling 49 was built; use case 10's transforms waited on a ruling. Ruled as 87: an arm is taken where every value the scrutinee admits satisfies its pattern, the next is read where they share nothing, and the `match` waits otherwise. |
 
 ### Declarations, loads, includes and built-in models
 
