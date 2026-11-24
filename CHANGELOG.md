@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### A clash of defaults that a meet or a call makes is the schema's error
+
+#482, in both engines. Two defaults of one rank that disagree are
+`pref_rank_clash`, and `aontu vet` answers `error` for a schema that
+writes them, as in `a: *1 | *7`. A clash the schema made another way
+was found only when a value was generated, so `vet` blamed the data:
+
+- `a: (*1 | 7) & (*7 | 1)`, whose meet leaves `*1 | *7`, was `invalid`
+  against `{}`. It is `error` now, as are `a: (number | *1) & (number |
+  *2)` and the same pair in two statements.
+- `a: pref(1 | 2)`, `a: pref(1) | *2` and `a: move($.b) | *2` beside
+  `b: 1` were `invalid` too, or `valid` against data that picked one
+  arm. Each is `error` now, whatever the data.
+- `a: number | *1 | *2` was `invalid` where `a: *1 | *2 | number` was
+  `error`. Both are `error` now.
+
+Each engine now ranks a disjunction that a meet or a call leaves once
+the document settles, as it ranks a written one when it unifies. The
+same holds in a list, in a nested map, under `hide()` and `type()`, at
+an optional key and in a declaration's body. A clash only the data
+makes stays the data's: `x: pref($.a) | *2` beside `a: number` is
+`invalid` against `{"a": 1}`.
+
+`aontu subsume` and `aontu breaking` answer `error` for a document that
+holds such a clash, where they answered `undecided` with
+`sub_default_indeterminate`. That finding is left for two map defaults
+of one rank with another arm between them.
+
+Rows rk60 to rk62 of `test/spec/def-verdict.tsv` leave
+`spec/ledger.tsv`, whose bound falls to 55. `test/spec/vet.tsv` gains 32
+rows and `test/spec/subsume.tsv` two, and two of its rows take a new
+source.
+
 ### `subsume` compares a default at a list position
 
 #424, in both engines. Under the `defaults` profile, the one `aontu

@@ -791,6 +791,14 @@ Compatible defaults fold into their meet: `a:*1` beside `a:*integer` is
 disjunction (`foldArms` in
 [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean)).
 
+The clash is the schema's error however the disjunction came about.
+`a: (*1 | 7) & (*7 | 1)` leaves `*1 | *7`, `a: pref(1 | 2)` makes
+`*1 | *2`, and `a: number | *1 | *2` holds two defaults with another arm
+between them: each is `pref_rank_clash`, and `aontu vet` answers `error`
+for each whatever the data. A clash only the data makes is the data's.
+In `a: number` beside `x: pref($.a) | *2`, data that gives `a` as `1`
+leaves `x` nothing to admit, so `vet` answers `invalid`.
+
 **An arm that wasn't a default stays one**, whichever side of the meet
 holds it. In `(*1 | 2) & *integer` the defaults `1` and `integer` fold
 into `1`, and `2` stays an alternative, so the default is `1`. In
@@ -905,7 +913,7 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 
 In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: relate({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing, and with `k: 1` on both sides it stands as `x` and `y` gains `z: 1`. A link in an arm of a disjunction sends where the output takes the arm, which [Checked links](#checked-links-relatet) describes. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
-`pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
+`pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. Both engines answer `pref(1 | 2)` an `error`, as they answer `*1 | *2`.
 
 ## Optional keys `?`
 
@@ -6564,9 +6572,13 @@ The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.l
 An **effective default** is a preference's own value, or, in a
 disjunction holding several preferences, the value of the
 lowest-ranked one (generation picks the lowest rank: `a:**1|*2`
-generates `2`). Equal-rank preferences that disagree make the
-effective default indeterminate (`sub_default_indeterminate`,
-undecided). Adding a default where none existed is compatible;
+generates `2`). Equal-rank preferences that disagree are the
+schema's error (`pref_rank_clash`), so `subsume` answers `error` for a
+document that holds them. Two map defaults of one rank fold into one
+where they generate; where another arm stands between them,
+`subsume` reads the effective default as indeterminate
+(`sub_default_indeterminate`, undecided). Adding a default where none
+existed is compatible;
 changing or removing one is `compat_default_changed`: previously
 generable documents materialise differently or become incomplete.
 `subsume` compares the defaults at each position both sides have, a

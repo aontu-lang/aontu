@@ -115,6 +115,19 @@ function holds(v, mark) {
     const kids = true === v.isMap || true === v.isList || true === v.isConjunct ? v.peg : {};
     return mark(v) || Object.keys(kids).some((k) => holds(kids[k], mark));
 }
+// A disjunction a meet or a call leaves ranks its defaults as a written one does, so its clash is
+// the same error (foldArms in spec/Aontu/Meet.lean). A copy is ranked: generation folds the tree's own.
+function rankSettled(ctx, v, seen) {
+    if (seen.has(v)) {
+        return;
+    }
+    seen.add(v);
+    if (true === v.isDisjunct && !v.prefsRanked) {
+        v.clone(ctx, { path: v.path }).rankPrefs(ctx.clone({ path: v.path }));
+    }
+    const kids = true === v.isPref ? [v.peg] : true === v.isBag || true === v.isJunction ? Object.values(v.peg) : [];
+    kids.forEach((k) => rankSettled(ctx, k, seen));
+}
 const rereads = (v) => undefined !== v.reread;
 const unplaced = (v) => true === v.unplaced;
 exports.unplaced = unplaced;
@@ -616,6 +629,7 @@ class Unify {
                 }, uctx);
                 uctx = uctx.clone({ root: res });
             }
+            rankSettled(uctx, res, new Set());
             // A link the output takes names something the document holds.
             for (const { link, at, put } of links) {
                 if (undefined === (0, RelateFuncVal_1.findAt)(res, link.linkto)) {

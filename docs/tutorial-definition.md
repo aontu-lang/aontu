@@ -5171,6 +5171,16 @@ def clash (arms : List (ℕ × Val)) : Bool :=
     | x :: rest => rest.any fun y => decide (y ≠ x)
 ```
 
+The clash belongs to the disjunction however it came about. A meet
+makes one in `(*1 | 7) & (*7 | 1)`, whose arms leave `*1 | *7`, and a
+call makes one in `pref(1 | 2)`. Both engines rank a disjunction a meet
+or a call leaves once it settles, as they rank a written one, so each
+is the schema's `error` whatever the data. A clash only the data makes
+is the data's: in `a: number` beside `x: pref($.a) | *2`, data that
+gives `a` as `1` leaves `x` nothing to admit, and the answer is
+`invalid`. Rows from `vet-rank-clash-a-meet-makes` on of
+`test/spec/vet.tsv` hold both engines to these.
+
 Some conflicts are in how both engines read a meet rather than in what
 it admits. A size, `unique` and `contains` decide a container at the
 meet once its members can be read, and refuse it there. Members only
@@ -9123,8 +9133,7 @@ three modes of `vet`, those from pf96 on a list and a map that hold a call
 waiting on its own hole, those from pf138 on such a call with other
 arguments, rows from pc0 on hold paths into a call's output,
 and both engines answer every one as the definition does. They answer
-`pref(1 | 2)` `invalid` where they answer
-`*1 | *2` an `error`, and no row holds that case, which #482 tracks.
+`pref(1 | 2)` an `error` too, as they answer `*1 | *2`.
 
 ## 35. Moving a value
 
