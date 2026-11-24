@@ -312,6 +312,7 @@ vet-unequal-spread-depths	vet	a:&:{w:&:{p:integer}}\na:prod:w:&:{r:integer}	{"a"
 # Both spellings of the alias, since only one of them carries a mark.
 vet-ref-clone-names-the-key-not-the-record	vet	M: close({a:"x", b:"p"})\nq: $.M\n	{"q":{"a":"y","b":"r"}}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.q.a","pointer":"/q/a","severity":"error","sites":[{"col":11,"file":"data","len":3,"role":"data","row":1,"src":"\\"y\\"","value":"\\"y\\""},{"col":13,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"x\\"","value":"\\"x\\""}]},{"class":"conflict","code":"scalar_value","path":"$.q.b","pointer":"/q/b","severity":"error","sites":[{"col":19,"file":"data","len":3,"role":"data","row":1,"src":"\\"r\\"","value":"\\"r\\""},{"col":20,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"p\\"","value":"\\"p\\""}]}],"truncated":false,"verdict":"invalid"}
 vet-type-alias-names-the-key-not-the-record	vet	M: type(close({a: integer & min(3)}))\nq: $.M\n	{"q":{"a":1}}	{"findings":[{"actual":"1","class":"conflict","code":"constraint","expected":"integer&min(3)","path":"$.q.a","pointer":"/q/a","severity":"error","sites":[{"col":11,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":29,"file":"schema","len":3,"role":"schema","row":1,"src":"min","value":"integer&min(3)"}]}],"truncated":false,"verdict":"invalid"}
+vet-ref-to-a-deeper-target-names-the-missing-key	vet	schema: {M: type(close({a: string & re("^x$")}))}\nquote: $.schema.M\n	{"quote":{}}	{"findings":[{"class":"incomplete","code":"mapval_required","path":"$.quote.a","pointer":"/quote/a","severity":"error","sites":[{"col":37,"file":"schema","len":2,"role":"schema","row":1,"src":"re","value":"string&re(\\"^x$\\")"}]}],"truncated":false,"verdict":"incomplete"}
 
 # SIZING ATOMS AND CONTAINER MUSTS COUNT THE DATA (the review's finding
 # C, use-cases/BUGS.md 16 and 17). Both used to decide against whatever
@@ -572,5 +573,9 @@ vet-copy-shallower-reads-its-own-place	verdict	x: 9, a: {b: {k: {v: ..x}, x: 5}}
 vet-copy-shallower-refuses-what-the-target-read	verdict	x: 9, a: {b: {k: {v: ..x}, x: 5}}, c: $.a.b.k	{"c": {"v": 5}}	{"verdict":"invalid"}
 vet-copy-shallower-reads-its-own-key	verdict	x: {a: {k: key()}}, y: $.x.a	{"y": {"k": "y"}}	{"verdict":"valid"}
 vet-copy-shallower-refuses-a-key-not-its-own	verdict	x: {a: {k: key()}}, y: $.x.a	{"y": {"k": "k"}}	{"verdict":"invalid"}
+vet-copy-shallower-key-at-the-top-is-empty	verdict	a: {x: key()}, b: $.a.x	{"b": ""}	{"verdict":"valid"}
+vet-copy-shallower-key-at-the-top-refuses-a-key	verdict	a: {x: key()}, b: $.a.x	{"b": "b"}	{"verdict":"invalid"}
+vet-copy-shallower-key-two-levels-up	verdict	x: {a: {b: {n: key()}}}, y: $.x.a.b	{"y": {"n": "y"}}	{"verdict":"valid"}
+vet-copy-shallower-key-two-levels-up-refuses-the-target-key	verdict	x: {a: {b: {n: key()}}}, y: $.x.a.b	{"y": {"n": "b"}}	{"verdict":"invalid"}
 vet-copy-makes-a-call-in-a-name-again	verdict	x: 1, a: {x: 2, b: %T}\n%T = {v: add(..x, 1)}	{"x": 1, "a": {"x": 2, "b": {"v": 3}}}	{"verdict":"valid"}
 vet-copy-refuses-what-a-name-computed-at-its-own-place	verdict	x: 1, a: {x: 2, b: %T}\n%T = {v: add(..x, 1)}	{"x": 1, "a": {"x": 2, "b": {"v": 2}}}	{"verdict":"invalid"}

@@ -568,10 +568,11 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         || true === out.mark.type || true === out.mark.hide;
                     const typed = true === out.mark.type;
                     const staged = out.holdsStaged;
-                    // The copy stands at the reference's own place, whatever the target's depth.
+                    // The copy stands at the reference's own place, on arguments of its own: the walk writes into each.
                     const moved = ctx.path.length !== out.path.length && !out.path.includes('&');
                     out = out.clone(ctx, moved ? { dup: !staged, path: [...ctx.path] } : { dup: !staged });
                     if (moved) {
+                        out = staged ? ownArgs(ctx, out) : out;
                         (0, Val_1.repathInstance)(out, out.path);
                     }
                     out = (0, IdentFuncVal_1.undeclared)(out);
@@ -585,7 +586,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     }
                     (0, SealVal_1.fixSeals)(out);
                     if (lifted) {
-                        if (staged) {
+                        if (staged && !moved) {
                             out = ownArgs(ctx, out);
                         }
                         out = dropMarkedElements(out);

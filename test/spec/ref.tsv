@@ -210,6 +210,16 @@ copy-rereads-two-uses	gen	x: 1\na: {x: 2, b: %T}\n%T = {v: ..x}\nc: {x: 3, d: %T
 copy-shallower-than-target	gen	x: 9\na: {b: {k: {v: ..x}, x: 5}}\nc: $.a.b.k	{"a":{"b":{"k":{"v":5},"x":5}},"c":{"v":9},"x":9}
 copy-shallower-ref-first	gen	x: 9\nc: $.a.b.k\na: {b: {k: {v: ..x}, x: 5}}	{"a":{"b":{"k":{"v":5},"x":5}},"c":{"v":9},"x":9}
 copy-shallower-key	gen	x: {a: {k: key()}}\ny: $.x.a	{"x":{"a":{"k":"a"}},"y":{"k":"y"}}
+copy-shallower-key-ref-first	gen	y: $.x.a\nx: {a: {k: key()}}	{"x":{"a":{"k":"a"}},"y":{"k":"y"}}
+copy-shallower-key-of-a-map	gen	a: b: {x: key()}\nc: $.a.b	{"a":{"b":{"x":"b"}},"c":{"x":"c"}}
+copy-shallower-key-at-the-top	gen	a: {x: key()}\nb: $.a.x	{"a":{"x":"a"},"b":""}
+copy-shallower-key-at-the-top-ref-first	gen	b: $.a.x\na: {x: key()}	{"a":{"x":"a"},"b":""}
+copy-shallower-key-of-a-member	gen	a: b: {x: key()}\nc: d: $.a.b.x	{"a":{"b":{"x":"b"}},"c":{"d":"c"}}
+copy-shallower-key-at-each-level	gen	a: b: {x: key(1), y: key(2), z: key(0)}\nc: $.a.b	{"a":{"b":{"x":"b","y":"a","z":"z"}},"c":{"x":"c","y":"","z":"z"}}
+copy-shallower-key-two-levels-up	gen	x: {a: {b: {n: key()}}}\ny: $.x.a.b	{"x":{"a":{"b":{"n":"b"}}},"y":{"n":"y"}}
+copy-shallower-key-one-level-up	gen	x: {a: {b: {n: key()}}}\ny: {q: $.x.a.b}	{"x":{"a":{"b":{"n":"b"}}},"y":{"q":{"n":"q"}}}
+copy-shallower-key-by-a-name-written-first	gen	%T = $.x.a\nx: {a: {n: key()}}\ny: %T	{"x":{"a":{"n":"a"}},"y":{"n":"y"}}
+copy-shallower-key-by-a-name-written-last	gen	x: {a: {n: key()}}\ny: %T\n%T = $.x.a	{"x":{"a":{"n":"a"}},"y":{"n":"y"}}
 copy-reads-through-a-path-place	gen	a: {c: 1, d: .c}\nc: 7\ne: $.a.d	{"a":{"c":1,"d":1},"c":7,"e":1}
 copy-rereads-in-a-list	gen	a: {x: 2, b: [..x, 7]}\nc: {x: 3, d: $.a.b}	{"a":{"b":[2,7],"x":2},"c":{"d":[3,7],"x":3}}
 copy-rereads-a-call	gen	a: {x: "p", b: {v: upper(..x)}}\nc: {x: "q", d: $.a.b}	{"a":{"b":{"v":"P"},"x":"p"},"c":{"d":{"v":"Q"},"x":"q"}}
