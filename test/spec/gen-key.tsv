@@ -64,3 +64,50 @@ key-target-keeps-its-own-join	gens	a: join([key()])\nb: c: $.a	{"a":"a","b":{"c"
 key-target-keeps-its-own-each	gens	a: each([key()], _)\nb: c: $.a	{"a":["a"],"b":{"c":["c"]}}
 key-target-keeps-its-own-pack	gens	a: pack([key()], {v: 1})\nb: c: $.a	{"a":{"a":{"v":1}},"b":{"c":{"c":{"v":1}}}}
 key-target-keeps-its-own-pack-shallow	gens	a: pack([key()], {v: 1})\nb: $.a	{"a":{"a":{"v":1}},"b":{"b":{"v":1}}}
+key-target-keeps-its-own-under-a-shallower-copy	gens	a: b: upper(key())\nc: $.a.b	{"a":{"b":"A"},"c":""}
+key-target-keeps-its-own-under-a-shallower-copy-written-first	gens	c: $.a.b\na: b: upper(key())	{"a":{"b":"A"},"c":""}
+key-target-keeps-its-own-concat-under-a-shallower-copy	gens	a: b: {x: upper("x" + key())}\nc: $.a.b	{"a":{"b":{"x":"XB"}},"c":{"x":"XC"}}
+key-target-keeps-its-own-list-under-a-shallower-copy	gens	a: b: [upper(key())]\nc: $.a.b	{"a":{"b":["B"]},"c":["C"]}
+#
+# A KEY IN A DECLARATION'S BODY (#528). A key that climbs out of the body
+# waits for the use that places it, as any string, and a call over one
+# waits with it. So a body that fits its use stands, a body no use
+# could fit is still an error, and a template a generator takes from a
+# name reads its keys as one written in place does.
+key-in-a-body-fits-its-use	gens	%T = key(0) & "x"\nx: %T	{"x":"x"}
+key-in-a-body-reads-each-use	errc	%T = key(0) & "x"\ny: %T	scalar_value
+key-in-a-body-map-fits-its-use	gens	%T = {a: key(1) & "x"}\nx: %T	{"x":{"a":"x"}}
+key-in-a-body-nothing-uses	gens	%T = key(0) & "zz"\nv: 1	{"v":1}
+key-in-a-body-is-a-string	errc	%T = key(0) & 1\nv: 1	no_scalar_unify
+key-inside-a-body-reads-the-body	gens	%T = {a: key(0) & "a"}\nx: %T	{"x":{"a":"a"}}
+call-over-a-key-in-a-body-waits	gens	%T = upper(key(1))\nv: 1	{"v":1}
+call-over-a-key-in-a-body-reads-its-use	gens	%T = upper(key(1))\nx: {y: %T}	{"x":{"y":"X"}}
+call-over-a-key-in-a-body-meets-at-its-use	errc	%T = upper(key(1)) & "Y"\nx: {y: %T}	scalar_value
+call-in-a-call-over-a-key-in-a-body	gens	%T = upper(lower(key(1)))\nx: {y: %T}	{"x":{"y":"X"}}
+call-over-a-list-that-holds-a-key-in-a-body	gens	%T = join(["a", key(1)])\nx: {y: %T}	{"x":{"y":"ay"}}
+pack-template-from-a-name-reads-its-keys	gens	%T = {n: key(), m: key(0), u: upper(key(1))}\nv: pack(["a", "b"], %T)	{"v":{"a":{"m":"m","n":"a","u":"A"},"b":{"m":"m","n":"b","u":"B"}}}
+pack-template-written-in-place-reads-the-same	gens	v: pack(["a", "b"], {n: key(), m: key(0), u: upper(key(1))})	{"v":{"a":{"m":"m","n":"a","u":"A"},"b":{"m":"m","n":"b","u":"B"}}}
+pack-template-from-a-name-written-last	gens	v: pack(["a", "b"], %T)\n%T = {n: key()}	{"v":{"a":{"n":"a"},"b":{"n":"b"}}}
+each-template-from-a-name-reads-its-keys	gens	%T = {n: key(), u: upper(key(1))}\nv: each([1, 2], %T)	{"v":[{"n":"0","u":"0"},{"n":"1","u":"1"}]}
+each-template-from-a-name-that-is-a-key	gens	%T = key(0)\nv: each([1, 2], %T)	{"v":["0","1"]}
+apply-template-from-a-name-reads-its-key	gens	%T = {n: key()}\nv: apply(1, %T)	{"v":{"n":"v"}}
+#
+# A PATH INTO A GENERATOR'S OUTPUT rereads its keys where it lands
+# (ruling 22, #520), as a path to any other place does.
+key-reread-into-pack-output	gens	x: pack(["a"], {n: key()})\ny: $.x.a	{"x":{"a":{"n":"a"}},"y":{"n":"y"}}
+key-reread-into-pack-output-written-first	gens	y: $.x.a\nx: pack(["a"], {n: key()})	{"x":{"a":{"n":"a"}},"y":{"n":"y"}}
+key-reread-into-pack-output-deeper	gens	x: pack(["a"], {n: key()})\ny: {q: $.x.a}	{"x":{"a":{"n":"a"}},"y":{"q":{"n":"q"}}}
+key-reread-into-pack-output-two-up	gens	x: pack(["a"], {n: key(2)})\ny: {z: $.x.a}	{"x":{"a":{"n":"x"}},"y":{"z":{"n":"y"}}}
+key-reread-of-a-whole-pack	gens	a: pack(["x"], {n: key(2)})\nb: $.a	{"a":{"x":{"n":"a"}},"b":{"x":{"n":"b"}}}
+key-reread-into-each-output	gens	x: each(["a", "b"], {n: key(0)})\ny: {q: $.x.1}	{"x":[{"n":"n"},{"n":"n"}],"y":{"q":{"n":"n"}}}
+#
+# A KEY THAT READS INSIDE THE BODY reads it there, and again at each use:
+# a name that holds the body, or a sibling that reads the member, places
+# it anew (ruling 22).
+key-inside-a-body-clash-at-its-use	errc	%T = {a: key(0) & "b"}\nx: %T	scalar_value
+key-inside-a-body-two-up	gens	%T = {a: {b: key(1) & "a"}}\nx: %T	{"x":{"a":{"b":"a"}}}
+key-in-a-body-a-name-holds	gens	%T = {a: key(1)}\n%U = {b: %T}\nx: %U	{"x":{"b":{"a":"b"}}}
+key-in-a-body-read-by-a-sibling	gens	%T = {a: key(0), b: .a}\nx: %T	{"x":{"a":"a","b":"b"}}
+key-in-a-body-read-by-a-sibling-fits	gens	%T = {a: key(0), b: .a & "b"}\nx: %T	{"x":{"a":"a","b":"b"}}
+key-in-a-body-read-by-a-sibling-clashes	errc	%T = {a: key(0), b: .a & "a"}\nx: %T	scalar_value
+call-over-a-key-inside-a-body-clash-at-its-use	errc	%T = {a: upper(key(0)) & 1}\nx: %T	scalar_kind

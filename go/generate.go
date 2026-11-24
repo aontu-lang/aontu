@@ -781,9 +781,12 @@ func emitFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	if 1 < len(args) {
 		table = args[1]
 	}
+	// A table a name holds is read as it is written, as one written in place is.
 	if rv, ok := table.(*RefVal); ok {
 		ctx.slot = base
-		table = unite(ctx, rv, top())
+		if found := rv.find(ctx, false); nil != found {
+			table = found
+		}
 	}
 
 	templates, refused := emitTemplates(table)
@@ -841,8 +844,12 @@ func emitFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	// settled how many there are. A piece keeps no trace of the body it
 	// was written in: the body is a template, and a template's parse
 	// position is the one place it is never used.
-	for i, p := range pieces {
-		setPaths(p, append(cp(base), itoa(i)))
+	at := 0
+	for _, p := range pieces {
+		setPaths(p, append(cp(base), itoa(at)))
+		if emitStands(p) {
+			at++
+		}
 	}
 
 	out := newList(pieces)
@@ -884,7 +891,13 @@ func emitInstantiate(ctx *Ctx, base []string, node Val, tmpl emitTemplate,
 		return out, refused
 	}
 	for i, el := range tmpl.body.peg {
-		islot := append(cp(base), itoa(len(out)))
+		standing := 0
+		for _, p := range out {
+			if emitStands(p) {
+				standing++
+			}
+		}
+		islot := append(cp(base), itoa(standing))
 		inst := instanceClone(el, islot)
 		setPaths(inst, islot)
 		if nil != pairs {
@@ -912,6 +925,11 @@ func emitInstantiate(ctx *Ctx, base []string, node Val, tmpl emitTemplate,
 		}
 	}
 	return out, nil
+}
+
+// A piece that carries a mark or reads as absence takes no position (rulings 18 and 24).
+func emitStands(p Val) bool {
+	return !p.markedType() && !p.markedHide() && !isAbsent(p)
 }
 
 func emitNodeAddr(sel string, key string, node Val) string {

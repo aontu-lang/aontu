@@ -46,10 +46,10 @@ constructs. A spread template that reaches nothing outside itself
 as `{}` in that position and is reported under `key`.
 `len()` beside a list exports as `minItems`/`maxItems` and beside a
 map as `minProperties`/`maxProperties`; only a bare count with nothing
-to count is reported, because its domain is undecided. One more
-construct reports under a name other than its own: `must()` holds the
-whole value residual, so `number & must(...)` exports as `{}` and is
-reported as `nil`.
+to count is reported, because its domain is undecided. A `must()`
+crosses as `allOf` of its trial's schema, so `number & must(min(0), …)`
+keeps its `minimum`. Its message is what's lost, since JSON Schema has
+no keyword to carry it, and the report names it under `must`.
 
 Every golden in `expected/` is captured engine output.
 
@@ -58,7 +58,7 @@ Every golden in `expected/` is captured engine output.
 `residue.aontu` is deliberately small and deliberately awkward: every
 field of `report` is a construct the JSON Schema export must either
 carry or drop, and the loss report says which. A `bigdecimal`, two
-spread templates, a list template, a concrete string and a `nil`.
+spread templates, a list template, a concrete string and a `must()`.
 
 ```
 $
@@ -68,7 +68,7 @@ $
     ├── attempts [&:mulof(1)]
     ├── audit "kept-off-the-wire"
     ├── slugs {&:key(0)}
-    └── total nil
+    └── total number&must(min(0),"total mus...
 ```
 
 `aontu view doc --depth 3 residue.aontu` draws it, and `check.sh` pins it

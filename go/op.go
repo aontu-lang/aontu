@@ -71,7 +71,11 @@ func (o *PlusOpVal) Unify(peer Val, ctx *Ctx) Val {
 				out = newConjunct([]Val{o, peer})
 			}
 		} else {
-			out = unite(ctx, result, peer)
+			out = rereadCall(unite(ctx, result, peer), newpeg, peer, func() Val {
+				np := newPlusOp(newpeg[0], newpeg[1])
+				np.path, np.site = cp(o.path), o.site
+				return np
+			}, false)
 		}
 	} else if isTop(peer) {
 		np := newPlusOp(newpeg[0], newpeg[1])

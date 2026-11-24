@@ -50,10 +50,17 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 	}
 	out := make([]any, 0, len(l.peg))
 	outer := genPlace(ctx)
+	stalled := false
 	for i, e := range l.peg {
 		at := append(cp(l.path), itoa(i))
 		e = placeShared(e, at)
 		if (e.markedType() || e.markedHide()) && !probing(ctx) {
+			continue
+		}
+		if stalled {
+			if nil != ctx && genable(e) {
+				alsoIncomplete(ctx, e, len(out), at)
+			}
 			continue
 		}
 		if !genable(e) {
@@ -83,7 +90,8 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			// records and walks on so sibling subtrees each contribute
 			// a finding, and the raise belongs to the caller.
 			makeNilErrFull(ctx, code, va, vb, "", details)
-			break
+			stalled = true
+			continue
 		}
 		ev, err := genAt(e, ctx, len(out), at)
 		if err != nil {
@@ -156,7 +164,10 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	done := true
 
+	// A side sealed with no spread fixes the length, and the meet then keeps no spread.
+	fixed := false
 	if pl, ok := peer.(*ListVal); ok {
+		fixed = (l.closed && l.spread == nil) || (pl.closed && pl.spread == nil)
 		out.lk.relates = joinRelates(out.lk.relates, pl.lk.relates)
 		out.lk.root = out.lk.root || pl.lk.root
 		if out.spread == nil {
@@ -168,6 +179,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	var spreadCj Val = top()
 	if out.spread != nil {
 		spreadCj = unmarkedTemplate(out.spread)
+	}
+	if fixed {
+		out.spread = nil
 	}
 
 	// Driven base (see the matching comment in MapVal.Unify).
@@ -257,9 +271,12 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		if tok && len(theirs) != len(pl.peg) {
 			peerPeg = placedAt(pl, theirs)
 		}
+		if pl.closed && pl.spread == nil && !(pl.dirSealed && !l.isData) && len(peerPeg) < len(out.peg) {
+			bad = makeNilErr(ctx, "closed", out.peg[len(peerPeg)], nil)
+		}
 		for i, pe := range peerPeg {
 			// A spread declares every element; each past a closed list's end is refused.
-			if l.closed && !takes(l.dirSealed, pl) && l.spread == nil && i >= len(l.peg) {
+			if l.closed && !(l.dirSealed && !pl.isData) && l.spread == nil && i >= len(l.peg) {
 				bad = makeNilErr(ctx, "closed", pe, nil)
 			}
 			islot := append(cp(dbase), itoa(i))

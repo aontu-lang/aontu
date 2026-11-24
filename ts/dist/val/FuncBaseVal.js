@@ -94,6 +94,12 @@ function wrapSettled(args) {
 function openWrap(ctx, v) {
     return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v;
 }
+// What a call that waits for its place reads as: any value, which a use reads again.
+function waiting(ctx) {
+    const out = (0, top_1.top)().clone(ctx);
+    out.unplaced = true;
+    return out;
+}
 class FuncBaseVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -101,6 +107,8 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         this.forgives = false;
         this.isGenable = true;
         this.staged = false;
+        // A fold drives its own argument, and a copy still makes it again (ruling 26).
+        this.folds = false;
     }
     validateArgs(args, min) {
         if (min < args.length) {
@@ -218,8 +226,11 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     if (through) {
                         newpeg = [openWrap(ctx, newpeg[0]), ...newpeg.slice(1)];
                     }
-                    const resolved = gone ?? (0, siggate_1.sigRefuse)(ctx, this, newpeg) ??
-                        this.resolve(ctx, newpeg);
+                    // A call over a key that waits for its place waits with it, as any value.
+                    const waits = !newpeg.some((a) => a.isNil) &&
+                        newpeg.some((a) => (0, unify_1.holds)(a, unify_1.unplaced));
+                    const resolved = gone ?? (waits ? waiting(ctx) :
+                        (0, siggate_1.sigRefuse)(ctx, this, newpeg) ?? this.resolve(ctx, newpeg));
                     // The TOP peer is DROPPED as the unit it is.
                     out = resolved.done && peer.isTop ? resolved :
                         (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEG') }) : ctx, resolved, peer, 'func-' + this.funcname() + '/' + this.id);
@@ -235,6 +246,13 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     // A meet with the root's declaring map lands at the root.
                     out.path = true === peer.isMap && 0 < peer.aliasKeys.length ?
                         peer.path : this.path;
+                    if (null !== pegprep || this.folds) {
+                        out = (0, unify_1.rereadCall)(ctx, out, newpeg, peer, () => {
+                            const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } });
+                            again.path = this.path;
+                            return again;
+                        }, WRAPPERS.has(this.funcname()));
+                    }
                     why += 'pegdone';
                 }
                 else if (peer.isTop) {

@@ -368,7 +368,7 @@ function unmarkedTemplate(cj: Val, ctx: AontuContext): Val {
     }
   }
   return t._unmarked
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 10 */
 
 
 export {

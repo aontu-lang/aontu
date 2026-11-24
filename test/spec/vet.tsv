@@ -312,6 +312,7 @@ vet-unequal-spread-depths	vet	a:&:{w:&:{p:integer}}\na:prod:w:&:{r:integer}	{"a"
 # Both spellings of the alias, since only one of them carries a mark.
 vet-ref-clone-names-the-key-not-the-record	vet	M: close({a:"x", b:"p"})\nq: $.M\n	{"q":{"a":"y","b":"r"}}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.q.a","pointer":"/q/a","severity":"error","sites":[{"col":11,"file":"data","len":3,"role":"data","row":1,"src":"\\"y\\"","value":"\\"y\\""},{"col":13,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"x\\"","value":"\\"x\\""}]},{"class":"conflict","code":"scalar_value","path":"$.q.b","pointer":"/q/b","severity":"error","sites":[{"col":19,"file":"data","len":3,"role":"data","row":1,"src":"\\"r\\"","value":"\\"r\\""},{"col":20,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"p\\"","value":"\\"p\\""}]}],"truncated":false,"verdict":"invalid"}
 vet-type-alias-names-the-key-not-the-record	vet	M: type(close({a: integer & min(3)}))\nq: $.M\n	{"q":{"a":1}}	{"findings":[{"actual":"1","class":"conflict","code":"constraint","expected":"integer&min(3)","path":"$.q.a","pointer":"/q/a","severity":"error","sites":[{"col":11,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":29,"file":"schema","len":3,"role":"schema","row":1,"src":"min","value":"integer&min(3)"}]}],"truncated":false,"verdict":"invalid"}
+vet-ref-to-a-deeper-target-names-the-missing-key	vet	schema: {M: type(close({a: string & re("^x$")}))}\nquote: $.schema.M\n	{"quote":{}}	{"findings":[{"class":"incomplete","code":"mapval_required","path":"$.quote.a","pointer":"/quote/a","severity":"error","sites":[{"col":37,"file":"schema","len":2,"role":"schema","row":1,"src":"re","value":"string&re(\\"^x$\\")"}]}],"truncated":false,"verdict":"incomplete"}
 
 # SIZING ATOMS AND CONTAINER MUSTS COUNT THE DATA (the review's finding
 # C, use-cases/BUGS.md 16 and 17). Both used to decide against whatever
@@ -562,3 +563,65 @@ vet-held-open-member-leaves-the-place-sealed	verdict	v: close() & ({x: {y: 1}} &
 vet-bare-close-takes-every-map-and-refuses-the-data	verdict	v: {x: close()} & {x: {y: 1}} & {x: {z: 2}}	{"v": {"x": {"y": 1, "z": 2, "w": 3}}}	{"verdict":"invalid"}
 vet-bare-close-refuses-the-data-beneath	verdict	v: {x: close()} & {x: {y: 1}}	{"v": {"x": {"y": 1, "z": 2}}}	{"verdict":"invalid"}
 vet-bare-close-refuses-the-data-in-a-list	verdict	v: {x: close()} & {x: [1]}	{"v": {"x": [1, 2]}}	{"verdict":"invalid"}
+# A copy reads its relative paths where it stands (ruling 26): a call over
+# one is made again there, the data written at the target meets the copy,
+# and a copy shallower than its target reads from its own place.
+vet-copy-makes-a-call-again	verdict	a: {x: "p", b: {v: upper(..x)}}, c: {x: "q", d: $.a.b}	{"c": {"d": {"v": "Q"}}}	{"verdict":"valid"}
+vet-copy-refuses-what-the-target-computed	verdict	a: {x: "p", b: {v: upper(..x)}}, c: {x: "q", d: $.a.b}	{"c": {"d": {"v": "P"}}}	{"verdict":"invalid"}
+vet-copy-meets-the-data-at-the-target-of-a-call	verdict	a: {x: "p", b: {v: upper(..x)}}, c: {x: "q", d: $.a.b}	{"a": {"b": {"v": "P"}}}	{"verdict":"invalid"}
+vet-copy-shallower-reads-its-own-place	verdict	x: 9, a: {b: {k: {v: ..x}, x: 5}}, c: $.a.b.k	{"c": {"v": 9}}	{"verdict":"valid"}
+vet-copy-shallower-refuses-what-the-target-read	verdict	x: 9, a: {b: {k: {v: ..x}, x: 5}}, c: $.a.b.k	{"c": {"v": 5}}	{"verdict":"invalid"}
+vet-copy-shallower-reads-its-own-key	verdict	x: {a: {k: key()}}, y: $.x.a	{"y": {"k": "y"}}	{"verdict":"valid"}
+vet-copy-shallower-refuses-a-key-not-its-own	verdict	x: {a: {k: key()}}, y: $.x.a	{"y": {"k": "k"}}	{"verdict":"invalid"}
+vet-copy-shallower-key-at-the-top-is-empty	verdict	a: {x: key()}, b: $.a.x	{"b": ""}	{"verdict":"valid"}
+vet-copy-shallower-key-at-the-top-refuses-a-key	verdict	a: {x: key()}, b: $.a.x	{"b": "b"}	{"verdict":"invalid"}
+vet-copy-shallower-key-two-levels-up	verdict	x: {a: {b: {n: key()}}}, y: $.x.a.b	{"y": {"n": "y"}}	{"verdict":"valid"}
+vet-copy-shallower-key-two-levels-up-refuses-the-target-key	verdict	x: {a: {b: {n: key()}}}, y: $.x.a.b	{"y": {"n": "b"}}	{"verdict":"invalid"}
+vet-copy-makes-a-call-in-a-name-again	verdict	x: 1, a: {x: 2, b: %T}\n%T = {v: add(..x, 1)}	{"x": 1, "a": {"x": 2, "b": {"v": 3}}}	{"verdict":"valid"}
+vet-copy-refuses-what-a-name-computed-at-its-own-place	verdict	x: 1, a: {x: 2, b: %T}\n%T = {v: add(..x, 1)}	{"x": 1, "a": {"x": 2, "b": {"v": 2}}}	{"verdict":"invalid"}
+# PAST A MEMBER THAT CANNOT GENERATE. A map or a list raises one finding
+# for the first member that generates no value, and the members after
+# it still say what else is incomplete: a `match` that waits for its
+# scrutinee sorts before `plan` here, and the finding a reader acts on
+# is the scrutinee's. What is not incomplete past that member is left
+# unjudged, as rows l135 on of def-verdict.tsv hold.
+vet-incomplete-past-a-waiting-match-names-its-scrutinee	vet	t: { plan: "free" | "pro"\n  limits: match(.plan, "free", {m: 3}, "pro", {m: 50}) }\n	{"t":{}}	{"findings":[{"class":"incomplete","code":"disjunct_no_gen","path":"$.t.plan","pointer":"/t/plan","severity":"error","sites":[{"col":12,"file":"schema","len":6,"role":"schema","row":1,"src":"\\"free\\"","value":"\\"free\\"|\\"pro\\""}]},{"class":"incomplete","code":"mapval_no_gen","path":"$.t.limits","pointer":"/t/limits","severity":"error","sites":[{"col":11,"file":"schema","len":5,"role":"schema","row":2,"src":"match","value":"match(.plan,\\"free\\",{\\"m\\":3},\\"pro\\",{\\"m\\":50})"}]}],"truncated":false,"verdict":"incomplete"}
+vet-incomplete-past-a-list-element-that-cannot-generate	vet	t: [string, "a" | "b", integer]\n	{}	{"findings":[{"class":"incomplete","code":"listval_no_gen","path":"$.t.0","pointer":"/t/0","severity":"error","sites":[{"col":5,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.t.1","pointer":"/t/1","severity":"error","sites":[{"col":13,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"a\\"","value":"\\"a\\"|\\"b\\""}]}],"truncated":false,"verdict":"incomplete"}
+vet-incomplete-past-a-member-skips-an-optional-key	vet	v: {a: string, b?: 1 | 2, c: 3 | 4}\n	{}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.v.a","pointer":"/v/a","severity":"error","sites":[{"col":8,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.v.c","pointer":"/v/c","severity":"error","sites":[{"col":30,"file":"schema","len":1,"role":"schema","row":1,"src":"3","value":"3|4"}]}],"truncated":false,"verdict":"incomplete"}
+vet-incomplete-past-a-member-reads-a-nested-map	vet	v: {a: string, b: {c: 1 | 2, d: integer}}\n	{}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.v.a","pointer":"/v/a","severity":"error","sites":[{"col":8,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.v.b.c","pointer":"/v/b/c","severity":"error","sites":[{"col":23,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1|2"}]},{"class":"incomplete","code":"mapval_no_gen","path":"$.v.b.d","pointer":"/v/b/d","severity":"error","sites":[{"col":33,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"truncated":false,"verdict":"incomplete"}
+# A SEALED LIST'S LENGTH (#346): met with a spread, a list sealed with
+# none keeps its length, as the definition's meet of two lists does.
+vet-sealed-list-met-with-a-spread-refuses-a-longer-list	verdict	v: close([1, 2]) & [&: integer]	{"v": [1, 2, 3]}	{"verdict":"invalid"}
+vet-sealed-list-met-with-a-spread-admits-its-own-length	verdict	v: close([1, 2]) & [&: integer]	{"v": [1, 2]}	{"verdict":"valid"}
+vet-sealed-lists-of-two-lengths-are-an-error	verdict	v: close([1, 2, 3]) & close([1, 2])	{}	{"verdict":"error"}
+vet-sealed-spread-list-met-with-a-sealed-list-refuses-a-longer-list	verdict	v: close([1, &: integer]) & close([1, 2])	{"v": [1, 2, 3]}	{"verdict":"invalid"}
+vet-sealed-spread-list-met-with-a-sealed-list-admits-its-length	verdict	v: close([1, &: integer]) & close([1, 2])	{"v": [1, 2]}	{"verdict":"valid"}
+#
+# A KEY IN A DECLARATION'S BODY (#528) waits for the use that places it,
+# so a body is judged where it is used: a template a generator takes
+# from a name, and a path into a generator's output (ruling 22), read
+# their keys where each lands. An emit piece a mark leaves out takes no
+# position (ruling 52).
+vet-key-in-a-body-fits-its-use	verdict	%T = key(0) & "x"\nx: %T	{"x": "x"}	{"verdict":"valid"}
+vet-key-in-a-body-refuses-another-use	verdict	%T = key(0) & "x"\ny: %T	{}	{"verdict":"error"}
+vet-key-in-a-body-below-its-use	verdict	%T = {a: key(1) & "x"}\nx: %T	{"x": {"a": "x"}}	{"verdict":"valid"}
+vet-key-in-a-body-nothing-uses	verdict	%T = upper(key(1)) & 1\nv: 1	{"v": 1}	{"verdict":"valid"}
+vet-key-in-a-body-is-a-string	verdict	%T = key(0) & 1\nv: 1	{"v": 1}	{"verdict":"error"}
+vet-call-over-a-key-in-a-body-admits-its-use	verdict	%T = upper(key(1))\nx: {y: %T}	{"x": {"y": "X"}}	{"verdict":"valid"}
+vet-call-over-a-key-in-a-body-refuses-another	verdict	%T = upper(key(1))\nx: {y: %T}	{"x": {"y": "Y"}}	{"verdict":"invalid"}
+vet-pack-template-from-a-name-admits-its-keys	verdict	%T = {n: key()}\nv: pack(["a", "b"], %T)	{"v": {"a": {"n": "a"}, "b": {"n": "b"}}}	{"verdict":"valid"}
+vet-pack-template-from-a-name-refuses-another-key	verdict	%T = {n: key()}\nv: pack(["a", "b"], %T)	{"v": {"a": {"n": "b"}}}	{"verdict":"invalid"}
+vet-each-template-from-a-name-admits-its-indexes	verdict	%T = key(0)\nv: each([1, 2], %T)	{"v": ["0", "1"]}	{"verdict":"valid"}
+vet-each-template-from-a-name-refuses-another-index	verdict	%T = key(0)\nv: each([1, 2], %T)	{"v": ["0", "0"]}	{"verdict":"invalid"}
+vet-key-reread-into-pack-output-admits-the-copy's-key	verdict	x: pack(["a"], {n: key()})\ny: $.x.a	{"y": {"n": "y"}}	{"verdict":"valid"}
+vet-key-reread-into-pack-output-refuses-the-source's-key	verdict	x: pack(["a"], {n: key()})\ny: $.x.a	{"y": {"n": "a"}}	{"verdict":"invalid"}
+vet-emit-key-after-a-hidden-piece-admits-where-it-lands	verdict	v: emit([1, 2], {match: any, body: [hide("h"), key(0)]})	{"v": ["0", "1"]}	{"verdict":"valid"}
+vet-emit-key-after-a-hidden-piece-refuses-the-written-index	verdict	v: emit([1, 2], {match: any, body: [hide("h"), key(0)]})	{"v": ["1", "3"]}	{"verdict":"invalid"}
+#
+# A CLOSED FINDING UNDER --at names the key the data adds, whatever the
+# anchor holds beside it: a key(), a generator's instance, or a relative
+# path's copy. A meet result that holds a conflict is not copied for
+# the mark a relative path or a key leaves, so the finding keeps its path.
+vet-at-closed-beside-a-key-names-the-key	vet	guard: { t1: close({ tool:key() arguments: close({ a: integer }) }) }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
+vet-at-closed-in-a-packed-instance-names-the-key	vet	s: type(close({ t1: close({ a: integer }) }))\nguard: pack($.s, close({ tool:key() arguments:_ }))	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
+vet-at-closed-in-a-relative-copy-names-the-key	vet	guard: { t0: close({ tool: string arguments: close({ a: integer }) }) t1: .t0 }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}

@@ -44,6 +44,67 @@ func unite(ctx *Ctx, a, b Val) Val {
 			}
 		}
 	}
+	if (nil != a && nil != a.rereads()) || (nil != b && nil != b.rereads()) {
+		out = rereadOn(out, a, b)
+	}
+	return out
+}
+
+// What a value stands for as written: what a relative path read there, or the value itself.
+func rereadTerms(t Val) []Val {
+	if nil == t || isTop(t) {
+		return nil
+	}
+	if terms := t.rereads(); nil != terms {
+		return terms
+	}
+	return []Val{t}
+}
+
+// Whether a value, or one a map, a list or a meet in it holds, carries the mark.
+func holds(v Val, mark func(Val) bool) bool {
+	if mark(v) {
+		return true
+	}
+	var kids []Val
+	switch n := v.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			kids = append(kids, n.peg[k])
+		}
+	case *ListVal:
+		kids = n.peg
+	case *ConjunctVal:
+		kids = n.peg
+	}
+	return slices.ContainsFunc(kids, func(k Val) bool { return holds(k, mark) })
+}
+
+func rereadsMark(v Val) bool { return nil != v.rereads() }
+
+// A copy makes a call over what a relative path read again (ruling 26), but for a wrapper's: its value is its argument.
+func rereadCall(out Val, args []Val, peer Val, again func() Val, wraps bool) Val {
+	marked := func(a Val) bool { return rereadsMark(a) || (!wraps && holds(a, rereadsMark)) }
+	if out.Nil() || !slices.ContainsFunc(args, marked) {
+		return out
+	}
+	out = clonePath(out, cp(out.vpath()))
+	out.setRereads(append([]Val{again()}, rereadTerms(peer)...))
+	return out
+}
+
+// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
+// The mark goes on a value of this place's own, a meet's residue or a copy, and on none that holds a conflict.
+func rereadOn(out, a, b Val) Val {
+	terms := append(append([]Val{}, rereadTerms(a)...), rereadTerms(b)...)
+	alone := nil == a || isTop(a) || nil == b || isTop(b)
+	if nil == out || (alone && (out == a || out == b || nil != out.rereads())) || holds(out, Val.Nil) {
+		return out
+	}
+	if !isConjunct(out) {
+		out = clonePath(out, cp(out.vpath()))
+	}
+	out.setRereads(terms)
 	return out
 }
 

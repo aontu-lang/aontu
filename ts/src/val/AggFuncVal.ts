@@ -34,6 +34,7 @@ class AggFuncVal extends FuncBaseVal {
   isAggFunc = true
 
   staged = true
+  folds = true
 
   op: AggOp
 
@@ -44,6 +45,11 @@ class AggFuncVal extends FuncBaseVal {
   ) {
     super(spec, ctx)
     this.op = op
+  }
+
+
+  make(_ctx: AontuContext, spec: ValSpec): Val {
+    return new (this.constructor as any)(spec)
   }
 
 
@@ -133,12 +139,18 @@ class PickFuncVal extends FuncBaseVal {
   // The bag must settle before it is projected, exactly as it must
   // before it is folded.
   staged = true
+  folds = true
 
   constructor(
     spec: ValSpec,
     ctx?: AontuContext
   ) {
     super(spec, ctx)
+  }
+
+
+  make(_ctx: AontuContext, spec: ValSpec): Val {
+    return new PickFuncVal(spec)
   }
 
 
@@ -261,12 +273,18 @@ class SortFuncVal extends FuncBaseVal {
   // The bag must settle before it is ordered, exactly as it must
   // before it is projected.
   staged = true
+  folds = true
 
   constructor(
     spec: ValSpec,
     ctx?: AontuContext
   ) {
     super(spec, ctx)
+  }
+
+
+  make(_ctx: AontuContext, spec: ValSpec): Val {
+    return new SortFuncVal(spec)
   }
 
 
@@ -387,6 +405,7 @@ class JoinFuncVal extends FuncBaseVal {
   // The bag must settle before it is folded, exactly as it must before
   // it is summed or projected.
   staged = true
+  folds = true
 
   constructor(
     spec: ValSpec,

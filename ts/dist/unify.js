@@ -1,7 +1,9 @@
 "use strict";
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
+exports.withDepth = exports.meetTemplate = exports.unite = exports.unplaced = exports.rereadTerms = exports.Unify = void 0;
+exports.rereadCall = rereadCall;
+exports.holds = holds;
 exports.holdsLink = holdsLink;
 exports.linksOf = linksOf;
 exports.rootLinks = rootLinks;
@@ -104,7 +106,45 @@ function drives(v) {
         // concrete structure it expands against.
         || v.isRecurse;
 }
+const plain = (t) => null == t || true === t.isTop;
+// What a value stands for as written: what a relative path read there, or the value itself.
+const rereadTerms = (t) => plain(t) ? [] : (t.reread ?? [t]);
+exports.rereadTerms = rereadTerms;
+// Whether a value, or one a map, a list or a meet in it holds, carries the mark.
+function holds(v, mark) {
+    const kids = true === v.isMap || true === v.isList || true === v.isConjunct ? v.peg : {};
+    return mark(v) || Object.keys(kids).some((k) => holds(kids[k], mark));
+}
+const rereads = (v) => undefined !== v.reread;
+const unplaced = (v) => true === v.unplaced;
+exports.unplaced = unplaced;
+// A copy makes a call over what a relative path read again (ruling 26), but for a wrapper's: its value is its argument.
+function rereadCall(ctx, out, args, peer, again, wraps) {
+    if (true === out.isNil || !args.some((a) => true === wraps ? rereads(a) : holds(a, rereads))) {
+        return out;
+    }
+    const kept = out.clone(ctx, { path: out.path });
+    kept.reread = [again(), ...rereadTerms(peer)];
+    return kept;
+}
+// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
+// The mark goes on a value of this place's own, a meet's residue or a copy, and on none that holds a conflict.
+function rereadOn(ctx, out, a, b) {
+    const alone = plain(a) || plain(b);
+    if (null == out || (alone && (out === a || out === b || undefined !== out.reread)) ||
+        holds(out, (v) => true === v.isNil)) {
+        return out;
+    }
+    const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path });
+    kept.reread = [...rereadTerms(a), ...rereadTerms(b)];
+    return kept;
+}
 const unite = (ctx, a, b, whence) => {
+    const out = meet(ctx, a, b, whence);
+    return undefined === a?.reread && undefined === b?.reread ? out : rereadOn(ctx, out, a, b);
+};
+exports.unite = unite;
+const meet = (ctx, a, b, whence) => {
     if (a !== undefined && a !== null) {
         if (a === b) {
             if (a.done)
@@ -271,7 +311,6 @@ const unite = (ctx, a, b, whence) => {
     }
     return out;
 };
-exports.unite = unite;
 function riders(a, b, to) {
     const av = Object(a);
     const bv = Object(b);
@@ -596,6 +635,6 @@ class Unify {
     }
 }
 exports.Unify = Unify;
-const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 13 */
+const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 17 */
 exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map

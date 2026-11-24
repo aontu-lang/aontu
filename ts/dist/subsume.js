@@ -611,8 +611,8 @@ function subsumeBag(state, path, g, s, gKeys, sKeys, child) {
     }
     // Closedness: a closed general bag admits only key sets it declares,
     // so the specific side must be closed and inside it.
-    if (true === g.closed) {
-        if (true !== s.closed) {
+    if (bound(g)) {
+        if (!bound(s)) {
             record(state, 'compat_narrowed', path, g, s, 'the general value is closed; the open specific value admits' +
                 ' surplus keys');
             worse('no');
@@ -653,6 +653,10 @@ function subsumeBag(state, path, g, s, gKeys, sKeys, child) {
         // the (unconstrained) general side to refuse.
     }
     return out;
+}
+// A seal bounds a map's keys, and a list's length only where it has no spread.
+function bound(v) {
+    return true === v.closed && (true !== v.isList || null == v.spread?.cj);
 }
 function unsettledSpread(state, path, g, scj) {
     record(state, 'sub_path_dependent_spread', path, g, scj, 'a path-dependent spread template cannot be compared structurally');

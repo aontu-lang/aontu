@@ -170,6 +170,9 @@ abstract class Val {
 
   // The target whose expansion (RecurseVal) copied this, until something else meets it.
   copied?: string
+  // What a path or a key read here, as written, for a copy to read again (ruling 26); unplaced waits for its use.
+  reread?: Val[]
+  unplaced?: boolean
 
   origin?: string
 
@@ -317,6 +320,12 @@ abstract class Val {
     }
     if (null != this.copied) {
       out.copied = this.copied
+    }
+    if (null != this.reread) {
+      out.reread = this.reread
+    }
+    if (true === this.unplaced) {
+      out.unplaced = true
     }
     if (null != this.emitted) {
       out.emitted = this.emitted

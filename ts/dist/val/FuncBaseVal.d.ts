@@ -8,6 +8,7 @@ declare class FuncBaseVal extends FeatureVal {
     forgives: boolean;
     isGenable: boolean;
     staged: boolean;
+    folds: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
     validateArgs(args: Val[], min: number): void;
     make(ctx: AontuContext, _spec: ValSpec): Val;

@@ -11,7 +11,7 @@ import {
 } from '../type'
 
 import { AontuContext } from '../ctx'
-import { rideOn, unite, withDepth } from '../unify'
+import { holds, rereadCall, rideOn, unite, unplaced, withDepth } from '../unify'
 
 
 import {
@@ -133,6 +133,14 @@ function openWrap(ctx: AontuContext, v: any): Val {
 }
 
 
+// What a call that waits for its place reads as: any value, which a use reads again.
+function waiting(ctx: AontuContext): Val {
+  const out: any = top().clone(ctx)
+  out.unplaced = true
+  return out
+}
+
+
 class FuncBaseVal extends FeatureVal {
   isFunc = true
 
@@ -140,6 +148,9 @@ class FuncBaseVal extends FeatureVal {
   isGenable = true
 
   staged = false
+
+  // A fold drives its own argument, and a copy still makes it again (ruling 26).
+  folds = false
 
   constructor(
     spec: ValSpec,
@@ -300,8 +311,11 @@ class FuncBaseVal extends FeatureVal {
           if (through) {
             newpeg = [openWrap(ctx, newpeg[0]), ...newpeg.slice(1)]
           }
-          const resolved = gone ?? sigRefuse(ctx, this, newpeg) ??
-            this.resolve(ctx, newpeg)
+          // A call over a key that waits for its place waits with it, as any value.
+          const waits = !newpeg.some((a: Val) => a.isNil) &&
+            newpeg.some((a: Val) => holds(a, unplaced))
+          const resolved = gone ?? (waits ? waiting(ctx) :
+            sigRefuse(ctx, this, newpeg) ?? this.resolve(ctx, newpeg))
 
           // The TOP peer is DROPPED as the unit it is.
           out = resolved.done && peer.isTop ? resolved :
@@ -320,6 +334,14 @@ class FuncBaseVal extends FeatureVal {
           // A meet with the root's declaring map lands at the root.
           out.path = true === peer.isMap && 0 < (peer as any).aliasKeys.length ?
             peer.path : this.path
+
+          if (null !== pegprep || this.folds) {
+            out = rereadCall(ctx, out, newpeg, peer, () => {
+              const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } })
+              again.path = this.path
+              return again
+            }, WRAPPERS.has(this.funcname()))
+          }
 
           why += 'pegdone'
         }

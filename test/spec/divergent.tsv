@@ -353,13 +353,20 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- a key MISSING under a value that arrived by a reference to a
-#   DEEPER target is reported at a path that does not exist, in Go
-#   only (TypeScript until 2026-11; the sides swapped, re-probed
-#   2026-11-19).
+# CLOSED 2026-11-24 -- a key MISSING under a value that arrived by a
+#   reference to a DEEPER target was reported at a path that does not
+#   exist, in Go only (TypeScript until 2026-11; the sides swapped,
+#   re-probed 2026-11-19).
 #   issue: #330; found 2026-08-27 while landing the money wire
 #   convention (use-cases/REVIEW.md finding I), by running both engines
 #   on the same document and diffing.
+#
+#   Closed with #504: a copy now stands at its reference's own place in
+#   both ports whatever the target's depth, and reads its relative paths
+#   there (ruling 26), so no stale segment is left to report. Both
+#   answer mapval_required at $.quote.a, which the row
+#   vet-ref-to-a-deeper-target-names-the-missing-key in vet.tsv pins.
+#   What follows is the entry as it stood.
 #
 #   The trigger is a DEPTH MISMATCH between the reference and its
 #   target: TypeScript's clone overlays the referring path onto the

@@ -49,11 +49,11 @@ ghost-close-innard-canon	canon	x:a:close({k:key()}) x:c:move($.x.a)	{"x":{"a":cl
 move-chain-canon	canon	x:a:{k:key()} x:b:move($.x.a) x:c:move($.x.b)	{"x":{"a":{"k":key()},"b":pref({"k":key()}),"c":{"k":**"c"}}}
 move-chain-gen	gen	x:a:{k:key()} x:b:move($.x.a) x:c:move($.x.b)	{"x":{"c":{"k":"c"}}}
 move-chain-reorder-canon	canon	x:a:{k:key()} x:c:move($.x.b) x:b:move($.x.a)	{"x":{"a":{"k":key()},"b":pref($.x.a),"c":{"k":**"c"}}}
-move-shallow-transplant-canon	canon	x:a:b:{k:key()} x:c:move($.x.a.b) x:d:move($.x.a)	{"x":{"a":{"b":{"k":key()}},"c":{"k":*"k"},"d":{"b":{"k":*"b"}}}}
-move-shallower-dest-canon	canon	x:a:close({k:key()}) y:move($.x.a)	{"x":{"a":close({"k":key()})},"y":{"k":*"k"}}
-move-shallower-dest	gen	x:a:close({k:key()}) y:move($.x.a)	{"x":{},"y":{"k":"k"}}
-ref-into-move-dest-canon	canon	x:a:{v:6,k:key()} x:c:move($.x.a) y:$.x.c	{"x":{"a":{"k":key(),"v":6},"c":{"k":*"c","v":*6}},"y":{"k":*"k","v":*6}}
-ref-into-move-dest	gen	x:a:{v:6,k:key()} x:c:move($.x.a) y:$.x.c	{"x":{"c":{"k":"c","v":6}},"y":{"k":"k","v":6}}
+move-shallow-transplant-canon	canon	x:a:b:{k:key()} x:c:move($.x.a.b) x:d:move($.x.a)	{"x":{"a":{"b":{"k":key()}},"c":{"k":*"c"},"d":{"b":{"k":*"b"}}}}
+move-shallower-dest-canon	canon	x:a:close({k:key()}) y:move($.x.a)	{"x":{"a":close({"k":key()})},"y":{"k":*"y"}}
+move-shallower-dest	gen	x:a:close({k:key()}) y:move($.x.a)	{"x":{},"y":{"k":"y"}}
+ref-into-move-dest-canon	canon	x:a:{v:6,k:key()} x:c:move($.x.a) y:$.x.c	{"x":{"a":{"k":key(),"v":6},"c":{"k":*"c","v":*6}},"y":{"k":*"y","v":*6}}
+ref-into-move-dest	gen	x:a:{v:6,k:key()} x:c:move($.x.a) y:$.x.c	{"x":{"c":{"k":"c","v":6}},"y":{"k":"y","v":6}}
 # key() TAKES AN INTEGER LEVEL, OR NOTHING.
 #
 # A level is an index into the path -- 0 is the own key, the default 1 is

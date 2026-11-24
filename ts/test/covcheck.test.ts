@@ -78,4 +78,34 @@ describe('covcheck', () => {
     Assert.equal(r.code, 1, r.out)
     Assert.match(r.out, /src\/x\.ts:10 function anonymous_1 never called/)
   })
+
+  // An export list runs no line of its own, so a name added to one without
+  // raising the count before it is a gap only the daily run reports.
+  test('an-ignore-count-reaches-the-end-of-the-export-lists-after-it', () => {
+    const src = Path.join(TS, 'src')
+    const short: string[] = []
+    for (const name of Fs.readdirSync(src, { recursive: true }) as string[]) {
+      if (!name.endsWith('.ts')) {
+        continue
+      }
+      const lines = Fs.readFileSync(Path.join(src, name), 'utf8').split('\n')
+      lines.forEach((line, i) => {
+        const count = /node:coverage ignore next (\d+)/.exec(line)
+        let end = i
+        for (let j = i + 1; null != count && j < lines.length; j++) {
+          if (/^export (type )?\{/.test(lines[j])) {
+            j = lines.indexOf('}', j)
+            end = j
+          }
+          else if ('' !== lines[j]) {
+            break
+          }
+        }
+        if (null != count && +count[1] < end - i) {
+          short.push(`${name}:${i + 1} counts ${count[1]}, and its lists end ${end - i} lines on`)
+        }
+      })
+    }
+    Assert.deepEqual(short, [])
+  })
 })

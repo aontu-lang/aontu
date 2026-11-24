@@ -34,6 +34,220 @@ of `test/spec/cursor.tsv` hold the cursor's answers, and two rows that
 pinned a call-site answer are derived again from both engines. The
 entry for #327 leaves `test/spec/divergent.tsv`.
 
+### A copied generator leaves its target's source alone, in Go
+
+#946, in Go. A path's copy of an `each`, a `pack`, an `apply` or a
+`filter` shares the call's arguments with its target until it takes its
+own. Go set the copy's paths first, where the copy stands shallower
+than its target, so the target's source path came to name the copy's
+place and the target read the copy's data. With
+`c: {s: [9, 4], d: $.a.x.b}` written before
+`a: {x: {s: [3, 1], b: {v: each(..s, _)}}}`, `a.x.b.v` was `[9, 4]` in
+Go. It is `[3, 1]` again, as in TypeScript, and the copy's `v` is
+`[9, 4]` in both.
+
+The copy now takes arguments of its own first, and its paths are set
+whenever its depth differs from the target's, as TypeScript does. That
+also ends a split where the copy is deeper: Go read the source at the
+target there, and reads it at the copy now, as TypeScript and the
+definition do.
+
+- `go/ref.go`. TypeScript is unchanged.
+- `test/spec/ref.tsv` gains 7 rows.
+
+A generator's copy written after its target still reads the source at
+the target in both engines, which #936 keeps.
+
+### A copy makes a fold over a relative path again, in TypeScript
+
+#944, in TypeScript. A copy reads each relative path where the copy
+stands, and makes a call over such a path again there. TypeScript left
+six calls out: `sum`, `least`, `greatest`, `sort`, `pick` and `join`. A
+path's copy of one kept the value the call made at the target, where Go
+and the definition make the call again.
+
+With `a: {s: [3, 1], b: {v: sum(..s)}}` and `c: {s: [9, 4], d: $.a.b}`,
+`c.d.v` is now `13` in TypeScript, as it is in Go. It was `4`. The same
+holds whichever of the two is written first, and at any depth of the
+copy.
+
+- `ts/src/val/AggFuncVal.ts`, `ts/src/val/FuncBaseVal.ts` and
+  `ts/src/val/RefVal.ts`. Go is unchanged.
+- `test/spec/ref.tsv` gains 19 rows.
+
+Filed while fixing it: #946, the generators' side of the same question,
+fixed in the entry above.
+
+### A key in a declaration's body waits for the use that places it
+
+#528, #783 and the emit half of #539, in both engines, and the rest of
+#520.
+
+A `key(n)` in a declaration's body read the declaration's own place. A
+key that climbs out of the body answered the declaration's internal
+name there, a different one in each engine, so a body that fits every
+use was an error. Such a key now waits at the declaration, as any
+string, and a call over it waits with it:
+
+- `%T = key(0) & "x"` with `x: %T` is `"x"`, where both engines
+  answered `scalar_value`. `y: %T` is still a conflict, and
+  `%T = key(0) & 1` is still an error with no use at all.
+- A template that `pack`, `each`, `apply` or `emit` takes from a name
+  reads its keys as one written in place does. With
+  `%r = {match: number, body: [key(0)]}`, `emit([1, 2], %r)` is
+  `["0", "1"]`, where both answered `["0", "0"]`.
+- A key that reads a member inside the body is still that member's key.
+
+A resolved key now keeps its call as written, as a relative path does,
+so every copy reads it again where it stands. A path into a generator's
+output read the keys the generator wrote: with
+`x: pack(["a"], {n: key()})`, `y: $.x.a` is now `{n: "y"}`, where both
+engines answered `{n: "a"}`.
+
+An `emit` piece that carries a mark of its own, `hide()` or `type()`,
+or that reads as absence, takes no position. So in
+`emit([1, 2], {match: any, body: [hide("h"), key(0)]})` the keys read
+`"0"` and `"1"`, where both engines answered `"1"` and `"3"`. A bare
+`key(n)` in a named table's body reads where its piece lands at the top
+of the document too, where TypeScript read the body's own index.
+
+`aontu vet --at` names the key again in a `closed` finding where the
+anchor is a relative path's copy. Since a copy began to read its
+relative paths where it stands, such a finding named the map that holds
+the key: with `t1: .t0` as the anchor it read `$.guard.t1.arguments`,
+and it reads `$.arguments.b` again. A meet result that holds a conflict
+is no longer copied for the mark a relative path or a key leaves, and a
+seal, a mark or a rider over a value takes no such mark of its own.
+
+Twelve rows leave the ledger, its bound 64. `test/spec/gen-key.tsv`
+gains 30 rows, `test/spec/gen-emit.tsv` 18 and `test/spec/vet.tsv` 18.
+
+Filed while building it, both in the definition: #942, which admits an
+unused declaration whose key reads inside its own body and clashes
+there, and #943, which keeps a marked element of a list in a
+declaration's body when the name is read. And #944, in TypeScript: a
+copy of `sum`, `least`, `greatest`, `sort`, `pick` or `join` over a
+relative path keeps the target's value, where Go makes the call again.
+A `key()` after an absent element of a plain list still reads the
+written index, which #539 keeps.
+
+### A sealed list keeps its length when it meets a spread
+
+#346, in both engines. A list sealed with no spread has a fixed length.
+Met with a spread, each position now takes the spread and the meet
+keeps none, as the definition's `meetList` has it. So
+`close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, where both engines
+had carried the spread into the sealed list and admitted it.
+
+Two more cases follow from the same rule. Two sealed lists of different
+lengths don't meet: `close([1, 2, 3]) & close([1, 2])` is an error,
+where both engines answered `[1, 2, 3]`. And
+`close([1, 2]) & close([1, 2, 3, &: integer])` is an error in both,
+where TypeScript had answered `[1, 2, 3]` and Go refused it.
+
+`subsume` reads a seal the same way. A seal bounds a list's length only
+where the list has no spread, so `close([integer, &: integer])` covers
+`[integer, &: integer]`, and `close([integer])` no longer covers
+`close([integer, &: integer])`. A sealed map still bounds its keys with
+a spread or without.
+
+- `ts/src/val/ListVal.ts` and `ts/src/subsume.ts`; `go/listval.go` and
+  `go/subsume.go`.
+- Rows e168 to e170 of `test/spec/def-verdict.tsv` and s1967, s2028,
+  s2360, s2751 and s2813 of `test/spec/def-subsume.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 84 to 76.
+- `test/spec/seal.tsv` gains 16 rows, `test/spec/vet.tsv` 5 and
+  `test/spec/subsume.tsv` 5.
+
+### A map says what else is incomplete past a member that can't generate
+
+Both engines. A map or a list raises one finding for the first member
+that generates no value, and had stopped there. It now goes on, and
+each member after it that can generate still reports what is incomplete
+in it. Since a `match` waits for a scrutinee that generates no value
+(#743), a waiting `match` that sorts before its scrutinee had hidden the
+finding a reader acts on: with `plan: "free" | "pro"` and
+`limits: match(.plan, …)`, `aontu vet` named only `$.t.limits`, and now
+names `$.t.plan` as well. The verdict is unchanged, and so is every
+existing row. What isn't incomplete past that member is still left
+unjudged, which #937 tracks.
+
+- `ts/src/val/BagVal.ts`; `go/mapval.go` and `go/listval.go`.
+- Four rows of `test/spec/vet.tsv` and three of
+  `test/spec/gen-match.tsv` hold it.
+
+### The daily run of 2026-11-23
+
+Three of its failures are fixed here, and one waits on a ruling.
+
+- **Use case 05** expected the missing `plan` to be named, which the
+  change above restores.
+- **Use case 14** wrote `must((v) => 0 <= v, "…")`, which parses as six
+  arguments. The engines had read that wrong count in silence, as a
+  value that admits nothing, and the use case pinned the result as a
+  loss reported under `nil`. Decision 77 refuses it, as it did the same
+  call in the JSON Schema how-to. The model now writes
+  `must(min(0), "…")`, which crosses as `allOf` of its trial, its
+  message the loss.
+- **TypeScript on Windows** failed `cuecorpus.test.ts`, since a checkout
+  there gave the probes under `test/cue/` CRLF line ends, where each
+  shared row holds LF. `.gitattributes` now keeps them LF.
+- **The coverage gate** found real gaps, and ran out of time retrying.
+  `--canon` checked for an unknown call that decision 77 now refuses
+  before the check, in `ts/src/cli.ts` and `go/cmd/aontu/main.go`; the
+  check is removed. Three arms of `go/constraint.go` and
+  `go/generate.go` gain rows: a `must` condition whose path climbs past
+  the root, and a `match` over a map or a list that holds an open
+  member. Six source files ended with a coverage-ignore count that
+  their export lists had outgrown, and `ts/test/covcheck.test.ts` now
+  holds each count to the lists after it. Go is at 100% again.
+  TypeScript is short by 14 items in `ts/src/cursor.ts` and
+  `ts/src/lsp.ts`, which #939 tracks.
+- **Use case 10** still fails. Its two transforms walk a schema with
+  `match(_, integer, "number", …)`, and a `match` whose scrutinee is a
+  kind has waited for the data since ruling 49 was built (#743). Whether
+  such a `match` may select waits on a ruling.
+
+### A copy reads its relative paths where it stands, in either order
+
+#504, #692, #696, #463 and #330 in both engines, and #520 in part. A
+path reference's copy and a name's use read each relative path again
+where the copy stands (ruling 26), whichever the document writes first.
+With `a: {x: 2, b: {v: ..x}}` and `c: {x: 3, d: $.a.b}`, `c.d.v` is 3
+in either order, under `aontu` and `aontu vet` alike. Both engines had
+answered 2 where `a` came first, since the copy took what the target
+had already read, and `vet` refused the output `aontu` generated for a
+name's body written before its use.
+
+A call or an operation over a relative path is made again at the copy:
+`{v: upper(..x)}` copied beside `x: "q"` reads `"Q"`. A term met beside
+the path is met again too. A path reads through a place that is itself
+a relative path, so `e: $.a.d` beside `a: {d: .x, x: 1}` is 1, while a
+name's use reads its body's path where the use stands.
+
+The copy stands at its reference's own place, whatever the target's
+depth. A copy shallower or deeper than its target had kept part of the
+target's path, so `key()` and each relative path in it read a place
+that isn't there: `a: b: {x: key()}` with `c: $.a.b` gave `c.x` as
+`"x"`, and it's now `"c"`. Go named a key missing under such a copy at
+`$.quote.M.a`, a path in neither document, and now names `$.quote.a`
+as TypeScript does. Under `vet` the engines had also split on a call in
+a name's body, `%T = {v: add(..x, 1)}`.
+
+- `ts/src/unify.ts`, `ts/src/val/Val.ts`, `ts/src/val/RefVal.ts`,
+  `ts/src/val/FuncBaseVal.ts` and `ts/src/val/OpBaseVal.ts`;
+  `go/unify.go`, `go/val.go`, `go/clone.go`, `go/ref.go`, `go/func.go`,
+  `go/op.go`, `go/seal.go`, `go/mapval.go` and `go/listval.go`.
+- 54 rows of `test/spec/def-path.tsv` leave `spec/ledger.tsv`, whose
+  bound falls from 138 to 84.
+- `test/spec/ref.tsv` gains 44 rows, `test/spec/vet.tsv` 14 and
+  `test/spec/seal.tsv` 5. Five rows of `test/spec/func.tsv` that held
+  the misplaced copy's key now hold the copy's own.
+- The entry for #330 in `test/spec/divergent.tsv` is closed.
+- Still open: a staged call over a relative path (`each`, `pack`,
+  `pick`) reads at the target in both orders, and a path into a
+  generator's output keeps the keys the generator wrote (#520).
+
 ### A bare `close()` seals every term at its place, from whichever map
 
 #726, in part, in both engines. A bare `close()` seals the terms at

@@ -1551,16 +1551,16 @@ every node and after the pieces the elements before it splice, so
 the `emit`. A list in a body reads its own elements' indexes inside it,
 before it splices, and a nested `emit` reads the positions in its own
 answer. A piece that carries a mark of its own, `hide()` or `type()`,
-takes no position, as a list holds none for it, though both engines
-still give it one, which
-[#539](https://github.com/aontu-lang/aontu/issues/539) tracks:
+or that reads as absence, takes no position, as a list holds none for
+it, so a `key(0)` after it reads the index its own piece takes:
 
 ```aontu
 lines: emit([1 2], { match:number body: ["n" key(0)] })
+marks: emit([1 2], { match:number body: [hide("n") key(0)] })
 ```
 
 ```json
-{"lines": ["n", "1", "n", "3"]}
+{"lines": ["n", "1", "n", "3"], "marks": ["0", "1"]}
 ```
 
 **A generator in a body reads its template where each instance
@@ -1634,6 +1634,11 @@ The nodes are passed by call, the one use that binds a name's hole: a
 meet never fills one, so `$.client & %wire` is `hole_unbound`. A named
 table is also how one rule set serves two outputs: naming a value is
 something the language already does, so no keyword is needed for it.
+
+A name may hold a template, or a list of them, as it holds any value:
+with `%rule = { match:number body: [key(0)] }`, `emit([1 2], %rule)` is
+`["0", "1"]`. A `key(n)` in such a body reads where its piece lands, as
+in a table written in place.
 
 ### Recursion, and what bounds it
 
@@ -1785,19 +1790,16 @@ own place too: with `%T = {u: %U}` and `%U = {w: ..x}`, the use at
 writes at the target is part of what the document writes there, so it
 meets the copy too: data that sets `a.b.v` to 2 meets the copy's 3, and
 `aontu vet` refuses it, the output `aontu` generates among it. Both
-engines read a copy's
-relative paths by the order the document writes the two. Where the alias
-or the target comes first they read the paths where they're written, so
-`a.b.v` is 1 and `c.d.v` is 2, and where it comes after they read them
-where the copy stands. `aontu vet` reads a use of the alias where it
-stands in either order, but `%T = .x` at the alias's own place. The
-engines split on a path in a call's argument. TypeScript reads it where
-it's written in either order, under `aontu vet` too, and Go reads it as
-it reads any other.
-[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both.
-Where `%T = $.a.b` comes first, both engines read the target's relative
-paths below `$.%T`, where they name nothing, which
-[#692](https://github.com/aontu-lang/aontu/issues/692) tracks.
+engines read a copy's relative paths where the copy stands, in
+whichever order the document writes the two, under `aontu` and
+`aontu vet` alike. A copy makes a call or an operation over such a path
+again there: with `a: {x: "p", b: {v: upper(..x)}}` and
+`c: {x: "q", d: $.a.b}`, `c.d.v` is `"Q"`. A path reads through a place
+that's itself a relative path, so with `a: {c: 1, d: .c}`, `e: $.a.d`
+is 1. A copy stands at its reference's own place whatever the target's
+depth, and `key()` in it reads the copy's own key. A path into a
+generator's output reads the same way: with
+`x: pack(["a"], {n: key()})`, `y: $.x.a` is `{n: "y"}`.
 
 The definition reads a use of a name, and a path reference's copy, where
 it stands, in the schema and in a body at its own place alike, from a
@@ -2109,6 +2111,36 @@ text can write the alias out. With `payload: %json` and
 `{"payload":{&:%json,"user":{&:%json,"id":1}}}`. Such a document
 generates and hashes, and its canon is the same in both
 implementations, but the canon does not reparse on its own.
+
+**A `key(n)` in a body reads at each use of the name.** A key that reads
+a member inside the body is that member's key at every use. One that
+climbs out of the body has no place until a use gives it one, so at the
+declaration it waits, as any string, and a call over it waits with it.
+So `%T = key(0) & "x"` is the body that fits a member named `x`:
+`x: %T` is `"x"`, `y: %T` is a conflict, and a document that never
+uses `%T` stands. A body no use could fit is still an error, as
+`%T = key(0) & 1` is. A template a generator takes from a name reads
+its keys as one written in place does:
+
+```aontu
+%row = { name:key() tag:"svc-" + key() }
+
+services: pack([web api], %row)
+```
+
+```json
+{"services": {"api": {"name": "api", "tag": "svc-api"},
+              "web": {"name": "web", "tag": "svc-web"}}}
+```
+
+The definition reads a body with each key as any string (`Val.unplaced`
+in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and a use
+with each key placed. Rows from `key-in-a-body-fits-its-use` on of
+[`test/spec/gen-key.tsv`](../test/spec/gen-key.tsv) hold both engines to
+it. The definition reads a key inside the body as any string too, where
+both engines read the member's key, so it admits an unused
+`%T = {a: key(0) & "b"}` that both refuse, which
+[#942](https://github.com/aontu-lang/aontu/issues/942) tracks.
 
 **An alias is not a path segment.** `$.%foo` is refused, at any depth:
 the alias namespace and the path namespace are disjoint, and an alias
@@ -5618,7 +5650,11 @@ integers of any length, while `close([1,2])` has exactly two.
 On a list, closing fixes the LENGTH: the elements it has can still be
 narrowed (`close([1,number]) & [1,2]` is `[1,2]`), but no element can be
 added past the end. A list is open by default, so `[1,2] & [1,2,3]` is
-`[1,2,3]`, and `open(close([1,2])) & [1,2,3]` is too.
+`[1,2,3]`, and `open(close([1,2])) & [1,2,3]` is too. A closed list
+keeps its length when it meets a spread: each position takes the spread
+and the result has none, so `close([1,2]) & [&: integer]` still refuses
+`[1,2,3]`. Two closed lists of different lengths don't meet, so
+`close([1,2,3]) & close([1,2])` is an error.
 
 With no argument, `close()` and `open()` seal or unseal whatever map or
 list they meet, and leave any other value as it is:
@@ -6528,7 +6564,7 @@ generable documents materialise differently or become incomplete.
 | constraint residual | map or list | `compat_narrowed` where the residual has a domain, which holds no container; a size or a uniqueness alone is `undecided`, with reason `sub_no_witness`, since the walk counts no members |
 | concrete scalar | concrete scalar | identity: a concrete value subsumes only itself (kind included) |
 | map | map | see below; a specific value that is neither a map nor `map` is `compat_narrowed` |
-| list | list | element-wise by position, with the same required/optional shape as maps |
+| list | list | element-wise by position, with the same required/optional shape as maps. A seal bounds a list's length only where the list has no spread, so `close([integer, &: integer])` covers `[integer, &: integer]`, and `close([integer])` doesn't cover it |
 | `map` or `list` | a container of its kind, or the kind | yes: `map` admits every map and `list` every list; anything else is `compat_narrowed` |
 | map or list | `map` or `list` | `compat_narrowed` where A requires a key or a position, is a sealed map, or is a sealed list with no spread, since each refuses a value the kind admits. Otherwise each member and the spread is held to `any`: `{}`, `[]` and `{x?: any}` subsume their kinds, and a member with no failing case, as in `{x?: len(2)} ⊒ map`, is `undecided` (`sub_no_witness`) |
 

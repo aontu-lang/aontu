@@ -195,3 +195,88 @@ ref-unspellable-no-collision	errc	@"__FIXTURES__/unspellable-key.aontu" b:$.a.tr
 ref-copy-staged-in-list	canon	x:[key()]\ny:$.x\n	{"x":["x"],"y":["y"]}
 ref-copy-staged-in-op	canon	x:key(0)+"a"\ny:$.x\n	{"x":"xa","y":"ya"}
 ref-copy-staged-in-disjunct	canon	x:{p:key()|1}\ny:$.x\n	{"x":{"p":"x"|1},"y":{"p":"y"|1}}
+# A COPY IS A DESTINATION (ruling 26). A path reference's copy and a
+# name's use read each relative path again where the copy stands, in
+# whichever order the document writes the target and the reference: a
+# call or an operation over one is made again, a term met beside one
+# comes with it, and a copy shallower than its target stands at its own
+# place. A path reads through a place that is itself a relative path.
+copy-rereads-target-first	gen	a: {x: 2, b: {v: ..x}}\nc: {x: 3, d: $.a.b}	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3}}
+copy-rereads-ref-first	gen	c: {x: 3, d: $.a.b}\na: {x: 2, b: {v: ..x}}	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3}}
+copy-rereads-name-written-first	gen	%T = {v: ..x}\nx: 1\na: {x: 2, b: %T}	{"a":{"b":{"v":2},"x":2},"x":1}
+copy-rereads-name-written-last	gen	x: 1\na: {x: 2, b: %T}\n%T = {v: ..x}	{"a":{"b":{"v":2},"x":2},"x":1}
+copy-rereads-body-that-is-a-path	gen	%T = .x\nx: 1\na: {x: 2, b: %T}	{"a":{"b":2,"x":2},"x":1}
+copy-rereads-two-uses	gen	x: 1\na: {x: 2, b: %T}\n%T = {v: ..x}\nc: {x: 3, d: %T}	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3},"x":1}
+copy-shallower-than-target	gen	x: 9\na: {b: {k: {v: ..x}, x: 5}}\nc: $.a.b.k	{"a":{"b":{"k":{"v":5},"x":5}},"c":{"v":9},"x":9}
+copy-shallower-ref-first	gen	x: 9\nc: $.a.b.k\na: {b: {k: {v: ..x}, x: 5}}	{"a":{"b":{"k":{"v":5},"x":5}},"c":{"v":9},"x":9}
+copy-shallower-key	gen	x: {a: {k: key()}}\ny: $.x.a	{"x":{"a":{"k":"a"}},"y":{"k":"y"}}
+copy-shallower-key-ref-first	gen	y: $.x.a\nx: {a: {k: key()}}	{"x":{"a":{"k":"a"}},"y":{"k":"y"}}
+copy-shallower-key-of-a-map	gen	a: b: {x: key()}\nc: $.a.b	{"a":{"b":{"x":"b"}},"c":{"x":"c"}}
+copy-shallower-key-at-the-top	gen	a: {x: key()}\nb: $.a.x	{"a":{"x":"a"},"b":""}
+copy-shallower-key-at-the-top-ref-first	gen	b: $.a.x\na: {x: key()}	{"a":{"x":"a"},"b":""}
+copy-shallower-key-of-a-member	gen	a: b: {x: key()}\nc: d: $.a.b.x	{"a":{"b":{"x":"b"}},"c":{"d":"c"}}
+copy-shallower-key-at-each-level	gen	a: b: {x: key(1), y: key(2), z: key(0)}\nc: $.a.b	{"a":{"b":{"x":"b","y":"a","z":"z"}},"c":{"x":"c","y":"","z":"z"}}
+copy-shallower-key-two-levels-up	gen	x: {a: {b: {n: key()}}}\ny: $.x.a.b	{"x":{"a":{"b":{"n":"b"}}},"y":{"n":"y"}}
+copy-shallower-key-one-level-up	gen	x: {a: {b: {n: key()}}}\ny: {q: $.x.a.b}	{"x":{"a":{"b":{"n":"b"}}},"y":{"q":{"n":"q"}}}
+copy-shallower-key-by-a-name-written-first	gen	%T = $.x.a\nx: {a: {n: key()}}\ny: %T	{"x":{"a":{"n":"a"}},"y":{"n":"y"}}
+copy-shallower-key-by-a-name-written-last	gen	x: {a: {n: key()}}\ny: %T\n%T = $.x.a	{"x":{"a":{"n":"a"}},"y":{"n":"y"}}
+copy-reads-through-a-path-place	gen	a: {c: 1, d: .c}\nc: 7\ne: $.a.d	{"a":{"c":1,"d":1},"c":7,"e":1}
+copy-rereads-in-a-list	gen	a: {x: 2, b: [..x, 7]}\nc: {x: 3, d: $.a.b}	{"a":{"b":[2,7],"x":2},"c":{"d":[3,7],"x":3}}
+copy-rereads-a-call	gen	a: {x: "p", b: {v: upper(..x)}}\nc: {x: "q", d: $.a.b}	{"a":{"b":{"v":"P"},"x":"p"},"c":{"d":{"v":"Q"},"x":"q"}}
+copy-rereads-a-call-ref-first	gen	c: {x: "q", d: $.a.b}\na: {x: "p", b: {v: upper(..x)}}	{"a":{"b":{"v":"P"},"x":"p"},"c":{"d":{"v":"Q"},"x":"q"}}
+copy-rereads-a-call-in-a-call	gen	a: {x: "p", b: {v: upper(lower(..x))}}\nc: {x: "Q", d: $.a.b}	{"a":{"b":{"v":"P"},"x":"p"},"c":{"d":{"v":"Q"},"x":"Q"}}
+copy-rereads-an-operation	gen	a: {x: 2, b: {v: ..x + 1}}\nc: {x: 3, d: $.a.b}	{"a":{"b":{"v":3},"x":2},"c":{"d":{"v":4},"x":3}}
+copy-rereads-a-default	gen	a: {x: 2, b: {v: *..x | number}}\nc: {x: 3, d: $.a.b}	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3}}
+copy-rereads-through-a-copy	gen	a: {x: 2, b: {v: ..x}}\nc: {x: 3, d: $.a.b}\ne: {x: 4, f: $.c.d}	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3},"e":{"f":{"v":4},"x":4}}
+copy-rereads-in-a-choice	gen	%H = {a: {name: "x", url: .name}} | null\nhosts: %H & {a: {}}	{"hosts":{"a":{"name":"x","url":"x"}}}
+copy-rereads-beside-a-term	errc	a: {x: 2, b: {v: ..x & number}}\nc: {x: "s", d: $.a.b}	no_scalar_unify
+copy-rereads-with-no-place-to-read	errc	a: {x: 2, b: {v: ..x}}\nc: {d: $.a.b}	no_path
+copy-rereads-two-paths-met	gen	a: {x: 2, y: 2, b: {v: ..x & ..y}}\nc: {x: 3, y: 3, d: $.a.b}	{"a":{"b":{"v":2},"x":2,"y":2},"c":{"d":{"v":3},"x":3,"y":3}}
+copy-rereads-two-paths-clash	errc	a: {x: 2, y: 2, b: {v: ..x & ..y}}\nc: {x: 3, y: 4, d: $.a.b}	scalar_value
+copy-rereads-a-path-met-by-a-template	gen	b: {x: 2, y: 2, m: {&: {v: ...x}, k: {v: ...y}}}\nc: {x: 3, y: 3, m: $.b.m}	{"b":{"m":{"k":{"v":2}},"x":2,"y":2},"c":{"m":{"k":{"v":3}},"x":3,"y":3}}
+copy-rereads-a-call-met-by-a-template	gen	b: {x: 2, y: 2, m: {&: {v: add(...x, 0)}, k: {v: ...y}}}\nc: {x: 3, y: 3, m: $.b.m}	{"b":{"m":{"k":{"v":2}},"x":2,"y":2},"c":{"m":{"k":{"v":3}},"x":3,"y":3}}
+copy-rereads-a-path-in-a-template-call	gen	b: {x: 2, y: 2, m: {&: {v: ...y}, k: {v: add(...x, 0)}}}\nc: {x: 3, y: 3, m: $.b.m}	{"b":{"m":{"k":{"v":2}},"x":2,"y":2},"c":{"m":{"k":{"v":3}},"x":3,"y":3}}
+copy-rereads-beside-any	gen	a: {x: 2, b: {v: any & ..x}}\nc: {x: 3, d: $.a.b}	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3}}
+copy-rereads-a-path-to-a-choice	gen	%A = {t: 1 | 2, b: .t}\nc: %A & {t: 2}	{"c":{"b":2,"t":2}}
+copy-rereads-a-path-to-a-late-choice	gen	%A = {t: 1 | $.late, b: .t}\nlate: $.later\nlater: 2\nc: %A & {t: 2}	{"c":{"b":2,"t":2},"late":2,"later":2}
+copy-rereads-a-path-met-by-a-late-path	gen	b: {y: 2, m: {&: {v: $.late}, k: {v: ...y}}}\nlate: $.later\nlater: 2\nc: {y: 2, m: $.b.m}	{"b":{"m":{"k":{"v":2}},"y":2},"c":{"m":{"k":{"v":2}},"y":2},"late":2,"later":2}
+copy-rereads-beside-a-hidden-path	gen	a: {x: 2, b: {v: ..x & $.w}}\nc: {x: 3, d: $.a.b}\nw: hide($.u)\nu: hide(number)	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3}}
+copy-rereads-beside-a-named-kind	gen	%M = number\n%N = %M\na: {x: 2, b: {v: ..x & %N}}\nc: {x: 3, d: $.a.b}	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3}}
+copy-rereads-beside-a-late-name	gen	a: {x: 2, b: {v: ..x & %N}}\nc: {x: 3, d: $.a.b}\n%N = %M\n%M = number	{"a":{"b":{"v":2},"x":2},"c":{"d":{"v":3},"x":3}}
+copy-rereads-a-call-in-a-name-written-first	gen	%T = {v: add(..x, 1)}\nx: 1\na: {x: 2, b: %T}	{"a":{"b":{"v":3},"x":2},"x":1}
+copy-rereads-a-call-in-a-name-written-last	gen	x: 1\na: {x: 2, b: %T}\n%T = {v: add(..x, 1)}	{"a":{"b":{"v":3},"x":2},"x":1}
+#
+# A FOLD OVER A RELATIVE PATH (#944). A copy makes sum, least, greatest,
+# sort, pick and join again where it stands, as it does any call over a
+# relative path (ruling 26): whichever of the two is written first, and
+# whatever the copy's depth.
+ref-copy-sum-reads-at-the-copy	gens	a: {s: [3, 1], b: {v: sum(..s)}}\nc: {s: [9, 4], d: $.a.b}	{"a":{"b":{"v":4},"s":[3,1]},"c":{"d":{"v":13},"s":[9,4]}}
+ref-copy-least-reads-at-the-copy	gens	a: {s: [3, 1], b: {v: least(..s)}}\nc: {s: [9, 4], d: $.a.b}	{"a":{"b":{"v":1},"s":[3,1]},"c":{"d":{"v":4},"s":[9,4]}}
+ref-copy-greatest-reads-at-the-copy	gens	a: {s: [3, 1], b: {v: greatest(..s)}}\nc: {s: [9, 4], d: $.a.b}	{"a":{"b":{"v":3},"s":[3,1]},"c":{"d":{"v":9},"s":[9,4]}}
+ref-copy-sort-reads-at-the-copy	gens	a: {s: [3, 1], b: {v: sort(..s)}}\nc: {s: [9, 4], d: $.a.b}	{"a":{"b":{"v":[1,3]},"s":[3,1]},"c":{"d":{"v":[4,9]},"s":[9,4]}}
+ref-copy-sort-by-key-reads-at-the-copy	gens	a: {s: [{k: 2}, {k: 1}], b: {v: sort(..s, "k")}}\nc: {s: [{k: 9}, {k: 4}], d: $.a.b}	{"a":{"b":{"v":[{"k":1},{"k":2}]},"s":[{"k":2},{"k":1}]},"c":{"d":{"v":[{"k":4},{"k":9}]},"s":[{"k":9},{"k":4}]}}
+ref-copy-pick-reads-at-the-copy	gens	a: {s: [{k: 2}, {k: 1}], b: {v: pick(..s, "k")}}\nc: {s: [{k: 9}, {k: 4}], d: $.a.b}	{"a":{"b":{"v":[2,1]},"s":[{"k":2},{"k":1}]},"c":{"d":{"v":[9,4]},"s":[{"k":9},{"k":4}]}}
+ref-copy-join-reads-at-the-copy	gens	a: {s: [b, a], b: {v: join(..s)}}\nc: {s: [d, c], d: $.a.b}	{"a":{"b":{"v":"ba"},"s":["b","a"]},"c":{"d":{"v":"dc"},"s":["d","c"]}}
+ref-copy-join-with-a-separator-reads-at-the-copy	gens	a: {s: [b, a], b: {v: join(..s, "-")}}\nc: {s: [d, c], d: $.a.b}	{"a":{"b":{"v":"b-a"},"s":["b","a"]},"c":{"d":{"v":"d-c"},"s":["d","c"]}}
+ref-copy-written-first-sum	gens	c: {s: [9, 4], d: $.a.b}\na: {s: [3, 1], b: {v: sum(..s)}}	{"a":{"b":{"v":4},"s":[3,1]},"c":{"d":{"v":13},"s":[9,4]}}
+ref-copy-written-first-sort	gens	c: {s: [9, 4], d: $.a.b}\na: {s: [3, 1], b: {v: sort(..s)}}	{"a":{"b":{"v":[1,3]},"s":[3,1]},"c":{"d":{"v":[4,9]},"s":[9,4]}}
+ref-copy-written-first-pick	gens	c: {s: [{k: 9}], d: $.a.b}\na: {s: [{k: 2}], b: {v: pick(..s, "k")}}	{"a":{"b":{"v":[2]},"s":[{"k":2}]},"c":{"d":{"v":[9]},"s":[{"k":9}]}}
+ref-copy-written-first-join	gens	c: {s: [d, c], d: $.a.b}\na: {s: [b, a], b: {v: join(..s)}}	{"a":{"b":{"v":"ba"},"s":["b","a"]},"c":{"d":{"v":"dc"},"s":["d","c"]}}
+ref-copy-deeper-sum	gens	a: {s: [3, 1], b: {v: sum(..s)}}\nc: {x: {s: [9, 4], d: $.a.b}}	{"a":{"b":{"v":4},"s":[3,1]},"c":{"x":{"d":{"v":13},"s":[9,4]}}}
+ref-copy-deeper-sort	gens	a: {s: [3, 1], b: {v: sort(..s)}}\nc: {x: {s: [9, 4], d: $.a.b}}	{"a":{"b":{"v":[1,3]},"s":[3,1]},"c":{"x":{"d":{"v":[4,9]},"s":[9,4]}}}
+ref-copy-deeper-join	gens	a: {s: [b, a], b: {v: join(..s)}}\nc: {x: {s: [d, c], d: $.a.b}}	{"a":{"b":{"v":"ba"},"s":["b","a"]},"c":{"x":{"d":{"v":"dc"},"s":["d","c"]}}}
+ref-copy-shallower-sum	gens	a: {x: {s: [3, 1], b: {v: sum(..s)}}}\nc: {s: [9, 4], d: $.a.x.b}	{"a":{"x":{"b":{"v":4},"s":[3,1]}},"c":{"d":{"v":13},"s":[9,4]}}
+ref-copy-deeper-written-first-sum	gens	c: {x: {s: [9, 4], d: $.a.b}}\na: {s: [3, 1], b: {v: sum(..s)}}	{"a":{"b":{"v":4},"s":[3,1]},"c":{"x":{"d":{"v":13},"s":[9,4]}}}
+ref-copy-shallower-written-first-sum	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: sum(..s)}}}	{"a":{"x":{"b":{"v":4},"s":[3,1]}},"c":{"d":{"v":13},"s":[9,4]}}
+ref-name-holds-a-sum	gens	%T = {s: [3, 1], v: sum(.s)}\nc: %T	{"c":{"s":[3,1],"v":4}}
+#
+# A GENERATOR'S COPY WRITTEN FIRST, AT ANOTHER DEPTH (#946). The copy
+# takes arguments of its own before its paths are set, so it reads a
+# relative source where it stands and the target keeps reading its own.
+ref-copy-first-deeper-each-reads-at-the-copy	gens	c: {x: {s: [9, 4], d: $.a.b}}\na: {s: [3, 1], b: {v: each(..s, _)}}	{"a":{"b":{"v":[3,1]},"s":[3,1]},"c":{"x":{"d":{"v":[9,4]},"s":[9,4]}}}
+ref-copy-first-deeper-pack-reads-at-the-copy	gens	c: {x: {s: [p, q], d: $.a.b}}\na: {s: [x, y], b: {v: pack(..s, {n: key()})}}	{"a":{"b":{"v":{"x":{"n":"x"},"y":{"n":"y"}}},"s":["x","y"]},"c":{"x":{"d":{"v":{"p":{"n":"p"},"q":{"n":"q"}}},"s":["p","q"]}}}
+ref-copy-first-deeper-filter-reads-at-the-copy	gens	c: {x: {s: [9, 4], d: $.a.b}}\na: {s: [3, 1], b: {v: filter(..s, min(2))}}	{"a":{"b":{"v":[3]},"s":[3,1]},"c":{"x":{"d":{"v":[9,4]},"s":[9,4]}}}
+ref-copy-first-shallower-each-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: each(..s, _)}}}	{"a":{"x":{"b":{"v":[3,1]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}
+ref-copy-first-shallower-pack-leaves-the-target	gens	c: {s: [p, q], d: $.a.x.b}\na: {x: {s: [x, y], b: {v: pack(..s, {n: key()})}}}	{"a":{"x":{"b":{"v":{"x":{"n":"x"},"y":{"n":"y"}}},"s":["x","y"]}},"c":{"d":{"v":{"p":{"n":"p"},"q":{"n":"q"}}},"s":["p","q"]}}
+ref-copy-first-shallower-filter-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: filter(..s, min(2))}}}	{"a":{"x":{"b":{"v":[3]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}
+ref-copy-first-shallower-apply-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: apply(..s, _)}}}	{"a":{"x":{"b":{"v":[3,1]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}

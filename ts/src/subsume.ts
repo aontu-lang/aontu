@@ -804,8 +804,8 @@ function subsumeBag(
 
   // Closedness: a closed general bag admits only key sets it declares,
   // so the specific side must be closed and inside it.
-  if (true === g.closed) {
-    if (true !== s.closed) {
+  if (bound(g)) {
+    if (!bound(s)) {
       record(state, 'compat_narrowed', path, g, s,
         'the general value is closed; the open specific value admits' +
         ' surplus keys')
@@ -851,6 +851,12 @@ function subsumeBag(
   }
 
   return out
+}
+
+
+// A seal bounds a map's keys, and a list's length only where it has no spread.
+function bound(v: any): boolean {
+  return true === v.closed && (true !== v.isList || null == v.spread?.cj)
 }
 
 

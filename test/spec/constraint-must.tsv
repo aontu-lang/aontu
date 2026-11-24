@@ -101,3 +101,7 @@ must-a-trial-beside-the-list-kind-is-tried	errc	a: must(len(max(0)) & list, "m")
 # condition holds it, as the argument of a bound too.
 must-reads-its-place-through-a-bound	errc	v: must({x: min($.v.y)}, "m") & {x: 1, y: 2}	must
 must-reads-its-place-through-a-bound-admits	gen	v: must({x: min($.v.y)}, "m") & {x: 3, y: 2}	{"v":{"x":3,"y":2}}
+#
+# A relative path in the condition that climbs past the root names
+# nothing, so it reads no place: the reference's own refusal answers.
+must-condition-that-climbs-past-the-root	errc	a: 1 & must(..y, "m")	no_path

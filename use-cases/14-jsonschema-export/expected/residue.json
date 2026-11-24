@@ -25,7 +25,15 @@
       "properties": {},
       "type": "object"
     },
-    "total": {}
+    "total": {
+      "allOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        }
+      ],
+      "type": "number"
+    }
   },
   "required": [
     "amountEur",

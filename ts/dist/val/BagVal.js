@@ -10,6 +10,7 @@ exports.bagGenable = bagGenable;
 exports.undecided = undecided;
 const utility_1 = require("../utility");
 const err_1 = require("../err");
+const hints_1 = require("../hints");
 const walk_1 = require("../walk");
 const Val_1 = require("./Val");
 const admission_1 = require("./admission");
@@ -100,6 +101,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 .slice()
                 .sort((a, b) => (0, keyorder_1.cmpCodePoint)(String(a[0]), String(b[0])));
         }
+        let stalled = false;
         for (let item of entries) {
             const p = item[0];
             let child = item[1];
@@ -119,6 +121,16 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 continue;
             }
             const optional = this.optionalKeys.includes('' + p);
+            // Past a member that can't generate, the rest still say what else is incomplete.
+            if (stalled) {
+                if (null != ctx && !optional && bagGenable(child)) {
+                    const sctx = ctx.clone({ err: [], collect: true });
+                    child.gen(towardAt(this, sctx, p, out, at));
+                    sctx.err.filter((e) => 'incomplete' === (0, hints_1.codeClass)(e.why))
+                        .forEach((e) => ctx.adderr(e));
+                }
+                continue;
+            }
             // Lists append compactly, as in Go: a skipped element (hidden, a
             // dropped optional) leaves no hole at its index.
             const put = (v) => {
@@ -173,7 +185,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 const details = { key: p };
                 const nerr = (0, err_1.makeNilErr)(ctx, code, va, vb, undefined, details);
                 nerr.path = [...this.path, p];
-                break;
+                stalled = true;
             }
         }
         if (null != ctx) {

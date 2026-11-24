@@ -958,6 +958,12 @@ type bagView struct {
 	child    func(k string) Val
 }
 
+// A seal bounds a map's keys, and a list's length only where it has no spread.
+func (v bagView) bound() bool {
+	_, isList := v.val.(*ListVal)
+	return v.closed && (!isList || nil == v.spread)
+}
+
 func listView(l *ListVal) bagView {
 	keys := make([]string, len(l.peg))
 	for i := range l.peg {
@@ -1042,8 +1048,8 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 		out = subWorse(out, subsumeNode(st, kp, gChild, s.child(k)))
 	}
 
-	if g.closed {
-		if !s.closed {
+	if g.bound() {
+		if !s.bound() {
 			st.record("compat_narrowed", path, g.val, s.val,
 				"the general value is closed; the open specific value admits"+
 					" surplus keys")

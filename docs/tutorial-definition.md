@@ -3300,10 +3300,9 @@ def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Va
 
 So with `%T = {v: ..x}`, `x: 1` and `a: {x: 2, b: %T}`, `a.b.v` reads
 `a.x`, 2, whichever order the document writes them in, while the body
-at its own place reads `$.x`, where it must stand too. Both engines'
-`vet` reads a use so; their evaluation reads it by the order the
-document writes the two, and a body that is itself a relative path,
-`%T = .x`, at its own place in every order, which #504 tracks.
+at its own place reads `$.x`, where it must stand too. Both engines
+read a use so, in evaluation and in `vet`, and a body that's itself a
+relative path, `%T = .x`, at each use too.
 
 A path reference's copy holds what the document writes at its place,
 as `Decls.written` reads it: through meets, maps and lists, a name's
@@ -3342,9 +3341,7 @@ the body's own copy, at `$.%T`, reads `..x` as `$.x`, which must name
 something. A use inside a body reads where it stands at the body's own
 place as well. With `%T = {u: %U}` and `%U = {w: ..x}`, the use at
 `$.%T.u` reads `$.%T.x`, which `%T` doesn't hold, so the document is an
-`error`, as both engines' `vet` reads it where `%T` comes first. Where
-`%T = $.a.b` comes first, both engines read the target's paths below
-`$.%T`, which #692 tracks.
+`error`, as both engines read it in either order.
 
 A use of such a name that isn't recursive reads as a copy wherever it
 stands (`Decls.copyNames`). A recursive name's copies would never end,
@@ -3387,15 +3384,20 @@ of what the document writes there, since `vet` against data asks what
 evaluating the two together asks, so data that sets `a.b.v` to 2 meets
 the copy's 3, and `vet` refuses it. The output evaluation generates,
 whose `a.b.v` is 2, fails `vet` against its own document for that
-reason. Both engines read so where the reference comes first, and read
-the target's paths where it writes them where the target comes first,
-which #504 tracks. A place that holds a spread whose template reads its
-member's place is such a place too, and its copy holds the template as
-written, read at the copy's own members: with
-`a: {x: 2, b: {k: {}, &: {v: ...x}}}` and `c: {x: 3, d: $.a.b}`,
-`c.d.k.v` reads `c.x`, 3. Where the target comes first, both engines
-read it where `a.b` writes it, and Go's `vet` reads it both ways, which
-#696 tracks.
+reason. Both engines read so in either order. A place that holds a
+spread whose template reads its member's place is such a place too, and
+its copy holds the template as written, read at the copy's own members:
+with `a: {x: 2, b: {k: {}, &: {v: ...x}}}` and `c: {x: 3, d: $.a.b}`,
+`c.d.k.v` reads `c.x`, 3, in both engines.
+
+A copy makes a call or an operation over a relative path again where
+it stands, so with `a: {x: "p", b: {v: upper(..x)}}` and
+`c: {x: "q", d: $.a.b}`, `c.d.v` is `"Q"`. A path reads through a place
+that's itself a relative path: with `a: {c: 1, d: .c}`, `e: $.a.d` is
+1, the value `a.d` reads, where a name whose body is such a path reads
+it again at each use. A copy stands at its reference's own place
+whatever the target's depth, so `c: $.a.b.k` beside
+`a: {b: {k: {v: ..x}, x: 5}}` reads `..x` as `$.x`.
 
 At its own place, `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
 a path there reads in the normal form of the name's bodies, met, as
@@ -5101,9 +5103,11 @@ names a waiting body waits too, through a call or another name, so
 `Decls.waitNames` finds those names to a fixed point. The name itself
 stays a name, though, so it reads its own body read the same way, and
 what that body fixes holds: `%T = %U & 2` beside `%U = _ & 1` is an
-`error`, as both engines answer. Both engines read a
-waiting `key(n)` at the declaration's own name, though, which #528
-tracks, and the definition reads it as waiting. And both skip a
+`error`, as both engines answer. Both engines read a `key(n)` that
+climbs out of the body as waiting too. One that reads a member inside
+the body they read as that member's key, where the definition reads any
+string, so it admits an unused `%T = {a: key(0) & "b"}` that both
+refuse, which #942 tracks. And both skip a
 conflict met with a call that waits through a name, so they answer
 `valid` for `%T = add(%U, 1) & (1 & 2)`, which the definition reads as
 an `error` and #530 tracks.
@@ -5587,13 +5591,13 @@ satisfy as a key that must be absent, so `{x?: 1 & 2}` against `{}` is
 cause for the second kind is that a contradictory value is an error,
 and no generated row carries either corner.
 
-A seal survives a meet, which the engines lose. `close([1, 2])` refuses
-`[1, 2, 3]`, so no meet with it admits `[1, 2, 3]`:
+A seal survives a meet. `close([1, 2])` refuses `[1, 2, 3]`, so no meet
+with it admits `[1, 2, 3]`:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
-/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, which both engines
-admit: a seal fixes the length, and no meet admits what a side refuses. -/
+/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`: a seal fixes the
+length, and no meet admits what a side refuses. -/
 example : ¬ Instance .empty
     (.meet (.list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true)
       (.list [] (some .integer) false))
@@ -5622,19 +5626,22 @@ Now vet it:
 <!-- test: run -->
 ```sh
 $ aontu vet sealed.aontu three.aontu
-verdict: valid
+verdict: invalid
+
+$.v.2: closed [conflict]
+  [aontu/closed]: Cannot resolve value at path $.v.2
+  data: three.aontu:1:9 (3)
 $ echo $?
-0
+1
 ```
 
-Both engines admit it: the open side's spread joins the sealed list,
-and a sealed list with a spread has no fixed length, so the meet admits
-what one of its sides refuses, which no meet can. Step 10's `meetList`
-keeps the length and takes the spread into each position instead. The
-engines are the side that changes, and the last three rows of
+Both engines once admitted it: the open side's spread joined the sealed
+list, and a sealed list with a spread has no fixed length, so the meet
+admitted what one of its sides refuses, which no meet can. They now do
+as step 10's `meetList` does, keeping the length and taking the spread
+into each position. The last three rows of
 [`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) carry the
-case, `invalid` in every mode, and the ledger names them, so the run
-fails the day an engine comes to agree and the rows still stand there.
+case, `invalid` in every mode, and they have left the ledger.
 
 A name declared as itself alone, `%U = %U`, is an `error` in the
 definition, a schema that admits nothing, as step 8 proves, and
@@ -8511,16 +8518,14 @@ At `a`, `key()` reads past the top, so `a` is `"q"`, and the copy at
 the copy would hold `"q"`, which refuses the data `{"b": {"c": "qb"}}`.
 
 The rows are x2121 on and r0 on, and both engines answer every one as
-the definition does. Six shapes have no row:
+the definition does. A path into a generator's output rereads its keys
+where it lands, as a path to the generator itself does, and so does a
+path shallower than its target: rows from `key-reread-into-pack-output`
+on of `test/spec/gen-key.tsv` hold both engines to the first. Four
+shapes have no row:
 
 - A key deeper in a spread than its own position, `&: {name: key()}`,
   which both engines read as the member's key, has no rule yet.
-- A path into a generator's output finds the keys the generator wrote
-  in both engines, where a path to the generator itself rereads them
-  where it lands. The definition rereads both, and has no rule for the
-  difference yet.
-- A path shallower than its target leaves a stale level in both
-  engines, which #463 records.
 - A preference on a key, `*key() | "x"`, which neither engine
   resolves, as #465 records.
 - A path to a generator whose list argument holds a key,
@@ -9559,10 +9564,7 @@ link's template makes, rows from rf228 on a flow that conflicts with
 its own link, rows from rf237 on a body's link to the body's own
 member, and rows from rf252 on an address the data supplies and data
 that picks a link's arm. Both engines answer every one as the
-definition does. Both
-engines read a body's relative link at the body's own place or where
-each use stands, by the order the document writes the two, which #504
-tracks, and each row writes the body before its use. Both engines flow
+definition does. Each row writes the body before its use. Both engines flow
 a link that a path
 reference copies whole once, its template read at one copy's place,
 which the order of the document picks, where the definition reads each
@@ -10576,10 +10578,9 @@ reads 3. In `pairs` the list `["p", key(0)]` reads its own index, 1,
 before it splices, and the `key(0)` after it reads 2, the index the
 pieces of the list leave. `emitBody` reads a template a call makes,
 rather than one the table writes, for its node at no position, so a
-body there that holds a `key(n)` stays unmade. The rows are ek0 on.
-Both engines answer every one as the definition does, but for a marked
-piece, which they still give a position, as #539 records. The ledger
-takes those six rows, ek72 to ek77.
+body there that holds a `key(n)` stays unmade. The rows are ek0 on, and
+both engines answer every one as the definition does: a piece a mark
+leaves out takes no position in either.
 
 A nested `emit` reads its selection, `.logs`, for the outer node, and
 its own table for each of its own nodes. An empty selection emits
@@ -10611,13 +10612,12 @@ def innerTable : Val → Val
 
 Only a table's place binds that hole: `%w` used anywhere else holds a
 hole nothing binds, an error, as both engines answer `hole_unbound`.
-Rows ew0 on hold tables written in place and en0 on named ones. Both
-engines answer every one as the definition does but six, a name for a
-template, `%r = {match: number, body: [key(0)]}`, whose `key(0)` both
-read at the declaration's own place, as #528 records. The ledger takes
-those six. TypeScript also reads a bare `key(n)` in a named table's
-body at the body's own index, where the `emit` stands at the top of
-the document, which #783 tracks and no row holds.
+Rows ew0 on hold tables written in place and en0 on named ones, and
+both engines answer every one as the definition does. A name for a
+template, `%r = {match: number, body: [key(0)]}`, reads its `key(0)`
+where each piece lands. Where a named table's body holds a marked
+piece, though, the definition keeps the piece and drops its mark, which
+#943 tracks and no row holds.
 
 A named table may name itself, which is how a rule set walks a nested
 selection into nested output. The name is recursive, so the expansion

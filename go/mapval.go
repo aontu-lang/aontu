@@ -302,6 +302,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 	keys := append([]string(nil), m.keys...)
 	sort.Strings(keys)
 	outer := genPlace(ctx)
+	stalled := false
 	for _, k := range keys {
 		at := append(cp(m.path), k)
 		child := placeShared(m.peg[k], at)
@@ -316,6 +317,12 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		}
 		optional := m.isOptional(k)
 
+		if stalled {
+			if nil != ctx && !optional && genable(child) {
+				alsoIncomplete(ctx, child, k, at)
+			}
+			continue
+		}
 		if !genable(child) {
 			if optional {
 				continue
@@ -341,7 +348,8 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			details := map[string]string{"key": k}
 			n := makeNilErrFull(ctx, code, va, vb, "", details)
 			n.path = append(cp(m.path), k)
-			break
+			stalled = true
+			continue
 		}
 
 		// An optional child generates in an isolated collect context so
@@ -403,6 +411,20 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		return genWriteMap(ctx, m, out)
 	}
 	return out, nil
+}
+
+// Past a member that can't generate, the rest still say what else is incomplete.
+func alsoIncomplete(ctx *Ctx, child Val, key any, at []string) {
+	ctx.trialsOf()
+	c2 := *ctx
+	c2.err = nil
+	c2.collect = true
+	genAt(child, &c2, key, at)
+	for _, e := range c2.err {
+		if "incomplete" == codeClass(e.why) {
+			ctx.adderr(e)
+		}
+	}
 }
 
 func withoutKey(keys []string, k string) []string {
@@ -582,7 +604,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		for _, k := range pm.keys {
 			if pm.isOptional(k) {
 				if _, declared := m.peg[k]; !declared && !out.isOptional(k) &&
-					(!m.closed || takes(m.dirSealed, pm) || pm.isAliasKey(k)) {
+					(!m.closed || (m.dirSealed && !pm.isData) || pm.isAliasKey(k)) {
 					out.optional = append(out.optional, k)
 				}
 			} else {
@@ -673,7 +695,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			// A DECLARATION IS NOT A FIELD: `close` never counts one. No
 			// instance can hold an optional key the closed side does not
 			// declare, so it adds nothing rather than refusing.
-			if _, allowed := m.peg[pk]; m.closed && !takes(m.dirSealed, pm) && !allowed &&
+			if _, allowed := m.peg[pk]; m.closed && !(m.dirSealed && !pm.isData) && !allowed &&
 				!pm.isAliasKey(pk) {
 				if pm.isOptional(pk) {
 					continue
@@ -743,7 +765,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	// Both sides closed: each must declare the other's keys too.
-	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed && !takes(pm.dirSealed, m) {
+	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed && !(pm.dirSealed && !m.isData) {
 		own := append([]string{}, m.keys...)
 		sort.Strings(own)
 		for _, k := range own {
