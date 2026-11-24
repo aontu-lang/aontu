@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 138 on 2026-11-23),
+  on 2026-11-22), ledger rows (394 at most then, 84 on 2026-11-24),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -63,44 +63,47 @@ issues:
 
 ## Phase 2: the rules with the most ledger rows
 
-Four workstreams hold 354 of the ledger's rows. In order:
+Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
+47 of its 84 on 2026-11-24. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
-   it removes the TypeScript crash of #360.
-2. **Preferences and disjunction arms**: the largest, 178 rows, already
-   ruled.
+   it removes the TypeScript crash of #360. Built 2026-11-20, and all
+   five are closed.
+2. **Preferences and disjunction arms**: the largest, 178 rows then and
+   18 now, already ruled.
 3. **Seals and marks**: led by #726's bare `close()` and `open()`, with
-   57 rows, ruled by decisions 44 to 46. #748 and #749 here also
-   unblock the relations workstream.
+   57 rows then and 6 now, ruled by decisions 44 to 46. #748 and #749
+   here also unblock the relations workstream.
 4. **Copies, bodies and templates**: #738 is ruled (rulings 59 to 61),
-   and the work follows `sketch/CORE.0.md` §4.
+   and the work follows `sketch/CORE.0.md` §4. #504 was built
+   2026-11-24, and 15 rows are left of 78.
 
 ### The alias-cycle rule
 
-5 issues (4 M, 1 L), 33 ledger rows.
+5 issues (4 M, 1 L).
 
-A name or a path that reaches itself consuming no key or element is a static `error` (decisions 1, 2 and 7). Both engines answer it as a cycle found while evaluating: `invalid`, a budget, or in TypeScript a stack overflow. One check, run before evaluation, clears the group.
+A name or a path that reaches itself consuming no key or element is a static `error` (decisions 1, 2 and 7). Both engines answer it as a cycle found while evaluating: `invalid`, a budget, or in TypeScript a stack overflow. One check, run before evaluation, clears the group. It was built on 2026-11-20, and the five issues are closed.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
 | [#329](https://github.com/aontu-lang/aontu/issues/329) | parity | M |  | A reference cycle through nof trial schemas is invalid in TypeScript and a unify_cycle error in Go. |
-| [#354](https://github.com/aontu-lang/aontu/issues/354) | def | M | 3 | `%U = %U` answers invalid by unify_cycle in both ports; the definition rules a self-declared name an error. |
-| [#357](https://github.com/aontu-lang/aontu/issues/357) | def | L | 9 | Self-reading paths answer unify_cycle (invalid) not error, and a recursive position met in place cycles instead of expanding. |
+| [#354](https://github.com/aontu-lang/aontu/issues/354) | def | M |  | `%U = %U` answers invalid by unify_cycle in both ports; the definition rules a self-declared name an error. |
+| [#357](https://github.com/aontu-lang/aontu/issues/357) | def | L |  | Self-reading paths answer unify_cycle (invalid) not error, and a recursive position met in place cycles instead of expanding. |
 | [#360](https://github.com/aontu-lang/aontu/issues/360) | parity | M |  | A trial schema reading only its own name overflows the TypeScript stack on a container; Go answers invalid. |
-| [#361](https://github.com/aontu-lang/aontu/issues/361) | def | M | 21 | A name reached through its own trial with nothing between is decided by the budget, not an error. |
+| [#361](https://github.com/aontu-lang/aontu/issues/361) | def | M |  | A name reached through its own trial with nothing between is decided by the budget, not an error. |
 
 ### Preferences and disjunction arms
 
-11 issues (4 S, 5 M, 2 L), 178 ledger rows.
+11 issues (4 S, 5 M, 2 L), 18 ledger rows.
 
-How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714 still generates the wrong value in four shapes no `gens` row holds, so its rows come first. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
+How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714, the layers, was built and closed on 2026-11-20, and its rows left the ledger with most of #700's, #702's and #704's. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
-| [#700](https://github.com/aontu-lang/aontu/issues/700) | def | L | 90 | A path in a live disjunction arm or lone preference waits; both ports say incomplete, the definition valid. |
-| [#702](https://github.com/aontu-lang/aontu/issues/702) | def | M | 18 | Lone preference with an outside path: both ports' vet contradicts their own eval; definition sides with eval. |
-| [#704](https://github.com/aontu-lang/aontu/issues/704) | def | M | 45 | A lone preference's parent arm lifts a path inside it to any, not the parent type it reads. |
-| [#714](https://github.com/aontu-lang/aontu/issues/714) | def | L | 22 | Meeting preferences of different ranks drops the higher rank's constraint and default; rulings 41, 42, decision 43. |
+| [#700](https://github.com/aontu-lang/aontu/issues/700) | def | L | 3 | A path in a live disjunction arm or lone preference waits; both ports say incomplete, the definition valid. |
+| [#702](https://github.com/aontu-lang/aontu/issues/702) | def | M | 6 | Lone preference with an outside path: both ports' vet contradicts their own eval; definition sides with eval. |
+| [#704](https://github.com/aontu-lang/aontu/issues/704) | def | M | 6 | A lone preference's parent arm lifts a path inside it to any, not the parent type it reads. |
+| [#714](https://github.com/aontu-lang/aontu/issues/714) | def | L |  | Meeting preferences of different ranks drops the higher rank's constraint and default; rulings 41, 42, decision 43. |
 | [#482](https://github.com/aontu-lang/aontu/issues/482) | def | M | 3 | A made default clash (`pref(1 \| 2)`, meets) reads invalid under vet, where a written clash is error. |
 | [#719](https://github.com/aontu-lang/aontu/issues/719) | diag | S |  | TypeScript leaks the internal trial-nil sentinel, unsited, where Go answers `pref_rank_clash`. |
 | [#349](https://github.com/aontu-lang/aontu/issues/349) | bug | S |  | `*(` before a literal container reads as an implicit bag: an error alone, silently dropped in a disjunction. |
@@ -131,24 +134,24 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 
 ### Where copies, bodies and templates read paths and key()
 
-16 issues (1 S, 13 M, 2 L), 78 ledger rows.
+16 issues (1 S, 13 M, 2 L), 15 ledger rows.
 
-Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 alone has 54 rows. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
+Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
-| [#463](https://github.com/aontu-lang/aontu/issues/463) | def | L |  | `key()` copied through a reference shallower than its target reads a stale target segment. |
+| [#463](https://github.com/aontu-lang/aontu/issues/463) | def | L |  | `key()` copied through a reference shallower than its target reads a stale target segment. Answered by #504's build, 2026-11-24. |
 | [#465](https://github.com/aontu-lang/aontu/issues/465) | def | M |  | `key()` under a preference never resolves; TS silently drops the field, Go answers `no_gen`. |
 | [#500](https://github.com/aontu-lang/aontu/issues/500) | def | M |  | Relative path in a spread template names nothing at members a link or copy makes |
 | [#501](https://github.com/aontu-lang/aontu/issues/501) | parity | M |  | Alias body's relative spread used at the top: TS no_path, Go valid |
-| [#504](https://github.com/aontu-lang/aontu/issues/504) | def | L | 54 | Relative path in alias body or path-reference copy reads by source order; ruling 26 says at copy |
-| [#520](https://github.com/aontu-lang/aontu/issues/520) | def | M |  | Path into generator output or landing above its target rereads key() wrongly, both engines |
+| [#504](https://github.com/aontu-lang/aontu/issues/504) | def | L |  | Relative path in alias body or path-reference copy reads by source order; ruling 26 says at copy. Built in both ports 2026-11-24. |
+| [#520](https://github.com/aontu-lang/aontu/issues/520) | def | M |  | Path into generator output or landing above its target rereads key() wrongly, both engines. The landing half is answered by #504's build, 2026-11-24; a path into a generator's output still keeps the keys the generator wrote. |
 | [#528](https://github.com/aontu-lang/aontu/issues/528) | def | M | 6 | key(n) in a declaration body reads the internal name %T@file, so fitting bodies error |
 | [#539](https://github.com/aontu-lang/aontu/issues/539) | def | M | 6 | key() after an absent list element reads the written index, not the element's position |
-| [#330](https://github.com/aontu-lang/aontu/issues/330) | diag | M |  | A key missing under a reference to a deeper target is reported at a nonexistent path. |
-| [#692](https://github.com/aontu-lang/aontu/issues/692) | parity | M | 6 | A name bound to a multi-step path, written first, misreads the target's relative paths; TS and Go differ. |
+| [#330](https://github.com/aontu-lang/aontu/issues/330) | diag | M |  | A key missing under a reference to a deeper target is reported at a nonexistent path. Answered by #504's build, 2026-11-24. |
+| [#692](https://github.com/aontu-lang/aontu/issues/692) | parity | M |  | A name bound to a multi-step path, written first, misreads the target's relative paths; TS and Go differ. Answered by #504's build, 2026-11-24. |
 | [#698](https://github.com/aontu-lang/aontu/issues/698) | parity | S |  | TypeScript places a relative path in a `match` result under a NaN step; Go matches the definition. |
-| [#696](https://github.com/aontu-lang/aontu/issues/696) | parity | M | 3 | Go's vet reads a template copied by a path reference twice, conflicting; TypeScript reads it once. |
+| [#696](https://github.com/aontu-lang/aontu/issues/696) | parity | M |  | Go's vet reads a template copied by a path reference twice, conflicting; TypeScript reads it once. Answered by #504's build, 2026-11-24. |
 | [#765](https://github.com/aontu-lang/aontu/issues/765) | def | M |  | eval reads deeper recursion levels' relative paths at the body's place; vet and definition read them per level. |
 | [#762](https://github.com/aontu-lang/aontu/issues/762) | def | M | 1 | Recursive name used alone whose body links to its own member: engines expand it (valid), definition says incomplete. |
 | [#691](https://github.com/aontu-lang/aontu/issues/691) | def | M |  | A map spread's template cannot read a sibling it supplies at a member written in the same map. |
@@ -258,7 +261,7 @@ Faults at an include or a built-in model's boundary, which lose structure or a s
 
 ### subsume and breaking
 
-5 issues (2 S, 3 M), 1 ledger rows.
+5 issues (2 S, 3 M), 1 ledger row.
 
 The `subsume` and `breaking` gaps besides relations: a range inside a template (#321), recursive lists (#387), defaults at a list position (#424), and the missing finding for a document that does not stand up (#774, with #755).
 
@@ -438,12 +441,14 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 43 | 354 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 75 | 52 |
+| 2 | alias cycles, preferences, seals and marks, copies | 43 | 47 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 75 | 25 |
 | 4 | diagnostics, tooling | 33 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | 2 |
 
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
-they stand on 2026-11-22 with #907 added.
+they stand on 2026-11-22 with #907 added. The ledger rows are counted
+on 2026-11-24, from the issue each row's cause names. The ledger's
+other 10 rows name decision 3 and no issue: they're #343's.

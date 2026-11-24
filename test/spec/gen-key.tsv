@@ -64,3 +64,7 @@ key-target-keeps-its-own-join	gens	a: join([key()])\nb: c: $.a	{"a":"a","b":{"c"
 key-target-keeps-its-own-each	gens	a: each([key()], _)\nb: c: $.a	{"a":["a"],"b":{"c":["c"]}}
 key-target-keeps-its-own-pack	gens	a: pack([key()], {v: 1})\nb: c: $.a	{"a":{"a":{"v":1}},"b":{"c":{"c":{"v":1}}}}
 key-target-keeps-its-own-pack-shallow	gens	a: pack([key()], {v: 1})\nb: $.a	{"a":{"a":{"v":1}},"b":{"b":{"v":1}}}
+key-target-keeps-its-own-under-a-shallower-copy	gens	a: b: upper(key())\nc: $.a.b	{"a":{"b":"A"},"c":""}
+key-target-keeps-its-own-under-a-shallower-copy-written-first	gens	c: $.a.b\na: b: upper(key())	{"a":{"b":"A"},"c":""}
+key-target-keeps-its-own-concat-under-a-shallower-copy	gens	a: b: {x: upper("x" + key())}\nc: $.a.b	{"a":{"b":{"x":"XB"}},"c":{"x":"XC"}}
+key-target-keeps-its-own-list-under-a-shallower-copy	gens	a: b: [upper(key())]\nc: $.a.b	{"a":{"b":["B"]},"c":["C"]}

@@ -8,6 +8,46 @@ each change affects.
 
 ## Unreleased
 
+### A copy reads its relative paths where it stands, in either order
+
+#504, #692, #696, #463 and #330 in both engines, and #520 in part. A
+path reference's copy and a name's use read each relative path again
+where the copy stands (ruling 26), whichever the document writes first.
+With `a: {x: 2, b: {v: ..x}}` and `c: {x: 3, d: $.a.b}`, `c.d.v` is 3
+in either order, under `aontu` and `aontu vet` alike. Both engines had
+answered 2 where `a` came first, since the copy took what the target
+had already read, and `vet` refused the output `aontu` generated for a
+name's body written before its use.
+
+A call or an operation over a relative path is made again at the copy:
+`{v: upper(..x)}` copied beside `x: "q"` reads `"Q"`. A term met beside
+the path is met again too. A path reads through a place that is itself
+a relative path, so `e: $.a.d` beside `a: {d: .x, x: 1}` is 1, while a
+name's use reads its body's path where the use stands.
+
+The copy stands at its reference's own place, whatever the target's
+depth. A copy shallower or deeper than its target had kept part of the
+target's path, so `key()` and each relative path in it read a place
+that isn't there: `a: b: {x: key()}` with `c: $.a.b` gave `c.x` as
+`"x"`, and it's now `"c"`. Go named a key missing under such a copy at
+`$.quote.M.a`, a path in neither document, and now names `$.quote.a`
+as TypeScript does. Under `vet` the engines had also split on a call in
+a name's body, `%T = {v: add(..x, 1)}`.
+
+- `ts/src/unify.ts`, `ts/src/val/Val.ts`, `ts/src/val/RefVal.ts`,
+  `ts/src/val/FuncBaseVal.ts` and `ts/src/val/OpBaseVal.ts`;
+  `go/unify.go`, `go/val.go`, `go/clone.go`, `go/ref.go`, `go/func.go`,
+  `go/op.go`, `go/seal.go`, `go/mapval.go` and `go/listval.go`.
+- 54 rows of `test/spec/def-path.tsv` leave `spec/ledger.tsv`, whose
+  bound falls from 138 to 84.
+- `test/spec/ref.tsv` gains 44 rows, `test/spec/vet.tsv` 14 and
+  `test/spec/seal.tsv` 5. Five rows of `test/spec/func.tsv` that held
+  the misplaced copy's key now hold the copy's own.
+- The entry for #330 in `test/spec/divergent.tsv` is closed.
+- Still open: a staged call over a relative path (`each`, `pack`,
+  `pick`) reads at the target in both orders, and a path into a
+  generator's output keeps the keys the generator wrote (#520).
+
 ### A bare `close()` seals every term at its place, from whichever map
 
 #726, in part, in both engines. A bare `close()` seals the terms at

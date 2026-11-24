@@ -1,7 +1,8 @@
 "use strict";
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
+exports.withDepth = exports.meetTemplate = exports.unite = exports.rereadTerms = exports.Unify = void 0;
+exports.rereadCall = rereadCall;
 exports.holdsLink = holdsLink;
 exports.linksOf = linksOf;
 exports.rootLinks = rootLinks;
@@ -104,7 +105,36 @@ function drives(v) {
         // concrete structure it expands against.
         || v.isRecurse;
 }
+const plain = (t) => null == t || true === t.isTop;
+// What a value stands for as written: what a relative path read there, or the value itself.
+const rereadTerms = (t) => plain(t) ? [] : (t.reread ?? [t]);
+exports.rereadTerms = rereadTerms;
+// A call over what a relative path read is made again where a copy stands (ruling 26).
+function rereadCall(ctx, out, args, peer, again) {
+    if (true === out.isNil || !args.some((a) => undefined !== a.reread)) {
+        return out;
+    }
+    const kept = out.clone(ctx, { path: out.path });
+    kept.reread = [again(), ...rereadTerms(peer)];
+    return kept;
+}
+// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
+// The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+function rereadOn(ctx, out, a, b) {
+    const alone = plain(a) || plain(b);
+    if (null == out || true === out.isNil || (alone && (out === a || out === b || undefined !== out.reread))) {
+        return out;
+    }
+    const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path });
+    kept.reread = [...rereadTerms(a), ...rereadTerms(b)];
+    return kept;
+}
 const unite = (ctx, a, b, whence) => {
+    const out = meet(ctx, a, b, whence);
+    return undefined === a?.reread && undefined === b?.reread ? out : rereadOn(ctx, out, a, b);
+};
+exports.unite = unite;
+const meet = (ctx, a, b, whence) => {
     if (a !== undefined && a !== null) {
         if (a === b) {
             if (a.done)
@@ -271,7 +301,6 @@ const unite = (ctx, a, b, whence) => {
     }
     return out;
 };
-exports.unite = unite;
 function riders(a, b, to) {
     const av = Object(a);
     const bv = Object(b);

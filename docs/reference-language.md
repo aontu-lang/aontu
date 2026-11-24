@@ -1785,19 +1785,14 @@ own place too: with `%T = {u: %U}` and `%U = {w: ..x}`, the use at
 writes at the target is part of what the document writes there, so it
 meets the copy too: data that sets `a.b.v` to 2 meets the copy's 3, and
 `aontu vet` refuses it, the output `aontu` generates among it. Both
-engines read a copy's
-relative paths by the order the document writes the two. Where the alias
-or the target comes first they read the paths where they're written, so
-`a.b.v` is 1 and `c.d.v` is 2, and where it comes after they read them
-where the copy stands. `aontu vet` reads a use of the alias where it
-stands in either order, but `%T = .x` at the alias's own place. The
-engines split on a path in a call's argument. TypeScript reads it where
-it's written in either order, under `aontu vet` too, and Go reads it as
-it reads any other.
-[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both.
-Where `%T = $.a.b` comes first, both engines read the target's relative
-paths below `$.%T`, where they name nothing, which
-[#692](https://github.com/aontu-lang/aontu/issues/692) tracks.
+engines read a copy's relative paths where the copy stands, in
+whichever order the document writes the two, under `aontu` and
+`aontu vet` alike. A copy makes a call or an operation over such a path
+again there: with `a: {x: "p", b: {v: upper(..x)}}` and
+`c: {x: "q", d: $.a.b}`, `c.d.v` is `"Q"`. A path reads through a place
+that's itself a relative path, so with `a: {c: 1, d: .c}`, `e: $.a.d`
+is 1. A copy stands at its reference's own place whatever the target's
+depth, and `key()` in it reads the copy's own key.
 
 The definition reads a use of a name, and a path reference's copy, where
 it stands, in the schema and in a body at its own place alike, from a

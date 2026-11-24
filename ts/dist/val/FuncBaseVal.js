@@ -235,6 +235,13 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     // A meet with the root's declaring map lands at the root.
                     out.path = true === peer.isMap && 0 < peer.aliasKeys.length ?
                         peer.path : this.path;
+                    if (null !== pegprep) {
+                        out = (0, unify_1.rereadCall)(ctx, out, newpeg, peer, () => {
+                            const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } });
+                            again.path = this.path;
+                            return again;
+                        });
+                    }
                     why += 'pegdone';
                 }
                 else if (peer.isTop) {

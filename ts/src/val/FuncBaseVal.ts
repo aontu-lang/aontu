@@ -11,7 +11,7 @@ import {
 } from '../type'
 
 import { AontuContext } from '../ctx'
-import { rideOn, unite, withDepth } from '../unify'
+import { rereadCall, rideOn, unite, withDepth } from '../unify'
 
 
 import {
@@ -320,6 +320,14 @@ class FuncBaseVal extends FeatureVal {
           // A meet with the root's declaring map lands at the root.
           out.path = true === peer.isMap && 0 < (peer as any).aliasKeys.length ?
             peer.path : this.path
+
+          if (null !== pegprep) {
+            out = rereadCall(ctx, out, newpeg, peer, () => {
+              const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } })
+              again.path = this.path
+              return again
+            })
+          }
 
           why += 'pegdone'
         }

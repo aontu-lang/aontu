@@ -23,7 +23,7 @@ import { AontuContext } from '../ctx'
 import { makeNilErr } from '../err'
 import { RecurseVal, containsRecurseOf, declaration, throughRider } from './RecurseVal'
 import { fixSeals, sealTree, unsealTree } from './SealVal'
-import { unite } from '../unify'
+import { rereadTerms, unite } from '../unify'
 
 
 import {
@@ -38,6 +38,7 @@ import { ConjunctVal } from './ConjunctVal'
 import { trialUnify } from './FuncBaseVal'
 import { VarVal } from './VarVal'
 import { FeatureVal } from './FeatureVal'
+import { repathInstance } from './Val'
 import { integerDigits } from './numkind'
 import { BigIntegerVal } from './BigIntegerVal'
 import { BigDecimalVal } from './BigDecimalVal'
@@ -52,6 +53,54 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable'
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it. So is an `each`'s
 // template, whose mark leaves every instance out of the list it makes.
+function rereadKids(v: any, made?: boolean): any {
+  const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg)
+  return true === v.isMap || true === v.isList || args || true === v.isConjunct ||
+    true === v.isDisjunct ? v.peg : true === v.isPref ? v : undefined
+}
+
+
+function holdsReread(v: any): boolean {
+  const kids = rereadKids(v)
+  return undefined !== v.reread || (true === v.isPref ? holdsReread(v.peg) :
+    Object.keys(kids ?? {}).some((k: string) => holdsReread(kids[k])))
+}
+
+
+// A copy reads each relative path again where it stands (ruling 26), a call's arguments
+// only in a call made again (`made`): a staged call's copy keeps its own.
+function rereadAt(ctx: AontuContext, v: any, path: string[], made?: boolean): Val {
+  const terms: Val[] | undefined = v.reread
+  if (undefined !== terms) {
+    const again = terms.map((t: Val) => {
+      const c: any = t.clone(ctx, { path, dup: true })
+      repathInstance(c, path)
+      c.reread = undefined
+      c.again = true === c.isRef
+      return rereadAt(ctx, c, path, true)
+    })
+    const out: any = 1 === again.length ? again[0] :
+      new ConjunctVal({ peg: again, path } as any, ctx)
+    out.dc = 0
+    return out
+  }
+  const kids = rereadKids(v, made)
+  for (const k of true === v.isPref ? ['peg'] : Object.keys(kids ?? {})) {
+    // A list's position is a number in a path, as the parser records it.
+    const at = true === v.isMap ? [...path, k] : true === v.isList ? [...path, +k as any] : path
+    const kid = rereadAt(ctx, kids[k], at, made)
+    if (kid !== kids[k]) {
+      kids[k] = kid
+      v.dc = 0
+    }
+    else if (true !== kid.done && true === v.done) {
+      v.dc = 0
+    }
+  }
+  return v
+}
+
+
 function dropPendingMarkWrappers(v: Val): Val {
   return walk(v, (key: string | number | undefined, val: any, parent: any) =>
     undefined !== key && !(true === parent?.isEachFunc && 1 === Number(key)) &&
@@ -318,7 +367,8 @@ class RefVal extends FeatureVal {
       // takes the RefVal arm below rather than a separate null arm.
       const resolved = found ?? this
 
-      if (resolved instanceof RefVal) {
+      // A path a copy reads again resolves here; any other reference found waits for its own place.
+      if (resolved instanceof RefVal && (resolved === this || true !== (resolved as any).again)) {
         if (peer.isTop) {
           out = this
         }
@@ -349,6 +399,12 @@ class RefVal extends FeatureVal {
           }
         }
         out = unite(te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx, resolved, peer, 'ref')
+        if (!this.absolute && !out.isNil) {
+          const kept: any = peer.isTop || true === out.isConjunct ? out :
+            out.clone(ctx, { path: out.path })
+          kept.reread = [this, ...rereadTerms(peer)]
+          out = kept
+        }
       }
 
       out.dc = DONE === out.dc ? DONE : this.dc + 1
@@ -637,11 +693,26 @@ class RefVal extends FeatureVal {
           const typed = true === out.mark.type
 
           const staged = out.holdsStaged
-          out = undeclared(out.clone(ctx, { dup: !staged }))
+          // The copy stands at the reference's own place, on arguments of its own: the walk writes into each.
+          const moved = ctx.path.length !== out.path.length && !out.path.includes('&')
+          out = out.clone(ctx, moved ? { dup: !staged, path: [...ctx.path] } : { dup: !staged })
+          if (moved) {
+            out = staged ? ownArgs(ctx, out) : out
+            repathInstance(out, out.path)
+          }
+          out = undeclared(out)
+          // A path reads through a place that is itself a relative path; a name's use reads it again.
+          if (undefined === this.aliasKey) {
+            out.reread = undefined
+          }
+          // A staged call's argument is a value read, with no place of its own.
+          if (true !== (ctx as any).argsnap && holdsReread(out)) {
+            out = rereadAt(ctx, out, ctx.path)
+          }
           fixSeals(out)
 
           if (lifted) {
-            if (staged) {
+            if (staged && !moved) {
               out = ownArgs(ctx, out)
             }
             out = dropMarkedElements(out)

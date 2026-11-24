@@ -259,7 +259,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		for i, pe := range peerPeg {
 			// A spread declares every element; each past a closed list's end is refused.
-			if l.closed && !takes(l.dirSealed, pl) && l.spread == nil && i >= len(l.peg) {
+			if l.closed && !(l.dirSealed && !pl.isData) && l.spread == nil && i >= len(l.peg) {
 				bad = makeNilErr(ctx, "closed", pe, nil)
 			}
 			islot := append(cp(dbase), itoa(i))

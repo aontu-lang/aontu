@@ -582,7 +582,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		for _, k := range pm.keys {
 			if pm.isOptional(k) {
 				if _, declared := m.peg[k]; !declared && !out.isOptional(k) &&
-					(!m.closed || takes(m.dirSealed, pm) || pm.isAliasKey(k)) {
+					(!m.closed || (m.dirSealed && !pm.isData) || pm.isAliasKey(k)) {
 					out.optional = append(out.optional, k)
 				}
 			} else {
@@ -673,7 +673,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			// A DECLARATION IS NOT A FIELD: `close` never counts one. No
 			// instance can hold an optional key the closed side does not
 			// declare, so it adds nothing rather than refusing.
-			if _, allowed := m.peg[pk]; m.closed && !takes(m.dirSealed, pm) && !allowed &&
+			if _, allowed := m.peg[pk]; m.closed && !(m.dirSealed && !pm.isData) && !allowed &&
 				!pm.isAliasKey(pk) {
 				if pm.isOptional(pk) {
 					continue
@@ -743,7 +743,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	// Both sides closed: each must declare the other's keys too.
-	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed && !takes(pm.dirSealed, m) {
+	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed && !(pm.dirSealed && !m.isData) {
 		own := append([]string{}, m.keys...)
 		sort.Strings(own)
 		for _, k := range own {

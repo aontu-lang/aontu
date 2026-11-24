@@ -1526,6 +1526,30 @@ until the phase that encodes it lands.
    rows rc87 to rc98 the second, 3 of them in the ledger where the
    target comes first (#504, #696).
 
+   **Built in both ports 2026-11-24 (#504).** A value a relative path
+   read keeps the path as written (`reread`), with each term met at its
+   place, and a call or an operation over such a value keeps the call
+   (`rereadCall`); a meet carries both (`rereadOn`). A path reference's
+   copy and a name's use read each one again where the copy stands
+   (`rereadAt`), so the answer no longer follows the order the document
+   writes the target and the reference in: both ports had copied what
+   the target had already read when it was evaluated first. A path
+   reads through a place that is itself a relative path, as the
+   definition does (`Decls.written` follows it), while a name's use
+   reads it again. A staged call's argument (`each`, `pack`, `pick`) is
+   a value read, as before. The copy stands at the reference's own
+   place whatever the target's depth (#463, #330, and #520 where a path
+   lands above its target): a copy shallower or deeper than
+   its target had taken a path with the target's tail, so a relative
+   path, a call's argument or `key()` in it read a place that isn't
+   there, and TypeScript and Go differed on a call in a name's body.
+   The 54 rows of the ledger under #504 leave it, 6 of them also under
+   #692 and 3 under #696, its bound 84; rows of `test/spec/ref.tsv` and
+   `test/spec/vet.tsv` hold each shape in both orders. Left: a staged
+   call over a relative path reads at the target in both orders, where
+   the definition would read it at the copy, and a path into a
+   generator's output keeps the keys the generator wrote (#520).
+
 27. **A copy's marks and seal.** Raised 2026-10-21 by P8 (#445). The
    reference says `copy(v)` clears the `type` and `hide` marks. Both
    ports clear them, and unseal, only through a reference:

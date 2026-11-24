@@ -90,6 +90,7 @@ declare abstract class Val {
     relates?: Val[];
     relroot?: boolean;
     copied?: string;
+    reread?: Val[];
     origin?: string;
     emitted?: EmitOrigin;
     graph?: any;
