@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### A sealed list keeps its length when it meets a spread
+
+#346, in both engines. A list sealed with no spread has a fixed length.
+Met with a spread, each position now takes the spread and the meet
+keeps none, as the definition's `meetList` has it. So
+`close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, where both engines
+had carried the spread into the sealed list and admitted it.
+
+Two more cases follow from the same rule. Two sealed lists of different
+lengths don't meet: `close([1, 2, 3]) & close([1, 2])` is an error,
+where both engines answered `[1, 2, 3]`. And
+`close([1, 2]) & close([1, 2, 3, &: integer])` is an error in both,
+where TypeScript had answered `[1, 2, 3]` and Go refused it.
+
+`subsume` reads a seal the same way. A seal bounds a list's length only
+where the list has no spread, so `close([integer, &: integer])` covers
+`[integer, &: integer]`, and `close([integer])` no longer covers
+`close([integer, &: integer])`. A sealed map still bounds its keys with
+a spread or without.
+
+- `ts/src/val/ListVal.ts` and `ts/src/subsume.ts`; `go/listval.go` and
+  `go/subsume.go`.
+- Rows e168 to e170 of `test/spec/def-verdict.tsv` and s1967, s2028,
+  s2360, s2751 and s2813 of `test/spec/def-subsume.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 84 to 76.
+- `test/spec/seal.tsv` gains 16 rows, `test/spec/vet.tsv` 5 and
+  `test/spec/subsume.tsv` 5.
+
 ### A map says what else is incomplete past a member that can't generate
 
 Both engines. A map or a list raises one finding for the first member

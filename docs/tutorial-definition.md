@@ -5589,13 +5589,13 @@ satisfy as a key that must be absent, so `{x?: 1 & 2}` against `{}` is
 cause for the second kind is that a contradictory value is an error,
 and no generated row carries either corner.
 
-A seal survives a meet, which the engines lose. `close([1, 2])` refuses
-`[1, 2, 3]`, so no meet with it admits `[1, 2, 3]`:
+A seal survives a meet. `close([1, 2])` refuses `[1, 2, 3]`, so no meet
+with it admits `[1, 2, 3]`:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
-/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, which both engines
-admit: a seal fixes the length, and no meet admits what a side refuses. -/
+/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`: a seal fixes the
+length, and no meet admits what a side refuses. -/
 example : ¬ Instance .empty
     (.meet (.list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true)
       (.list [] (some .integer) false))
@@ -5624,19 +5624,22 @@ Now vet it:
 <!-- test: run -->
 ```sh
 $ aontu vet sealed.aontu three.aontu
-verdict: valid
+verdict: invalid
+
+$.v.2: closed [conflict]
+  [aontu/closed]: Cannot resolve value at path $.v.2
+  data: three.aontu:1:9 (3)
 $ echo $?
-0
+1
 ```
 
-Both engines admit it: the open side's spread joins the sealed list,
-and a sealed list with a spread has no fixed length, so the meet admits
-what one of its sides refuses, which no meet can. Step 10's `meetList`
-keeps the length and takes the spread into each position instead. The
-engines are the side that changes, and the last three rows of
+Both engines once admitted it: the open side's spread joined the sealed
+list, and a sealed list with a spread has no fixed length, so the meet
+admitted what one of its sides refuses, which no meet can. They now do
+as step 10's `meetList` does, keeping the length and taking the spread
+into each position. The last three rows of
 [`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) carry the
-case, `invalid` in every mode, and the ledger names them, so the run
-fails the day an engine comes to agree and the rows still stand there.
+case, `invalid` in every mode, and they have left the ledger.
 
 A name declared as itself alone, `%U = %U`, is an `error` in the
 definition, a schema that admits nothing, as step 8 proves, and

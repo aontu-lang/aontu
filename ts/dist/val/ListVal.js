@@ -102,12 +102,15 @@ class ListVal extends BagVal_1.BagVal {
         out.relates = this.relates;
         out.relroot = this.relroot;
         out.site = this.site;
+        // A side sealed with no spread fixes the length, and the meet then keeps no spread.
+        let fixed = false;
         if (peer instanceof ListVal) {
             if (!this.closed && peer.closed) {
                 out = peer.unify(this, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PMC') }) : ctx);
                 exit = true;
             }
             else {
+                fixed = (this.closed && null == this.spread.cj) || (peer.closed && null == peer.spread.cj);
                 out.closed = out.closed || peer.closed;
                 out.relates = (0, PathVal_1.joinRelates)(out.relates, peer.relates);
                 out.relroot = out.relroot || peer.relroot;
@@ -119,6 +122,9 @@ class ListVal extends BagVal_1.BagVal {
         if (!exit) {
             out.dc = this.dc + 1;
             let spread_cj = (0, ConjunctVal_1.unmarkedTemplate)(out.spread.cj || TOP, ctx);
+            if (fixed) {
+                out.spread.cj = undefined;
+            }
             // Always unify children first
             for (let key in this.peg) {
                 const keyctx = ctx.descend(key);
@@ -186,12 +192,16 @@ class ListVal extends BagVal_1.BagVal {
                 }
                 const peerpeg = undefined === theirs || theirs.length === Object.keys(upeer.peg).length ?
                     upeer.peg : placed(upeer, theirs, ctx);
+                if (upeer.closed && null == upeer.spread.cj && !(0, SealVal_1.takes)(upeer, this) &&
+                    peerpeg.length < out.peg.length) {
+                    bad = (0, err_1.makeNilErr)(ctx, 'closed', out.peg[peerpeg.length], undefined);
+                }
                 // NOTE: peerkey is the index
                 for (let peerkey in peerpeg) {
                     let peerchild = peerpeg[peerkey];
                     // A spread declares every element, so a closed list with one
                     // fixes nothing here; the template judges the element.
-                    if (this.closed && !(0, SealVal_1.takes)(this, upeer) && null == out.spread.cj &&
+                    if (this.closed && !(0, SealVal_1.takes)(this, upeer) && null == this.spread.cj &&
                         !allowedKeys.includes(peerkey)) {
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }

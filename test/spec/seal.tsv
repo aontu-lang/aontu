@@ -32,6 +32,27 @@ closed-spread-refuses-an-undeclared-key	errc	a: close({x: 1, &: integer})\na: {y
 closed-spread-judges-a-declared-key	errc	a: close({x: integer, &: min(1)})\na: {x: 0}	constraint
 closed-list-spread-admits-elements	gens	a: close([&: integer])\na: [1, 2]	{"a":[1,2]}
 closed-list-spread-judges-elements	errc	a: close([&: integer])\na: ["s"]	no_scalar_unify
+# A SEALED LIST'S LENGTH (#346). A list sealed with no spread fixes its
+# length. Met with a spread, each position takes the spread and the meet
+# keeps none, so no later term adds an element; met with a longer list,
+# sealed or not, it refuses the element past its end. A list sealed
+# with a spread fixes nothing, as the two rows above hold.
+sealed-list-met-with-a-spread-generates	gens	a: close([1, 2]) & [&: integer]	{"a":[1,2]}
+sealed-list-met-with-a-spread-keeps-no-spread	canon	a: close([1, 2]) & [&: integer]	{"a":[1,2]}
+sealed-list-met-with-a-spread-keeps-its-length	errc	a: close([1, 2]) & [&: integer]\na: [1, 2, 3]	closed
+sealed-list-met-with-a-spread-written-first	errc	a: [&: integer] & close([1, 2])\na: [1, 2, 3]	closed
+sealed-list-met-with-a-spread-in-another-statement	errc	a: close([1, 2])\na: [&: integer]\na: [1, 2, 3]	closed
+sealed-list-takes-the-spread-at-each-position	errc	a: close([1, 2]) & [&: string]	no_scalar_unify
+sealed-lists-of-two-lengths-do-not-meet	errc	a: close([1, 2, 3]) & close([1, 2])	closed
+sealed-lists-of-two-lengths-do-not-meet-shorter-first	errc	a: close([1, 2]) & close([1, 2, 3])	closed
+sealed-list-refuses-what-a-sealed-spread-list-adds	errc	a: close([1, 2]) & close([1, 2, 3, &: integer])	closed
+sealed-spread-list-is-refused-past-a-sealed-list	errc	a: close([1, 2, 3, &: integer]) & close([1, 2])	closed
+sealed-spread-list-fills-a-sealed-list	gens	a: close([1, &: integer]) & close([1, 2])	{"a":[1,2]}
+sealed-spread-list-met-with-a-sealed-list-keeps-its-length	errc	a: close([1, &: integer]) & close([1, 2])\na: [1, 2, 3]	closed
+sealed-lists-of-one-length-meet	gens	a: close([1, 2]) & close([1, 2])	{"a":[1,2]}
+sealed-list-counts-only-the-elements-that-stand	gens	a: close([1, maybe($.gone)]) & close([1])	{"a":[1]}
+bare-close-takes-a-longer-sealed-list	gens	v: {x: close([1, 2, 3])} & {x: close() & [1, 2]}	{"v":{"x":[1,2,3]}}
+bare-close-takes-a-longer-sealed-list-written-first	gens	v: {x: close() & [1, 2]} & {x: close([1, 2, 3])}	{"v":{"x":[1,2,3]}}
 closed-spread-instance-is-closed	errc	a: close({&: {p: 1}, k: {}})\na: {k: {q: 2}}	closed
 closed-spread-instance-narrows	gens	a: close({&: {p: integer}, k: {}})\na: {k: {p: 2}}	{"a":{"k":{"p":2}}}
 type-instance-is-closed	errc	T: type({x: 1})\na: $.T & {y: 2}	closed

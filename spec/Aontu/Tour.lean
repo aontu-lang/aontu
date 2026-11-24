@@ -925,8 +925,8 @@ both arms generate `[1]`, and neither is preferred. -/
 example : output (.or [(0, .list [.pref 1 (.lit (.num (.integer (.of 1))))] none true),
     (0, .list [.lit (.num (.integer (.of 1)))] none true)]) = some (.list [.integer 1]) := rfl
 
-/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, which both engines
-admit: a seal fixes the length, and no meet admits what a side refuses. -/
+/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`: a seal fixes the
+length, and no meet admits what a side refuses. -/
 example : ¬ Instance .empty
     (.meet (.list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true)
       (.list [] (some .integer) false))
