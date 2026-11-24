@@ -91,6 +91,7 @@ declare abstract class Val {
     relroot?: boolean;
     copied?: string;
     reread?: Val[];
+    unplaced?: boolean;
     origin?: string;
     emitted?: EmitOrigin;
     graph?: any;

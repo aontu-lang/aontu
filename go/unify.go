@@ -61,9 +61,31 @@ func rereadTerms(t Val) []Val {
 	return []Val{t}
 }
 
-// A call over what a relative path read is made again where a copy stands (ruling 26).
-func rereadCall(out Val, args []Val, peer Val, again func() Val) Val {
-	if out.Nil() || !slices.ContainsFunc(args, func(a Val) bool { return nil != a.rereads() }) {
+// Whether a value, or one a map, a list or a meet in it holds, carries the mark.
+func holds(v Val, mark func(Val) bool) bool {
+	if mark(v) {
+		return true
+	}
+	var kids []Val
+	switch n := v.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			kids = append(kids, n.peg[k])
+		}
+	case *ListVal:
+		kids = n.peg
+	case *ConjunctVal:
+		kids = n.peg
+	}
+	return slices.ContainsFunc(kids, func(k Val) bool { return holds(k, mark) })
+}
+
+func rereadsMark(v Val) bool { return nil != v.rereads() }
+
+// A copy makes a call over what a relative path read again (ruling 26), but for a wrapper's: its value is its argument.
+func rereadCall(out Val, args []Val, peer Val, again func() Val, wraps bool) Val {
+	marked := func(a Val) bool { return rereadsMark(a) || (!wraps && holds(a, rereadsMark)) }
+	if out.Nil() || !slices.ContainsFunc(args, marked) {
 		return out
 	}
 	out = clonePath(out, cp(out.vpath()))
@@ -72,11 +94,11 @@ func rereadCall(out Val, args []Val, peer Val, again func() Val) Val {
 }
 
 // A meet keeps what a relative path read as written, beside the term it met (ruling 26).
-// The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+// The mark goes on a value of this place's own, a meet's residue or a copy, and on none that holds a conflict.
 func rereadOn(out, a, b Val) Val {
 	terms := append(append([]Val{}, rereadTerms(a)...), rereadTerms(b)...)
 	alone := nil == a || isTop(a) || nil == b || isTop(b)
-	if nil == out || out.Nil() || (alone && (out == a || out == b || nil != out.rereads())) {
+	if nil == out || (alone && (out == a || out == b || nil != out.rereads())) || holds(out, Val.Nil) {
 		return out
 	}
 	if !isConjunct(out) {

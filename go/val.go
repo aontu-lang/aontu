@@ -85,6 +85,8 @@ type Val interface {
 	copiedBy() string
 	setCopiedBy(target string)
 	rereads() []Val
+	isUnplaced() bool
+	setUnplaced(bool)
 	setRereads(terms []Val)
 	deprecRec() map[string][]string
 	setDeprecRec(rec map[string][]string)
@@ -163,6 +165,8 @@ type base struct {
 	copied string
 	// reread: what a relative path read here, as written with each term met, which a copy reads again (ruling 26).
 	reread []Val
+	// unplaced: a key in a declaration's body, or a call over one, that waits for the use that places it.
+	unplaced bool
 }
 
 func (b *base) setVpath(p []string) { b.path = p }
@@ -273,6 +277,8 @@ func (b *base) copiedBy() string        { return b.copied }
 func (b *base) setCopiedBy(t string)    { b.copied = t }
 func (b *base) rereads() []Val          { return b.reread }
 func (b *base) setRereads(terms []Val)  { b.reread = terms }
+func (b *base) isUnplaced() bool        { return b.unplaced }
+func (b *base) setUnplaced(w bool)      { b.unplaced = w }
 func (b *base) setMarkType(v bool)      { b.mtype = v }
 func (b *base) setMarkHide(v bool)      { b.mhide = v }
 

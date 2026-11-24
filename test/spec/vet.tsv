@@ -596,3 +596,32 @@ vet-sealed-list-met-with-a-spread-admits-its-own-length	verdict	v: close([1, 2])
 vet-sealed-lists-of-two-lengths-are-an-error	verdict	v: close([1, 2, 3]) & close([1, 2])	{}	{"verdict":"error"}
 vet-sealed-spread-list-met-with-a-sealed-list-refuses-a-longer-list	verdict	v: close([1, &: integer]) & close([1, 2])	{"v": [1, 2, 3]}	{"verdict":"invalid"}
 vet-sealed-spread-list-met-with-a-sealed-list-admits-its-length	verdict	v: close([1, &: integer]) & close([1, 2])	{"v": [1, 2]}	{"verdict":"valid"}
+#
+# A KEY IN A DECLARATION'S BODY (#528) waits for the use that places it,
+# so a body is judged where it is used: a template a generator takes
+# from a name, and a path into a generator's output (ruling 22), read
+# their keys where each lands. An emit piece a mark leaves out takes no
+# position (ruling 52).
+vet-key-in-a-body-fits-its-use	verdict	%T = key(0) & "x"\nx: %T	{"x": "x"}	{"verdict":"valid"}
+vet-key-in-a-body-refuses-another-use	verdict	%T = key(0) & "x"\ny: %T	{}	{"verdict":"error"}
+vet-key-in-a-body-below-its-use	verdict	%T = {a: key(1) & "x"}\nx: %T	{"x": {"a": "x"}}	{"verdict":"valid"}
+vet-key-in-a-body-nothing-uses	verdict	%T = upper(key(1)) & 1\nv: 1	{"v": 1}	{"verdict":"valid"}
+vet-key-in-a-body-is-a-string	verdict	%T = key(0) & 1\nv: 1	{"v": 1}	{"verdict":"error"}
+vet-call-over-a-key-in-a-body-admits-its-use	verdict	%T = upper(key(1))\nx: {y: %T}	{"x": {"y": "X"}}	{"verdict":"valid"}
+vet-call-over-a-key-in-a-body-refuses-another	verdict	%T = upper(key(1))\nx: {y: %T}	{"x": {"y": "Y"}}	{"verdict":"invalid"}
+vet-pack-template-from-a-name-admits-its-keys	verdict	%T = {n: key()}\nv: pack(["a", "b"], %T)	{"v": {"a": {"n": "a"}, "b": {"n": "b"}}}	{"verdict":"valid"}
+vet-pack-template-from-a-name-refuses-another-key	verdict	%T = {n: key()}\nv: pack(["a", "b"], %T)	{"v": {"a": {"n": "b"}}}	{"verdict":"invalid"}
+vet-each-template-from-a-name-admits-its-indexes	verdict	%T = key(0)\nv: each([1, 2], %T)	{"v": ["0", "1"]}	{"verdict":"valid"}
+vet-each-template-from-a-name-refuses-another-index	verdict	%T = key(0)\nv: each([1, 2], %T)	{"v": ["0", "0"]}	{"verdict":"invalid"}
+vet-key-reread-into-pack-output-admits-the-copy's-key	verdict	x: pack(["a"], {n: key()})\ny: $.x.a	{"y": {"n": "y"}}	{"verdict":"valid"}
+vet-key-reread-into-pack-output-refuses-the-source's-key	verdict	x: pack(["a"], {n: key()})\ny: $.x.a	{"y": {"n": "a"}}	{"verdict":"invalid"}
+vet-emit-key-after-a-hidden-piece-admits-where-it-lands	verdict	v: emit([1, 2], {match: any, body: [hide("h"), key(0)]})	{"v": ["0", "1"]}	{"verdict":"valid"}
+vet-emit-key-after-a-hidden-piece-refuses-the-written-index	verdict	v: emit([1, 2], {match: any, body: [hide("h"), key(0)]})	{"v": ["1", "3"]}	{"verdict":"invalid"}
+#
+# A CLOSED FINDING UNDER --at names the key the data adds, whatever the
+# anchor holds beside it: a key(), a generator's instance, or a relative
+# path's copy. A meet result that holds a conflict is not copied for
+# the mark a relative path or a key leaves, so the finding keeps its path.
+vet-at-closed-beside-a-key-names-the-key	vet	guard: { t1: close({ tool:key() arguments: close({ a: integer }) }) }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
+vet-at-closed-in-a-packed-instance-names-the-key	vet	s: type(close({ t1: close({ a: integer }) }))\nguard: pack($.s, close({ tool:key() arguments:_ }))	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
+vet-at-closed-in-a-relative-copy-names-the-key	vet	guard: { t0: close({ tool: string arguments: close({ a: integer }) }) t1: .t0 }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}

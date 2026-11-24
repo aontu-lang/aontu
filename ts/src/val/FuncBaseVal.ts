@@ -11,7 +11,7 @@ import {
 } from '../type'
 
 import { AontuContext } from '../ctx'
-import { rereadCall, rideOn, unite, withDepth } from '../unify'
+import { holds, rereadCall, rideOn, unite, unplaced, withDepth } from '../unify'
 
 
 import {
@@ -130,6 +130,14 @@ function wrapSettled(args: any[]): boolean {
 // An outer seal reaches the container once the wrappers inside resolve.
 function openWrap(ctx: AontuContext, v: any): Val {
   return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v
+}
+
+
+// What a call that waits for its place reads as: any value, which a use reads again.
+function waiting(ctx: AontuContext): Val {
+  const out: any = top().clone(ctx)
+  out.unplaced = true
+  return out
 }
 
 
@@ -300,8 +308,11 @@ class FuncBaseVal extends FeatureVal {
           if (through) {
             newpeg = [openWrap(ctx, newpeg[0]), ...newpeg.slice(1)]
           }
-          const resolved = gone ?? sigRefuse(ctx, this, newpeg) ??
-            this.resolve(ctx, newpeg)
+          // A call over a key that waits for its place waits with it, as any value.
+          const waits = !newpeg.some((a: Val) => a.isNil) &&
+            newpeg.some((a: Val) => holds(a, unplaced))
+          const resolved = gone ?? (waits ? waiting(ctx) :
+            sigRefuse(ctx, this, newpeg) ?? this.resolve(ctx, newpeg))
 
           // The TOP peer is DROPPED as the unit it is.
           out = resolved.done && peer.isTop ? resolved :
@@ -326,7 +337,7 @@ class FuncBaseVal extends FeatureVal {
               const again = this.make(ctx, { peg: newpeg, mark: { type: newtype, hide: newhide } })
               again.path = this.path
               return again
-            })
+            }, WRAPPERS.has(this.funcname()))
           }
 
           why += 'pegdone'

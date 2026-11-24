@@ -5103,9 +5103,11 @@ names a waiting body waits too, through a call or another name, so
 `Decls.waitNames` finds those names to a fixed point. The name itself
 stays a name, though, so it reads its own body read the same way, and
 what that body fixes holds: `%T = %U & 2` beside `%U = _ & 1` is an
-`error`, as both engines answer. Both engines read a
-waiting `key(n)` at the declaration's own name, though, which #528
-tracks, and the definition reads it as waiting. And both skip a
+`error`, as both engines answer. Both engines read a `key(n)` that
+climbs out of the body as waiting too. One that reads a member inside
+the body they read as that member's key, where the definition reads any
+string, so it admits an unused `%T = {a: key(0) & "b"}` that both
+refuse, which #942 tracks. And both skip a
 conflict met with a call that waits through a name, so they answer
 `valid` for `%T = add(%U, 1) & (1 & 2)`, which the definition reads as
 an `error` and #530 tracks.
@@ -8516,16 +8518,14 @@ At `a`, `key()` reads past the top, so `a` is `"q"`, and the copy at
 the copy would hold `"q"`, which refuses the data `{"b": {"c": "qb"}}`.
 
 The rows are x2121 on and r0 on, and both engines answer every one as
-the definition does. Six shapes have no row:
+the definition does. A path into a generator's output rereads its keys
+where it lands, as a path to the generator itself does, and so does a
+path shallower than its target: rows from `key-reread-into-pack-output`
+on of `test/spec/gen-key.tsv` hold both engines to the first. Four
+shapes have no row:
 
 - A key deeper in a spread than its own position, `&: {name: key()}`,
   which both engines read as the member's key, has no rule yet.
-- A path into a generator's output finds the keys the generator wrote
-  in both engines, where a path to the generator itself rereads them
-  where it lands. The definition rereads both, and has no rule for the
-  difference yet.
-- A path shallower than its target leaves a stale level in both
-  engines, which #463 records.
 - A preference on a key, `*key() | "x"`, which neither engine
   resolves, as #465 records.
 - A path to a generator whose list argument holds a key,
@@ -10578,10 +10578,9 @@ reads 3. In `pairs` the list `["p", key(0)]` reads its own index, 1,
 before it splices, and the `key(0)` after it reads 2, the index the
 pieces of the list leave. `emitBody` reads a template a call makes,
 rather than one the table writes, for its node at no position, so a
-body there that holds a `key(n)` stays unmade. The rows are ek0 on.
-Both engines answer every one as the definition does, but for a marked
-piece, which they still give a position, as #539 records. The ledger
-takes those six rows, ek72 to ek77.
+body there that holds a `key(n)` stays unmade. The rows are ek0 on, and
+both engines answer every one as the definition does: a piece a mark
+leaves out takes no position in either.
 
 A nested `emit` reads its selection, `.logs`, for the outer node, and
 its own table for each of its own nodes. An empty selection emits
@@ -10613,13 +10612,12 @@ def innerTable : Val → Val
 
 Only a table's place binds that hole: `%w` used anywhere else holds a
 hole nothing binds, an error, as both engines answer `hole_unbound`.
-Rows ew0 on hold tables written in place and en0 on named ones. Both
-engines answer every one as the definition does but six, a name for a
-template, `%r = {match: number, body: [key(0)]}`, whose `key(0)` both
-read at the declaration's own place, as #528 records. The ledger takes
-those six. TypeScript also reads a bare `key(n)` in a named table's
-body at the body's own index, where the `emit` stands at the top of
-the document, which #783 tracks and no row holds.
+Rows ew0 on hold tables written in place and en0 on named ones, and
+both engines answer every one as the definition does. A name for a
+template, `%r = {match: number, body: [key(0)]}`, reads its `key(0)`
+where each piece lands. Where a named table's body holds a marked
+piece, though, the definition keeps the piece and drops its mark, which
+#943 tracks and no row holds.
 
 A named table may name itself, which is how a rule set walks a nested
 selection into nested output. The name is recursive, so the expansion

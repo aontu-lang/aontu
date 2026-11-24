@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 76 on 2026-11-24),
+  on 2026-11-22), ledger rows (394 at most then, 64 on 2026-11-24),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,7 +64,7 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-39 of its 76 on 2026-11-24. In order:
+27 of its 64 on 2026-11-24. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
@@ -75,8 +75,8 @@ Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
    57 rows then and 6 now, ruled by decisions 44 to 46. #748 and #749
    here also unblock the relations workstream.
 4. **Copies, bodies and templates**: #738 is ruled (rulings 59 to 61),
-   and the work follows `sketch/CORE.0.md` §4. #504 was built
-   2026-11-24, and 15 rows are left of 78.
+   and the work follows `sketch/CORE.0.md` §4. #504 and #528 were built
+   2026-11-24, and 3 rows are left of 78.
 
 ### The alias-cycle rule
 
@@ -135,9 +135,9 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 
 ### Where copies, bodies and templates read paths and key()
 
-17 issues (1 S, 14 M, 2 L), 15 ledger rows.
+20 issues (1 S, 17 M, 2 L), 3 ledger rows.
 
-Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
+Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #528 was built in both ports the same day, with the emit rows of #539, the rest of #520 and #783, its 12 rows gone; it found #942 and #943, both in the definition, and #944 in TypeScript. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -146,9 +146,12 @@ Where a copy, a declaration's body or a template reads its relative paths and `k
 | [#500](https://github.com/aontu-lang/aontu/issues/500) | def | M |  | Relative path in a spread template names nothing at members a link or copy makes |
 | [#501](https://github.com/aontu-lang/aontu/issues/501) | parity | M |  | Alias body's relative spread used at the top: TS no_path, Go valid |
 | [#504](https://github.com/aontu-lang/aontu/issues/504) | def | L |  | Relative path in alias body or path-reference copy reads by source order; ruling 26 says at copy. Built in both ports 2026-11-24. |
-| [#520](https://github.com/aontu-lang/aontu/issues/520) | def | M |  | Path into generator output or landing above its target rereads key() wrongly, both engines. The landing half is answered by #504's build, 2026-11-24; a path into a generator's output still keeps the keys the generator wrote. |
-| [#528](https://github.com/aontu-lang/aontu/issues/528) | def | M | 6 | key(n) in a declaration body reads the internal name %T@file, so fitting bodies error |
-| [#539](https://github.com/aontu-lang/aontu/issues/539) | def | M | 6 | key() after an absent list element reads the written index, not the element's position |
+| [#520](https://github.com/aontu-lang/aontu/issues/520) | def | M |  | Path into generator output or landing above its target rereads key() wrongly, both engines. The landing half is answered by #504's build, and the path into a generator's output by #528's, both 2026-11-24. |
+| [#528](https://github.com/aontu-lang/aontu/issues/528) | def | M |  | key(n) in a declaration body reads the internal name %T@file, so fitting bodies error. Built in both ports 2026-11-24. |
+| [#539](https://github.com/aontu-lang/aontu/issues/539) | def | M |  | key() after an absent list element reads the written index, not the element's position. The emit rows are built in both ports, 2026-11-24; the plain list is left. |
+| [#942](https://github.com/aontu-lang/aontu/issues/942) | def | M |  | The definition admits an unused declaration whose key reads inside its own body and clashes there; both engines refuse it. |
+| [#943](https://github.com/aontu-lang/aontu/issues/943) | def | M |  | The definition keeps a marked element of a list in a declaration's body when the name is read, and drops its mark. |
+| [#944](https://github.com/aontu-lang/aontu/issues/944) | parity | M |  | A copy of `sum`, `least`, `greatest`, `sort`, `pick` or `join` over a relative path keeps the target's value in TypeScript; Go and the definition make the call again. |
 | [#330](https://github.com/aontu-lang/aontu/issues/330) | diag | M |  | A key missing under a reference to a deeper target is reported at a nonexistent path. Answered by #504's build, 2026-11-24. |
 | [#692](https://github.com/aontu-lang/aontu/issues/692) | parity | M |  | A name bound to a multi-step path, written first, misreads the target's relative paths; TS and Go differ. Answered by #504's build, 2026-11-24. |
 | [#698](https://github.com/aontu-lang/aontu/issues/698) | parity | S |  | TypeScript places a relative path in a `match` result under a NaN step; Go matches the definition. |
@@ -213,7 +216,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 |---|---|---|---|---|
 | [#751](https://github.com/aontu-lang/aontu/issues/751) | bug | M |  | Generator over its own enclosing bag refused as not a bag (filter_data etc.); misdiagnosed, often acyclic. |
 | [#754](https://github.com/aontu-lang/aontu/issues/754) | bug | M |  | Filter condition in a member pack, each or apply makes cannot read the member: answers empty, no error. |
-| [#783](https://github.com/aontu-lang/aontu/issues/783) | parity | M |  | Bare `key(n)` in a named emit table's body reads the body index in TypeScript at top level. |
+| [#783](https://github.com/aontu-lang/aontu/issues/783) | parity | M |  | Bare `key(n)` in a named emit table's body reads the body index in TypeScript at top level. Answered by #528's build, 2026-11-24. |
 | [#786](https://github.com/aontu-lang/aontu/issues/786) | parity | M |  | `key(n)` in an emit template's `replace` value climbs one level less in Go than TypeScript. |
 | [#466](https://github.com/aontu-lang/aontu/issues/466) | parity | S |  | TS `pack` keeps only the first colliding instance, losing riders; Go unifies them. |
 | [#812](https://github.com/aontu-lang/aontu/issues/812) | parity | M |  | `must()` reading siblings in a spread template is `no_path` in TypeScript; Go and definition read per member. |
@@ -445,7 +448,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 45 | 39 |
+| 2 | alias cycles, preferences, seals and marks, copies | 48 | 27 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 25 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
@@ -453,7 +456,7 @@ workstream above meets its tasks.
 
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
-they stand on 2026-11-22 with #907 added, and #936 to #939 on
-2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
+they stand on 2026-11-22 with #907 added, and #936 to #939 and #942 to
+#944 on 2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
 each row's cause names. The ledger's other 10 rows name decision 3 and
 no issue: they're #343's.

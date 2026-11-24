@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KeyFuncVal = void 0;
 const StringVal_1 = require("../val/StringVal");
+const ScalarKindVal_1 = require("../val/ScalarKindVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const err_1 = require("../err");
 class KeyFuncVal extends FuncBaseVal_1.FuncBaseVal {
@@ -43,9 +44,13 @@ class KeyFuncVal extends FuncBaseVal_1.FuncBaseVal {
             }
         }
         const here = positioned ? this.path : ctx.path;
-        const key = here[here.length - (1 + move)] ?? '';
-        out = new StringVal_1.StringVal({ peg: key });
-        // }
+        const at = here.length - (1 + move);
+        // A key that climbs out of a declaration's body waits for the use that places it.
+        const waits = at <= 0 && true === ctx.root?.aliasKeys?.includes(here[0]);
+        out = waits ? new ScalarKindVal_1.ScalarKindVal({ peg: String, emptyOk: true }) :
+            new StringVal_1.StringVal({ peg: here[at] ?? '' });
+        out.reread = [this];
+        out.unplaced = waits;
         return out;
     }
     gen(_ctx) {

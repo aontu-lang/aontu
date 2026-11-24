@@ -137,9 +137,20 @@ const plain = (t: any): boolean => null == t || true === t.isTop
 const rereadTerms = (t: any): Val[] => plain(t) ? [] : (t.reread ?? [t])
 
 
-// A call over what a relative path read is made again where a copy stands (ruling 26).
-function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: () => Val): Val {
-  if (true === out.isNil || !args.some((a: any) => undefined !== a.reread)) {
+// Whether a value, or one a map, a list or a meet in it holds, carries the mark.
+function holds(v: any, mark: (v: any) => boolean): boolean {
+  const kids = true === v.isMap || true === v.isList || true === v.isConjunct ? v.peg : {}
+  return mark(v) || Object.keys(kids).some((k: string) => holds(kids[k], mark))
+}
+
+const rereads = (v: any): boolean => undefined !== v.reread
+const unplaced = (v: any): boolean => true === v.unplaced
+
+
+// A copy makes a call over what a relative path read again (ruling 26), but for a wrapper's: its value is its argument.
+function rereadCall(
+  ctx: AontuContext, out: any, args: any[], peer: any, again: () => Val, wraps?: boolean): Val {
+  if (true === out.isNil || !args.some((a: any) => true === wraps ? rereads(a) : holds(a, rereads))) {
     return out
   }
   const kept = out.clone(ctx, { path: out.path })
@@ -149,10 +160,11 @@ function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: 
 
 
 // A meet keeps what a relative path read as written, beside the term it met (ruling 26).
-// The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+// The mark goes on a value of this place's own, a meet's residue or a copy, and on none that holds a conflict.
 function rereadOn(ctx: AontuContext, out: any, a: any, b: any): any {
   const alone = plain(a) || plain(b)
-  if (null == out || true === out.isNil || (alone && (out === a || out === b || undefined !== out.reread))) {
+  if (null == out || (alone && (out === a || out === b || undefined !== out.reread)) ||
+    holds(out, (v: any) => true === v.isNil)) {
     return out
   }
   const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path })
@@ -735,13 +747,15 @@ class Unify {
 
 
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
-  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 15 */
+  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 17 */
 
 
 export {
   Unify,
   rereadCall,
   rereadTerms,
+  holds,
+  unplaced,
   holdsLink,
   linksOf,
   rootLinks,

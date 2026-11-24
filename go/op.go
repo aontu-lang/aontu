@@ -75,7 +75,7 @@ func (o *PlusOpVal) Unify(peer Val, ctx *Ctx) Val {
 				np := newPlusOp(newpeg[0], newpeg[1])
 				np.path, np.site = cp(o.path), o.site
 				return np
-			})
+			}, false)
 		}
 	} else if isTop(peer) {
 		np := newPlusOp(newpeg[0], newpeg[1])
