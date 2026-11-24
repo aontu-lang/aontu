@@ -92,11 +92,18 @@ function commentStart(src: string, from: number, to: number): number {
 }
 
 
-// Back from i over blanks and comments to the last character of neither.
+// Back from i, the place before a value, over blanks and comments. A
+// comment ends its line, so the value's own line holds none before it,
+// and only a line above it is read for one.
 function skipTrivia(src: string, i: number): number {
   for (;;) {
-    while (0 <= i && ' \t\r\n'.includes(src[i])) i--
-    const c = 0 > i ? -1 : commentStart(src, src.lastIndexOf('\n', i) + 1, i + 1)
+    let crossed = false
+    while (0 <= i && ' \t\r\n'.includes(src[i])) {
+      crossed = crossed || '\n' === src[i]
+      i--
+    }
+    const c = !crossed || 0 > i ? -1 :
+      commentStart(src, src.lastIndexOf('\n', i) + 1, i + 1)
     if (0 > c) {
       return i
     }

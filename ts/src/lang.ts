@@ -331,9 +331,10 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
 
   jsonic.use(asPlugin(Path))
 
-  let dotRef = (r: Rule, ctx: JsonicContext, terms: any, prefix: boolean) => {
+  let dotRef = (r: Rule, ctx: JsonicContext, terms: any, op: Op) => {
     terms = dropUnfilled(terms)
     if (0 === terms.length) return incompleteNil(r, ctx)
+    const at = op.prefix ? atOp(op) : atTerm(terms[0])
 
     for (const t of terms) {
       const segs: any[] =
@@ -341,12 +342,12 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           ('string' === typeof t.peg ? [t.peg] : [])
       for (const seg of segs) {
         if ('string' === typeof seg && ALIAS_RE.test(seg)) {
-          return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
+          return opsite(new NilVal({ why: 'alias_in_path' }), r, ctx, at)
         }
       }
     }
 
-    return addsite(new RefVal({ peg: terms, prefix }), r, ctx)
+    return opsite(new RefVal({ peg: terms, prefix: op.prefix }), r, ctx, at)
   }
 
   jsonic.options({ comment: { def: null } })
@@ -966,35 +967,54 @@ help isolate the syntax error.`,
   }
 
 
-  let opmap: any = {
-    'conjunct-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) =>
-      addsite(new ConjunctVal({ peg: dropUnfilled(terms) }), r, ctx),
+  // AN OPERATOR'S RESULT STANDS WHERE IT IS WRITTEN: a prefix's at its own
+  // token, an infix's at its first term, not at the rule's first token.
+  const opsite = (v: Val, r: Rule, ctx: JsonicContext, at?: TokenSite): Val => {
+    addsite(v, r, ctx)
+    return undefined === at ? v : siteAt(v, at)
+  }
 
-    'disjunct-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) =>
-      addsite(new DisjunctVal({ peg: dropUnfilled(terms) }), r, ctx),
+  const atOp = (op: Op): TokenSite | undefined =>
+    null == op.token ? undefined : tokenSite(op.token)
+
+  const atTerm = (term: any): TokenSite | undefined =>
+    true === term?.isVal && 1 <= term.site.row ? {
+      row: term.site.row, col: term.site.col, src: term.site.src, len: term.site.len,
+    } : undefined
+
+  let opmap: any = {
+    'conjunct-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
+      const peg = dropUnfilled(terms)
+      return opsite(new ConjunctVal({ peg }), r, ctx, atTerm(peg[0]))
+    },
+
+    'disjunct-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
+      const peg = dropUnfilled(terms)
+      return opsite(new DisjunctVal({ peg }), r, ctx, atTerm(peg[0]))
+    },
 
     // `.a` (prefix) and `a.b` (infix) build the same reference; only the
     // prefix flag differs, and both need the same missing-operand guard,
     // so they share one builder.
-    'dot-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) =>
-      dotRef(r, ctx, terms, true),
+    'dot-prefix': (r: Rule, ctx: JsonicContext, op: Op, terms: any) =>
+      dotRef(r, ctx, terms, op),
 
-    'dot-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) =>
-      dotRef(r, ctx, terms, false),
+    'dot-infix': (r: Rule, ctx: JsonicContext, op: Op, terms: any) =>
+      dotRef(r, ctx, terms, op),
 
-    'star-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
+    'star-prefix': (r: Rule, ctx: JsonicContext, op: Op, terms: any) => {
       if (null == terms[0]) return incompleteNil(r, ctx)
 
       const bag: any = terms[0]
       if ((bag.isMap && '{' !== bag.site.src) ||
         (bag.isList && '[' !== bag.site.src)) {
-        return addsite(new NilVal({ why: 'pref_implicit_bag' }), r, ctx)
+        return opsite(new NilVal({ why: 'pref_implicit_bag' }), r, ctx, atOp(op))
       }
 
-      return addsite(new PrefVal({ peg: terms[0] }), r, ctx)
+      return opsite(new PrefVal({ peg: terms[0] }), r, ctx, atOp(op))
     },
 
-    'dollar-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
+    'dollar-prefix': (r: Rule, ctx: JsonicContext, op: Op, terms: any) => {
       if (null == terms[0]) return incompleteNil(r, ctx)
       // A refusal from the dot rule below (an alias used as a path
       // segment) rides straight through: wrapping it in a VarVal would
@@ -1008,39 +1028,41 @@ help isolate the syntax error.`,
       if (terms[0] instanceof RefVal &&
         terms[0].peg.some((seg: any) =>
           'string' === typeof seg && ALIAS_RE.test(seg))) {
-        return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
+        return opsite(new NilVal({ why: 'alias_in_path' }), r, ctx, atOp(op))
       }
       if (terms[0] instanceof RefVal) {
         terms[0].absolute = true
-        return terms[0]
+        const at = atOp(op)
+        return undefined === at ? terms[0] : siteAt(terms[0], at)
       }
       // `$` takes a name or a path; anything else is refused where written.
       if (!('string' === typeof terms[0] || true === terms[0]?.isString)) {
-        return addsite(new NilVal({ why: 'var_name' }), r, ctx)
+        return opsite(new NilVal({ why: 'var_name' }), r, ctx, atOp(op))
       }
-      return addsite(new VarVal({ peg: terms[0] }), r, ctx)
+      return opsite(new VarVal({ peg: terms[0] }), r, ctx, atOp(op))
     },
 
     'plus-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
       if (null == terms[0] || null == terms[1]) return incompleteNil(r, ctx)
-      return addsite(new PlusOpVal({ peg: [terms[0], terms[1]] }), r, ctx)
+      return opsite(new PlusOpVal({ peg: [terms[0], terms[1]] }), r, ctx,
+        atTerm(terms[0]))
     },
 
-    'negative-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
+    'negative-prefix': (r: Rule, ctx: JsonicContext, op: Op, terms: any) => {
       let val = terms[0]
       if (null == val) return incompleteNil(r, ctx)
       if (val instanceof BigIntegerVal) {
-        return addsite(new BigIntegerVal(
-          { peg: -val.peg, src: negsrc(val.src) }), r, ctx)
+        return opsite(new BigIntegerVal(
+          { peg: -val.peg, src: negsrc(val.src) }), r, ctx, atOp(op))
       }
       if (val instanceof BigDecimalVal) {
-        return addsite(new BigDecimalVal(
-          { peg: val.peg.negate(), src: negsrc(val.src) }), r, ctx)
+        return opsite(new BigDecimalVal(
+          { peg: val.peg.negate(), src: negsrc(val.src) }), r, ctx, atOp(op))
       }
       // Negating a non-numeric operand (`k-x` splits into k, -x) is an
       // error nil, not NaN (mirrors negate() in go/lang.go).
       if (!(val instanceof IntegerVal) && !(val instanceof NumberVal)) {
-        return addsite(new NilVal({ why: 'negative' }), r, ctx)
+        return opsite(new NilVal({ why: 'negative' }), r, ctx, atOp(op))
       }
       let peg = -1 * val.peg
       // Normalize -0 to 0 (keeps the AST and canon free of negative zero).
@@ -1048,13 +1070,13 @@ help isolate the syntax error.`,
       const out = val instanceof IntegerVal && isIntegerKind(peg)
         ? new IntegerVal({ peg })
         : new NumberVal({ peg })
-      return addsite(out, r, ctx)
+      return opsite(out, r, ctx, atOp(op))
     },
 
-    'positive-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
+    'positive-prefix': (r: Rule, ctx: JsonicContext, op: Op, terms: any) => {
       let val = terms[0]
       if (null == val) return incompleteNil(r, ctx)
-      return addsite(val, r, ctx)
+      return opsite(val, r, ctx, atOp(op))
     },
 
     'func-paren': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {

@@ -169,6 +169,27 @@ const err_1 = require("../dist/err");
         }
         (0, expect_1.expect)(err.message).equal("[aontu/scalar_value]: Cannot unify values at path $.é\n\nLiteral scalar values of the same kind can only unify if they are\nexactly equal.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  a & a   -> a    # Does unify (equal Strings);\n  1 & 2   -> nil  # Does not unify (unequal Integers);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).\n\n Cannot unify value: 2 with value: 1\n  \u001b[34m--> <no-file>:4:6\n\u001b[34m  2 | \u001b[0my: 0\n\u001b[34m  3 | \u001b[0m\"é\": 1\n\u001b[34m  4 | \u001b[0m\"é\": 2\n           \u001b[34m^ value was: 2\u001b[0m\n\u001b[34m  5 | \u001b[0mz: 0\n\u001b[34m  6 | \u001b[0m\n\n Cannot unify value: 1 with value: 2\n  \u001b[34m--> <no-file>:3:6\n\u001b[34m  1 | \u001b[0mx: 0\n\u001b[34m  2 | \u001b[0my: 0\n\u001b[34m  3 | \u001b[0m\"é\": 1\n           \u001b[34m^ value was: 1\u001b[0m\n\u001b[34m  4 | \u001b[0m\"é\": 2\n\u001b[34m  5 | \u001b[0mz: 0\n");
     });
+    // Mirrors TestFullMessageOperandSiteTwin in go/hints_test.go: a later
+    // operand is framed where it is written, and a signed number at its sign.
+    (0, node_test_1.it)('full-message-operand-site-twin', () => {
+        const cases = [
+            ['a: 1\nc: 1 & $.nope\n', "[aontu/no_path]: Cannot resolve value at path $.c\n\nThe path reference could not be found.\n \nExamples:\n  a:1 b:$.a  -> a:1,b:1  # $.a is a valid path reference as a is a key of root ($).\n  a:$.b      -> nil      # $.b is not a valid path reference as there is no key b in root ($).\n\n Cannot resolve value: $.nope\n  \u001b[34m--> <no-file>:2:8\n\u001b[34m  1 | \u001b[0ma: 1\n\u001b[34m  2 | \u001b[0mc: 1 & $.nope\n             \u001b[34m^ value was: $.nope\u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n"],
+            ['a: +7 & "s"\n', "[aontu/scalar_kind]: Cannot unify values at path $.a\n\nLiteral scalar values of different kinds cannot unify.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  1 & a   -> nil  # Does not unify (Kinds: Integer & String);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).\n\n Cannot unify value: \"s\" with value: 7\n  \u001b[34m--> <no-file>:1:9\n\u001b[34m  1 | \u001b[0ma: +7 & \"s\"\n              \u001b[34m^ value was: \"s\"\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n\n Cannot unify value: 7 with value: \"s\"\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0ma: +7 & \"s\"\n         \u001b[34m^ value was: 7\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n"],
+        ];
+        for (const [src, want] of cases) {
+            let err = undefined;
+            try {
+                new aontu_1.Aontu().generate(src);
+            }
+            catch (e) {
+                err = e;
+            }
+            if (undefined === err) {
+                throw new Error('expected error');
+            }
+            (0, expect_1.expect)(err.message).equal(want);
+        }
+    });
     (0, node_test_1.it)('full-message-any-field-twin', () => {
         let err = undefined;
         try {
