@@ -2078,3 +2078,9 @@ merge; get the latest version of [redacted: session set-up], read instructions; 
 ```text
 Merge expr; fix the parser bugs - add the repos pushable as needed
 ```
+
+## 2026-11-24 08:56:04 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+How much is now covered by lean
+```
