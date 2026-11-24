@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 61 on 2026-11-24),
+  on 2026-11-22), ledger rows (394 at most then, 59 on 2026-11-24),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,7 +64,7 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-27 of its 61 on 2026-11-24. In order:
+25 of its 59 on 2026-11-24. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
@@ -75,8 +75,8 @@ Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
    57 rows then and 6 now, ruled by decisions 44 to 46. #748 and #749
    here also unblock the relations workstream.
 4. **Copies, bodies and templates**: #738 is ruled (rulings 59 to 61),
-   and the work follows `sketch/CORE.0.md` §4. #504 and #528 were built
-   2026-11-24, and 3 rows are left of 78.
+   and the work follows `sketch/CORE.0.md` §4. #504, #528 and #416 were
+   built 2026-11-24, and 1 row is left of 78.
 
 ### The alias-cycle rule
 
@@ -121,7 +121,7 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
 | [#726](https://github.com/aontu-lang/aontu/issues/726) | def | L | 6 | Bare `close()`/`open()` act on their own conjunct, not on the place's met terms (decisions 44–46). Built in both ports 2026-11-23 but for a directive beside a path: the root, a template's own level, a call's argument, a member held open, and every term at the place. |
-| [#749](https://github.com/aontu-lang/aontu/issues/749) | bug | M |  | close() or open() wrapping a map whose member reads a sibling never resolves: mapval_no_gen. |
+| [#749](https://github.com/aontu-lang/aontu/issues/749) | bug | M |  | close() or open() wrapping a map whose member reads a sibling never resolves: mapval_no_gen. Built in both ports 2026-11-24. |
 | [#748](https://github.com/aontu-lang/aontu/issues/748) | bug | L |  | Paths into a container met with len, unique, when, must, nof, contains or rest resolve to nothing. |
 | [#817](https://github.com/aontu-lang/aontu/issues/817) | def | M |  | Generation-time checks (len, contains, when) never run under `hide()` or `type()`; definition reads invalid. |
 | [#540](https://github.com/aontu-lang/aontu/issues/540) | def | S |  | A hide(nil) list element keeps its position in both engines; the definition drops it |
@@ -135,7 +135,7 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 
 ### Where copies, bodies and templates read paths and key()
 
-21 issues (1 S, 18 M, 2 L), 3 ledger rows.
+21 issues (1 S, 18 M, 2 L), 1 ledger row.
 
 Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #528 was built in both ports the same day, with the emit rows of #539, the rest of #520 and #783, its 12 rows gone; it found #942 and #943, both in the definition, and #944 in TypeScript. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
 
@@ -160,7 +160,7 @@ Where a copy, a declaration's body or a template reads its relative paths and `k
 | [#765](https://github.com/aontu-lang/aontu/issues/765) | def | M |  | eval reads deeper recursion levels' relative paths at the body's place; vet and definition read them per level. |
 | [#762](https://github.com/aontu-lang/aontu/issues/762) | def | M | 1 | Recursive name used alone whose body links to its own member: engines expand it (valid), definition says incomplete. |
 | [#691](https://github.com/aontu-lang/aontu/issues/691) | def | M |  | A map spread's template cannot read a sibling it supplies at a member written in the same map. |
-| [#416](https://github.com/aontu-lang/aontu/issues/416) | def | M | 2 | A path inside a rider's value to a sibling member leaves both ports incomplete (`mapval_no_gen`). |
+| [#416](https://github.com/aontu-lang/aontu/issues/416) | def | M |  | A path inside a rider's value to a sibling member leaves both ports incomplete (`mapval_no_gen`). Built in both ports 2026-11-24. |
 | [#936](https://github.com/aontu-lang/aontu/issues/936) | def | M |  | A copied `each` or `pack` reads a relative path in its source where the target stands, not where the copy stands. |
 
 ## Phase 3: by area
@@ -449,7 +449,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 49 | 27 |
+| 2 | alias cycles, preferences, seals and marks, copies | 49 | 25 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 22 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |

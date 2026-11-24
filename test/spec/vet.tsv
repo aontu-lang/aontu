@@ -625,3 +625,27 @@ vet-emit-key-after-a-hidden-piece-refuses-the-written-index	verdict	v: emit([1, 
 vet-at-closed-beside-a-key-names-the-key	vet	guard: { t1: close({ tool:key() arguments: close({ a: integer }) }) }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
 vet-at-closed-in-a-packed-instance-names-the-key	vet	s: type(close({ t1: close({ a: integer }) }))\nguard: pack($.s, close({ tool:key() arguments:_ }))	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
 vet-at-closed-in-a-relative-copy-names-the-key	vet	guard: { t0: close({ tool: string arguments: close({ a: integer }) }) t1: .t0 }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
+#
+# A PATH READS A MEMBER THROUGH A SEAL OR A RIDER THAT WAITS (#749, #416).
+# The meet of such a wrapper with the data can't fold until the member
+# the path reads is known, so each term answers for the member itself.
+vet-seal-member-reads-a-sibling-admits	verdict	a: close({x: .y, y: 1})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-refuses-another-value	verdict	a: close({x: .y, y: 1})	{"a": {"x": 2, "y": 1}}	{"verdict":"invalid"}
+vet-seal-member-reads-a-sibling-refuses-an-extra-key	verdict	a: close({x: .y, y: 1})	{"a": {"x": 1, "y": 1, "z": 3}}	{"verdict":"invalid"}
+vet-seal-member-reads-a-sibling-fills	verdict	a: close({x: .y, y: 1})	{}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-by-its-whole-path	verdict	a: close({x: $.a.y, y: 1})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-seal-member-reads-what-the-data-gives-its-sibling	verdict	a: close({x: .y, y: integer})	{"a": {"y": 5}}	{"verdict":"valid"}
+vet-seal-member-agrees-with-what-the-data-gives-its-sibling	verdict	a: close({x: .y, y: integer})	{"a": {"x": 5, "y": 5}}	{"verdict":"valid"}
+vet-seal-member-differs-from-what-the-data-gives-its-sibling	verdict	a: close({x: .y, y: integer})	{"a": {"x": 4, "y": 5}}	{"verdict":"invalid"}
+vet-rider-member-reads-a-sibling-by-its-whole-path	verdict	a: meta({x: $.a.y, y: 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-rider-member-reads-a-sibling	verdict	a: meta({x: .y, y: 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-rider-member-reads-what-the-data-gives-its-sibling	verdict	a: meta({x: .y, y: integer}, {})	{"a": {"y": 5}}	{"verdict":"valid"}
+vet-deprecated-member-reads-a-sibling	verdict	a: deprecate({x: $.a.y, y: 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-open-member-reads-a-sibling-and-admits-more	verdict	a: open({x: .y, y: 1})	{"a": {"x": 1, "y": 1, "z": 3}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-that-is-missing	verdict	a: close({x: .q, y: 1})	{"a": {"y": 1}}	{"verdict":"error"}
+vet-seal-member-reads-a-sibling-the-data-leaves-out	verdict	a: close({x: .y, y: 1})	{"a": {"x": 1}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-the-data-leaves-open	verdict	a: close({x: .y, y: integer})	{"a": {"x": 5}}	{"verdict":"incomplete"}
+vet-seal-member-reads-a-sibling-another-term-settles	verdict	a: close({x: .y, y: integer}) & {y: 2}	{"a": {"x": 2, "y": 2}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-another-term-settles-otherwise	verdict	a: close({x: .y, y: integer}) & {y: 2}	{"a": {"x": 3}}	{"verdict":"invalid"}
+vet-rider-member-reads-a-sibling-another-term-gives	verdict	a: meta({x: .y}, {}) & {y: 2}	{"a": {"x": 2, "y": 2}}	{"verdict":"valid"}
+vet-rider-member-reads-a-sibling-another-term-gives-otherwise	verdict	a: meta({x: .y}, {}) & {y: 2}	{"a": {"x": 3, "y": 2}}	{"verdict":"invalid"}

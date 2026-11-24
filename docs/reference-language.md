@@ -5617,6 +5617,29 @@ close({x:{y:1}}) & {x:{z:2}}    → error: closed
 close({x:1}) & close({y?:2})    → error: closed
 ```
 
+**A member of a closed map may read a member beside it.** A seal
+changes which keys a map takes and nothing about the values it holds,
+so a path inside it reads its sibling as it would with no seal, by a
+relative path or by the whole one:
+
+```aontu
+a: close({ total:.price price:5 })
+a: price: number
+```
+
+```json
+{"a":{"price":5,"total":5}}
+```
+
+The same holds inside `open()` and inside a rider, `meta()` or
+`deprecate()`, and for `aontu vet`, where the data that settles the
+sibling settles the member that reads it. The definition reads a path
+through a seal and a rider as if neither were there (`Val.at` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)), and rows q0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) and
+`seal-member-reads-a-sibling` on of
+[`test/spec/seal.tsv`](../test/spec/seal.tsv) hold both engines to it.
+
 An **optional** key the closed map does not declare is dropped rather
 than refused: no instance of the closed map can hold it, so it adds
 nothing. A required key is still refused, as the last line above shows,
