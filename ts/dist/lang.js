@@ -198,20 +198,21 @@ const NUMBER_RUN_RE = /^[-+]?(?:0(?:[xX][0-9a-fA-F_]+|[oO][0-7_]+|[bB][01_]+)|[0
 const NOT_A_NUMBER = { done: true, token: undefined };
 let AontuJsonic = function AontuLang(jsonic) {
     jsonic.use(asPlugin(path_1.Path));
-    let dotRef = (r, ctx, terms, prefix) => {
+    let dotRef = (r, ctx, terms, op) => {
         terms = dropUnfilled(terms);
         if (0 === terms.length)
             return incompleteNil(r, ctx);
+        const at = op.prefix ? atOp(op) : atTerm(terms[0]);
         for (const t of terms) {
             const segs = Array.isArray(t.peg) ? t.peg :
                 ('string' === typeof t.peg ? [t.peg] : []);
             for (const seg of segs) {
                 if ('string' === typeof seg && aliasname_1.ALIAS_RE.test(seg)) {
-                    return addsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx);
+                    return opsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx, at);
                 }
             }
         }
-        return addsite(new RefVal_1.RefVal({ peg: terms, prefix }), r, ctx);
+        return opsite(new RefVal_1.RefVal({ peg: terms, prefix: op.prefix }), r, ctx, at);
     };
     jsonic.options({ comment: { def: null } });
     jsonic.options({
@@ -715,25 +716,41 @@ help isolate the syntax error.`,
         }
         return val;
     };
+    // AN OPERATOR'S RESULT STANDS WHERE IT IS WRITTEN: a prefix's at its own
+    // token, an infix's at its first term, not at the rule's first token.
+    const opsite = (v, r, ctx, at) => {
+        addsite(v, r, ctx);
+        return undefined === at ? v : siteAt(v, at);
+    };
+    const atOp = (op) => null == op.token ? undefined : tokenSite(op.token);
+    const atTerm = (term) => true === term?.isVal && 1 <= term.site.row ? {
+        row: term.site.row, col: term.site.col, src: term.site.src, len: term.site.len,
+    } : undefined;
     let opmap = {
-        'conjunct-infix': (r, ctx, _op, terms) => addsite(new ConjunctVal_1.ConjunctVal({ peg: dropUnfilled(terms) }), r, ctx),
-        'disjunct-infix': (r, ctx, _op, terms) => addsite(new DisjunctVal_1.DisjunctVal({ peg: dropUnfilled(terms) }), r, ctx),
+        'conjunct-infix': (r, ctx, _op, terms) => {
+            const peg = dropUnfilled(terms);
+            return opsite(new ConjunctVal_1.ConjunctVal({ peg }), r, ctx, atTerm(peg[0]));
+        },
+        'disjunct-infix': (r, ctx, _op, terms) => {
+            const peg = dropUnfilled(terms);
+            return opsite(new DisjunctVal_1.DisjunctVal({ peg }), r, ctx, atTerm(peg[0]));
+        },
         // `.a` (prefix) and `a.b` (infix) build the same reference; only the
         // prefix flag differs, and both need the same missing-operand guard,
         // so they share one builder.
-        'dot-prefix': (r, ctx, _op, terms) => dotRef(r, ctx, terms, true),
-        'dot-infix': (r, ctx, _op, terms) => dotRef(r, ctx, terms, false),
-        'star-prefix': (r, ctx, _op, terms) => {
+        'dot-prefix': (r, ctx, op, terms) => dotRef(r, ctx, terms, op),
+        'dot-infix': (r, ctx, op, terms) => dotRef(r, ctx, terms, op),
+        'star-prefix': (r, ctx, op, terms) => {
             if (null == terms[0])
                 return incompleteNil(r, ctx);
             const bag = terms[0];
             if ((bag.isMap && '{' !== bag.site.src) ||
                 (bag.isList && '[' !== bag.site.src)) {
-                return addsite(new NilVal_1.NilVal({ why: 'pref_implicit_bag' }), r, ctx);
+                return opsite(new NilVal_1.NilVal({ why: 'pref_implicit_bag' }), r, ctx, atOp(op));
             }
-            return addsite(new PrefVal_1.PrefVal({ peg: terms[0] }), r, ctx);
+            return opsite(new PrefVal_1.PrefVal({ peg: terms[0] }), r, ctx, atOp(op));
         },
-        'dollar-prefix': (r, ctx, _op, terms) => {
+        'dollar-prefix': (r, ctx, op, terms) => {
             if (null == terms[0])
                 return incompleteNil(r, ctx);
             // A refusal from the dot rule below (an alias used as a path
@@ -747,37 +764,38 @@ help isolate the syntax error.`,
             // is refused for the same reason.
             if (terms[0] instanceof RefVal_1.RefVal &&
                 terms[0].peg.some((seg) => 'string' === typeof seg && aliasname_1.ALIAS_RE.test(seg))) {
-                return addsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx);
+                return opsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx, atOp(op));
             }
             if (terms[0] instanceof RefVal_1.RefVal) {
                 terms[0].absolute = true;
-                return terms[0];
+                const at = atOp(op);
+                return undefined === at ? terms[0] : siteAt(terms[0], at);
             }
             // `$` takes a name or a path; anything else is refused where written.
             if (!('string' === typeof terms[0] || true === terms[0]?.isString)) {
-                return addsite(new NilVal_1.NilVal({ why: 'var_name' }), r, ctx);
+                return opsite(new NilVal_1.NilVal({ why: 'var_name' }), r, ctx, atOp(op));
             }
-            return addsite(new VarVal_1.VarVal({ peg: terms[0] }), r, ctx);
+            return opsite(new VarVal_1.VarVal({ peg: terms[0] }), r, ctx, atOp(op));
         },
         'plus-infix': (r, ctx, _op, terms) => {
             if (null == terms[0] || null == terms[1])
                 return incompleteNil(r, ctx);
-            return addsite(new PlusOpVal_1.PlusOpVal({ peg: [terms[0], terms[1]] }), r, ctx);
+            return opsite(new PlusOpVal_1.PlusOpVal({ peg: [terms[0], terms[1]] }), r, ctx, atTerm(terms[0]));
         },
-        'negative-prefix': (r, ctx, _op, terms) => {
+        'negative-prefix': (r, ctx, op, terms) => {
             let val = terms[0];
             if (null == val)
                 return incompleteNil(r, ctx);
             if (val instanceof BigIntegerVal_1.BigIntegerVal) {
-                return addsite(new BigIntegerVal_1.BigIntegerVal({ peg: -val.peg, src: negsrc(val.src) }), r, ctx);
+                return opsite(new BigIntegerVal_1.BigIntegerVal({ peg: -val.peg, src: negsrc(val.src) }), r, ctx, atOp(op));
             }
             if (val instanceof BigDecimalVal_1.BigDecimalVal) {
-                return addsite(new BigDecimalVal_1.BigDecimalVal({ peg: val.peg.negate(), src: negsrc(val.src) }), r, ctx);
+                return opsite(new BigDecimalVal_1.BigDecimalVal({ peg: val.peg.negate(), src: negsrc(val.src) }), r, ctx, atOp(op));
             }
             // Negating a non-numeric operand (`k-x` splits into k, -x) is an
             // error nil, not NaN (mirrors negate() in go/lang.go).
             if (!(val instanceof IntegerVal_1.IntegerVal) && !(val instanceof NumberVal_1.NumberVal)) {
-                return addsite(new NilVal_1.NilVal({ why: 'negative' }), r, ctx);
+                return opsite(new NilVal_1.NilVal({ why: 'negative' }), r, ctx, atOp(op));
             }
             let peg = -1 * val.peg;
             // Normalize -0 to 0 (keeps the AST and canon free of negative zero).
@@ -786,13 +804,13 @@ help isolate the syntax error.`,
             const out = val instanceof IntegerVal_1.IntegerVal && (0, numkind_1.isIntegerKind)(peg)
                 ? new IntegerVal_1.IntegerVal({ peg })
                 : new NumberVal_1.NumberVal({ peg });
-            return addsite(out, r, ctx);
+            return opsite(out, r, ctx, atOp(op));
         },
-        'positive-prefix': (r, ctx, _op, terms) => {
+        'positive-prefix': (r, ctx, op, terms) => {
             let val = terms[0];
             if (null == val)
                 return incompleteNil(r, ctx);
-            return addsite(val, r, ctx);
+            return opsite(val, r, ctx, atOp(op));
         },
         'func-paren': (r, ctx, _op, terms) => {
             let val = terms[1];
