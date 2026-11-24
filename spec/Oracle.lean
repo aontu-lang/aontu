@@ -3656,6 +3656,46 @@ theorem certainSelect_verdict_exact : ∀ c ∈ certainSelectCases, ∀ (m : Mod
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_readsD (certainSelectCases_reads c hc) v
 
+/-- Ruling 90: a spread's template that holds two defaults of the picked
+rank that disagree is the schema's error where it is written, whatever
+the data. A map's template and a list's, against no data, a member that
+picks one default and one that picks neither; the clash made by `pref`,
+a member of the template, a template's own template, and under
+`type()`; beside a member the schema declares; in a template that reads
+its member's key or a member beside it, which is read as written; in a
+template that is a path to the clash; and in a body nothing uses. Their
+neighbours stand: one default, two that agree, and two of different
+ranks. -/
+def templateClashCases : List (Decls × Val × Data) :=
+  let two : Val := .or [(1, int 1), (1, int 2)]
+  let sp (t : Val) (fs : List (String × Val) := []) : Val :=
+    .map (fs.map fun f => (f.1, false, f.2)) (some t) false
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (fs : List (String × Data)) : Data := .map [("x", .map fs)]
+  [([], x (sp two), .map []),
+    ([], x (sp two), dx [("k", j 1)]),
+    ([], x (sp two), dx [("k", j 3)]),
+    ([], x (sp (.call .pref [.or [(0, int 1), (0, int 2)]])), dx [("k", j 1)]),
+    ([], x (.list [] (some two) false), .map [("x", .list [j 1])]),
+    ([], x (sp two [("k", .number)]), .map []),
+    ([], x (sp (m [("a", two)])), .map []),
+    ([], x (sp (sp two)), .map []),
+    ([], x (sp (.ride .type two [])), .map []),
+    ([], x (sp (m [("a", .keyUp 0), ("b", two)])), .map []),
+    ([], x (sp (m [("a", .path [.up 1, .key "b"]), ("b", two)])), .map []),
+    ([], m [("x", sp (.path [.key "d"])), ("d", two)], .map []),
+    ([("T", sp two)], m [("v", int 1)], .map [("v", j 1)]),
+    ([], x (sp (.or [(1, int 1), (0, int 2)])), dx [("k", j 2)]),
+    ([], x (sp (.or [(1, int 1), (1, int 1)])), .map []),
+    ([], x (sp (.or [(2, int 1), (1, int 2)])), .map [])]
+
+theorem templateClashCases_checkable : ∀ c ∈ templateClashCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem templateClash_verdict_exact : ∀ c ∈ templateClashCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (templateClashCases_checkable c hc).1 (templateClashCases_checkable c hc).2 v
+
 /-- A `match` whose scrutinee, and a `must` whose condition, reads the
 place the term stands at, which reads what the rest of the document
 holds there, without the term (`Val.dropSelf`): the rule of #818,
@@ -8905,6 +8945,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# (ruling 87), in rows ca0 on: an arm the scrutinee sits below is taken, one"
     IO.println "# that shares nothing with it is passed over, and any other waits for the data."
     pathRows "ca" certainSelectCases
+    IO.println "# A spread's template that holds two defaults of the picked rank that disagree is"
+    IO.println "# the schema's error where it is written, whatever the data (ruling 90), in rows"
+    IO.println "# tc0 on."
+    pathRows "tc" templateClashCases
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases

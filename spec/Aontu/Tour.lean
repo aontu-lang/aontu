@@ -666,6 +666,7 @@ set_option maxHeartbeats 400000 in
 `{"x": 1, "y": 1}` that is `integer & 1`, and the document is valid. -/
 example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) = .valid := by decide
 
+set_option maxHeartbeats 400000 in
 /-- Under `{"x": 1, "y": 2}` it is `2`, which `x: 1` refuses. -/
 example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) = .invalid := by decide
 
