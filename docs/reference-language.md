@@ -2172,14 +2172,14 @@ services: pack([web api], %row)
 ```
 
 The definition reads a body with each key that reaches the body's own
-top or above as any string (`Val.unplaced` in
+top, or climbs past it, as any string (`Val.unplaced` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and a use
 with each key placed. Rows from `key-in-a-body-fits-its-use` on of
 [`test/spec/gen-key.tsv`](../test/spec/gen-key.tsv) hold both engines to
 it. A key that reads a step inside the body is that step's text at
 every use, so the definition reads it as that text whether or not
 anything uses the body (`Val.keysIn`, ruling 88): an unused
-`%T = {a: key(0) & "b"}` is an error, in the definition and in both
+`%T = {a: key(0) & "b"}` is an error in the definition, as in both
 engines. A key inside the body that a relative path reads, as in
 `%T = {a: key(0), b: .a & "q"}`, the definition still reads as any
 string where the path lands, and both engines refuse that body, which

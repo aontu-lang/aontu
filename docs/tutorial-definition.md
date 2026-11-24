@@ -5145,10 +5145,10 @@ conflict met with a call that waits through a name, so they answer
 `valid` for `%T = add(%U, 1) & (1 & 2)`, which the definition reads as
 an `error` and #530 tracks.
 
-A `key(n)` that reads a step inside the body waits for nothing: it is
-that step's text at every use. Ruling 88 has the check read it so,
-before anything is read as waiting, by `Val.keysIn`, which walks the
-body with the steps from its top and reads each key by `keyUpIn`:
+A `key(n)` that reads a step inside the body waits for nothing, since
+every use gives that step the same text. Ruling 88 has the check read
+the key as that text first, by `Val.keysIn`, which walks the body with
+the steps from its top and reads each key by `keyUpIn`:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
@@ -5167,15 +5167,15 @@ def keyUpIn (pos : List Step) (n : ℤ) : Val :=
 
 So `%T = {a: key(0) & "b"}` is an `error` unused, `"a"` met with `"b"`,
 and so are `%T = [key(0) & "9"]` and `%T = {a: upper(key(0)) & 1}`,
-whose call is made once its key is text. `%T = {a: {b: key(2) & "z"}}`
+whose call the reading makes once its key is text. `%T = {a: {b: key(2) & "z"}}`
 stands, its key reaching the body's own top, which only a use places.
 Rows `a378` on of `test/spec/def-alias.tsv` hold both engines to each.
 A list's element past one that could be absence or carry a mark stands
-at an index only a reading shows, so its keys are read from the element
-down (`Val.evident`). One case is left: a key inside the body that a
-relative path reads, `%T = {a: key(0), b: .a & "q"}`, is any string
-still where the path lands, and both engines refuse that body, which
-#942 tracks.
+at an index only a reading shows, so the walk reads its keys from the
+element down (`Val.evident`). One case remains: a key inside the body
+that a relative path reads, `%T = {a: key(0), b: .a & "q"}`, is any
+string still where the path lands, and both engines refuse that body,
+which #942 tracks.
 
 A call or a trial that waits for its hole still reads the arguments
 both engines read as written: a call's own, a size, the count of `nof`
