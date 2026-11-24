@@ -10,6 +10,7 @@ declare class MatchFuncVal extends FuncBaseVal {
     prepare(_ctx: AontuContext, _args: Val[]): null;
     hasDefault(): boolean;
     unify(peer: Val, ctx: AontuContext): Val;
+    certain(ctx: AontuContext): boolean;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
 export { MatchFuncVal, };
