@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 84 on 2026-11-24),
+  on 2026-11-22), ledger rows (394 at most then, 76 on 2026-11-24),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,7 +64,7 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-47 of its 84 on 2026-11-24. In order:
+39 of its 76 on 2026-11-24. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
@@ -114,7 +114,7 @@ How both engines read a preference, a lone preference and a live disjunction arm
 
 ### Seals, marks, moves and generation-time checks
 
-12 issues (1 S, 8 M, 3 L), 14 ledger rows.
+12 issues (1 S, 8 M, 3 L), 6 ledger rows.
 
 A seal, a mark or a move, and the checks that wait for generation: #726 (bare `close()` and `open()`, decisions 44 to 46) carries 6 rows. #748 and #749 (a path into a container met with a deferred atom or a seal) also block the relations workstream.
 
@@ -127,7 +127,7 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 | [#540](https://github.com/aontu-lang/aontu/issues/540) | def | S |  | A hide(nil) list element keeps its position in both engines; the definition drops it |
 | [#633](https://github.com/aontu-lang/aontu/issues/633) | def | M |  | A mark on a generator's source reaches every instance in both engines; definition reads through it. |
 | [#668](https://github.com/aontu-lang/aontu/issues/668) | bug | M |  | `move` of a list element drops it from output, but vet keeps its position; output fails vet. |
-| [#346](https://github.com/aontu-lang/aontu/issues/346) | def | M | 8 | `close([1, 2])` met with `[&: integer]` loses its fixed length and admits `[1, 2, 3]` in both ports. |
+| [#346](https://github.com/aontu-lang/aontu/issues/346) | def | M |  | `close([1, 2])` met with `[&: integer]` loses its fixed length and admits `[1, 2, 3]` in both ports. Built in both ports 2026-11-24. |
 | [#343](https://github.com/aontu-lang/aontu/issues/343) | def | M |  | `string & (string & empty())` admits the empty string in both ports; the definition refuses it. |
 | [#770](https://github.com/aontu-lang/aontu/issues/770) | parity | L |  | type() block filled by statements answers unlike the whole block, ports split five ways; case 1 ruled (67). |
 | [#486](https://github.com/aontu-lang/aontu/issues/486) | parity | M |  | move with a meta/hide rider: TS and Go split on vet data overriding the copy |
@@ -445,7 +445,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 45 | 47 |
+| 2 | alias cycles, preferences, seals and marks, copies | 45 | 39 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 25 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |

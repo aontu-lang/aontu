@@ -153,12 +153,16 @@ class ListVal extends BagVal {
     out.relroot = this.relroot
     out.site = this.site
 
+    // A side sealed with no spread fixes the length, and the meet then keeps no spread.
+    let fixed = false
+
     if (peer instanceof ListVal) {
       if (!this.closed && peer.closed) {
         out = peer.unify(this, te ? ctx.clone({ explain: ec(te, 'PMC') }) : ctx) as ListVal
         exit = true
       }
       else {
+        fixed = (this.closed && null == this.spread.cj) || (peer.closed && null == peer.spread.cj)
         out.closed = out.closed || peer.closed
         out.relates = joinRelates(out.relates, peer.relates)
         out.relroot = out.relroot || peer.relroot
@@ -177,6 +181,9 @@ class ListVal extends BagVal {
       out.dc = this.dc + 1
 
       let spread_cj = unmarkedTemplate(out.spread.cj || TOP, ctx)
+      if (fixed) {
+        out.spread.cj = undefined
+      }
 
       // Always unify children first
       for (let key in this.peg) {
@@ -260,13 +267,18 @@ class ListVal extends BagVal {
         const peerpeg: Val[] = undefined === theirs || theirs.length === Object.keys(upeer.peg).length ?
           upeer.peg : placed(upeer, theirs, ctx)
 
+        if (upeer.closed && null == upeer.spread.cj && !takes(upeer, this) &&
+          peerpeg.length < out.peg.length) {
+          bad = makeNilErr(ctx, 'closed', out.peg[peerpeg.length], undefined)
+        }
+
         // NOTE: peerkey is the index
         for (let peerkey in peerpeg) {
           let peerchild = peerpeg[peerkey]
 
           // A spread declares every element, so a closed list with one
           // fixes nothing here; the template judges the element.
-          if (this.closed && !takes(this, upeer) && null == out.spread.cj &&
+          if (this.closed && !takes(this, upeer) && null == this.spread.cj &&
             !allowedKeys.includes(peerkey)) {
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }

@@ -5613,7 +5613,11 @@ integers of any length, while `close([1,2])` has exactly two.
 On a list, closing fixes the LENGTH: the elements it has can still be
 narrowed (`close([1,number]) & [1,2]` is `[1,2]`), but no element can be
 added past the end. A list is open by default, so `[1,2] & [1,2,3]` is
-`[1,2,3]`, and `open(close([1,2])) & [1,2,3]` is too.
+`[1,2,3]`, and `open(close([1,2])) & [1,2,3]` is too. A closed list
+keeps its length when it meets a spread: each position takes the spread
+and the result has none, so `close([1,2]) & [&: integer]` still refuses
+`[1,2,3]`. Two closed lists of different lengths don't meet, so
+`close([1,2,3]) & close([1,2])` is an error.
 
 With no argument, `close()` and `open()` seal or unseal whatever map or
 list they meet, and leave any other value as it is:
@@ -6523,7 +6527,7 @@ generable documents materialise differently or become incomplete.
 | constraint residual | map or list | `compat_narrowed` where the residual has a domain, which holds no container; a size or a uniqueness alone is `undecided`, with reason `sub_no_witness`, since the walk counts no members |
 | concrete scalar | concrete scalar | identity: a concrete value subsumes only itself (kind included) |
 | map | map | see below; a specific value that is neither a map nor `map` is `compat_narrowed` |
-| list | list | element-wise by position, with the same required/optional shape as maps |
+| list | list | element-wise by position, with the same required/optional shape as maps. A seal bounds a list's length only where the list has no spread, so `close([integer, &: integer])` covers `[integer, &: integer]`, and `close([integer])` doesn't cover it |
 | `map` or `list` | a container of its kind, or the kind | yes: `map` admits every map and `list` every list; anything else is `compat_narrowed` |
 | map or list | `map` or `list` | `compat_narrowed` where A requires a key or a position, is a sealed map, or is a sealed list with no spread, since each refuses a value the kind admits. Otherwise each member and the spread is held to `any`: `{}`, `[]` and `{x?: any}` subsume their kinds, and a member with no failing case, as in `{x?: len(2)} ⊒ map`, is `undecided` (`sub_no_witness`) |
 

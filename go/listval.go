@@ -164,7 +164,10 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	done := true
 
+	// A side sealed with no spread fixes the length, and the meet then keeps no spread.
+	fixed := false
 	if pl, ok := peer.(*ListVal); ok {
+		fixed = (l.closed && l.spread == nil) || (pl.closed && pl.spread == nil)
 		out.lk.relates = joinRelates(out.lk.relates, pl.lk.relates)
 		out.lk.root = out.lk.root || pl.lk.root
 		if out.spread == nil {
@@ -176,6 +179,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	var spreadCj Val = top()
 	if out.spread != nil {
 		spreadCj = unmarkedTemplate(out.spread)
+	}
+	if fixed {
+		out.spread = nil
 	}
 
 	// Driven base (see the matching comment in MapVal.Unify).
@@ -264,6 +270,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		peerPeg := pl.peg
 		if tok && len(theirs) != len(pl.peg) {
 			peerPeg = placedAt(pl, theirs)
+		}
+		if pl.closed && pl.spread == nil && !(pl.dirSealed && !l.isData) && len(peerPeg) < len(out.peg) {
+			bad = makeNilErr(ctx, "closed", out.peg[len(peerPeg)], nil)
 		}
 		for i, pe := range peerPeg {
 			// A spread declares every element; each past a closed list's end is refused.
