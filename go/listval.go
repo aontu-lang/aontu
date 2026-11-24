@@ -58,7 +58,7 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			continue
 		}
 		if stalled {
-			if genable(e) {
+			if nil != ctx && genable(e) {
 				alsoIncomplete(ctx, e, len(out), at)
 			}
 			continue

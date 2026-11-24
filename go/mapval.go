@@ -318,7 +318,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		optional := m.isOptional(k)
 
 		if stalled {
-			if !optional && genable(child) {
+			if nil != ctx && !optional && genable(child) {
 				alsoIncomplete(ctx, child, k, at)
 			}
 			continue

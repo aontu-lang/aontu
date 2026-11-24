@@ -159,7 +159,7 @@ abstract class BagVal extends FeatureVal {
 
       // Past a member that can't generate, the rest still say what else is incomplete.
       if (stalled) {
-        if (!optional && bagGenable(child)) {
+        if (null != ctx && !optional && bagGenable(child)) {
           const sctx = ctx.clone({ err: [], collect: true })
           child.gen(towardAt(this, sctx, p, out, at))
           sctx.err.filter((e: any) => 'incomplete' === codeClass(e.why))
