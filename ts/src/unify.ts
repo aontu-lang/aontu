@@ -131,21 +131,10 @@ function drives(v: any): boolean {
 }
 
 
-// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
-function rereadOn(ctx: AontuContext, out: any, a: any, b: any): any {
-  if (null == out || true === out.isNil) {
-    return out
-  }
-  const plain = (t: any): boolean => null == t || true === t.isTop
-  const from = plain(a) ? b : plain(b) ? a : undefined
-  if (out === from || (undefined !== from && undefined !== out.reread)) {
-    return out
-  }
-  // The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
-  const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path })
-  kept.reread = undefined !== from ? from.reread : [...(a.reread ?? [a]), ...(b.reread ?? [b])]
-  return kept
-}
+const plain = (t: any): boolean => null == t || true === t.isTop
+
+// What a value stands for as written: what a relative path read there, or the value itself.
+const rereadTerms = (t: any): Val[] => plain(t) ? [] : (t.reread ?? [t])
 
 
 // A call over what a relative path read is made again where a copy stands (ruling 26).
@@ -153,8 +142,21 @@ function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: 
   if (true === out.isNil || !args.some((a: any) => undefined !== a.reread)) {
     return out
   }
+  const kept = out.clone(ctx, { path: out.path })
+  kept.reread = [again(), ...rereadTerms(peer)]
+  return kept
+}
+
+
+// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
+// The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+function rereadOn(ctx: AontuContext, out: any, a: any, b: any): any {
+  const alone = plain(a) || plain(b)
+  if (null == out || true === out.isNil || (alone && (out === a || out === b || undefined !== out.reread))) {
+    return out
+  }
   const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path })
-  kept.reread = [again(), ...(peer.isTop ? [] : (peer.reread ?? [peer]))]
+  kept.reread = [...rereadTerms(a), ...rereadTerms(b)]
   return kept
 }
 
@@ -739,6 +741,7 @@ const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string)
 export {
   Unify,
   rereadCall,
+  rereadTerms,
   holdsLink,
   linksOf,
   rootLinks,

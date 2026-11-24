@@ -562,3 +562,15 @@ vet-held-open-member-leaves-the-place-sealed	verdict	v: close() & ({x: {y: 1}} &
 vet-bare-close-takes-every-map-and-refuses-the-data	verdict	v: {x: close()} & {x: {y: 1}} & {x: {z: 2}}	{"v": {"x": {"y": 1, "z": 2, "w": 3}}}	{"verdict":"invalid"}
 vet-bare-close-refuses-the-data-beneath	verdict	v: {x: close()} & {x: {y: 1}}	{"v": {"x": {"y": 1, "z": 2}}}	{"verdict":"invalid"}
 vet-bare-close-refuses-the-data-in-a-list	verdict	v: {x: close()} & {x: [1]}	{"v": {"x": [1, 2]}}	{"verdict":"invalid"}
+# A copy reads its relative paths where it stands (ruling 26): a call over
+# one is made again there, the data written at the target meets the copy,
+# and a copy shallower than its target reads from its own place.
+vet-copy-makes-a-call-again	verdict	a: {x: "p", b: {v: upper(..x)}}, c: {x: "q", d: $.a.b}	{"c": {"d": {"v": "Q"}}}	{"verdict":"valid"}
+vet-copy-refuses-what-the-target-computed	verdict	a: {x: "p", b: {v: upper(..x)}}, c: {x: "q", d: $.a.b}	{"c": {"d": {"v": "P"}}}	{"verdict":"invalid"}
+vet-copy-meets-the-data-at-the-target-of-a-call	verdict	a: {x: "p", b: {v: upper(..x)}}, c: {x: "q", d: $.a.b}	{"a": {"b": {"v": "P"}}}	{"verdict":"invalid"}
+vet-copy-shallower-reads-its-own-place	verdict	x: 9, a: {b: {k: {v: ..x}, x: 5}}, c: $.a.b.k	{"c": {"v": 9}}	{"verdict":"valid"}
+vet-copy-shallower-refuses-what-the-target-read	verdict	x: 9, a: {b: {k: {v: ..x}, x: 5}}, c: $.a.b.k	{"c": {"v": 5}}	{"verdict":"invalid"}
+vet-copy-shallower-reads-its-own-key	verdict	x: {a: {k: key()}}, y: $.x.a	{"y": {"k": "y"}}	{"verdict":"valid"}
+vet-copy-shallower-refuses-a-key-not-its-own	verdict	x: {a: {k: key()}}, y: $.x.a	{"y": {"k": "k"}}	{"verdict":"invalid"}
+vet-copy-makes-a-call-in-a-name-again	verdict	x: 1, a: {x: 2, b: %T}\n%T = {v: add(..x, 1)}	{"x": 1, "a": {"x": 2, "b": {"v": 3}}}	{"verdict":"valid"}
+vet-copy-refuses-what-a-name-computed-at-its-own-place	verdict	x: 1, a: {x: 2, b: %T}\n%T = {v: add(..x, 1)}	{"x": 1, "a": {"x": 2, "b": {"v": 2}}}	{"verdict":"invalid"}

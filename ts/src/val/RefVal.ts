@@ -23,7 +23,7 @@ import { AontuContext } from '../ctx'
 import { makeNilErr } from '../err'
 import { RecurseVal, containsRecurseOf, declaration, throughRider } from './RecurseVal'
 import { fixSeals, sealTree, unsealTree } from './SealVal'
-import { unite } from '../unify'
+import { rereadTerms, unite } from '../unify'
 
 
 import {
@@ -53,6 +53,21 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable'
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it. So is an `each`'s
 // template, whose mark leaves every instance out of the list it makes.
+// Where a re-read may stand beneath a value: a call's arguments only in a call made again.
+function rereadKids(v: any, made?: boolean): any {
+  const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg)
+  return true === v.isMap || true === v.isList || args || true === v.isConjunct ||
+    true === v.isDisjunct ? v.peg : true === v.isPref ? v : undefined
+}
+
+
+function holdsReread(v: any): boolean {
+  const kids = rereadKids(v)
+  return undefined !== v.reread || (true === v.isPref ? holdsReread(v.peg) :
+    Object.keys(kids ?? {}).some((k: string) => holdsReread(kids[k])))
+}
+
+
 // A copy reads each relative path again where it stands (ruling 26); what holds one isn't settled.
 // Only a call made again (`made`) has its arguments read; a staged call's copy keeps its own.
 function rereadAt(ctx: AontuContext, v: any, path: string[], made?: boolean): Val {
@@ -70,12 +85,11 @@ function rereadAt(ctx: AontuContext, v: any, path: string[], made?: boolean): Va
     out.dc = 0
     return out
   }
-  const bag = true === v.isMap || true === v.isList
-  const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg)
-  const kids: any = bag || args || true === v.isConjunct || true === v.isDisjunct ? v.peg :
-    true === v.isPref ? v : undefined
+  const kids = rereadKids(v, made)
   for (const k of true === v.isPref ? ['peg'] : Object.keys(kids ?? {})) {
-    const kid = rereadAt(ctx, kids[k], bag ? [...path, k] : path, made)
+    // A list's position is a number in a path, as the parser records it.
+    const at = true === v.isMap ? [...path, k] : true === v.isList ? [...path, +k as any] : path
+    const kid = rereadAt(ctx, kids[k], at, made)
     if (kid !== kids[k]) {
       kids[k] = kid
       v.dc = 0
@@ -389,7 +403,7 @@ class RefVal extends FeatureVal {
         if (!this.absolute && !out.isNil) {
           const kept: any = peer.isTop || true === out.isConjunct ? out :
             out.clone(ctx, { path: out.path })
-          kept.reread = peer.isTop ? [this] : [this, ...((peer as any).reread ?? [peer])]
+          kept.reread = [this, ...rereadTerms(peer)]
           out = kept
         }
       }
@@ -681,9 +695,9 @@ class RefVal extends FeatureVal {
 
           const staged = out.holdsStaged
           // The copy stands at the reference's own place, whatever the target's depth.
-          const deeper = ctx.path.length < out.path.length && !out.path.includes('&')
-          out = out.clone(ctx, deeper ? { dup: !staged, path: [...ctx.path] } : { dup: !staged })
-          if (deeper) {
+          const moved = ctx.path.length !== out.path.length && !out.path.includes('&')
+          out = out.clone(ctx, moved ? { dup: !staged, path: [...ctx.path] } : { dup: !staged })
+          if (moved) {
             repathInstance(out, out.path)
           }
           out = undeclared(out)
@@ -692,7 +706,7 @@ class RefVal extends FeatureVal {
             out.reread = undefined
           }
           // A staged call's argument is a value read, with no place of its own.
-          if (true !== (ctx as any).argsnap) {
+          if (true !== (ctx as any).argsnap && holdsReread(out)) {
             out = rereadAt(ctx, out, ctx.path)
           }
           fixSeals(out)

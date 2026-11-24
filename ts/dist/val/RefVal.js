@@ -29,6 +29,17 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable';
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it. So is an `each`'s
 // template, whose mark leaves every instance out of the list it makes.
+// Where a re-read may stand beneath a value: a call's arguments only in a call made again.
+function rereadKids(v, made) {
+    const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg);
+    return true === v.isMap || true === v.isList || args || true === v.isConjunct ||
+        true === v.isDisjunct ? v.peg : true === v.isPref ? v : undefined;
+}
+function holdsReread(v) {
+    const kids = rereadKids(v);
+    return undefined !== v.reread || (true === v.isPref ? holdsReread(v.peg) :
+        Object.keys(kids ?? {}).some((k) => holdsReread(kids[k])));
+}
 // A copy reads each relative path again where it stands (ruling 26); what holds one isn't settled.
 // Only a call made again (`made`) has its arguments read; a staged call's copy keeps its own.
 function rereadAt(ctx, v, path, made) {
@@ -46,12 +57,11 @@ function rereadAt(ctx, v, path, made) {
         out.dc = 0;
         return out;
     }
-    const bag = true === v.isMap || true === v.isList;
-    const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg);
-    const kids = bag || args || true === v.isConjunct || true === v.isDisjunct ? v.peg :
-        true === v.isPref ? v : undefined;
+    const kids = rereadKids(v, made);
     for (const k of true === v.isPref ? ['peg'] : Object.keys(kids ?? {})) {
-        const kid = rereadAt(ctx, kids[k], bag ? [...path, k] : path, made);
+        // A list's position is a number in a path, as the parser records it.
+        const at = true === v.isMap ? [...path, k] : true === v.isList ? [...path, +k] : path;
+        const kid = rereadAt(ctx, kids[k], at, made);
         if (kid !== kids[k]) {
             kids[k] = kid;
             v.dc = 0;
@@ -296,7 +306,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 if (!this.absolute && !out.isNil) {
                     const kept = peer.isTop || true === out.isConjunct ? out :
                         out.clone(ctx, { path: out.path });
-                    kept.reread = peer.isTop ? [this] : [this, ...(peer.reread ?? [peer])];
+                    kept.reread = [this, ...(0, unify_1.rereadTerms)(peer)];
                     out = kept;
                 }
             }
@@ -560,9 +570,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     const typed = true === out.mark.type;
                     const staged = out.holdsStaged;
                     // The copy stands at the reference's own place, whatever the target's depth.
-                    const deeper = ctx.path.length < out.path.length && !out.path.includes('&');
-                    out = out.clone(ctx, deeper ? { dup: !staged, path: [...ctx.path] } : { dup: !staged });
-                    if (deeper) {
+                    const moved = ctx.path.length !== out.path.length && !out.path.includes('&');
+                    out = out.clone(ctx, moved ? { dup: !staged, path: [...ctx.path] } : { dup: !staged });
+                    if (moved) {
                         (0, Val_1.repathInstance)(out, out.path);
                     }
                     out = (0, IdentFuncVal_1.undeclared)(out);
@@ -571,7 +581,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         out.reread = undefined;
                     }
                     // A staged call's argument is a value read, with no place of its own.
-                    if (true !== ctx.argsnap) {
+                    if (true !== ctx.argsnap && holdsReread(out)) {
                         out = rereadAt(ctx, out, ctx.path);
                     }
                     (0, SealVal_1.fixSeals)(out);

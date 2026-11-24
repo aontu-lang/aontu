@@ -130,17 +130,6 @@ func fixSeals(v Val) {
 	}
 }
 
-// A directive's seal takes the keys of the other terms at its place, and refuses the data's.
-func takes(dirSealed bool, peer Val) bool {
-	switch p := peer.(type) {
-	case *MapVal:
-		return dirSealed && !p.isData
-	case *ListVal:
-		return dirSealed && !p.isData
-	}
-	return dirSealed
-}
-
 // An explicit seal: the bag it names obeys whatever it said before.
 func sealBag(v Val, closed, dir bool) {
 	switch b := v.(type) {

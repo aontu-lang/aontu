@@ -21,6 +21,11 @@ bare-close-takes-every-map-at-its-place	gens	v: {x: close()} & {x: {y: 1}} & {x:
 bare-close-takes-every-statement-at-its-place	gens	v: {x: close()}\nv: {x: {y: 1}}\nv: {x: {z: 2}}	{"v":{"x":{"y":1,"z":2}}}
 bare-close-in-a-template-takes-a-declared-member	gens	v: {m: {y: 1}, &: close() & {x: 1}}	{"v":{"m":{"x":1,"y":1}}}
 bare-close-copy-is-sealed-where-it-lands	errc	a: close() & {x: 1}\nb: $.a & {y: 1}	closed
+bare-close-meets-a-closed-map	gens	v: {x: close()} & {x: {y: 1}} & {x: close({y: 1})}	{"v":{"x":{"y":1}}}
+closed-map-meets-a-bare-close	gens	v: {x: close({y: 1})} & {x: close()} & {x: {y: 1}}	{"v":{"x":{"y":1}}}
+bare-close-refused-by-a-closed-map	errc	v: {x: close()} & {x: {y: 1, z: 2}} & {x: close({y: 1})}	closed
+bare-close-meets-a-closed-list	gens	v: {x: close()} & {x: [1]} & {x: close([1])}	{"v":{"x":[1]}}
+bare-close-meets-a-bare-close	gens	v: {x: close() & {y: 1}} & {x: close() & {y: 1}}	{"v":{"x":{"y":1}}}
 close-reaches-a-reference	errc	b: {y: 1}\na: close({x: $.b})\na: {x: {z: 2}}	closed
 close-reaches-a-reference-later-value	gens	b: {y: 1}\na: close({x: $.b})\na: {x: {y: 1}}	{"a":{"x":{"y":1}},"b":{"y":1}}
 closed-spread-refuses-an-undeclared-key	errc	a: close({x: 1, &: integer})\na: {y: 2}	closed

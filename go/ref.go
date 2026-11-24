@@ -328,15 +328,7 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 			if !isTop(peer) && !isConjunct(out) {
 				out = clonePath(out, cp(out.vpath()))
 			}
-			terms := []Val{rv}
-			if !isTop(peer) {
-				if nil != peer.rereads() {
-					terms = append(terms, peer.rereads()...)
-				} else {
-					terms = append(terms, peer)
-				}
-			}
-			out.setRereads(terms)
+			out.setRereads(append([]Val{rv}, rereadTerms(peer)...))
 		}
 	}
 
@@ -344,6 +336,29 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 		out.setDc(rv.dc + 1)
 	}
 	return out
+}
+
+func holdsReread(v Val) bool {
+	if nil != v.rereads() {
+		return true
+	}
+	switch n := v.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			if holdsReread(n.peg[k]) {
+				return true
+			}
+		}
+	case *ListVal:
+		return slices.ContainsFunc(n.peg, holdsReread)
+	case *ConjunctVal:
+		return slices.ContainsFunc(n.peg, holdsReread)
+	case *DisjunctVal:
+		return slices.ContainsFunc(n.peg, holdsReread)
+	case *PrefVal:
+		return holdsReread(n.peg)
+	}
+	return false
 }
 
 // A copy reads each relative path again where it stands (ruling 26); what holds one isn't settled.
@@ -752,7 +767,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		out.setRereads(nil)
 	}
 	// A staged call's argument is a value read, with no place of its own.
-	if !ctx.argsnap {
+	if !ctx.argsnap && holdsReread(out) {
 		out = rereadAt(out, rv.path, false)
 	}
 	fixSeals(out)
