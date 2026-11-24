@@ -53,7 +53,6 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable'
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it. So is an `each`'s
 // template, whose mark leaves every instance out of the list it makes.
-// Where a re-read may stand beneath a value: a call's arguments only in a call made again.
 function rereadKids(v: any, made?: boolean): any {
   const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg)
   return true === v.isMap || true === v.isList || args || true === v.isConjunct ||
@@ -68,8 +67,8 @@ function holdsReread(v: any): boolean {
 }
 
 
-// A copy reads each relative path again where it stands (ruling 26); what holds one isn't settled.
-// Only a call made again (`made`) has its arguments read; a staged call's copy keeps its own.
+// A copy reads each relative path again where it stands (ruling 26), a call's arguments
+// only in a call made again (`made`): a staged call's copy keeps its own.
 function rereadAt(ctx: AontuContext, v: any, path: string[], made?: boolean): Val {
   const terms: Val[] | undefined = v.reread
   if (undefined !== terms) {
