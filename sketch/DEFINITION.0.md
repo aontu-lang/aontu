@@ -3101,6 +3101,16 @@ until the phase that encodes it lands.
    it reads `v: {&: add(1)}` against `{"v": {}}` as `valid`, an
    unreached template being nothing, so rows x2250 to x2252 of
    `test/spec/def-call.tsv` enter the ledger, its bound rising by three.
+   **Built 2026-11-24** in the definition: a document does not stand
+   where its schema or a declaration's body writes a call with a count
+   its function doesn't take, at any depth (`Val.miscounts` in
+   `Decls.illFormedR`), read of the text as both ports read it, so the
+   three rows leave the ledger, its bound 61. `Fn.takes` gives each
+   function the count both ports' signatures give it, checked against
+   both for every function they share. Rows x2322 to x2336 hold five
+   more places no reading reaches: the template of an `each` and of a
+   `pack` over no member, a result of a `match` another arm takes, a
+   list's spread and a member of a spread's template.
 78. **A default inside a map, read by a trial.** Raised 2026-11-20 by
    #847: a `filter` condition and a `match` pattern read a member as
    it is written. With `t: &: { surface: *"sdk" | string }` and
