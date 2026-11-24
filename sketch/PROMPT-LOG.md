@@ -2084,3 +2084,9 @@ Continue
 ```text
 compare aontu to https://davidtemkin.github.io/declarelang/ - what can it do that aontu cannot
 ```
+
+## 2026-11-24 17:46:56 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+all four as recommended; continue
+```
