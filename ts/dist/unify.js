@@ -116,9 +116,8 @@ function holds(v, mark) {
     const kids = true === v.isMap || true === v.isList || true === v.isConjunct ? v.peg : {};
     return mark(v) || Object.keys(kids).some((k) => holds(kids[k], mark));
 }
-// A disjunction a meet or a call leaves ranks its defaults as a written one does, so its clash is
-// the same error (foldArms in spec/Aontu/Meet.lean), in a spread's template too, read with its
-// calls made (ruling 90). A copy is ranked: generation folds the tree's own.
+// A disjunction a meet or a call leaves ranks its defaults as a written one does (foldArms in
+// spec/Aontu/Meet.lean), in a spread's template too (ruling 90). A copy is ranked.
 function rankSettled(ctx, v, seen) {
     if (seen.has(v)) {
         return;
@@ -136,11 +135,12 @@ function rankSettled(ctx, v, seen) {
     kids.concat(made).forEach((k) => rankSettled(ctx, k, seen));
 }
 // Whether a template reads the member it lands on, at any depth: a key, a hole or a relative
-// path, and with `any` a path of either kind, which a trial would read, or move, too early.
+// path, and with `any` a path of either kind or a trial, which settling it early would read or move.
 function landsRead(v, any = false) {
     const kids = true === v?.isRef || null == v?.peg || 'object' !== typeof v.peg ? [] :
         true === v.peg.isVal ? [v.peg] : Object.values(v.peg);
-    return true === v?.isKeyFunc || true === v?.isPlace || (true === v?.isRef && (any || !v.absolute)) ||
+    return true === v?.isKeyFunc || true === v?.isPlace || (any && true === v?.isConstraint) ||
+        (true === v?.isRef && (any || !v.absolute)) ||
         kids.concat(v?.spread?.cj ?? []).some((k) => landsRead(k, any));
 }
 const rereads = (v) => undefined !== v.reread;

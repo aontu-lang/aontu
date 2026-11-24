@@ -140,7 +140,7 @@ func madeTemplate(ctx *Ctx, bag Val, tmpl Val) []Val {
 }
 
 // landsRead: whether a template reads the member it lands on, a key, a hole or a relative path,
-// and with any a path of either kind, which a trial would read, or move, too early.
+// and with any a path of either kind or a trial, which settling it early would read or move.
 func landsRead(v Val, any bool) bool {
 	in := func(k Val) bool { return landsRead(k, any) }
 	switch n := v.(type) {
@@ -167,6 +167,8 @@ func landsRead(v Val, any bool) bool {
 		return in(n.peg)
 	case *PlusOpVal:
 		return slices.ContainsFunc(n.peg, in)
+	case *ConstraintVal, *SealVal, *RelateVal, *PendingLinkVal, *RecurseVal, *ExpectVal, *GraphAtomVal:
+		return any
 	}
 	return false
 }
