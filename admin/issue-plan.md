@@ -115,7 +115,7 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#954](https://github.com/aontu-lang/aontu/issues/954) | design | M |  | A default that reaches a disjunction through `pref()`, a path or a name: the definition keeps its parent type as an arm, both engines mostly don't. Ruled as 89: an arm at its rank, with no parent type, however it got there. |
 | [#955](https://github.com/aontu-lang/aontu/issues/955) | def | M |  | A disjunction ranks its defaults pair by pair as parsed, so `**1 \| **2 \| *3 \| number` clashes where `*3 \| **1 \| **2 \| number` is `3`, and two map defaults fold only where they stand together. |
 | [#956](https://github.com/aontu-lang/aontu/issues/956) | def | M |  | Two defaults of one rank clash as soon as they meet, before a later schema term settles between them: `(*1 \| *7) & 1` is `pref_rank_clash`, where the definition reads `1`. |
-| [#957](https://github.com/aontu-lang/aontu/issues/957) | design | S |  | Two clashing defaults in a spread's template: both engines refuse every member the data gives, the definition admits one that picks an arm. Ruled as 90: the schema's error, where it is written. |
+| [#957](https://github.com/aontu-lang/aontu/issues/957) | design | S |  | Two clashing defaults in a spread's template: both engines refuse every member the data gives, the definition admits one that picks an arm. Ruled as 90: the schema's error, where it is written. Built in the definition and both ports 2026-11-24. |
 
 ### Seals, marks, moves and generation-time checks
 

@@ -3369,7 +3369,21 @@ until the phase that encodes it lands.
    the picked rank that disagree can give no member a default, so it is
    refused where it is written, whatever the data, as decision 77
    refuses a miscounted call wherever it stands. The definition and
-   both ports move.
+   both ports move. **Built 2026-11-24** in the definition and both
+   ports. `Val.illFormed` reads a map's and a list's spread for a
+   clash (`Val.tmplClash`), at any depth of the template. A template
+   that reads its member is read at each member, so a document with no
+   member left it unread: `Decls.templatesClash` reads each template as
+   written, and `Decls.unread` joins it to a load left unmade, the
+   document's error in `VetP` and `OutputP`. Each port reads a bag's
+   template in the pass that ranks a settled disjunction, with its
+   calls made by a trial at its own place, unless it holds a key, a
+   hole or a path, which a trial there would misread or move. Rows tc0
+   to tc47 of `test/spec/def-path.tsv` and 42 rows of
+   `test/spec/vet.tsv`; no other generated row changed. A default that
+   reads its member's key is no clash where it is written, in all
+   three. With data, both ports still leave such a default unresolved,
+   which is #465.
 
 ## 8. Risks
 

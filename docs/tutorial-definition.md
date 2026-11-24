@@ -5375,8 +5375,8 @@ makes doesn't, so the verdict reads a required member that holds one as
 def Val.illFormed : Val → Bool
   | .nil => true
   | .len c => c.sizeIll
-  | .map fs _ _ => illFields fs
-  | .list items _ _ => illItems items
+  | .map fs spread _ => illFields fs || tmplClashSpread spread
+  | .list items spread _ => illItems items || tmplClashSpread spread
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
@@ -5390,6 +5390,59 @@ def Val.illFormed : Val → Bool
   | .select _ arms _ => illPats arms
   | _ => false
 ```
+
+The check reads a spread's template for one thing only, a preference
+clash.
+`x: *1 | *2` is the schema's error, and ruling 90 reads the same
+disjunction as a template, `x: {&: *1 | *2}`, the same way: two
+defaults of the picked rank that disagree can give no member a default,
+so the template doesn't stand where the document writes it, whatever
+the data. A `nil` in a template still stands, since both engines read
+one only against a member:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- Whether a spread's template holds a preference clash (`clash`), in
+the template itself or in a member, an element, an arm or a template it
+holds. Two defaults of the picked rank that disagree can give no member
+a default, so such a template doesn't stand where it is written,
+whatever lands on it (ruling 90). -/
+def Val.tmplClash : Val → Bool
+  | .or arms => clash arms || tmplClashArms arms
+  | .map fs spread _ => tmplClashFields fs || tmplClashSpread spread
+  | .list items spread _ => tmplClashItems items || tmplClashSpread spread
+  | .pref _ x => x.tmplClash
+  | .meet a b => a.tmplClash || b.tmplClash
+  | .ride _ v _ => v.tmplClash
+  | .link v _ => v.tmplClash
+  | _ => false
+```
+
+So `x: {&: {a: *1 | *2}}` and `x: {&: pref(1 | 2)}` are an `error` too,
+against data that picks one default as against none, where the
+definition once answered `valid` and both engines `invalid`. A default
+that reads its member's key makes no clash in the template alone, since
+`clash` counts the values the picked arms generate, and a key
+generates none: `x: {&: *key(0) | *"a"}` stands. The reading takes a
+template that reads its member, by a key or a relative path, to each
+member, and a document that holds no member would leave it unread. So
+the verdict reads each template as the document writes it first, by
+`Decls.templatesClash`, and answers `error` before anything else:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- Whether a document can't be read: it still holds a load
+(`Decls.loadsLeft`), or a spread's template that, as the document
+writes it, holds a preference clash (`Decls.templatesClash`, ruling 90),
+which can give no member a default whatever lands on it. Either is an
+`error` before anything else is asked. -/
+def Decls.unread (ds : Decls) (S : Val) : Bool :=
+  ds.loadsLeft S || (ds.loaded S).1.templatesClash (ds.loaded S).2
+```
+
+Rows `tc0` on of `test/spec/def-path.tsv` hold both engines to each of
+these, and the rows of `test/spec/vet.tsv` under ruling 90 hold the
+shapes beside them.
 
 The schema is read, `Decls.readR`, as its expansion with its
 selections made, which step 16 comes to. `invalid` is a schema that
@@ -10308,12 +10361,13 @@ source may have, and one the chain already holds, a cycle, each leave
 the load as written, a load the reading can't make. The verdict reads
 the document with its sources read in, and is an `error` wherever a
 load remains, even in an arm a selection leaves out, since both engines
-read every load before anything else:
+read every load before anything else. `Decls.unread` holds that test,
+beside the template clash that step 14 covers:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  if ds.loadsLeft S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
+  if ds.unread S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
 ```
 
 A source refuses data as anything the document writes does. Write

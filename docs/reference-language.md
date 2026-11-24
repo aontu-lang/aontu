@@ -799,6 +799,17 @@ for each whatever the data. A clash only the data makes is the data's.
 In `a: number` beside `x: pref($.a) | *2`, data that gives `a` as `1`
 leaves `x` nothing to admit, so `vet` answers `invalid`.
 
+A spread's template follows the same rule where the document writes it.
+`x: {&: *1 | *2}` can give no member a default, so `vet` answers `error`
+with `pref_rank_clash`: with no member, with one the data gives as `1`,
+and with one it gives as `3`. `x: [&: *1 | *2]`, `x: {&: {a: *1 | *2}}`
+and `x: {&: pref(1 | 2)}` answer the same. A default that reads its
+member makes no clash in the template alone, so
+`x: {&: *key(0) | *"a"}` stands. Ruling 90 set this, and the definition
+reads it by `Val.tmplClash` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) and
+`Decls.unread` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean).
+
 **An arm that wasn't a default stays one**, whichever side of the meet
 holds it. In `(*1 | 2) & *integer` the defaults `1` and `integer` fold
 into `1`, and `2` stays an alternative, so the default is `1`. In

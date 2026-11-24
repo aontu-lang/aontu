@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### A spread's template that holds a default clash is the schema's error
+
+#957, ruling 90, in the definition and both engines. `x: *1 | *2` is
+`pref_rank_clash`, two defaults of one rank that disagree. Written as a
+spread's template, `x: {&: *1 | *2}`, the same disjunction stood as a
+schema. Both engines then refused every member the data wrote, as
+`pref_rank_clash` at the member, and the definition let a member the
+data gave as `1` pick that arm. Such a template can give no member a
+default, so it is refused where it is written, whatever the data:
+
+- `x: {&: *1 | *2}` is `error` under `aontu vet`, against `{}`, against
+  `{"x": {"k": 1}}` and against `{"x": {"k": 3}}`. It was `valid`,
+  then `invalid` in both engines and `valid` in the definition, then
+  `invalid`.
+- So are `x: [&: *1 | *2]`, `x: {&: {a: *1 | *2}}`,
+  `x: {&: {&: *1 | *2}}` and `x: {&: pref(1 | 2)}`, and a template
+  under `type()` or `hide()`.
+- `x: {&: *1 | 2}`, `x: {&: *1 | *1}` and `x: {&: **1 | *2}` stand as
+  before, and so does `x: {&: *key(0) | *"a"}`: a default that reads
+  its member is no clash where it is written.
+
+Each engine reads a bag's template in the pass that ranks what a meet
+or a call leaves once the document settles, with the template's calls
+made unless it holds a key, a hole or a path. The definition reads a
+spread by `Val.tmplClash` in `Val.illFormed`, and each template as
+written by `Decls.templatesClash`, which `Decls.unread` joins to a load
+left unmade as the document's error before anything else is asked.
+
+`test/spec/def-path.tsv` gains rows tc0 to tc47 and `test/spec/vet.tsv`
+42 rows. No other generated row changes.
+
 ### The definition reads a key inside a declaration's body as its step's text
 
 #942, ruling 88, in the definition. A `key(n)` in a declaration's body
