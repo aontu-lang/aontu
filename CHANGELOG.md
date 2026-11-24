@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### A copied generator leaves its target's source alone, in Go
+
+#946, in Go. A path's copy of an `each`, a `pack`, an `apply` or a
+`filter` shares the call's arguments with its target until it takes its
+own. Go set the copy's paths first, where the copy stands shallower
+than its target, so the target's source path came to name the copy's
+place and the target read the copy's data. With
+`c: {s: [9, 4], d: $.a.x.b}` written before
+`a: {x: {s: [3, 1], b: {v: each(..s, _)}}}`, `a.x.b.v` was `[9, 4]` in
+Go. It is `[3, 1]` again, as in TypeScript, and the copy's `v` is
+`[9, 4]` in both.
+
+The copy now takes arguments of its own first, and its paths are set
+whenever its depth differs from the target's, as TypeScript does. That
+also ends a split where the copy is deeper: Go read the source at the
+target there, and reads it at the copy now, as TypeScript and the
+definition do.
+
+- `go/ref.go`. TypeScript is unchanged.
+- `test/spec/ref.tsv` gains 7 rows.
+
+A generator's copy written after its target still reads the source at
+the target in both engines, which #936 keeps.
+
 ### A copy makes a fold over a relative path again, in TypeScript
 
 #944, in TypeScript. A copy reads each relative path where the copy
@@ -25,10 +49,8 @@ copy.
   `ts/src/val/RefVal.ts`. Go is unchanged.
 - `test/spec/ref.tsv` gains 19 rows.
 
-Filed while fixing it: #946. With the copy written first and at another
-depth, a copied `each`, `pack` or `filter` over a relative source reads
-differently in the two engines, and where the copy is shallower Go
-changes the value the target itself gives.
+Filed while fixing it: #946, the generators' side of the same question,
+fixed in the entry above.
 
 ### A key in a declaration's body waits for the use that places it
 
