@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The definition's copy of a list leaves a marked element out
+
+#943, in the definition. A list holds no position for an element that
+carries a mark of its own, `hide()` or `type()`. The definition applied
+that to a list written in place and to a path's copy of one, but a
+name's copy kept the element and cleared its mark. So with
+`%T = [hide("h"), "k"]`, `v: %T` was `["h", "k"]` in the definition and
+`["k"]` in both engines, where `v: $.a` over the same list was `["k"]`
+in all three.
+
+`Val.unmark` now keeps only the elements whose written term carries no
+mark. A map member is unchanged: a copy shows it, its mark cleared. A
+named `emit` table with a marked piece follows, so the definition gives
+`["0", "1"]` for the case #945 left out, as both engines do.
+
+- `spec/Aontu/Names.lean` (`standingOf`, `Val.unmark`) and one proof in
+  `spec/Aontu/Alias.lean`. Every other proof builds unchanged.
+- `spec/Oracle.lean` gains seven cases, and
+  `test/spec/def-alias.tsv` 21 rows, n57 to n77. Both engines answer
+  each as the definition does, so the ledger keeps its 64 rows.
+- No other generated row file changes. `test/spec/ref.tsv` gains 5
+  hand-written rows and `test/spec/gen-emit.tsv` 2.
+
 ### A copied generator leaves its target's source alone, in Go
 
 #946, in Go. A path's copy of an `each`, a `pack`, an `apply` or a

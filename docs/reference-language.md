@@ -4801,11 +4801,14 @@ still read: one that's a conflict, alone or met with the list's
 spread, makes the list a conflict where it stands, so `[hide(1 & 2),
 3]` is an error and an arm holding it drops. A disjunction of marked
 arms carries no mark and holds its position, while one whose other
-arms are dead carries its live arm's. The definition drops the element
-as `resolveD` reads the list, `Decls.markClashes` finds the conflict,
-and rows hl0 on of
-[`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) and gl0 on
-of [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both
+arms are dead carries its live arm's. A copy of the list, through a
+path or a name, leaves the element out too: with
+`%T = [hide("h"), "k"]`, `v: %T` is `["k"]`. The definition drops the element
+as `resolveD` reads the list and as `Val.unmark` copies it,
+`Decls.markClashes` finds the conflict, and rows hl0 on of
+[`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv), gl0 on
+of [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) and n57 on of
+[`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv) hold both
 engines to it.
 
 `move(p)` hides its source with the same mark. In the definition,

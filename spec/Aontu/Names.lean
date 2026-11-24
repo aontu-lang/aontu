@@ -45,14 +45,34 @@ def Val.unident : Val → Val
   | .meet a b => .meet a.unident b.unident
   | v => v
 
+/-- The elements of the second list whose counterpart in the first
+carries no mark of its own: what a list's copy holds, each element read
+as the second list gives it. -/
+def standingOf : List Val → List Val → List Val
+  | v :: vs, w :: ws => if v.marked then standingOf vs ws else w :: standingOf vs ws
+  | _, _ => []
+
+theorem mem_standingOf {w : Val} : ∀ {vs ws : List Val}, w ∈ standingOf vs ws → w ∈ ws
+  | [], _, h => by simp [standingOf] at h
+  | _ :: _, [], h => by simp [standingOf] at h
+  | v :: vs, x :: ws, h => by
+    simp only [standingOf] at h
+    split at h
+    · exact List.mem_cons_of_mem _ (mem_standingOf h)
+    · rcases List.mem_cons.mp h with rfl | h
+      · exact List.mem_cons_self
+      · exact List.mem_cons_of_mem _ (mem_standingOf h)
+
 mutual
 /-- A term with its marks cleared, `type()` and `hide()`, at every depth:
 what a reference copies, as a mark belongs to the place it is written
-at (decision 10 of the design note's §7). -/
+at (decision 10 of the design note's §7). A list's element that carries
+a mark of its own is left out of the copy, as a list holds no position
+for it where it is written (ruling 18). -/
 def Val.unmark : Val → Val
   | .len c => .len c.unmark
   | .map fs spread closed => .map (unmarkFields fs) (unmarkSpread spread) closed
-  | .list items spread closed => .list (unmarkItems items) (unmarkSpread spread) closed
+  | .list items spread closed => .list (standingOf items (unmarkItems items)) (unmarkSpread spread) closed
   | .or arms => .or (unmarkArms arms)
   | .pref r x => .pref r x.unmark
   | .meet a b => .meet a.unmark b.unmark

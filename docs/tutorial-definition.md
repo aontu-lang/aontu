@@ -2454,7 +2454,10 @@ A reference copies the value without its marks too, the `type()` and
 `hide()` of step 13, at every depth: `unmark` clears them through every
 form that holds a term, a selection's results among them. So what a
 body hides, the place that refers to it asks for, and a mark written at
-that place stays. A name whose body carries `type()` is a definition,
+that place stays. A list is the exception: an element that carries a
+mark of its own holds no position in its list, so the copy leaves the
+element out and doesn't show it. A name whose body carries `type()` is
+a definition,
 and its copy an instance, which admits nothing the definition doesn't
 declare, at any depth: the expansion meets the copy with a restriction,
 `Val.restrict`, a sealed map declaring the keys the body's maps declare,
@@ -10615,9 +10618,8 @@ hole nothing binds, an error, as both engines answer `hole_unbound`.
 Rows ew0 on hold tables written in place and en0 on named ones, and
 both engines answer every one as the definition does. A name for a
 template, `%r = {match: number, body: [key(0)]}`, reads its `key(0)`
-where each piece lands. Where a named table's body holds a marked
-piece, though, the definition keeps the piece and drops its mark, which
-#943 tracks and no row holds.
+where each piece lands. A marked piece in a named table's body takes no
+position either, since the copy of a list leaves a marked element out.
 
 A named table may name itself, which is how a rule set walks a nested
 selection into nested output. The name is recursive, so the expansion
