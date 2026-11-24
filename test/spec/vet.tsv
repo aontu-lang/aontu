@@ -625,3 +625,84 @@ vet-emit-key-after-a-hidden-piece-refuses-the-written-index	verdict	v: emit([1, 
 vet-at-closed-beside-a-key-names-the-key	vet	guard: { t1: close({ tool:key() arguments: close({ a: integer }) }) }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
 vet-at-closed-in-a-packed-instance-names-the-key	vet	s: type(close({ t1: close({ a: integer }) }))\nguard: pack($.s, close({ tool:key() arguments:_ }))	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
 vet-at-closed-in-a-relative-copy-names-the-key	vet	guard: { t0: close({ tool: string arguments: close({ a: integer }) }) t1: .t0 }	tool: "t1"\narguments: { a: 1 b: true }	{"findings":[{"class":"conflict","code":"closed","path":"$.arguments.b","pointer":"/arguments/b","severity":"error","sites":[{"col":22,"file":"data","len":4,"role":"data","row":2,"src":"true","value":"true"}]}],"opts":{"at":"$.guard.t1"},"truncated":false,"verdict":"invalid"}
+#
+# A PATH READS A MEMBER THROUGH A SEAL OR A RIDER THAT WAITS (#749, #416).
+# The meet of such a wrapper with the data can't fold until the member
+# the path reads is known, so each term answers for the member itself.
+vet-seal-member-reads-a-sibling-admits	verdict	a: close({x: .y, y: 1})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-refuses-another-value	verdict	a: close({x: .y, y: 1})	{"a": {"x": 2, "y": 1}}	{"verdict":"invalid"}
+vet-seal-member-reads-a-sibling-refuses-an-extra-key	verdict	a: close({x: .y, y: 1})	{"a": {"x": 1, "y": 1, "z": 3}}	{"verdict":"invalid"}
+vet-seal-member-reads-a-sibling-fills	verdict	a: close({x: .y, y: 1})	{}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-by-its-whole-path	verdict	a: close({x: $.a.y, y: 1})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-seal-member-reads-what-the-data-gives-its-sibling	verdict	a: close({x: .y, y: integer})	{"a": {"y": 5}}	{"verdict":"valid"}
+vet-seal-member-agrees-with-what-the-data-gives-its-sibling	verdict	a: close({x: .y, y: integer})	{"a": {"x": 5, "y": 5}}	{"verdict":"valid"}
+vet-seal-member-differs-from-what-the-data-gives-its-sibling	verdict	a: close({x: .y, y: integer})	{"a": {"x": 4, "y": 5}}	{"verdict":"invalid"}
+vet-rider-member-reads-a-sibling-by-its-whole-path	verdict	a: meta({x: $.a.y, y: 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-rider-member-reads-a-sibling	verdict	a: meta({x: .y, y: 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-rider-member-reads-what-the-data-gives-its-sibling	verdict	a: meta({x: .y, y: integer}, {})	{"a": {"y": 5}}	{"verdict":"valid"}
+vet-deprecated-member-reads-a-sibling	verdict	a: deprecate({x: $.a.y, y: 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+vet-open-member-reads-a-sibling-and-admits-more	verdict	a: open({x: .y, y: 1})	{"a": {"x": 1, "y": 1, "z": 3}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-that-is-missing	verdict	a: close({x: .q, y: 1})	{"a": {"y": 1}}	{"verdict":"error"}
+vet-seal-member-reads-a-sibling-the-data-leaves-out	verdict	a: close({x: .y, y: 1})	{"a": {"x": 1}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-the-data-leaves-open	verdict	a: close({x: .y, y: integer})	{"a": {"x": 5}}	{"verdict":"incomplete"}
+vet-seal-member-reads-a-sibling-another-term-settles	verdict	a: close({x: .y, y: integer}) & {y: 2}	{"a": {"x": 2, "y": 2}}	{"verdict":"valid"}
+vet-seal-member-reads-a-sibling-another-term-settles-otherwise	verdict	a: close({x: .y, y: integer}) & {y: 2}	{"a": {"x": 3}}	{"verdict":"invalid"}
+vet-rider-member-reads-a-sibling-another-term-gives	verdict	a: meta({x: .y}, {}) & {y: 2}	{"a": {"x": 2, "y": 2}}	{"verdict":"valid"}
+vet-rider-member-reads-a-sibling-another-term-gives-otherwise	verdict	a: meta({x: .y}, {}) & {y: 2}	{"a": {"x": 3, "y": 2}}	{"verdict":"invalid"}
+# A RANK CLASH A MEET OR A CALL MAKES (#482). Two defaults of the picked
+# rank that disagree are the schema's error however the disjunction that
+# holds them came about, as the written `*1 | *7` is: whatever the data.
+vet-rank-clash-a-meet-makes	verdict	x: (*1 | 7) & (*7 | 1)	{}	{"verdict":"error"}
+vet-rank-clash-a-meet-makes-with-no-fill	verdict	x: (*1 | 7) & (*7 | 1)	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-rank-clash-a-meet-makes-under-partial	verdict	x: (*1 | 7) & (*7 | 1)	{}	{"verdict":"error","opts":{"partial":true}}
+vet-rank-clash-a-meet-makes-whatever-the-data	verdict	x: (*1 | 7) & (*7 | 1)	{"x": 1}	{"verdict":"error"}
+vet-rank-clash-two-statements-make	verdict	x: number | *1\nx: number | *2	{}	{"verdict":"error"}
+vet-rank-clash-two-disjunctions-met	verdict	x: (number | *1) & (number | *2)	{}	{"verdict":"error"}
+vet-rank-clash-two-disjunctions-met-whatever-the-data	verdict	x: (number | *1) & (number | *2)	{"x": 1}	{"verdict":"error"}
+vet-rank-clash-the-parse-hides	verdict	x: number | *1 | *2	{}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-disjunction	verdict	x: pref(1 | 2)	{}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-disjunction-whatever-the-data	verdict	x: pref("a" | "b")	{"x": "a"}	{"verdict":"error"}
+vet-rank-clash-pref-beside-a-default	verdict	x: pref(1) | *2	{}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-path-beside-a-default	verdict	a: 1\nx: pref($.a) | *2	{"x": 2}	{"verdict":"error"}
+vet-rank-clash-pref-of-a-path-beside-a-default-with-no-fill	verdict	a: 1\nx: pref($.a) | *2	{"x": 2}	{"verdict":"error","opts":{"noFill":true}}
+vet-rank-clash-move-beside-a-default	verdict	a: 1\nx: move($.a) | *2	{}	{"verdict":"error"}
+vet-rank-clash-in-a-list	verdict	x: [pref(1 | 2)]	{}	{"verdict":"error"}
+vet-rank-clash-in-a-nested-map	verdict	x: {y: pref(1 | 2)}	{}	{"verdict":"error"}
+vet-rank-clash-under-hide	verdict	x: hide(pref(1 | 2))	{}	{"verdict":"error"}
+vet-rank-clash-under-type	verdict	x: type(pref(1 | 2))	{}	{"verdict":"error"}
+vet-rank-clash-at-an-optional-key	verdict	x?: pref(1 | 2)	{}	{"verdict":"error"}
+vet-rank-clash-beside-another-arm	verdict	x: pref(1 | 2) | "a"	{"x": "a"}	{"verdict":"error"}
+vet-rank-clash-under-maybe	verdict	x: maybe(pref(1 | 2))	{}	{"verdict":"error"}
+vet-rank-clash-in-an-unused-declaration	verdict	%T = pref(1 | 2)\nx: 1	{}	{"verdict":"error"}
+vet-rank-clash-in-a-used-declaration	verdict	%T = pref(1 | 2)\nx: %T	{}	{"verdict":"error"}
+# No clash: the same default twice, an arm the meet drops, and a default
+# beside one that generates nothing.
+vet-rank-twins-a-meet-makes-are-one-default	verdict	x: (*1 | number) & (*1 | integer)	{}	{"verdict":"valid"}
+vet-rank-clash-in-an-arm-the-meet-drops	verdict	x: ((*1 | *7) & string) | "a"	{}	{"verdict":"valid"}
+vet-rank-default-beside-a-kind-default	verdict	x: *1 | *number	{}	{"verdict":"valid"}
+vet-rank-map-defaults-a-meet-makes-fold	verdict	x: (*{a: 1} | string) & (*{b: 2} | string)	{}	{"verdict":"valid"}
+# A clash only the data makes is the data's: the place admits nothing.
+vet-rank-clash-the-data-makes-is-invalid	verdict	a: number\nx: pref($.a) | *2	{"a": 1}	{"verdict":"invalid"}
+vet-rank-clash-the-data-makes-is-invalid-with-no-fill	verdict	a: number\nx: pref($.a) | *2	{"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-rank-no-clash-where-the-data-agrees	verdict	a: number\nx: pref($.a) | *2	{"a": 2}	{"verdict":"valid"}
+vet-rank-no-clash-before-the-data	verdict	a: number\nx: pref($.a) | *2	{}	{"verdict":"incomplete"}
+vet-rank-no-clash-before-the-data-under-partial	verdict	a: number\nx: pref($.a) | *2	{}	{"verdict":"valid","opts":{"partial":true}}
+# A DEFAULT ARM OVER A PATH, UNDER VET (#953). The data meets the schema
+# before a path into the schema is read, so the disjunction waits for its
+# default arm's value before it meets the data's.
+vet-pref-arm-path-refuses-what-no-arm-admits	verdict	a: 1\nx: *$.a | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-pref-arm-path-refuses-with-no-fill	verdict	a: 1\nx: *$.a | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-pref-arm-path-refuses-under-partial	verdict	a: 1\nx: *$.a | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-pref-arm-path-admits-its-own-value	verdict	a: 1\nx: *$.a | "a"	{"x": 1}	{"verdict":"valid"}
+vet-pref-arm-path-admits-the-other-arm	verdict	a: 1\nx: *$.a | "a"	{"x": "a"}	{"verdict":"valid"}
+vet-pref-arm-path-fills-the-default	verdict	a: 1\nx: *$.a | "a"	{}	{"verdict":"valid"}
+vet-pref-arm-path-the-data-gives-refuses	verdict	a: number\nx: *$.a | "a"	{"a": 1, "x": 3}	{"verdict":"invalid"}
+vet-pref-arm-path-the-data-gives-admits	verdict	a: number\nx: *$.a | "a"	{"a": 3, "x": 3}	{"verdict":"valid"}
+vet-pref-arm-path-the-data-leaves-open	verdict	a: number\nx: *$.a | "a"	{"x": 3}	{"verdict":"incomplete"}
+vet-pref-arm-path-the-data-leaves-open-under-partial	verdict	a: number\nx: *$.a | "a"	{"x": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-pref-arm-path-in-a-map-refuses	verdict	a: 1\nx: *{k: $.a} | "a"	{"x": {"k": 3}}	{"verdict":"invalid"}
+vet-pref-arm-path-in-a-map-admits	verdict	a: 1\nx: *{k: $.a} | "a"	{"x": {"k": 1}}	{"verdict":"valid"}
+vet-pref-arm-relative-path-refuses	verdict	x: {p: 1, y: *.p | "a"}	{"x": {"y": 3}}	{"verdict":"invalid"}
+vet-pref-arm-relative-path-the-data-gives	verdict	x: {p: number, y: *.p | "a"}	{"x": {"p": 3, "y": 3}}	{"verdict":"valid"}
+vet-pref-arm-path-in-a-template-refuses	verdict	a: 1\nx: {&: *$.a | "a"}	{"x": {"k": 3}}	{"verdict":"invalid"}
+vet-pref-arm-path-in-a-template-admits	verdict	a: 1\nx: {&: *$.a | "a"}	{"x": {"k": 1, "j": "a"}}	{"verdict":"valid"}

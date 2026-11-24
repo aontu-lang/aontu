@@ -96,6 +96,15 @@ document holds several, the one reported is the least by path. `maybe()`
 with no argument is left to evaluation, since it is how canon writes an
 absence, and a canon text must read back.
 
+A place that no reading reaches is no exception: `v: {&: add(1)}` is
+`func_arity` though the spread meets no member, and so is a miscounted
+call in the template of an `each` over an empty list, or in a `match`
+result another arm takes. The definition reads the count of every call
+a document writes the same way, `Val.miscounts` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), and rows x2238
+on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
+engines to it.
+
 Kinds are checked at evaluation, after every argument has settled and
 before the function resolves. The signature gate walks the declared
 slots, stops at a rest slot, and reads only a slot whose mode is `value`

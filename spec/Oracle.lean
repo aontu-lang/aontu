@@ -1251,7 +1251,9 @@ def riderCases : List (Decls × Val × Data) :=
 reference copies a body with its marks cleared at every depth, so what
 the body hides its reader asks for, and a mark written at the place of
 the reference stays, through a name, a nested name, a recursive name,
-a meet, a rider, a spread and a selection. -/
+a meet, a rider, a spread and a selection. A list's element that carries
+a mark of its own the copy leaves out, as the list does where it is
+written (ruling 18), though a conflict in it is still the body's. -/
 def markAliasCases : List (Decls × Val × Data) :=
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let T : Val := .alias "T"
@@ -1275,7 +1277,14 @@ def markAliasCases : List (Decls × Val × Data) :=
     ([("T", .map [] (some (hide .integer)) false)], T, .map [("k", j 1)]),
     ([("T", hide (mp [("a", .integer)]))], mp [("x", T), ("y", hide T)], .map [("x", .map [("a", j 1)])]),
     ([("T", .select (int 1) [(int 1, mp [("a", hide (int 1))])] none)], T, .map []),
-    ([("T", .select (int 1) [(int 1, mp [("a", hide .integer)])] none)], T, .map [])]
+    ([("T", .select (int 1) [(int 1, mp [("a", hide .integer)])] none)], T, .map []),
+    ([("T", lst [hide (.lit (.str "h")), .lit (.str "k")])], T, .list [.str "k"]),
+    ([("T", lst [hide (.lit (.str "h")), .lit (.str "k")])], T, .list [.str "h", .str "k"]),
+    ([("T", lst [type .string, .lit (.str "k")])], T, .list [.str "k"]),
+    ([("T", lst [type .string, .lit (.str "k")])], T, .list [.str "x", .str "k"]),
+    ([("T", mp [("body", lst [hide (.lit (.str "h")), .lit (.str "k")])])], T, .map [("body", .list [.str "k"])]),
+    ([("T", lst [hide (int 1), int 2])], T, .list []),
+    ([("T", lst [hide (.meet (int 1) (int 2)), int 3])], T, .list [j 3])]
 
 /-- The cases of the seal of decision 10 of the design note's §7: a
 reference to a `type()` value reads it as a definition and its copy as
@@ -8028,8 +8037,8 @@ theorem keyUp_verdict_exact : ∀ c ∈ keyUpCases ++ keyUpFilterCases, ∀ (m :
 /-- A call the schema can't build, which fails the schema wherever it
 stands, for the `verdict` rows from x2238 on: under `type()` and under
 `hide()`, as an optional member, and as a list's element; and, read
-nowhere, as the template of a spread that meets no member, which
-passes. -/
+nowhere, as the template of a spread that meets no member, an error all
+the same, since the count is the text's (decision 77). -/
 def heldFailCases : List (Val × Data) :=
   let bad : Val := .call .add [.lit (.num (.integer ⟨1, by decide⟩))]
   [(.ride .type bad [], .integer 1), (.ride .hide bad [], .integer 1),
@@ -8043,6 +8052,29 @@ theorem held_fail_verdict_exact : ∀ c ∈ heldFailCases, ∀ (m : Mode) (v : V
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldFailCases_checkable c hc)) v
+
+/-- A call written with a count of arguments its function doesn't take,
+where no reading reaches it (decision 77 of the design note's §7), for
+the last `verdict` rows of the calls: the template of an `each` and of a
+`pack` over no member, a result of a `match` another arm takes, a list's
+spread that meets no element, and a member of a spread's template. Each
+is an error, as both ports refuse the document as they read it. -/
+def unreachedCountCases : List (Val × Data) :=
+  let bad : Val := .call .add [.lit (.num (.integer ⟨1, by decide⟩))]
+  let one : Val := .lit (.num (.integer ⟨1, by decide⟩))
+  let two : Val := .lit (.num (.integer ⟨2, by decide⟩))
+  [(.call .each [.list [] none false, bad], .list []),
+    (.select one [(one, .lit (.str "a")), (two, bad)] none, .str "a"),
+    (.list [] (some bad) false, .list []),
+    (.map [] (some (.map [("a", false, bad)] none false)) false, .map []),
+    (.call .pack [.list [] none false, .map [("a", false, bad)] none false], .map [])]
+
+theorem unreachedCountCases_checkable : ∀ c ∈ unreachedCountCases, (vetDoc c).1.CheckableA := by decide
+
+theorem unreached_count_verdict_exact : ∀ c ∈ unreachedCountCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (unreachedCountCases_checkable c hc)) v
 
 /-- An `each` whose instances carry a mark of their own, for the
 `verdict` rows from x2253 on, which a list holds no position for
@@ -8973,7 +9005,7 @@ def main (args : List String) : IO UInt32 := do
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
         heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases ++ pathCallCases ++ heldHoleCases ++
-        readThroughCases do
+        readThroughCases ++ unreachedCountCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -8986,7 +9018,7 @@ def main (args : List String) : IO UInt32 := do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-      heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases)
+      heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases ++ unreachedCountCases)
     verdictRows "et" emitCases
     verdictRows "ek" emitKeyCases
     verdictRows "ew" emitTableCases

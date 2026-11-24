@@ -910,23 +910,21 @@ function subsumeDefaults(
 }
 
 
-// Walk both trees for default agreement wherever the specific side has
-// one: at the node itself and inside every corresponding bag child, a
-// recursion unfolded and each pair of maps walked once.
+// Walk both trees for default agreement wherever the specific side has one: at the node
+// itself and inside every corresponding bag child, each pair of bags walked once.
 function subsumeDefaultsWalk(
   state: SubState, path: string[], g0: any, s0: any, seen: Set<string>): Tri {
   const g = unfold(state.groot, g0)
   const s = unfold(state.sroot, s0)
   let out: Tri = subsumeDefaults(state, path, g, s)
 
-  const gm = true === g?.isMap ? g.peg : undefined
-  const sm = true === s?.isMap ? s.peg : undefined
+  const bags = (true === g?.isMap && true === s?.isMap) || (true === g?.isList && true === s?.isList)
   const pair = g?.id + ' ' + s?.id
-  if (null != gm && null != sm && !seen.has(pair)) {
+  if (bags && !seen.has(pair)) {
     seen.add(pair)
-    for (const k of Object.keys(sm)) {
-      if (null != gm[k]) {
-        const r = subsumeDefaultsWalk(state, [...path, k], gm[k], sm[k], seen)
+    for (const k of Object.keys(s.peg)) {
+      if (null != g.peg[k]) {
+        const r = subsumeDefaultsWalk(state, [...path, k], g.peg[k], s.peg[k], seen)
         if ('no' === r || ('undecided' === r && 'no' !== out)) {
           out = 'no' === r ? 'no' : 'undecided'
         }

@@ -53,6 +53,29 @@ func throughRider(v Val) Val {
 	}
 }
 
+// A seal's value is its argument, as a rider's is: a path reads a member through one that waits.
+func throughWrap(v Val) Val {
+	v = throughRider(v)
+	for {
+		fv, ok := v.(*FuncVal)
+		if !ok || DONE == fv.dc || ("close" != fv.name && "open" != fv.name) ||
+			0 == len(fv.peg) || nil == fv.peg[0] {
+			return v
+		}
+		v = throughRider(fv.peg[0])
+	}
+}
+
+func waitingWrap(t Val) bool { return t != throughWrap(t) }
+
+func readsAsBag(t Val) bool {
+	switch throughWrap(t).(type) {
+	case *MapVal, *ListVal:
+		return true
+	}
+	return false
+}
+
 // declaration finds the value an alias names in the map term of a meet
 // that is still folding. A declaration is not a field, so no other term
 // contributes to it. Mirrors declaration in ts/src/val/RecurseVal.ts.
@@ -122,7 +145,7 @@ func (rv *RefVal) walkFrom(ctx *Ctx, root Val, refpath []string, armAt map[strin
 		if held, ok := armHeldAt(armAt, refpath, pI); ok {
 			node, inArm, peer, peerAt = held.arm, true, held, pI
 		}
-		node = throughRider(node)
+		node = throughWrap(node)
 		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
 			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
 			switch inner := fv.peg[0].(type) {
@@ -152,6 +175,24 @@ func (rv *RefVal) walkFrom(ctx *Ctx, root Val, refpath []string, armAt map[strin
 			// No term has it YET. Not a miss: the conjunct is still
 			// folding, and the member may arrive with the fold.
 			if 0 == len(kids) {
+				return nil, walkDefer
+			}
+			if 1 == len(kids) {
+				node = kids[0]
+			} else {
+				node = newConjunct(kids)
+			}
+			continue
+		}
+		// A meet can't fold while its rider or seal waits on this very member: each term answers.
+		if cj, ok := node.(*ConjunctVal); ok && slices.ContainsFunc(cj.peg, waitingWrap) {
+			kids := []Val{}
+			for _, t := range cj.peg {
+				if kid := markedChild(t, part); nil != kid {
+					kids = append(kids, kid)
+				}
+			}
+			if 0 == len(kids) || slices.ContainsFunc(cj.peg, func(t Val) bool { return !readsAsBag(t) }) {
 				return nil, walkDefer
 			}
 			if 1 == len(kids) {
@@ -447,7 +488,7 @@ func listIndex(part string) (int, bool) {
 }
 
 func markedChild(v Val, part string) Val {
-	v = throughRider(v)
+	v = throughWrap(v)
 	if fv, ok := v.(*FuncVal); ok && DONE != fv.dc &&
 		("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
 		v = fv.peg[0]

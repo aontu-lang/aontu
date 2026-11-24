@@ -231,3 +231,8 @@ emit-named-table-key-at-the-top	gens	%w = emit(_, { match:number body: [key(0)] 
 emit-named-table-key-after-a-piece-at-the-top	gens	%w = emit(_, { match:number body: ["a" key(0)] })\nx: emit([1 2], %w)	{"x":["a","1","a","3"]}
 emit-named-table-key-after-a-piece-below-the-top	gens	%w = emit(_, { match:number body: ["a" key(0)] })\ny: {x: emit([1 2], %w)}	{"y":{"x":["a","1","a","3"]}}
 emit-named-table-call-over-a-key-at-the-top	gens	%w = emit(_, { match:number body: [upper(key(0))] })\nx: emit([1 2], %w)	{"x":["0","1"]}
+#
+# A NAMED TABLE'S MARKED PIECE (#943) takes no position, as one written in
+# place takes none: a copy of a list leaves a marked element out.
+emit-table-from-a-name-after-a-hidden-piece	gens	%T = {match: any, body: [hide("h"), key(0)]}\nv: emit([1, 2], %T)	{"v":["0","1"]}
+emit-table-from-a-name-after-a-typed-piece	gens	%T = {match: any, body: [type(string), key(0)]}\nv: emit([1, 2], %T)	{"v":["0","1"]}

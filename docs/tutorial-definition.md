@@ -2454,7 +2454,10 @@ A reference copies the value without its marks too, the `type()` and
 `hide()` of step 13, at every depth: `unmark` clears them through every
 form that holds a term, a selection's results among them. So what a
 body hides, the place that refers to it asks for, and a mark written at
-that place stays. A name whose body carries `type()` is a definition,
+that place stays. A list is the exception: an element that carries a
+mark of its own holds no position in its list, so the copy leaves the
+element out and doesn't show it. A name whose body carries `type()` is
+a definition,
 and its copy an instance, which admits nothing the definition doesn't
 declare, at any depth: the expansion meets the copy with a restriction,
 `Val.restrict`, a sealed map declaring the keys the body's maps declare,
@@ -4110,9 +4113,10 @@ walk fails nowhere, `defaultsLe_of_walk` proves `DefaultsLe`, and one
 position where it fails refutes it. `marksAt` and `marksBelow` do the
 same for the marks, a spread included, for `gen`. Their rows are f0 on
 under `defaults` and w0 on under `gen`, and both engines answer them as
-the contracts allow but one: under `defaults` they compare a default at
-a map member and not at a list position, so `[number]` over
-`[*1 | number]` subsumes for them, which #424 tracks.
+the contracts allow. Under `defaults` each engine walks a list by
+position as it walks a map by key, so `[number]` over `[*1 | number]`
+doesn't subsume: position 0 of the specific side declares a default
+and the general side's declares none.
 
 The containers follow the members. A map on the general side is above
 a map on the specific side when each key it declares, the specific side
@@ -4450,6 +4454,15 @@ $.v: pref_not_instance [compat]
 $ echo $?
 1
 ```
+
+An arm whose value is a path reads the same way. In
+`x: (*$.a | "a") & 3` beside `a: 1` the arm is `1`, and neither arm
+admits `3`, wherever `a` stands in the document. Both engines hold a
+disjunction back from a peer until they have read each default arm's
+own value, so the answer doesn't turn on the order of the statements,
+and `vet` refuses `{"x": 3}` against `a: 1` beside `x: *$.a | "a"`. Rows
+from `pref-arm-late-path-refuses-what-no-arm-admits` on of
+`test/spec/pref.tsv` hold them to it.
 
 ### A preference alone
 
@@ -5062,14 +5075,16 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 Read the four in order. `error` is a document that refers to a name it
 doesn't declare, one whose names break the alias-cycle rule, one with
 an `ident()` out of the place step 8 gives it, one with a hole that
-nothing binds (step 27), or a schema or a declaration's body whose
-normal form doesn't stand. The clauses that aren't about names are one
-check:
+nothing binds (step 27), one that writes a call with a count of
+arguments its function doesn't take, or a schema or a declaration's
+body whose normal form doesn't stand. The clauses that aren't about
+names are one check:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+  ds.identMisplaced S || ds.bodyIll || S.miscounts || ds.any (·.2.miscounts) ||
+    S.freeHole (fun n => ds.holeNames.contains n) ||
     ((normaliseD ds (ds.readR S)).staged ds).illFormed
 ```
 
@@ -5084,6 +5099,11 @@ beside `v: 1` is an `error`:
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
 ```
+
+A call's count belongs to the text too, so `Val.miscounts` reads the
+schema and every body as written, a spread's template that meets no
+member among them: `v: {&: add(1)}` is an `error` against `{"v": {}}`,
+as both engines refuse it with `func_arity`.
 
 Every declaration's body is read too, whether or not a reference
 reaches it, so `%T = 1 & 2` beside `v: 1` is an `error`, as both
@@ -5159,6 +5179,16 @@ def clash (arms : List (ℕ × Val)) : Bool :=
     | [] => false
     | x :: rest => rest.any fun y => decide (y ≠ x)
 ```
+
+The clash belongs to the disjunction however it came about. A meet
+makes one in `(*1 | 7) & (*7 | 1)`, whose arms leave `*1 | *7`, and a
+call makes one in `pref(1 | 2)`. Both engines rank a disjunction a meet
+or a call leaves once it settles, as they rank a written one, so each
+is the schema's `error` whatever the data. A clash only the data makes
+is the data's: in `a: number` beside `x: pref($.a) | *2`, data that
+gives `a` as `1` leaves `x` nothing to admit, and the answer is
+`invalid`. Rows from `vet-rank-clash-a-meet-makes` on of
+`test/spec/vet.tsv` hold both engines to these.
 
 Some conflicts are in how both engines read a meet rather than in what
 it admits. A size, `unique` and `contains` decide a container at the
@@ -8245,7 +8275,8 @@ and the schema doesn't stand where the document holds either:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+  ds.identMisplaced S || ds.bodyIll || S.miscounts || ds.any (·.2.miscounts) ||
+    S.freeHole (fun n => ds.holeNames.contains n) ||
     ((normaliseD ds (ds.readR S)).staged ds).illFormed
 ```
 
@@ -9111,8 +9142,7 @@ three modes of `vet`, those from pf96 on a list and a map that hold a call
 waiting on its own hole, those from pf138 on such a call with other
 arguments, rows from pc0 on hold paths into a call's output,
 and both engines answer every one as the definition does. They answer
-`pref(1 | 2)` `invalid` where they answer
-`*1 | *2` an `error`, and no row holds that case, which #482 tracks.
+`pref(1 | 2)` an `error` too, as they answer `*1 | *2`.
 
 ## 35. Moving a value
 
@@ -10615,9 +10645,8 @@ hole nothing binds, an error, as both engines answer `hole_unbound`.
 Rows ew0 on hold tables written in place and en0 on named ones, and
 both engines answer every one as the definition does. A name for a
 template, `%r = {match: number, body: [key(0)]}`, reads its `key(0)`
-where each piece lands. Where a named table's body holds a marked
-piece, though, the definition keeps the piece and drops its mark, which
-#943 tracks and no row holds.
+where each piece lands. A marked piece in a named table's body takes no
+position either, since the copy of a list leaves a marked element out.
 
 A named table may name itself, which is how a rule set walks a nested
 selection into nested output. The name is recursive, so the expansion

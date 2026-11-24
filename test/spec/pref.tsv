@@ -286,3 +286,31 @@ pref-path-in-arm-reads-the-data	gen	x: ({a: integer, b: .a} | null) & {a: 1}	{"x
 pref-lone-path-reads-the-data	gen	x: *{a: integer, b: .a} & {a: 5}	{"x":{"a":5,"b":5}}
 pref-lone-path-parent-arm-of-a-kind	gen	x: *{a: number, b: .a} & {a: 5, b: 2.5}	{"x":{"a":5,"b":2.5}}
 pref-path-in-arm-second-arm-takes	gen	hosts: {a: {name: "x", url: .name}} | {a: {url: string}}\nhosts: {a: {name: "x", url: "y"}}	{"hosts":{"a":{"name":"x","url":"y"}}}
+# A DEFAULT ARM OVER A PATH NOT READ YET (#953). An arm `*x` has no parent
+# type, so a peer its own value refuses drops it. Where that value is a
+# path the disjunction waits for it before it meets the peer, so the answer
+# is the same wherever the path's target is written.
+pref-arm-late-path-refuses-what-no-arm-admits	errc	x: (*$.a | "a") & 3\na: $.b\nb: 1	empty
+pref-arm-late-path-refuses-with-the-target-first	errc	b: 1\na: $.b\nx: (*$.a | "a") & 3	empty
+pref-arm-late-path-refuses-through-a-longer-chain	errc	x: (*$.a | "a") & 3\na: $.b\nb: $.c\nc: 1	empty
+pref-arm-late-path-refuses-in-two-statements	errc	x: *$.a | "a"\nx: 3\na: $.b\nb: 1	empty
+pref-arm-late-path-takes-the-other-arm	gens	x: (*$.a | "a") & "a"\na: $.b\nb: 1	{"a":1,"b":1,"x":"a"}
+pref-arm-late-path-takes-its-own-value	gens	x: (*$.a | "a") & 1\na: $.b\nb: 1	{"a":1,"b":1,"x":1}
+pref-arm-late-path-takes-the-value-the-path-reads	gens	x: (*$.a | "a") & 3\na: $.b\nb: 3	{"a":3,"b":3,"x":3}
+pref-arm-late-path-alone-generates-the-default	gens	x: *$.a | "a"\na: $.b\nb: 1	{"a":1,"b":1,"x":1}
+pref-arm-late-path-meets-a-kind	gens	x: (*$.a | "a") & integer\na: $.b\nb: 1	{"a":1,"b":1,"x":1}
+pref-arm-late-path-in-a-map-refuses	errc	x: (*{k: $.a} | "a") & {k: 3}\na: $.b\nb: 1	empty
+pref-arm-late-path-in-a-map-admits	gens	x: (*{k: $.a} | "a") & {k: 1}\na: $.b\nb: 1	{"a":1,"b":1,"x":{"k":1}}
+pref-arm-late-path-in-a-list-refuses	errc	x: (*[$.a] | "a") & [3]\na: $.b\nb: 1	empty
+pref-arm-late-path-in-a-list-admits	gens	x: (*[$.a] | "a") & [1]\na: $.b\nb: 1	{"a":1,"b":1,"x":[1]}
+pref-arm-late-relative-path-refuses	errc	x: {y: (*.p | "a") & 3, p: $.q}\nq: 1	empty
+pref-arm-late-relative-path-admits	gens	x: {y: (*.p | "a") & 1, p: $.q}\nq: 1	{"q":1,"x":{"p":1,"y":1}}
+pref-arm-late-path-a-choice-of-paths-admits	gens	x: (*($.a | $.c) | "z") & 3\na: $.b\nb: 1\nc: $.d\nd: 3	{"a":1,"b":1,"c":3,"d":3,"x":3}
+pref-arm-late-path-a-choice-of-paths-refuses	errc	x: (*($.a | $.c) | "z") & 5\na: $.b\nb: 1\nc: $.d\nd: 3	empty
+pref-arm-late-path-two-ranks-refuses	errc	x: (*$.a | **$.c | "z") & 5\na: $.b\nb: 1\nc: $.d\nd: 3	empty
+pref-arm-late-path-two-ranks-takes-the-weaker	gens	x: (*$.a | **$.c | "z") & 3\na: $.b\nb: 1\nc: $.d\nd: 3	{"a":1,"b":1,"c":3,"d":3,"x":3}
+pref-arm-missing-path-leaves-the-other-arm	gens	x: (*$.zz | "a") & "a"	{"x":"a"}
+pref-arm-late-path-in-a-call-refuses	errc	x: (*upper($.a) | "a") & "B"\na: $.b\nb: "c"	empty
+pref-arm-late-path-in-a-call-admits	gens	x: (*upper($.a) | "a") & "C"\na: $.b\nb: "c"	{"a":"c","b":"c","x":"C"}
+pref-arm-late-path-in-a-sum-refuses	errc	x: (*($.a + 1) | "a") & 5\na: $.b\nb: 1	empty
+pref-arm-late-path-in-a-sum-admits	gens	x: (*($.a + 1) | "a") & 2\na: $.b\nb: 1	{"a":1,"b":1,"x":2}

@@ -34,6 +34,158 @@ of `test/spec/cursor.tsv` hold the cursor's answers, and two rows that
 pinned a call-site answer are derived again from both engines. The
 entry for #327 leaves `test/spec/divergent.tsv`.
 
+### A default arm over a path no longer admits what its parent type admits
+
+#953, in both engines. An arm `*x` of a disjunction has no parent type,
+so `(*1 | "a") & 3` is refused. Where the arm's value was a path the
+engine hadn't read yet, the arm survived the peer as a lone default,
+and a lone default gives way to what its parent type admits:
+
+- `x: (*$.a | "a") & 3` beside `a: $.b` and `b: 1` evaluated to
+  `{"x": 3}` with `x` written first, and was `empty` with `x` written
+  last. It is `empty` in every order now.
+- `aontu vet` admitted data that a schema refuses, since the data meets
+  the schema before a path into it is read: `a: 1` beside
+  `x: *$.a | "a"` was `valid` against `{"x": 3}`. It is `invalid` now.
+
+A disjunction now waits for a default arm's own value before it meets a
+term that isn't `top`: a path, or a map, a list, a call or a sum that
+holds one, and in a spread's template too.
+`test/spec/pref.tsv` gains 24 rows and `test/spec/vet.tsv` 16.
+
+A `pref()` call in an arm is untouched: what it reads as is #954.
+
+### A clash of defaults that a meet or a call makes is the schema's error
+
+#482, in both engines. Two defaults of one rank that disagree are
+`pref_rank_clash`, and `aontu vet` answers `error` for a schema that
+writes them, as in `a: *1 | *7`. A clash the schema made another way
+was found only when a value was generated, so `vet` blamed the data:
+
+- `a: (*1 | 7) & (*7 | 1)`, whose meet leaves `*1 | *7`, was `invalid`
+  against `{}`. It is `error` now, as are `a: (number | *1) & (number |
+  *2)` and the same pair in two statements.
+- `a: pref(1 | 2)`, `a: pref(1) | *2` and `a: move($.b) | *2` beside
+  `b: 1` were `invalid` too, or `valid` against data that picked one
+  arm. Each is `error` now, whatever the data.
+- `a: number | *1 | *2` was `invalid` where `a: *1 | *2 | number` was
+  `error`. Both are `error` now.
+
+Each engine now ranks a disjunction that a meet or a call leaves once
+the document settles, as it ranks a written one when it unifies. The
+same holds in a list, in a nested map, under `hide()` and `type()`, at
+an optional key and in a declaration's body. A clash only the data
+makes stays the data's: `x: pref($.a) | *2` beside `a: number` is
+`invalid` against `{"a": 1}`.
+
+`aontu subsume` and `aontu breaking` answer `error` for a document that
+holds such a clash, where they answered `undecided` with
+`sub_default_indeterminate`. That finding is left for two map defaults
+of one rank with another arm between them.
+
+Rows rk60 to rk62 of `test/spec/def-verdict.tsv` leave
+`spec/ledger.tsv`, whose bound falls to 55. `test/spec/vet.tsv` gains 32
+rows and `test/spec/subsume.tsv` two, and two of its rows take a new
+source.
+
+### `subsume` compares a default at a list position
+
+#424, in both engines. Under the `defaults` profile, the one `aontu
+subsume` and `aontu breaking` use unless told otherwise, each engine
+compared the effective default at a map member and skipped a list's
+elements. So a default that changed inside a list went unreported:
+
+- `[number]` over `[*1 | number]` answered `subsumes`. It is
+  `does_not_subsume` now, with `compat_default_changed` at `$.0`.
+- `[*2 | number]` over `[*1 | number]` answered `subsumes` too, and
+  now answers the same way, as `{x: *2 | number}` over
+  `{x: *1 | number}` always did.
+- The walk goes on below a list: `[{b: number}]` over
+  `[{b: *1 | number}]` reports `$.0.b`.
+
+Each engine now walks a list by position as it walks a map by key, at
+each position both sides have. A default the general side adds is still
+no finding, a literal is still no default, and a spread's template is
+no position. The `values` profile is untouched.
+
+Row f269 of `test/spec/def-subsume.tsv` leaves `spec/ledger.tsv`, whose
+bound falls to 58. `test/spec/subsume.tsv` gains 14 rows.
+
+### A member of a sealed map may read a member beside it
+
+#749 and #416, in both engines. A seal's value is its argument, and so
+is a rider's, but a path couldn't read through either while it waited.
+So a sealed map whose member reads a sibling never resolved:
+
+- `a: close({x: .y, y: 1})` was `mapval_no_gen` in both engines. It is
+  `{"a": {"x": 1, "y": 1}}` now, by a relative path or by `$.a.y`, at
+  the root of a document too, and inside `open()`.
+- Under `aontu vet`, the same schema, and `meta()` or `deprecate()`
+  around such a map, was `incomplete` against data that fits it. It is
+  `valid` now, and data that gives the sibling another value is
+  `invalid`.
+
+Two things changed in each engine. A path reads a member through a
+`close()` or an `open()` that waits, as it already read through a rider.
+And where a rider or a seal that waits meets the data, each term of the
+meet answers for the member the path reads, since the meet can't fold
+until that member is known. The seal still holds: an extra key is
+`closed`, and another value for the member is a conflict.
+
+- `ts/src/val/RefVal.ts` and `go/ref.go`.
+- Rows q21 and q22 of `test/spec/def-path.tsv` leave `spec/ledger.tsv`,
+  whose bound falls from 61 to 59.
+- `test/spec/seal.tsv` gains 17 rows and `test/spec/vet.tsv` 20.
+- No existing row changed: both whole suites passed before the new rows
+  went in, but for the two rows above, which now agree.
+
+### The definition refuses a miscounted call wherever it is written
+
+Decision 77, in the definition. Both engines refuse a call written with
+a count of arguments its function doesn't take as they read the
+document, wherever it stands. The definition found one only where a
+reading reached it, so `v: {&: add(1)}` against `{"v": {}}` was `valid`
+in it and `func_arity` in both engines: the spread meets no member, and
+its template was never read.
+
+A document now doesn't stand where its schema or a declaration's body
+writes such a call, at any depth (`Val.miscounts`, in
+`Decls.illFormedR`). The count each function takes is `Fn.takes`, which
+I checked against both engines for every function they share.
+
+- `spec/Aontu/Verdict.lean`. No proof changes: each reads the check as
+  one answer.
+- Rows x2250 to x2252 of `test/spec/def-call.tsv` now read `error`, and
+  leave `spec/ledger.tsv`, whose bound falls from 64 to 61.
+- `spec/Oracle.lean` gains five cases and `def-call.tsv` 15 rows, x2322
+  to x2336: the template of an `each` and of a `pack` over no member, a
+  `match` result another arm takes, a list's spread, and a member of a
+  spread's template. Both engines answer each as the definition does.
+- No other generated row file changes.
+
+### The definition's copy of a list leaves a marked element out
+
+#943, in the definition. A list holds no position for an element that
+carries a mark of its own, `hide()` or `type()`. The definition applied
+that to a list written in place and to a path's copy of one, but a
+name's copy kept the element and cleared its mark. So with
+`%T = [hide("h"), "k"]`, `v: %T` was `["h", "k"]` in the definition and
+`["k"]` in both engines, where `v: $.a` over the same list was `["k"]`
+in all three.
+
+`Val.unmark` now keeps only the elements whose written term carries no
+mark. A map member is unchanged: a copy shows it, its mark cleared. A
+named `emit` table with a marked piece follows, so the definition gives
+`["0", "1"]` for the case #945 left out, as both engines do.
+
+- `spec/Aontu/Names.lean` (`standingOf`, `Val.unmark`) and one proof in
+  `spec/Aontu/Alias.lean`. Every other proof builds unchanged.
+- `spec/Oracle.lean` gains seven cases, and
+  `test/spec/def-alias.tsv` 21 rows, n57 to n77. Both engines answer
+  each as the definition does, so the ledger keeps its 64 rows.
+- No other generated row file changes. `test/spec/ref.tsv` gains 5
+  hand-written rows and `test/spec/gen-emit.tsv` 2.
+
 ### A copied generator leaves its target's source alone, in Go
 
 #946, in Go. A path's copy of an `each`, a `pack`, an `apply` or a

@@ -280,3 +280,11 @@ ref-copy-first-shallower-each-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\
 ref-copy-first-shallower-pack-leaves-the-target	gens	c: {s: [p, q], d: $.a.x.b}\na: {x: {s: [x, y], b: {v: pack(..s, {n: key()})}}}	{"a":{"x":{"b":{"v":{"x":{"n":"x"},"y":{"n":"y"}}},"s":["x","y"]}},"c":{"d":{"v":{"p":{"n":"p"},"q":{"n":"q"}}},"s":["p","q"]}}
 ref-copy-first-shallower-filter-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: filter(..s, min(2))}}}	{"a":{"x":{"b":{"v":[3]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}
 ref-copy-first-shallower-apply-leaves-the-target	gens	c: {s: [9, 4], d: $.a.x.b}\na: {x: {s: [3, 1], b: {v: apply(..s, _)}}}	{"a":{"x":{"b":{"v":[3,1]},"s":[3,1]}},"c":{"d":{"v":[9,4]},"s":[9,4]}}
+#
+# A NAME'S COPY OF A LIST leaves out an element that carries a mark of
+# its own, as a path's copy does (#943); a map's member it shows.
+ref-name-copy-of-a-list-leaves-a-hidden-element-out	gens	%T = [hide("h"), "k"]\nv: %T	{"v":["k"]}
+ref-name-copy-of-a-list-leaves-a-typed-element-out	gens	%T = [type(string), "k"]\nv: %T	{"v":["k"]}
+ref-name-copy-of-a-nested-list-leaves-a-hidden-element-out	gens	%T = {body: [hide("h"), "k"]}\nv: %T	{"v":{"body":["k"]}}
+ref-path-copy-of-a-list-leaves-a-hidden-element-out	gens	a: [hide("h"), "k"]\nv: $.a	{"a":["k"],"v":["k"]}
+ref-name-copy-of-a-map-shows-a-hidden-member	gens	%T = {a: hide("h"), b: 1}\nv: %T	{"v":{"a":"h","b":1}}

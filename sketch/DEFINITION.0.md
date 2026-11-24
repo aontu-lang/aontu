@@ -709,6 +709,10 @@ until the phase that encodes it lands.
    is below it under `defaults` too. The `defaults` rows came on
    2026-10-21 with the procedure that decides `DefaultsLe`
    (`defaultsLe_of_walk`), rows f0 on of `test/spec/def-subsume.tsv`.
+   **Built in both ports 2026-11-24 (#424):** each port's `defaults`
+   walk reads a list by position as it reads a map by key, at each
+   position both sides have, so `[number]` over `[*1 | number]` is
+   `does_not_subsume` and row f269 left the ledger.
 12. **A `does_not_subsume` with no witness.** Raised 2026-10-19
    (#375). Both ports answer `does_not_subsume` for `string` over
    `min("a")`, `above("")` and a pattern that cannot match `""`, where
@@ -813,7 +817,13 @@ until the phase that encodes it lands.
    so but q21 and q22: a path inside a rider's value to a member beside
    it leaves both `incomplete` (#416), where the ports move. The riders
    leave `spec/forms-outside.tsv`, whose bound falls from 4 to 1. The
-   marks of decision 10 wait.
+   marks of decision 10 wait. **Built 2026-11-24** in both ports: the
+   meet of a rider that waits with the data couldn't fold until the
+   member the path reads was known, so each term now answers for that
+   member itself, and a path reads through a seal that waits as it
+   reads through a rider, which also ends #749, a sealed map whose
+   member reads a member beside it. The two rows leave the ledger, its
+   bound 59.
 15. **The words `map` and `list`.** Raised 2026-10-19 by P6. The
    importer writes `map` for `type: object` with no other keyword and
    `list` for `type: array`. Both ports admit every map or every list
@@ -945,7 +955,14 @@ until the phase that encodes it lands.
    An `each` leaves out an instance that carries a mark of its own the
    same way, and is `nil` where such an instance is a conflict, as both
    ports read it (#626, 2026-11-04): rows x2253 on in
-   `test/spec/def-call.tsv`.
+   `test/spec/def-call.tsv`. A name's copy of a list leaves a marked
+   element out too (#943, 2026-11-24): `Val.unmark` had cleared the
+   element's mark and kept the element, so `%T = [hide("h"), "k"]`
+   read through `%T` was `["h", "k"]` where a path to the same list,
+   and both ports through either, gave `["k"]`. It now keeps only the
+   elements whose written term carries no mark (`standingOf` in
+   `spec/Aontu/Names.lean`): rows n57 to n77 in
+   `test/spec/def-alias.tsv`, which both ports answer as it does.
    Both ports move, each list compacting once its own elements are
    read, and answer every row as the definition does. A marked `nil`
    still holds its position in both, which #540 tracks.
@@ -2267,6 +2284,11 @@ until the phase that encodes it lands.
    where the disjunction holds it while the disjunction meets that arm,
    which part of #700 asks. rk45 to rk50, dj177 to dj182, djl177 to
    djl182 and dir172 leave the ledger with 18 rows of #700.
+   **Built further in both ports 2026-11-24** (#482): a disjunction a
+   meet or a call leaves is ranked once it settles (`rankSettled`), as
+   a written one is when it unifies, so `(*1 | 7) & (*7 | 1)`,
+   `pref(1 | 2)` and `number | *1 | *2` are the schema's error under
+   `vet` too, and rk60 to rk62 leave the ledger.
 
 44. **`open()`, and the seals it lifts.** Raised 2026-11-11 while
    working through the definition's limits. `open()` reverses a seal,
@@ -3099,6 +3121,16 @@ until the phase that encodes it lands.
    it reads `v: {&: add(1)}` against `{"v": {}}` as `valid`, an
    unreached template being nothing, so rows x2250 to x2252 of
    `test/spec/def-call.tsv` enter the ledger, its bound rising by three.
+   **Built 2026-11-24** in the definition: a document does not stand
+   where its schema or a declaration's body writes a call with a count
+   its function doesn't take, at any depth (`Val.miscounts` in
+   `Decls.illFormedR`), read of the text as both ports read it, so the
+   three rows leave the ledger, its bound 61. `Fn.takes` gives each
+   function the count both ports' signatures give it, checked against
+   both for every function they share. Rows x2322 to x2336 hold five
+   more places no reading reaches: the template of an `each` and of a
+   `pack` over no member, a result of a `match` another arm takes, a
+   list's spread and a member of a spread's template.
 78. **A default inside a map, read by a trial.** Raised 2026-11-20 by
    #847: a `filter` condition and a `match` pattern read a member as
    it is written. With `t: &: { surface: *"sdk" | string }` and
