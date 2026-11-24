@@ -1831,10 +1831,44 @@ arm's size (decision 16 of the design note's §7). -/
 def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 
 mutual
+/-- Whether a spread's template holds a preference clash (`clash`), in
+the template itself or in a member, an element, an arm or a template it
+holds. Two defaults of the picked rank that disagree can give no member
+a default, so such a template doesn't stand where it is written,
+whatever lands on it (ruling 90). -/
+def Val.tmplClash : Val → Bool
+  | .or arms => clash arms || tmplClashArms arms
+  | .map fs spread _ => tmplClashFields fs || tmplClashSpread spread
+  | .list items spread _ => tmplClashItems items || tmplClashSpread spread
+  | .pref _ x => x.tmplClash
+  | .meet a b => a.tmplClash || b.tmplClash
+  | .ride _ v _ => v.tmplClash
+  | .link v _ => v.tmplClash
+  | _ => false
+
+def tmplClashFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.tmplClash || tmplClashFields fs
+
+def tmplClashItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.tmplClash || tmplClashItems vs
+
+def tmplClashArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.tmplClash || tmplClashArms arms
+
+def tmplClashSpread : Option Val → Bool
+  | none => false
+  | some t => t.tmplClash
+end
+
+mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, and the one
 a document writes, which stands (`Val.void`, ruling 54), a
-preference clash, a size that holds a disjunction or a preference, and
+preference clash, in a spread's template too (`Val.tmplClash`, ruling
+90), a size that holds a disjunction or a preference, and
 a call the reading could not make. A `+`, a `join` and a `pref` that
 the reading leaves as written stand where their arguments do and they
 have as many as they take. A hole that nothing binds is read before
@@ -1843,8 +1877,8 @@ this (`Decls.illFormedR`). The verdict reads it of a term staged
 def Val.illFormed : Val → Bool
   | .nil => true
   | .len c => c.sizeIll
-  | .map fs _ _ => illFields fs
-  | .list items _ _ => illItems items
+  | .map fs spread _ => illFields fs || tmplClashSpread spread
+  | .list items spread _ => illItems items || tmplClashSpread spread
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
@@ -2636,6 +2670,42 @@ def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.r
 /-- How a document reads with its keys as written: the root its paths
 read, so that a key a path reaches reads where the path lands. -/
 def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S).filled
+
+mutual
+/-- Whether a term in normal form holds a spread whose template has a
+preference clash (`Val.tmplClash`), at any depth of members, elements,
+arms, preferences, meets and riders. -/
+def Val.spreadsClash : Val → Bool
+  | .map fs spread _ => spreadsClashFields fs || tmplClashSpread spread
+  | .list items spread _ => spreadsClashItems items || tmplClashSpread spread
+  | .or arms => spreadsClashArms arms
+  | .pref _ x => x.spreadsClash
+  | .meet a b => a.spreadsClash || b.spreadsClash
+  | .ride _ v _ => v.spreadsClash
+  | .link v _ => v.spreadsClash
+  | _ => false
+
+def spreadsClashFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.spreadsClash || spreadsClashFields fs
+
+def spreadsClashItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.spreadsClash || spreadsClashItems vs
+
+def spreadsClashArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.spreadsClash || spreadsClashArms arms
+end
+
+/-- Whether a spread's template, as the document writes it in its
+schema or in a body, holds a preference clash: read with no place, so
+that a template that reads its member's key or a member beside it is
+read too, which a reading at each member would leave unread where the
+document holds no member (ruling 90). -/
+def Decls.templatesClash (ds : Decls) (S : Val) : Bool :=
+  ((normaliseD ds (ds.readU S)).staged ds).spreadsClash ||
+    ds.any fun d => ((normaliseD ds (ds.readU d.2)).staged ds).spreadsClash
 
 /-- How a document reads against data: the schema as read, met with the
 data, the data last, and read again, so that a call whose arguments the

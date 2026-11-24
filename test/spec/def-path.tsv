@@ -4523,6 +4523,57 @@ ca41	verdict	"x": {"a": integer}, "t": match($.x, close({"a": integer}), "T", "D
 ca42	verdict	"x": {"a": integer}, "t": match($.x, close({"a": integer}), "T", "D")	{"x": {"a": 1, "b": 2}}	{"verdict":"valid"}
 ca43	verdict	"x": {"a": integer}, "t": match($.x, close({"a": integer}), "T", "D")	{"x": {"a": 1, "b": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
 ca44	verdict	"x": {"a": integer}, "t": match($.x, close({"a": integer}), "T", "D")	{"x": {"a": 1, "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+# A spread's template that holds two defaults of the picked rank that disagree is
+# the schema's error where it is written, whatever the data (ruling 90), in rows
+# tc0 on.
+tc0	verdict	"x": {&: *(1) | *(2)}	{}	{"verdict":"error"}
+tc1	verdict	"x": {&: *(1) | *(2)}	{}	{"verdict":"error","opts":{"noFill":true}}
+tc2	verdict	"x": {&: *(1) | *(2)}	{}	{"verdict":"error","opts":{"partial":true}}
+tc3	verdict	"x": {&: *(1) | *(2)}	{"x": {"k": 1}}	{"verdict":"error"}
+tc4	verdict	"x": {&: *(1) | *(2)}	{"x": {"k": 1}}	{"verdict":"error","opts":{"noFill":true}}
+tc5	verdict	"x": {&: *(1) | *(2)}	{"x": {"k": 1}}	{"verdict":"error","opts":{"partial":true}}
+tc6	verdict	"x": {&: *(1) | *(2)}	{"x": {"k": 3}}	{"verdict":"error"}
+tc7	verdict	"x": {&: *(1) | *(2)}	{"x": {"k": 3}}	{"verdict":"error","opts":{"noFill":true}}
+tc8	verdict	"x": {&: *(1) | *(2)}	{"x": {"k": 3}}	{"verdict":"error","opts":{"partial":true}}
+tc9	verdict	"x": {&: pref((1) | (2))}	{"x": {"k": 1}}	{"verdict":"error"}
+tc10	verdict	"x": {&: pref((1) | (2))}	{"x": {"k": 1}}	{"verdict":"error","opts":{"noFill":true}}
+tc11	verdict	"x": {&: pref((1) | (2))}	{"x": {"k": 1}}	{"verdict":"error","opts":{"partial":true}}
+tc12	verdict	"x": [&: *(1) | *(2)]	{"x": [1]}	{"verdict":"error"}
+tc13	verdict	"x": [&: *(1) | *(2)]	{"x": [1]}	{"verdict":"error","opts":{"noFill":true}}
+tc14	verdict	"x": [&: *(1) | *(2)]	{"x": [1]}	{"verdict":"error","opts":{"partial":true}}
+tc15	verdict	"x": {"k": number, &: *(1) | *(2)}	{}	{"verdict":"error"}
+tc16	verdict	"x": {"k": number, &: *(1) | *(2)}	{}	{"verdict":"error","opts":{"noFill":true}}
+tc17	verdict	"x": {"k": number, &: *(1) | *(2)}	{}	{"verdict":"error","opts":{"partial":true}}
+tc18	verdict	"x": {&: {"a": *(1) | *(2)}}	{}	{"verdict":"error"}
+tc19	verdict	"x": {&: {"a": *(1) | *(2)}}	{}	{"verdict":"error","opts":{"noFill":true}}
+tc20	verdict	"x": {&: {"a": *(1) | *(2)}}	{}	{"verdict":"error","opts":{"partial":true}}
+tc21	verdict	"x": {&: {&: *(1) | *(2)}}	{}	{"verdict":"error"}
+tc22	verdict	"x": {&: {&: *(1) | *(2)}}	{}	{"verdict":"error","opts":{"noFill":true}}
+tc23	verdict	"x": {&: {&: *(1) | *(2)}}	{}	{"verdict":"error","opts":{"partial":true}}
+tc24	verdict	"x": {&: type(*(1) | *(2))}	{}	{"verdict":"error"}
+tc25	verdict	"x": {&: type(*(1) | *(2))}	{}	{"verdict":"error","opts":{"noFill":true}}
+tc26	verdict	"x": {&: type(*(1) | *(2))}	{}	{"verdict":"error","opts":{"partial":true}}
+tc27	verdict	"x": {&: {"a": key(0), "b": *(1) | *(2)}}	{}	{"verdict":"error"}
+tc28	verdict	"x": {&: {"a": key(0), "b": *(1) | *(2)}}	{}	{"verdict":"error","opts":{"noFill":true}}
+tc29	verdict	"x": {&: {"a": key(0), "b": *(1) | *(2)}}	{}	{"verdict":"error","opts":{"partial":true}}
+tc30	verdict	"x": {&: {"a": .b, "b": *(1) | *(2)}}	{}	{"verdict":"error"}
+tc31	verdict	"x": {&: {"a": .b, "b": *(1) | *(2)}}	{}	{"verdict":"error","opts":{"noFill":true}}
+tc32	verdict	"x": {&: {"a": .b, "b": *(1) | *(2)}}	{}	{"verdict":"error","opts":{"partial":true}}
+tc33	verdict	"x": {&: $.d}, "d": *(1) | *(2)	{}	{"verdict":"error"}
+tc34	verdict	"x": {&: $.d}, "d": *(1) | *(2)	{}	{"verdict":"error","opts":{"noFill":true}}
+tc35	verdict	"x": {&: $.d}, "d": *(1) | *(2)	{}	{"verdict":"error","opts":{"partial":true}}
+tc36	verdict	%T = {&: *(1) | *(2)}\n"v": 1	{"v": 1}	{"verdict":"error"}
+tc37	verdict	%T = {&: *(1) | *(2)}\n"v": 1	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+tc38	verdict	%T = {&: *(1) | *(2)}\n"v": 1	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+tc39	verdict	"x": {&: *(1) | (2)}	{"x": {"k": 2}}	{"verdict":"valid"}
+tc40	verdict	"x": {&: *(1) | (2)}	{"x": {"k": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+tc41	verdict	"x": {&: *(1) | (2)}	{"x": {"k": 2}}	{"verdict":"valid","opts":{"partial":true}}
+tc42	verdict	"x": {&: *(1) | *(1)}	{}	{"verdict":"valid"}
+tc43	verdict	"x": {&: *(1) | *(1)}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+tc44	verdict	"x": {&: *(1) | *(1)}	{}	{"verdict":"valid","opts":{"partial":true}}
+tc45	verdict	"x": {&: **(1) | *(2)}	{}	{"verdict":"valid"}
+tc46	verdict	"x": {&: **(1) | *(2)}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+tc47	verdict	"x": {&: **(1) | *(2)}	{}	{"verdict":"valid","opts":{"partial":true}}
 # A match whose scrutinee, and a must whose condition, reads the place the term
 # stands at reads what the rest of the document holds there, in rows sr0 on.
 sr0	verdict	"order": match($.order.status, "shipped", {"trackingNo": string}, {})	{"order": {"status": "placed"}}	{"verdict":"valid"}

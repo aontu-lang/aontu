@@ -17,6 +17,7 @@ import { ConjunctVal } from './val/ConjunctVal'
 import { ListVal } from './val/ListVal'
 import { MapVal } from './val/MapVal'
 import { keyTable } from './val/BagVal'
+import { trialUnify } from './val/FuncBaseVal'
 import { waitsOnHole } from './val/PlaceVal'
 import { expandAliases } from './alias'
 import { riderText, rides, unionDecls, unionRecords, unionVia } from './rider'
@@ -143,18 +144,34 @@ function holds(v: any, mark: (v: any) => boolean): boolean {
   return mark(v) || Object.keys(kids).some((k: string) => holds(kids[k], mark))
 }
 
-// A disjunction a meet or a call leaves ranks its defaults as a written one does, so its clash is
-// the same error (foldArms in spec/Aontu/Meet.lean). A copy is ranked: generation folds the tree's own.
+// A disjunction a meet or a call leaves ranks its defaults as a written one does (foldArms in
+// spec/Aontu/Meet.lean), in a spread's template too (ruling 90). A copy is ranked.
 function rankSettled(ctx: AontuContext, v: any, seen: Set<any>): void {
   if (seen.has(v)) {
     return
   }
   seen.add(v)
-  if (true === v.isDisjunct && !v.prefsRanked) {
+  if (true === v.isDisjunct && !v.prefsRanked && !landsRead(v)) {
     v.clone(ctx, { path: v.path }).rankPrefs(ctx.clone({ path: v.path }))
   }
-  const kids = true === v.isPref ? [v.peg] : true === v.isBag || true === v.isJunction ? Object.values(v.peg) : []
-  kids.forEach((k: any) => rankSettled(ctx, k, seen))
+  const marks = true === v.isTypeFunc || true === v.isHideFunc
+  const kids = true === v.isPref ? [v.peg] :
+    true === v.isBag || true === v.isJunction || marks ? Object.values(v.peg) : []
+  const tmpl = v.spread?.cj
+  const made = null == tmpl ? [] : landsRead(tmpl, true) ? [tmpl] :
+    [trialUnify(ctx.clone({ path: [...v.path, '&'] }), tmpl.clone(ctx), top()) ?? tmpl]
+  kids.concat(made).forEach((k: any) => rankSettled(ctx, k, seen))
+}
+
+
+// Whether a template reads the member it lands on, at any depth: a key, a hole or a relative
+// path, and with `any` a path of either kind or a trial, which settling it early would read or move.
+function landsRead(v: any, any: boolean = false): boolean {
+  const kids = true === v?.isRef || null == v?.peg || 'object' !== typeof v.peg ? [] :
+    true === v.peg.isVal ? [v.peg] : Object.values(v.peg)
+  return true === v?.isKeyFunc || true === v?.isPlace || (any && true === v?.isConstraint) ||
+    (true === v?.isRef && (any || !v.absolute)) ||
+    kids.concat(v?.spread?.cj ?? []).some((k: any) => landsRead(k, any))
 }
 
 const rereads = (v: any): boolean => undefined !== v.reread

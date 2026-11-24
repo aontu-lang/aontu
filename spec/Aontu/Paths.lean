@@ -933,6 +933,14 @@ schema or in a body: one the reading couldn't make. -/
 def Decls.loadsLeft (ds : Decls) (S : Val) : Bool :=
   (ds.loaded S).2.holdsLoad || ((ds.loaded S).1.any fun d => d.2.holdsLoad) || ds.takesLeft S
 
+/-- Whether a document can't be read: it still holds a load
+(`Decls.loadsLeft`), or a spread's template that, as the document
+writes it, holds a preference clash (`Decls.templatesClash`, ruling 90),
+which can give no member a default whatever lands on it. Either is an
+`error` before anything else is asked. -/
+def Decls.unread (ds : Decls) (S : Val) : Bool :=
+  ds.loadsLeft S || (ds.loaded S).1.templatesClash (ds.loaded S).2
+
 /-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
 boolean as `true` or `false`, as both ports take a step only from a
@@ -3233,13 +3241,15 @@ it loads read in where it loads them (`Decls.loaded`), and its verdict
 as `VetL` gives it; an `error` where a load is left the reading couldn't
 make (`Decls.loadsLeft`), wherever it stands, since both ports read
 every load before anything else reads the document, so a selection
-that leaves the load's arm out doesn't excuse it. -/
+that leaves the load's arm out doesn't excuse it; and an `error` where
+a spread's template holds a preference clash as written
+(`Decls.unread`, ruling 90). -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  if ds.loadsLeft S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
+  if ds.unread S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
 
 /-- The verdict with paths, computed. -/
 def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
-  if ds.loadsLeft S then .error else vetL m (ds.loaded S).1 (ds.loaded S).2 j
+  if ds.unread S then .error else vetL m (ds.loaded S).1 (ds.loaded S).2 j
 
 /-! ## Paths read as names keep a term checkable -/
 
@@ -5754,7 +5764,7 @@ schema read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
   unfold vetP VetP
-  by_cases hl : ds.loadsLeft S = true
+  by_cases hl : ds.unread S = true
   · rw [if_pos hl, if_pos hl]
     exact eq_comm
   · rw [if_neg hl, if_neg hl]
@@ -5765,7 +5775,7 @@ the document its verdict hands `vet` with the data's paths read as
 names, computed: what a document whose selection the schema leaves open
 for the data needs. -/
 def Decls.readsPD (ds : Decls) (S : Val) (j : Data) : Bool :=
-  !ds.loadsLeft S &&
+  !ds.unread S &&
     ((ds.loaded S).1.preparedD (ds.loaded S).2 j).1.readsDB ((ds.loaded S).1.preparedD (ds.loaded S).2 j).2 j
 
 /-- `vetP` computes `VetP` on every document `Decls.readsPD` reads. -/
@@ -5820,11 +5830,11 @@ def outputL (ds : Decls) (S : Val) : Option Data :=
 sources read in generates (`Decls.loaded`, `OutputL`), where it holds
 no load the reading couldn't make. -/
 def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
-  ds.loadsLeft S = false ∧ OutputL (ds.loaded S).1 root (ds.loaded S).2 j
+  ds.unread S = false ∧ OutputL (ds.loaded S).1 root (ds.loaded S).2 j
 
 /-- What a document with paths generates, computed. -/
 def outputP (ds : Decls) (S : Val) : Option Data :=
-  if ds.loadsLeft S then none else outputL (ds.loaded S).1 (ds.loaded S).2
+  if ds.unread S then none else outputL (ds.loaded S).1 (ds.loaded S).2
 
 /-- `outputL` computes `OutputL` where the reading of the placed
 document keeps the alias-cycle rule and the checker can read its bodies
@@ -5844,7 +5854,7 @@ theorem outputP_iff {ds : Decls} {S : Val} {root : Data} {j : Data}
     (h : outputL (ds.loaded S).1 (ds.loaded S).2 = some j ↔ OutputL (ds.loaded S).1 root (ds.loaded S).2 j) :
     outputP ds S = some j ↔ OutputP ds root S j := by
   unfold outputP OutputP
-  by_cases hl : ds.loadsLeft S = true
+  by_cases hl : ds.unread S = true
   · rw [if_pos hl]
     exact ⟨fun h' => (nomatch h'), fun ⟨h1, _⟩ => by rw [hl] at h1; exact nomatch h1⟩
   · rw [if_neg hl]
