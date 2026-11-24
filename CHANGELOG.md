@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### A copy makes a fold over a relative path again, in TypeScript
+
+#944, in TypeScript. A copy reads each relative path where the copy
+stands, and makes a call over such a path again there. TypeScript left
+six calls out: `sum`, `least`, `greatest`, `sort`, `pick` and `join`. A
+path's copy of one kept the value the call made at the target, where Go
+and the definition make the call again.
+
+With `a: {s: [3, 1], b: {v: sum(..s)}}` and `c: {s: [9, 4], d: $.a.b}`,
+`c.d.v` is now `13` in TypeScript, as it is in Go. It was `4`. The same
+holds whichever of the two is written first, and at any depth of the
+copy.
+
+- `ts/src/val/AggFuncVal.ts`, `ts/src/val/FuncBaseVal.ts` and
+  `ts/src/val/RefVal.ts`. Go is unchanged.
+- `test/spec/ref.tsv` gains 19 rows.
+
+Filed while fixing it: #946. With the copy written first and at another
+depth, a copied `each`, `pack` or `filter` over a relative source reads
+differently in the two engines, and where the copy is shallower Go
+changes the value the target itself gives.
+
 ### A key in a declaration's body waits for the use that places it
 
 #528, #783 and the emit half of #539, in both engines, and the rest of

@@ -1557,7 +1557,10 @@ until the phase that encodes it lands.
    call over a relative path reads at the target in both orders, where
    the definition would read it at the copy, and a path into a
    generator's output kept the keys the generator wrote (#520), which
-   ruling 22's build answered the same day.
+   ruling 22's build answered the same day. TypeScript read a fold
+   over a relative path, `sum`, `least`, `greatest`, `sort`, `pick` or
+   `join`, at the target too, where Go read it at the copy (#944), and
+   moved the same day; #936 and #946 keep the generators.
 
 27. **A copy's marks and seal.** Raised 2026-10-21 by P8 (#445). The
    reference says `copy(v)` clears the `type` and `hide` marks. Both
