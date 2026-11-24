@@ -11,6 +11,7 @@ import {
 } from '../ctx'
 
 import { StringVal } from '../val/StringVal'
+import { ScalarKindVal } from '../val/ScalarKindVal'
 
 
 import { FuncBaseVal } from './FuncBaseVal'
@@ -70,10 +71,15 @@ class KeyFuncVal extends FuncBaseVal {
     }
 
     const here = positioned ? this.path : ctx.path
-    const key = here[here.length - (1 + move)] ?? ''
+    const at = here.length - (1 + move)
 
-    out = new StringVal({ peg: key })
-    // }
+    // A key that climbs out of a declaration's body waits for the use that places it.
+    const waits = at <= 0 && true === (ctx.root as any)?.aliasKeys?.includes(here[0])
+    out = waits ? new ScalarKindVal({ peg: String, emptyOk: true } as any) :
+      new StringVal({ peg: here[at] ?? '' })
+    // A copy reads its key again where it stands (ruling 22).
+    ; (out as any).reread = [this]
+    ; (out as any).unplaced = waits
 
     return out
   }

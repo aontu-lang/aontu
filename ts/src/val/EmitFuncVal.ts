@@ -329,6 +329,12 @@ function nodeAddr(sel: string | undefined, key: string, node: any): string {
 
 // A body element that is itself a list splices, which is what makes a
 // nested emit compose into one flat sequence.
+// A piece that carries a mark or reads as absence takes no position (rulings 18 and 24).
+function stands(p: any): boolean {
+  return true !== p.mark.type && true !== p.mark.hide && true !== p.isAbsent
+}
+
+
 function splice(v: Val, out: Val[]): void {
   if (true === (v as any)?.isList) {
     for (const el of (v as any).peg as Val[]) {
@@ -388,9 +394,10 @@ class EmitFuncVal extends FuncBaseVal {
       return makeNilErr(ctx, 'emit_data', this)
     }
 
+    // A table a name holds is read as it is written, as one written in place is.
     let table: any = args?.[1]
     if (true === table?.isRef) {
-      table = table.unify(top(), ctx)
+      table = table.find(ctx) ?? table
     }
 
     const templates = tableTemplates(table)
@@ -438,8 +445,10 @@ class EmitFuncVal extends FuncBaseVal {
     // settled how many there are. A piece keeps no trace of the body
     // it was written in: the body is a template, and a template's
     // parse position is the one place it is never used.
-    for (let i = 0; i < peg.length; i++) {
-      repathInstance(peg[i], [...ctx.path, String(i)])
+    let at = 0
+    for (const piece of peg) {
+      repathInstance(piece, [...ctx.path, String(at)])
+      at += stands(piece) ? 1 : 0
     }
 
     return new ListVal({ peg }, ctx)
@@ -512,12 +521,17 @@ class EmitFuncVal extends FuncBaseVal {
     const elems: Val[] = (tmpl.body as any).peg
 
     for (let i = 0; i < elems.length; i++) {
-      const elctx = ctx.descend(String(out.length))
-      let inst = elems[i].clone(elctx, { dup: true })
+      const elctx = ctx.descend(String(out.filter(stands).length))
+      let inst = elems[i].clone(elctx, { dup: true, path: [...elctx.path] })
+      repathInstance(inst, inst.path)
       if (undefined !== pairs) {
         inst = substituted(inst, i, tmpl.lits, pairs, elctx)
       }
       let piece = fillPlace(bindNode(inst, node, elctx, fail), node, elctx)
+      // A refused emit reads no piece, which would report its own miss first.
+      if (undefined !== fail.ref) {
+        return
+      }
 
       if (!piece.done) {
         piece = unite(elctx, piece, top(), 'emit')

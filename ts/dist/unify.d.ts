@@ -5,6 +5,8 @@ declare const withDepth: (ctx: AontuContext, a: any, b: any, run: () => any) => 
 declare function ride(out: any, a: any, b: any): void;
 declare function rideOn(ctx: AontuContext, out: any, a: any, b: any): any;
 declare const rereadTerms: (t: any) => Val[];
+declare function holds(v: any, mark: (v: any) => boolean): boolean;
+declare const unplaced: (v: any) => boolean;
 declare function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: () => Val): Val;
 declare const unite: (ctx: AontuContext, a: any, b: any, whence: string) => any;
 type LinkSite = {
@@ -26,4 +28,4 @@ declare class Unify {
     constructor(root: Val | string, lang?: Lang, ctx?: AontuContext | any, src?: any);
 }
 declare const meetTemplate: (ctx: AontuContext, member: Val, tmpl: Val, whence: string) => Val;
-export { Unify, rereadCall, rereadTerms, holdsLink, linksOf, rootLinks, unite, meetTemplate, withDepth, ride, rideOn, };
+export { Unify, rereadCall, rereadTerms, holds, unplaced, holdsLink, linksOf, rootLinks, unite, meetTemplate, withDepth, ride, rideOn, };

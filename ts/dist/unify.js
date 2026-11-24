@@ -1,8 +1,9 @@
 "use strict";
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.withDepth = exports.meetTemplate = exports.unite = exports.rereadTerms = exports.Unify = void 0;
+exports.withDepth = exports.meetTemplate = exports.unite = exports.unplaced = exports.rereadTerms = exports.Unify = void 0;
 exports.rereadCall = rereadCall;
+exports.holds = holds;
 exports.holdsLink = holdsLink;
 exports.linksOf = linksOf;
 exports.rootLinks = rootLinks;
@@ -109,9 +110,17 @@ const plain = (t) => null == t || true === t.isTop;
 // What a value stands for as written: what a relative path read there, or the value itself.
 const rereadTerms = (t) => plain(t) ? [] : (t.reread ?? [t]);
 exports.rereadTerms = rereadTerms;
+// Whether a value, or one a map, a list or a meet in it holds, carries the mark.
+function holds(v, mark) {
+    const kids = true === v.isMap || true === v.isList || true === v.isConjunct ? v.peg : {};
+    return mark(v) || Object.keys(kids).some((k) => holds(kids[k], mark));
+}
+const rereads = (v) => undefined !== v.reread;
+const unplaced = (v) => true === v.unplaced;
+exports.unplaced = unplaced;
 // A call over what a relative path read is made again where a copy stands (ruling 26).
 function rereadCall(ctx, out, args, peer, again) {
-    if (true === out.isNil || !args.some((a) => undefined !== a.reread)) {
+    if (true === out.isNil || !args.some((a) => holds(a, rereads))) {
         return out;
     }
     const kept = out.clone(ctx, { path: out.path });
@@ -625,6 +634,6 @@ class Unify {
     }
 }
 exports.Unify = Unify;
-const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 15 */
+const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 17 */
 exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map

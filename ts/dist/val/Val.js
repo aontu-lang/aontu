@@ -142,6 +142,9 @@ class Val {
         if (null != this.reread) {
             out.reread = this.reread;
         }
+        if (true === this.unplaced) {
+            out.unplaced = true;
+        }
         if (null != this.emitted) {
             out.emitted = this.emitted;
         }

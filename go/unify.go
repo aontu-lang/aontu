@@ -61,9 +61,30 @@ func rereadTerms(t Val) []Val {
 	return []Val{t}
 }
 
+// Whether a value, or one a map, a list or a meet in it holds, carries the mark.
+func holds(v Val, mark func(Val) bool) bool {
+	if mark(v) {
+		return true
+	}
+	var kids []Val
+	switch n := v.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			kids = append(kids, n.peg[k])
+		}
+	case *ListVal:
+		kids = n.peg
+	case *ConjunctVal:
+		kids = n.peg
+	}
+	return slices.ContainsFunc(kids, func(k Val) bool { return holds(k, mark) })
+}
+
+func rereadsMark(v Val) bool { return nil != v.rereads() }
+
 // A call over what a relative path read is made again where a copy stands (ruling 26).
 func rereadCall(out Val, args []Val, peer Val, again func() Val) Val {
-	if out.Nil() || !slices.ContainsFunc(args, func(a Val) bool { return nil != a.rereads() }) {
+	if out.Nil() || !slices.ContainsFunc(args, func(a Val) bool { return holds(a, rereadsMark) }) {
 		return out
 	}
 	out = clonePath(out, cp(out.vpath()))

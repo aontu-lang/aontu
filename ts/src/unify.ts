@@ -137,9 +137,19 @@ const plain = (t: any): boolean => null == t || true === t.isTop
 const rereadTerms = (t: any): Val[] => plain(t) ? [] : (t.reread ?? [t])
 
 
+// Whether a value, or one a map, a list or a meet in it holds, carries the mark.
+function holds(v: any, mark: (v: any) => boolean): boolean {
+  const kids = true === v.isMap || true === v.isList || true === v.isConjunct ? v.peg : {}
+  return mark(v) || Object.keys(kids).some((k: string) => holds(kids[k], mark))
+}
+
+const rereads = (v: any): boolean => undefined !== v.reread
+const unplaced = (v: any): boolean => true === v.unplaced
+
+
 // A call over what a relative path read is made again where a copy stands (ruling 26).
 function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: () => Val): Val {
-  if (true === out.isNil || !args.some((a: any) => undefined !== a.reread)) {
+  if (true === out.isNil || !args.some((a: any) => holds(a, rereads))) {
     return out
   }
   const kept = out.clone(ctx, { path: out.path })
@@ -735,13 +745,15 @@ class Unify {
 
 
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
-  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 15 */
+  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 17 */
 
 
 export {
   Unify,
   rereadCall,
   rereadTerms,
+  holds,
+  unplaced,
   holdsLink,
   linksOf,
   rootLinks,

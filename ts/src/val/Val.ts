@@ -172,6 +172,8 @@ abstract class Val {
   copied?: string
   // What a relative path read here, as written with each term met, which a copy reads again (ruling 26).
   reread?: Val[]
+  // A key in a declaration's body, or a call over one, that waits for the use that places it.
+  unplaced?: boolean
 
   origin?: string
 
@@ -322,6 +324,9 @@ abstract class Val {
     }
     if (null != this.reread) {
       out.reread = this.reread
+    }
+    if (true === this.unplaced) {
+      out.unplaced = true
     }
     if (null != this.emitted) {
       out.emitted = this.emitted
