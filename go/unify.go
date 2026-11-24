@@ -81,7 +81,8 @@ func holds(v Val, mark func(Val) bool) bool {
 }
 
 // A disjunction a meet or a call leaves ranks its defaults as a written one does, so its clash is
-// the same error (foldArms in spec/Aontu/Meet.lean). A copy is ranked: generation folds the tree's own.
+// the same error (foldArms in spec/Aontu/Meet.lean), in a spread's template too, read with its
+// calls made (ruling 90). A copy is ranked: generation folds the tree's own.
 func rankSettled(ctx *Ctx, v Val, seen map[Val]bool) {
 	if seen[v] {
 		return
@@ -90,7 +91,7 @@ func rankSettled(ctx *Ctx, v Val, seen map[Val]bool) {
 	var kids []Val
 	switch n := v.(type) {
 	case *DisjunctVal:
-		if !n.prefsRanked {
+		if !n.prefsRanked && !landsRead(n, false) {
 			slot := ctx.slot
 			ctx.slot = n.vpath()
 			clonePath(n, n.vpath()).(*DisjunctVal).rankPrefs(ctx)
@@ -103,14 +104,71 @@ func rankSettled(ctx *Ctx, v Val, seen map[Val]bool) {
 		for _, k := range n.keys {
 			kids = append(kids, n.peg[k])
 		}
+		kids = append(kids, madeTemplate(ctx, n, n.spread)...)
 	case *ListVal:
-		kids = n.peg
+		kids = append(append([]Val{}, n.peg...), madeTemplate(ctx, n, n.spread)...)
 	case *ConjunctVal:
 		kids = n.peg
+	case *FuncVal:
+		if "type" == n.name || "hide" == n.name {
+			kids = n.peg
+		}
 	}
 	for _, k := range kids {
 		rankSettled(ctx, k, seen)
 	}
+}
+
+// madeTemplate is a bag's spread template with its calls made, or as written where it can't be
+// or where it reads the member it lands on.
+func madeTemplate(ctx *Ctx, bag Val, tmpl Val) []Val {
+	if nil == tmpl {
+		return nil
+	}
+	if landsRead(tmpl, true) {
+		return []Val{tmpl}
+	}
+	slot := ctx.slot
+	at := append(append([]string{}, bag.vpath()...), "&")
+	ctx.slot = at
+	made := trialUnify(ctx, clonePath(tmpl, at), top())
+	ctx.slot = slot
+	if nil == made {
+		return []Val{tmpl}
+	}
+	return []Val{made}
+}
+
+// landsRead: whether a template reads the member it lands on, a key, a hole or a relative path,
+// and with any a path of either kind, which a trial would read, or move, too early.
+func landsRead(v Val, any bool) bool {
+	in := func(k Val) bool { return landsRead(k, any) }
+	switch n := v.(type) {
+	case *RefVal:
+		return any || !n.absolute
+	case *PlaceVal:
+		return true
+	case *FuncVal:
+		return "key" == n.name || slices.ContainsFunc(n.peg, in)
+	case *MapVal:
+		for _, k := range n.keys {
+			if in(n.peg[k]) {
+				return true
+			}
+		}
+		return nil != n.spread && in(n.spread)
+	case *ListVal:
+		return slices.ContainsFunc(n.peg, in) || (nil != n.spread && in(n.spread))
+	case *ConjunctVal:
+		return slices.ContainsFunc(n.peg, in)
+	case *DisjunctVal:
+		return slices.ContainsFunc(n.peg, in)
+	case *PrefVal:
+		return in(n.peg)
+	case *PlusOpVal:
+		return slices.ContainsFunc(n.peg, in)
+	}
+	return false
 }
 
 func rereadsMark(v Val) bool { return nil != v.rereads() }

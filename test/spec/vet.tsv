@@ -706,3 +706,53 @@ vet-pref-arm-relative-path-refuses	verdict	x: {p: 1, y: *.p | "a"}	{"x": {"y": 3
 vet-pref-arm-relative-path-the-data-gives	verdict	x: {p: number, y: *.p | "a"}	{"x": {"p": 3, "y": 3}}	{"verdict":"valid"}
 vet-pref-arm-path-in-a-template-refuses	verdict	a: 1\nx: {&: *$.a | "a"}	{"x": {"k": 3}}	{"verdict":"invalid"}
 vet-pref-arm-path-in-a-template-admits	verdict	a: 1\nx: {&: *$.a | "a"}	{"x": {"k": 1, "j": "a"}}	{"verdict":"valid"}
+# A CLASH OF DEFAULTS IN A SPREAD'S TEMPLATE (#957, ruling 90). A template
+# that holds two defaults of the picked rank that disagree can give no
+# member a default, so the schema is an error where it is written,
+# whatever the data. Rows tc0 on of def-path.tsv are the generated ones;
+# these hold the shapes beside them: under hide(), in an arm, in a
+# member of a list's template and in a template's own list. A default
+# that reads its member's key, or a path, is no clash where it is
+# written, and each answer is the definition's too.
+vet-template-clash-under-hide	verdict	x: {&: hide(*1 | *2)}	{}	{"verdict":"error"}
+vet-template-clash-under-hide-with-no-fill	verdict	x: {&: hide(*1 | *2)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-template-clash-under-hide-under-partial	verdict	x: {&: hide(*1 | *2)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-template-clash-in-an-arm	verdict	x: {&: (*1 | *2) | string}	{}	{"verdict":"error"}
+vet-template-clash-in-an-arm-with-no-fill	verdict	x: {&: (*1 | *2) | string}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-template-clash-in-an-arm-under-partial	verdict	x: {&: (*1 | *2) | string}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-template-clash-in-a-list-templates-member	verdict	x: [&: {a: *1 | *2}]	{}	{"verdict":"error"}
+vet-template-clash-in-a-list-templates-member-with-no-fill	verdict	x: [&: {a: *1 | *2}]	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-template-clash-in-a-list-templates-member-under-partial	verdict	x: [&: {a: *1 | *2}]	{}	{"verdict":"error","opts":{"partial":true}}
+vet-template-clash-in-a-templates-list	verdict	x: {&: [*1 | *2]}	{}	{"verdict":"error"}
+vet-template-clash-in-a-templates-list-with-no-fill	verdict	x: {&: [*1 | *2]}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-template-clash-in-a-templates-list-under-partial	verdict	x: {&: [*1 | *2]}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-template-clash-a-member-picks-one	verdict	x: {&: *1 | *2}	{"x": {"k": 1}}	{"verdict":"error"}
+vet-template-clash-a-member-picks-one-with-no-fill	verdict	x: {&: *1 | *2}	{"x": {"k": 1}}	{"verdict":"error","opts":{"noFill":true}}
+vet-template-clash-a-member-picks-one-under-partial	verdict	x: {&: *1 | *2}	{"x": {"k": 1}}	{"verdict":"error","opts":{"partial":true}}
+vet-template-no-clash-a-default-is-the-members-key	verdict	x: {&: *key(0) | *"a"}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-default-is-the-members-key-with-no-fill	verdict	x: {&: *key(0) | *"a"}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-default-is-the-members-key-under-partial	verdict	x: {&: *key(0) | *"a"}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-call-over-the-key	verdict	x: {&: upper(key(0)) | *"a"}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-call-over-the-key-with-no-fill	verdict	x: {&: upper(key(0)) | *"a"}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-call-over-the-key-under-partial	verdict	x: {&: upper(key(0)) | *"a"}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-key-met-with-a-kind	verdict	x: {&: *(key(0) & string) | *"a"}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-key-met-with-a-kind-with-no-fill	verdict	x: {&: *(key(0) & string) | *"a"}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-key-met-with-a-kind-under-partial	verdict	x: {&: *(key(0) & string) | *"a"}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-sum-over-the-key	verdict	x: {&: *(key(0) + "x") | *"a"}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-sum-over-the-key-with-no-fill	verdict	x: {&: *(key(0) + "x") | *"a"}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-sum-over-the-key-under-partial	verdict	x: {&: *(key(0) + "x") | *"a"}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-list-of-the-key	verdict	x: {&: [key(1)] | *["a"]}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-list-of-the-key-with-no-fill	verdict	x: {&: [key(1)] | *["a"]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-list-of-the-key-under-partial	verdict	x: {&: [key(1)] | *["a"]}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-spread-of-the-key	verdict	x: {&: {&: *key(0) | *"a"}}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-spread-of-the-key-with-no-fill	verdict	x: {&: {&: *key(0) | *"a"}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-spread-of-the-key-under-partial	verdict	x: {&: {&: *key(0) | *"a"}}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-list-spread-of-the-key	verdict	x: {&: [&: *key(1) | *"a"]}	{}	{"verdict":"valid"}
+vet-template-no-clash-a-list-spread-of-the-key-with-no-fill	verdict	x: {&: [&: *key(1) | *"a"]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-list-spread-of-the-key-under-partial	verdict	x: {&: [&: *key(1) | *"a"]}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-no-clash-a-default-is-a-path	verdict	x: {&: *$.d | *2}\nd: 2	{}	{"verdict":"valid"}
+vet-template-no-clash-a-default-is-a-path-with-no-fill	verdict	x: {&: *$.d | *2}\nd: 2	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-template-no-clash-a-default-is-a-path-under-partial	verdict	x: {&: *$.d | *2}\nd: 2	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-template-clash-beside-a-move	verdict	a: 1\nb: {&: move($.a), c: {&: *1 | *2}}	{}	{"verdict":"error"}
+vet-template-clash-beside-a-move-with-no-fill	verdict	a: 1\nb: {&: move($.a), c: {&: *1 | *2}}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-template-clash-beside-a-move-under-partial	verdict	a: 1\nb: {&: move($.a), c: {&: *1 | *2}}	{}	{"verdict":"error","opts":{"partial":true}}
