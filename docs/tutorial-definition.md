@@ -4113,9 +4113,10 @@ walk fails nowhere, `defaultsLe_of_walk` proves `DefaultsLe`, and one
 position where it fails refutes it. `marksAt` and `marksBelow` do the
 same for the marks, a spread included, for `gen`. Their rows are f0 on
 under `defaults` and w0 on under `gen`, and both engines answer them as
-the contracts allow but one: under `defaults` they compare a default at
-a map member and not at a list position, so `[number]` over
-`[*1 | number]` subsumes for them, which #424 tracks.
+the contracts allow. Under `defaults` each engine walks a list by
+position as it walks a map by key, so `[number]` over `[*1 | number]`
+doesn't subsume: position 0 of the specific side declares a default
+and the general side's declares none.
 
 The containers follow the members. A map on the general side is above
 a map on the specific side when each key it declares, the specific side

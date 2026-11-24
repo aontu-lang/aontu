@@ -1151,15 +1151,28 @@ func subsumeDefaultsWalk(st *subState, path []string, g0, s0 Val,
 	g := subUnfold(st.groot, g0)
 	s := subUnfold(st.sroot, s0)
 	out := subsumeDefaults(st, path, g, s)
+	if seen[[2]Val{g, s}] {
+		return out
+	}
+	below := func(k string, gc, sc Val) {
+		kp := append(append([]string{}, path...), k)
+		out = subWorse(out, subsumeDefaultsWalk(st, kp, gc, sc, seen))
+	}
 	gm, gok := g.(*MapVal)
 	sm, sok := s.(*MapVal)
-	if gok && sok && !seen[[2]Val{g, s}] {
+	gl, glok := g.(*ListVal)
+	sl, slok := s.(*ListVal)
+	if gok && sok {
 		seen[[2]Val{g, s}] = true
 		for _, k := range sm.keys {
 			if gc, ok := gm.peg[k]; ok {
-				kp := append(append([]string{}, path...), k)
-				out = subWorse(out, subsumeDefaultsWalk(st, kp, gc, sm.peg[k], seen))
+				below(k, gc, sm.peg[k])
 			}
+		}
+	} else if glok && slok {
+		seen[[2]Val{g, s}] = true
+		for i := 0; i < len(sl.peg) && i < len(gl.peg); i++ {
+			below(strconv.Itoa(i), gl.peg[i], sl.peg[i])
 		}
 	}
 	return out

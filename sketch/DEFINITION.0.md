@@ -709,6 +709,10 @@ until the phase that encodes it lands.
    is below it under `defaults` too. The `defaults` rows came on
    2026-10-21 with the procedure that decides `DefaultsLe`
    (`defaultsLe_of_walk`), rows f0 on of `test/spec/def-subsume.tsv`.
+   **Built in both ports 2026-11-24 (#424):** each port's `defaults`
+   walk reads a list by position as it reads a map by key, at each
+   position both sides have, so `[number]` over `[*1 | number]` is
+   `does_not_subsume` and row f269 left the ledger.
 12. **A `does_not_subsume` with no witness.** Raised 2026-10-19
    (#375). Both ports answer `does_not_subsume` for `string` over
    `min("a")`, `above("")` and a pattern that cannot match `""`, where
