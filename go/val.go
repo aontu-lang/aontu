@@ -84,6 +84,8 @@ type Val interface {
 	setInnerOf(v Val)
 	copiedBy() string
 	setCopiedBy(target string)
+	rereads() []Val
+	setRereads(terms []Val)
 	deprecRec() map[string][]string
 	setDeprecRec(rec map[string][]string)
 	metaRec() map[string][]Val
@@ -159,6 +161,8 @@ type base struct {
 	pdep    int8
 	// copied: the target whose expansion (RecurseVal) copied this, until something else meets it.
 	copied string
+	// reread: what a relative path read here, as written with each term met, which a copy reads again (ruling 26).
+	reread []Val
 }
 
 func (b *base) setVpath(p []string) { b.path = p }
@@ -267,6 +271,8 @@ func (b *base) innerOf() Val            { return b.finner }
 func (b *base) setInnerOf(v Val)        { b.finner = v }
 func (b *base) copiedBy() string        { return b.copied }
 func (b *base) setCopiedBy(t string)    { b.copied = t }
+func (b *base) rereads() []Val          { return b.reread }
+func (b *base) setRereads(terms []Val)  { b.reread = terms }
 func (b *base) setMarkType(v bool)      { b.mtype = v }
 func (b *base) setMarkHide(v bool)      { b.mhide = v }
 

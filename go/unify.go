@@ -44,6 +44,62 @@ func unite(ctx *Ctx, a, b Val) Val {
 			}
 		}
 	}
+	if (nil != a && nil != a.rereads()) || (nil != b && nil != b.rereads()) {
+		out = rereadOn(out, a, b)
+	}
+	return out
+}
+
+// A call over what a relative path read is made again where a copy stands (ruling 26).
+func rereadCall(out Val, args []Val, peer Val, again func() Val) Val {
+	if out.Nil() || !slices.ContainsFunc(args, func(a Val) bool { return nil != a.rereads() }) {
+		return out
+	}
+	if !isConjunct(out) {
+		out = clonePath(out, cp(out.vpath()))
+	}
+	terms := []Val{again()}
+	if !isTop(peer) {
+		if nil != peer.rereads() {
+			terms = append(terms, peer.rereads()...)
+		} else {
+			terms = append(terms, peer)
+		}
+	}
+	out.setRereads(terms)
+	return out
+}
+
+// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
+func rereadOn(out, a, b Val) Val {
+	if nil == out || out.Nil() {
+		return out
+	}
+	plain := func(t Val) bool { return nil == t || isTop(t) }
+	var from Val
+	if plain(a) {
+		from = b
+	} else if plain(b) {
+		from = a
+	}
+	if nil != from && (out == from || nil != out.rereads()) {
+		return out
+	}
+	// The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+	if !isConjunct(out) {
+		out = clonePath(out, cp(out.vpath()))
+	}
+	if nil != from {
+		out.setRereads(from.rereads())
+		return out
+	}
+	terms := func(t Val) []Val {
+		if nil != t.rereads() {
+			return t.rereads()
+		}
+		return []Val{t}
+	}
+	out.setRereads(append(append([]Val{}, terms(a)...), terms(b)...))
 	return out
 }
 

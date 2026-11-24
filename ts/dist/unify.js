@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
+exports.rereadCall = rereadCall;
 exports.holdsLink = holdsLink;
 exports.linksOf = linksOf;
 exports.rootLinks = rootLinks;
@@ -104,7 +105,36 @@ function drives(v) {
         // concrete structure it expands against.
         || v.isRecurse;
 }
+// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
+function rereadOn(ctx, out, a, b) {
+    if (null == out || true === out.isNil) {
+        return out;
+    }
+    const plain = (t) => null == t || true === t.isTop;
+    const from = plain(a) ? b : plain(b) ? a : undefined;
+    if (out === from || (undefined !== from && undefined !== out.reread)) {
+        return out;
+    }
+    // The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+    const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path });
+    kept.reread = undefined !== from ? from.reread : [...(a.reread ?? [a]), ...(b.reread ?? [b])];
+    return kept;
+}
+// A call over what a relative path read is made again where a copy stands (ruling 26).
+function rereadCall(ctx, out, args, peer, again) {
+    if (true === out.isNil || !args.some((a) => undefined !== a.reread)) {
+        return out;
+    }
+    const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path });
+    kept.reread = [again(), ...(peer.isTop ? [] : (peer.reread ?? [peer]))];
+    return kept;
+}
 const unite = (ctx, a, b, whence) => {
+    const out = meet(ctx, a, b, whence);
+    return undefined === a?.reread && undefined === b?.reread ? out : rereadOn(ctx, out, a, b);
+};
+exports.unite = unite;
+const meet = (ctx, a, b, whence) => {
     if (a !== undefined && a !== null) {
         if (a === b) {
             if (a.done)
@@ -271,7 +301,6 @@ const unite = (ctx, a, b, whence) => {
     }
     return out;
 };
-exports.unite = unite;
 function riders(a, b, to) {
     const av = Object(a);
     const bv = Object(b);

@@ -38,6 +38,7 @@ import { ConjunctVal } from './ConjunctVal'
 import { trialUnify } from './FuncBaseVal'
 import { VarVal } from './VarVal'
 import { FeatureVal } from './FeatureVal'
+import { repathInstance } from './Val'
 import { integerDigits } from './numkind'
 import { BigIntegerVal } from './BigIntegerVal'
 import { BigDecimalVal } from './BigDecimalVal'
@@ -52,6 +53,41 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable'
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it. So is an `each`'s
 // template, whose mark leaves every instance out of the list it makes.
+// A copy reads each relative path again where it stands (ruling 26); what holds one isn't settled.
+// Only a call made again (`made`) has its arguments read; a staged call's copy keeps its own.
+function rereadAt(ctx: AontuContext, v: any, path: string[], made?: boolean): Val {
+  const terms: Val[] | undefined = v.reread
+  if (undefined !== terms) {
+    const again = terms.map((t: Val) => {
+      const c: any = t.clone(ctx, { path, dup: true })
+      repathInstance(c, path)
+      c.reread = undefined
+      c.again = true === c.isRef
+      return rereadAt(ctx, c, path, true)
+    })
+    const out: any = 1 === again.length ? again[0] :
+      new ConjunctVal({ peg: again, path } as any, ctx)
+    out.dc = 0
+    return out
+  }
+  const bag = true === v.isMap || true === v.isList
+  const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg)
+  const kids: any = bag || args || true === v.isConjunct || true === v.isDisjunct ? v.peg :
+    true === v.isPref ? v : undefined
+  for (const k of true === v.isPref ? ['peg'] : Object.keys(kids ?? {})) {
+    const kid = rereadAt(ctx, kids[k], bag ? [...path, k] : path, made)
+    if (kid !== kids[k]) {
+      kids[k] = kid
+      v.dc = 0
+    }
+    else if (true !== kid.done && true === v.done) {
+      v.dc = 0
+    }
+  }
+  return v
+}
+
+
 function dropPendingMarkWrappers(v: Val): Val {
   return walk(v, (key: string | number | undefined, val: any, parent: any) =>
     undefined !== key && !(true === parent?.isEachFunc && 1 === Number(key)) &&
@@ -318,7 +354,8 @@ class RefVal extends FeatureVal {
       // takes the RefVal arm below rather than a separate null arm.
       const resolved = found ?? this
 
-      if (resolved instanceof RefVal) {
+      // A path a copy reads again resolves here; any other reference found waits for its own place.
+      if (resolved instanceof RefVal && (resolved === this || true !== (resolved as any).again)) {
         if (peer.isTop) {
           out = this
         }
@@ -349,6 +386,12 @@ class RefVal extends FeatureVal {
           }
         }
         out = unite(te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx, resolved, peer, 'ref')
+        if (!this.absolute && !out.isNil) {
+          const kept: any = peer.isTop || true === out.isConjunct ? out :
+            out.clone(ctx, { path: out.path })
+          kept.reread = peer.isTop ? [this] : [this, ...((peer as any).reread ?? [peer])]
+          out = kept
+        }
       }
 
       out.dc = DONE === out.dc ? DONE : this.dc + 1
@@ -637,7 +680,21 @@ class RefVal extends FeatureVal {
           const typed = true === out.mark.type
 
           const staged = out.holdsStaged
-          out = undeclared(out.clone(ctx, { dup: !staged }))
+          // The copy stands at the reference's own place, whatever the target's depth.
+          const deeper = ctx.path.length < out.path.length && !out.path.includes('&')
+          out = out.clone(ctx, deeper ? { dup: !staged, path: [...ctx.path] } : { dup: !staged })
+          if (deeper) {
+            repathInstance(out, out.path)
+          }
+          out = undeclared(out)
+          // A path reads through a place that is itself a relative path; a name's use reads it again.
+          if (undefined === this.aliasKey) {
+            out.reread = undefined
+          }
+          // A staged call's argument is a value read, with no place of its own.
+          if (true !== (ctx as any).argsnap) {
+            out = rereadAt(ctx, out, ctx.path)
+          }
           fixSeals(out)
 
           if (lifted) {

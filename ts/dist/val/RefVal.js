@@ -18,6 +18,7 @@ const ConjunctVal_1 = require("./ConjunctVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const VarVal_1 = require("./VarVal");
 const FeatureVal_1 = require("./FeatureVal");
+const Val_1 = require("./Val");
 const numkind_1 = require("./numkind");
 const BigIntegerVal_1 = require("./BigIntegerVal");
 const BigDecimalVal_1 = require("./BigDecimalVal");
@@ -28,6 +29,39 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable';
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it. So is an `each`'s
 // template, whose mark leaves every instance out of the list it makes.
+// A copy reads each relative path again where it stands (ruling 26); what holds one isn't settled.
+// Only a call made again (`made`) has its arguments read; a staged call's copy keeps its own.
+function rereadAt(ctx, v, path, made) {
+    const terms = v.reread;
+    if (undefined !== terms) {
+        const again = terms.map((t) => {
+            const c = t.clone(ctx, { path, dup: true });
+            (0, Val_1.repathInstance)(c, path);
+            c.reread = undefined;
+            c.again = true === c.isRef;
+            return rereadAt(ctx, c, path, true);
+        });
+        const out = 1 === again.length ? again[0] :
+            new ConjunctVal_1.ConjunctVal({ peg: again, path }, ctx);
+        out.dc = 0;
+        return out;
+    }
+    const bag = true === v.isMap || true === v.isList;
+    const args = true === made && (true === v.isFunc || true === v.isOp) && Array.isArray(v.peg);
+    const kids = bag || args || true === v.isConjunct || true === v.isDisjunct ? v.peg :
+        true === v.isPref ? v : undefined;
+    for (const k of true === v.isPref ? ['peg'] : Object.keys(kids ?? {})) {
+        const kid = rereadAt(ctx, kids[k], bag ? [...path, k] : path, made);
+        if (kid !== kids[k]) {
+            kids[k] = kid;
+            v.dc = 0;
+        }
+        else if (true !== kid.done && true === v.done) {
+            v.dc = 0;
+        }
+    }
+    return v;
+}
 function dropPendingMarkWrappers(v) {
     return (0, utility_1.walk)(v, (key, val, parent) => undefined !== key && !(true === parent?.isEachFunc && 1 === Number(key)) &&
         (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
@@ -229,7 +263,8 @@ class RefVal extends FeatureVal_1.FeatureVal {
             // `?? this` makes resolved non-nullish, so an unresolved reference
             // takes the RefVal arm below rather than a separate null arm.
             const resolved = found ?? this;
-            if (resolved instanceof RefVal) {
+            // A path a copy reads again resolves here; any other reference found waits for its own place.
+            if (resolved instanceof RefVal && (resolved === this || true !== resolved.again)) {
                 if (peer.isTop) {
                     out = this;
                 }
@@ -258,6 +293,12 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     };
                 }
                 out = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'RES') }) : ctx, resolved, peer, 'ref');
+                if (!this.absolute && !out.isNil) {
+                    const kept = peer.isTop || true === out.isConjunct ? out :
+                        out.clone(ctx, { path: out.path });
+                    kept.reread = peer.isTop ? [this] : [this, ...(peer.reread ?? [peer])];
+                    out = kept;
+                }
             }
             out.dc = type_1.DONE === out.dc ? type_1.DONE : this.dc + 1;
         }
@@ -518,7 +559,21 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         || true === out.mark.type || true === out.mark.hide;
                     const typed = true === out.mark.type;
                     const staged = out.holdsStaged;
-                    out = (0, IdentFuncVal_1.undeclared)(out.clone(ctx, { dup: !staged }));
+                    // The copy stands at the reference's own place, whatever the target's depth.
+                    const deeper = ctx.path.length < out.path.length && !out.path.includes('&');
+                    out = out.clone(ctx, deeper ? { dup: !staged, path: [...ctx.path] } : { dup: !staged });
+                    if (deeper) {
+                        (0, Val_1.repathInstance)(out, out.path);
+                    }
+                    out = (0, IdentFuncVal_1.undeclared)(out);
+                    // A path reads through a place that is itself a relative path; a name's use reads it again.
+                    if (undefined === this.aliasKey) {
+                        out.reread = undefined;
+                    }
+                    // A staged call's argument is a value read, with no place of its own.
+                    if (true !== ctx.argsnap) {
+                        out = rereadAt(ctx, out, ctx.path);
+                    }
                     (0, SealVal_1.fixSeals)(out);
                     if (lifted) {
                         if (staged) {

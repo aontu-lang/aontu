@@ -17,7 +17,7 @@ import {
 } from '../err'
 
 import { AontuContext } from '../ctx'
-import { unite, withDepth } from '../unify'
+import { rereadCall, unite, withDepth } from '../unify'
 
 import {
   explainOpen,
@@ -115,6 +115,11 @@ class OpBaseVal extends FeatureVal {
       else {
         out = result.done && peer.isTop ? result :
           unite(te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx, result, peer, 'op')
+        out = rereadCall(ctx, out, newpeg, peer, () => {
+          const again = this.make(ctx, { peg: newpeg })
+          again.path = this.path
+          return again
+        })
       }
 
       out.dc = DONE === out.dc ? DONE : this.dc + 1

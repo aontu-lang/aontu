@@ -162,6 +162,7 @@ func clonePathRec(v Val, path []string, deep bool) Val {
 	if nil != v.innerOf() {
 		out.setInnerOf(v.innerOf())
 	}
+	out.setRereads(v.rereads())
 	return out
 }
 

@@ -24,6 +24,8 @@ type RefVal struct {
 	// expandAliases (go/alias.go) to render the settled tree, never read.
 	expansion Val
 	rxc       int
+	// again: a relative path a copy reads again, which resolves where the copy stands.
+	again bool
 }
 
 // walkOutcome says how a reference walk ended: it landed on a value,
@@ -301,7 +303,8 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 		default:
 			out = newConjunct([]Val{rv, peer})
 		}
-	} else if _, chain := found.(*RefVal); chain {
+	} else if fr, chain := found.(*RefVal); chain && !fr.again {
+		// A path a copy reads again resolves here; any other reference found waits for its own place.
 		switch {
 		case isTop(peer):
 			out = rv
@@ -321,12 +324,90 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 			found.setVia(rv.site.sp, rv.site.url, name)
 		}
 		out = unite(ctx, found, peer)
+		if !rv.absolute && !out.Nil() {
+			if !isTop(peer) && !isConjunct(out) {
+				out = clonePath(out, cp(out.vpath()))
+			}
+			terms := []Val{rv}
+			if !isTop(peer) {
+				if nil != peer.rereads() {
+					terms = append(terms, peer.rereads()...)
+				} else {
+					terms = append(terms, peer)
+				}
+			}
+			out.setRereads(terms)
+		}
 	}
 
 	if out.Dc() != DONE {
 		out.setDc(rv.dc + 1)
 	}
 	return out
+}
+
+// A copy reads each relative path again where it stands (ruling 26); what holds one isn't settled.
+// Only a call made again (`made`) has its arguments read; a staged call's copy keeps its own.
+func rereadAt(v Val, path []string, made bool) Val {
+	if terms := v.rereads(); nil != terms {
+		again := make([]Val, len(terms))
+		for i, t := range terms {
+			c := instanceClone(t, cp(path))
+			setPaths(c, cp(path))
+			c.setRereads(nil)
+			if r, ok := c.(*RefVal); ok {
+				r.again = true
+			}
+			again[i] = rereadAt(c, path, true)
+		}
+		out := again[0]
+		if 1 < len(again) {
+			cj := newConjunct(again)
+			cj.path = cp(path)
+			out = cj
+		}
+		out.setDc(0)
+		return out
+	}
+	stale := false
+	kid := func(k Val, at []string) Val {
+		n := rereadAt(k, at, made)
+		stale = stale || n != k || (DONE != n.Dc() && DONE == v.Dc())
+		return n
+	}
+	each := func(peg []Val) {
+		for i := range peg {
+			peg[i] = kid(peg[i], path)
+		}
+	}
+	switch n := v.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			n.peg[k] = kid(n.peg[k], append(cp(path), k))
+		}
+	case *ListVal:
+		for i := range n.peg {
+			n.peg[i] = kid(n.peg[i], append(cp(path), itoa(i)))
+		}
+	case *ConjunctVal:
+		each(n.peg)
+	case *DisjunctVal:
+		each(n.peg)
+	case *PrefVal:
+		n.peg = kid(n.peg, path)
+	case *FuncVal:
+		if made {
+			each(n.peg)
+		}
+	case *PlusOpVal:
+		if made {
+			each(n.peg)
+		}
+	}
+	if stale {
+		v.setDc(0)
+	}
+	return v
 }
 
 func listIndex(part string) (int, bool) {
@@ -661,7 +742,19 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	} else {
 		out = instanceClone(node, cp(rv.path))
 	}
+	// The copy stands at the reference's own place, whatever the target's depth.
+	if len(rv.path) < len(node.vpath()) && !slices.Contains(node.vpath(), "&") {
+		setPaths(out, cp(rv.path))
+	}
 	out = undeclared(out)
+	// A path reads through a place that is itself a relative path; a name's use reads it again.
+	if _, named := rv.aliasKey(); !named {
+		out.setRereads(nil)
+	}
+	// A staged call's argument is a value read, with no place of its own.
+	if !ctx.argsnap {
+		out = rereadAt(out, rv.path, false)
+	}
 	fixSeals(out)
 	if lifted {
 		if staged {

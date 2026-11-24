@@ -414,8 +414,8 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	newpeg := make([]Val, 0, len(f.peg))
 	newtype := f.mtype
 	newhide := f.mhide
-	if f.name == "move" || f.name == "copy" || f.name == "maybe" ||
-		generatorFuncs[f.name] {
+	driven := !(f.name == "move" || f.name == "copy" || f.name == "maybe" || generatorFuncs[f.name])
+	if !driven {
 		newpeg = f.peg
 	} else {
 		for i, arg := range f.peg {
@@ -512,6 +512,14 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				out.setPosu(f.site.spu)
 				out.setSrcurl(f.site.url)
 				out.setSrctext(f.srctext())
+			}
+			if driven {
+				out = rereadCall(out, newpeg, peer, func() Val {
+					nf := newFunc(f.name, newpeg)
+					nf.declared, nf.mtype, nf.mhide = f.declared, newtype, newhide
+					nf.path, nf.site = cp(f.path), f.site
+					return nf
+				})
 			}
 		}
 	} else if isTop(peer) {

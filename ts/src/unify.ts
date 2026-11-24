@@ -131,7 +131,41 @@ function drives(v: any): boolean {
 }
 
 
+// A meet keeps what a relative path read as written, beside the term it met (ruling 26).
+function rereadOn(ctx: AontuContext, out: any, a: any, b: any): any {
+  if (null == out || true === out.isNil) {
+    return out
+  }
+  const plain = (t: any): boolean => null == t || true === t.isTop
+  const from = plain(a) ? b : plain(b) ? a : undefined
+  if (out === from || (undefined !== from && undefined !== out.reread)) {
+    return out
+  }
+  // The mark goes on a value of this place's own: a meet's residue, or a copy of anything else.
+  const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path })
+  kept.reread = undefined !== from ? from.reread : [...(a.reread ?? [a]), ...(b.reread ?? [b])]
+  return kept
+}
+
+
+// A call over what a relative path read is made again where a copy stands (ruling 26).
+function rereadCall(ctx: AontuContext, out: any, args: any[], peer: any, again: () => Val): Val {
+  if (true === out.isNil || !args.some((a: any) => undefined !== a.reread)) {
+    return out
+  }
+  const kept = true === out.isConjunct ? out : out.clone(ctx, { path: out.path })
+  kept.reread = [again(), ...(peer.isTop ? [] : (peer.reread ?? [peer]))]
+  return kept
+}
+
+
 const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
+  const out = meet(ctx, a, b, whence)
+  return undefined === a?.reread && undefined === b?.reread ? out : rereadOn(ctx, out, a, b)
+}
+
+
+const meet = (ctx: AontuContext, a: any, b: any, whence: string) => {
   if (a !== undefined && a !== null) {
     if (a === b) {
       if (a.done) return a
@@ -704,6 +738,7 @@ const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string)
 
 export {
   Unify,
+  rereadCall,
   holdsLink,
   linksOf,
   rootLinks,
