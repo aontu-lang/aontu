@@ -8,6 +8,56 @@ each change affects.
 
 ## Unreleased
 
+### A `match` over a kind takes the arm no data could change
+
+#938, ruling 87, in the definition and both engines. Since ruling 49 a
+`match` whose scrutinee generates no value waited for the data, so
+`match(integer, integer, "number", string, "string", "unknown")` was
+incomplete, a walk over a schema couldn't name each field's kind, and
+use case 10's two transforms stopped generating.
+
+Such a `match` now reads its arms in order. It takes an arm whose
+pattern every value of the scrutinee satisfies, passes over an arm that
+shares no value with the scrutinee, and waits at any other:
+
+- `match(integer, integer, "number", string, "string", "unknown")` is
+  `"number"`, and `match(1 | 2, integer, a, b)` is `a`.
+- `match(boolean, integer, "number", string, "string", "unknown")` is
+  `"unknown"`, and with no default it is `match_none`.
+- `match(integer, 1, "one", integer, "number", "unknown")` waits, since
+  data of `1` would take its first arm, and
+  `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}` waits as it did.
+
+"Every value satisfies" is the order `aontu subsume` asks under its
+`values` profile, read by the same code in each engine. So a bound sits
+under a looser one, `integer & min(1) | biginteger & min(1)` takes a
+`number` arm and waits at an `integer` one, and an open map waits at a
+sealed pattern, which data with one more key would fail. A scrutinee
+that generates a value selects as before.
+
+- `spec/Aontu/Verdict.lean`: `certainArm` finds the arm, by `leDecF`,
+  and `resolveD` makes the selection with it.
+- `spec/Aontu/Subsume.lean` now holds the order's rules and `leDecF`
+  alone, ahead of `Verdict.lean`, and the profiles of `subsume` and the
+  order on documents move to the new `spec/Aontu/Profiles.lean`.
+- `leDecF` gains the rows both engines already decide: `integer` and
+  `biginteger` below `mulof(d)` where one is a multiple of `d`
+  (`integer_le_mulof`, `biginteger_le_mulof`), a number below a
+  `mulof` it is a multiple of (`lit_num_le_mulof`), and two patterns,
+  formats or grammars written alike.
+
+`test/spec/def-path.tsv` gains rows ca0 to ca44, `test/spec/gen-match.tsv`
+39 rows, and `test/spec/def-subsume.tsv` 21, for the pairs `leDecF` now
+decides. No generated row changes its answer.
+
+Use case 10's transforms name `ledgerId`'s `integer | biginteger` by a
+`number` arm, and render byte for byte as before.
+
+Found on the way and filed: a `filter` in the definition drops a member
+whose bound sits inside the condition's (#962); a pattern that holds a
+default refuses the default's own value in both engines (#963); a
+pattern is tried against an optional or a marked member the generated
+value lacks (#964, #965).
 ### A value is sited where it is written
 
 Ruling 65 of the definition, built in both parsers: #327 and #391. An

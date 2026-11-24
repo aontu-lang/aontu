@@ -7,6 +7,7 @@ import Aontu.Output
 import Aontu.Verdict
 import Aontu.Paths
 import Aontu.Subsume
+import Aontu.Profiles
 
 /-!
 # The tour's examples

@@ -6113,7 +6113,7 @@ text by its hash.
 ## ADR-067 — Subsumption reads a recursion as the definition it names
 
 **Date:** 2026-10-10
-**Status:** Moved to the definition in part (2026-10-19): [`spec/Aontu/Subsume.lean`](spec/Aontu/Subsume.lean) `LeD`, the order on two documents each read under its own declarations, with `alias_le_unroll` and `unroll_le_alias`, a recursion below its unrolling and above it; two recursions of one shape under different names the definition leaves undecided.
+**Status:** Moved to the definition in part (2026-10-19): [`spec/Aontu/Profiles.lean`](spec/Aontu/Profiles.lean) `LeD`, the order on two documents each read under its own declarations, with `alias_le_unroll` and `unroll_le_alias`, a recursion below its unrolling and above it; two recursions of one shape under different names the definition leaves undecided.
 
 ### Context
 

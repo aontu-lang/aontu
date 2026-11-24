@@ -2,6 +2,7 @@ import Aontu.Output
 import Aontu.Alias
 import Aontu.Text
 import Aontu.Read
+import Aontu.Subsume
 
 /-!
 # The verdicts
@@ -118,6 +119,20 @@ an error of the document, not an empty answer. -/
 def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | [], d => d.getD .nil
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
+
+/-- The arm no data could change, for a scrutinee `s` that generates no
+value (ruling 87). The arms are read in order: one that shares nothing
+with the scrutinee, their meet dead, is passed over; one whose pattern
+every value of the scrutinee satisfies, the scrutinee below the pattern
+in the order as `leDecF` decides it, is taken; and any other leaves the
+selection to the data, `none`. Past the last arm the default stands, or
+`nil`. -/
+def certainArm (ds : Decls) (s : Val) : List (Val × Val) → Option Val → Option Val
+  | [], d => some (d.getD .nil)
+  | (p, r) :: arms, d =>
+    if (normaliseD ds (.meet s p)).dead then certainArm ds s arms d
+    else if (leDecF .empty 64 (normaliseD ds s) (normaliseD ds p)).isSome then some r
+    else none
 
 /-- A lone preference in normal form, `*x | super(x)`, read as `x`. -/
 def Val.lonePref : Val → Val
@@ -1113,6 +1128,21 @@ def keyItems : List Val → Bool := holdsItems Val.isKeyUp
 
 def keyPairs : List (Val × Val) → Bool := holdsPairs Val.isKeyUp
 
+/-- Whether a term is `key()`, a `key(n)` or the hole `_`: a term whose
+value is the member it lands on. -/
+def Val.isUnbound : Val → Bool
+  | .key | .keyUp _ | .hole => true
+  | _ => false
+
+/-- Whether a term holds one at any depth, so that nothing can be said
+of its values until it lands. -/
+def Val.unbound : Val → Bool := Val.holds Val.isUnbound
+
+/-- Whether a pattern of a selection does. -/
+def unboundPats : List (Val × Val) → Bool
+  | [] => false
+  | (p, _) :: ps => p.unbound || unboundPats ps
+
 mutual
 /-- Whether a term waits for the place a use gives it: whether it holds
 the hole `_` or a `key(n)` at any depth, or names a declaration `w`
@@ -1966,7 +1996,10 @@ members its condition takes as the terms they are (`filterTakes`, ruling
 otherwise a value that generates a container is the members whose data
 its condition admits, as a term; and one whose source generates a
 scalar, which has no members, is `nil`. A selection whose scrutinee
-generates nothing stays, and generates nothing, and so does a `filter`
+generates nothing is the result of the arm no data could change
+(`certainArm`, ruling 87), and stays, and generates nothing, where the
+data decides or a hole or a key nothing has bound stands in it; and so
+does a `filter`
 whose source generates nothing and is no map or list, or holds a form
 no reading has made yet (`Val.unmade`). An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
@@ -2032,7 +2065,12 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
       else (selectArm ds x arms' d').rideMoves s'.moves
     | none =>
-      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else if s'.unbound || unboundPats arms' || callPairs arms' || here.isNone && keyPairs arms'
+      then .select s' arms' d'
+      else match certainArm ds s' arms' d' with
+        | some r => r.rideMoves s'.moves
+        | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if ds.clashes s' then .nil else
@@ -3843,14 +3881,21 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
           (resolveSpread ds b here d)
           else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves Val.key.moves
       | none => if (normaliseD ds .key).isAbsent then .absent else if (normaliseD ds .key).dead then .nil
-          else .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
+          else if Val.key.unbound || unboundPats (resolvePairs ds b here arms) ||
+            callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
+          then .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)
+          else match certainArm ds .key (resolvePairs ds b here arms) (resolveSpread ds b here d) with
+            | some r => r.rideMoves Val.key.moves
+            | none => .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds .key = none := rfl
     rw [hg]
     dsimp only
+    have hu : Val.key.unbound = true := by simp [Val.unbound, Val.holds, Val.isUnbound]
     split
     · exact .absent
     split
     · exact .nil
+    simp only [hu, Bool.true_or, if_true]
     refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
     · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
       exact ihp p₀ r₀ hm₀ hb
@@ -3872,7 +3917,12 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
           (resolveSpread ds b here d)
           else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves (Val.lit sc).moves
       | none => if (normaliseD ds (.lit sc)).isAbsent then .absent else if (normaliseD ds (.lit sc)).dead then .nil
-          else .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
+          else if (Val.lit sc).unbound || unboundPats (resolvePairs ds b here arms) ||
+            callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
+          then .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)
+          else match certainArm ds (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d) with
+            | some r => r.rideMoves (Val.lit sc).moves
+            | none => .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
     rw [hg]
     dsimp only

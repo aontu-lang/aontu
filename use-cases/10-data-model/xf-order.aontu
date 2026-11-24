@@ -12,7 +12,9 @@
 # whether it is optional, and which of the six shapes it is -- and each
 # language spells them itself. That is the cost of retiring the
 # declaration lowering (ADR-038): the facts are shared, the spelling is
-# not.
+# not. The kind is read off the schema, so each arm of that `match` is
+# a kind the field sits inside, `number` for `ledgerId`'s
+# `integer | biginteger` (xf-domain.aontu says why).
 rec: pack(type($.schema), {
   d: {
     name: key(2)
@@ -23,8 +25,7 @@ rec: pack(type($.schema), {
           opt: match(key(2), "placed", true, "status", true, false)
           t: match(
             _,
-            integer, "int",
-            biginteger, "bigint",
+            number, "int",
             string, "string",
             boolean, "bool",
             [], "list",
@@ -52,7 +53,7 @@ ts: hide(emit($.decls, {
       body: [
         "  " + .n + match(.opt, true, "?", false, "")
         + ": " + match(.t,
-          "int", "number", "bigint", "bigint", "string", "string",
+          "int", "number", "string", "string",
           "bool", "boolean", "list", "OrderLine[]", "unknown")
         + ";"
       ]
@@ -71,7 +72,7 @@ go: hide(emit($.decls, {
         "\t" + nom(.n, pascal, $.acronyms) + " "
         + match(.opt, true, "*", false, "")
         + match(.t,
-          "int", "int64", "bigint", "string", "string", "string",
+          "int", "int64", "string", "string",
           "bool", "bool", "list", "[]OrderLine", "any")
         + " `json:\"" + .n + match(.opt, true, ",omitempty", false, "") + "\"`"
       ]

@@ -28,7 +28,8 @@ a term admits, and none declares its own.
 | [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct, and `super`, the parent type of a term |
 | [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) | what each term admits, one rule for each form |
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, the strict bounds under their closed ones, two declarations of one key, and the contract any `subsume` must meet |
-| [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) | the profiles of `subsume`, one contract each, and the reference's table of rules as theorems |
+| [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) | the reference's table of subsumption rules as theorems, and the procedure that decides the order |
+| [`spec/Aontu/Profiles.lean`](../spec/Aontu/Profiles.lean) | the profiles of `subsume`, one contract each, and the order on documents |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
 | [`spec/Aontu/Tour.lean`](../spec/Aontu/Tour.lean) | the examples this page walks through |
@@ -4012,7 +4013,7 @@ must declare one that singles out the same value. A preference declares
 a default, and so does a disjunction with a preferred arm. A rider,
 which step 19 comes to, declares what its value declares:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def Val.declaresDefault : Val → Bool
   | .pref _ _ => true
@@ -4022,7 +4023,7 @@ def Val.declaresDefault : Val → Bool
   | _ => false
 ```
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def DefaultsLe (env : Env) (a b : Val) : Prop :=
   a ⊑[env] b ∧
@@ -4035,7 +4036,7 @@ def DefaultsLe (env : Env) (a b : Val) : Prop :=
 is below the second in the order, and `defaults` tells them apart,
 since the first singles out `2` where the second singles out `1`:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem defaults_sees_the_default :
 ```
@@ -4043,7 +4044,7 @@ theorem defaults_sees_the_default :
 Wrapping the first in a rider changes nothing: `meta(*2 | number, {})`
 isn't below `*1 | number` under `defaults` either.
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem defaults_sees_through_riders :
 ```
@@ -4053,7 +4054,7 @@ A literal singles out its own value, and declares no default, so
 holds under `defaults` as it does under `values`, which is how the
 reference defines an effective default and how both ports answer:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
     DefaultsLe env (.lit s) b := by
@@ -4063,7 +4064,7 @@ theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
 have, a container's spread among them, since a mark, `type()` or
 `hide()`, decides what the output holds, as step 13 shows:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def MarksAgree (a b : Val) : Prop :=
   ∀ (p : List MarkSeg) (wa wb : Val), (normalise a).atM p = some wa → (normalise b).atM p = some wb →
@@ -4097,7 +4098,7 @@ The definition decides the other two profiles position by position.
 `defaultsAt` decides what `defaults` asks at one position, reading each
 side's output through `output_iff`:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def defaultsAt (a b : Val) : Bool :=
   !a.declaresDefault ||
@@ -4185,6 +4186,21 @@ theorem min_le_min_iff (n m : Number) : .min (.num n) ⊑[env] .min (.num m) ↔
 theorem mulof_le_mulof {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
     .mulof a ⊑[env] .mulof b := by
 ```
+
+A whole number is a multiple of one, so `integer` is below `mulof(d)`
+wherever one is a multiple of `d`, `mulof(1)` and `mulof(0.5)` among
+them, and `biginteger` with it:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem integer_le_mulof {d : Number} (hd : d.Positive) (h : (d.shown.2 : ℤ) % d.shown.1 = 0) :
+    .integer ⊑[env] .mulof d := by
+```
+
+`leDecF` reads these rows, and a pattern below one written alike, as a
+format and a grammar are. A `match` reads the order by it too,
+as step 16 shows, so a row added here is an arm a `match` can take
+before the data comes.
 
 ## 11. Two declarations of one key
 
@@ -6161,9 +6177,46 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
 ```
 
-and a term reads with its selections made, where one whose scrutinee
-generates nothing stays, and generates nothing, as a `match` on a
-scrutinee that waits does. The reading carries `b`, the member a hole in a
+A scrutinee that generates nothing has no value to select by: a kind, a
+bound, or a disjunction with no default among its arms. Ruling 87 has
+the `match` take the arm no data could change. It reads the arms in
+order, passes over one that shares nothing with the scrutinee, takes
+one whose pattern every value of the scrutinee satisfies, and leaves
+any other to the data. "Every value satisfies" is step 10's order, the
+scrutinee below the pattern, and `leDecF` decides it, so each arm taken
+comes with the proof that it holds, `leDecF_sound`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The arm no data could change, for a scrutinee `s` that generates no
+value (ruling 87). The arms are read in order: one that shares nothing
+with the scrutinee, their meet dead, is passed over; one whose pattern
+every value of the scrutinee satisfies, the scrutinee below the pattern
+in the order as `leDecF` decides it, is taken; and any other leaves the
+selection to the data, `none`. Past the last arm the default stands, or
+`nil`. -/
+def certainArm (ds : Decls) (s : Val) : List (Val × Val) → Option Val → Option Val
+  | [], d => some (d.getD .nil)
+  | (p, r) :: arms, d =>
+    if (normaliseD ds (.meet s p)).dead then certainArm ds s arms d
+    else if (leDecF .empty 64 (normaliseD ds s) (normaliseD ds p)).isSome then some r
+    else none
+```
+
+So `match(integer, integer, "number", string, "string", "unknown")` is
+`"number"`, and a walk over a schema can name each field's kind, which
+#938 asked for. `match(integer, 1, "one", integer, "number", "unknown")`
+waits, since data of `1` would take its first arm, and so does an open
+map at a sealed pattern, which data with one more key would fail.
+`integer & min(1) | biginteger & min(1)` takes a `number` arm, each of
+its arms below it, and waits at an `integer` one, which half of it
+satisfies. Rows `ca0` on of `test/spec/def-path.tsv` hold the arms taken
+and passed over. The rows of `test/spec/gen-match.tsv` under ruling 87
+hold the ones that wait too, and both engines and the definition read
+each of them alike.
+
+A term reads with its selections made, where a `match` that waits
+stays, and generates nothing. The reading carries `b`, the member a hole in a
 template reads as, which step 27 covers, and `here`, the position a
 term stands at, which step 29 covers:
 
@@ -6179,7 +6232,10 @@ members its condition takes as the terms they are (`filterTakes`, ruling
 otherwise a value that generates a container is the members whose data
 its condition admits, as a term; and one whose source generates a
 scalar, which has no members, is `nil`. A selection whose scrutinee
-generates nothing stays, and generates nothing, and so does a `filter`
+generates nothing is the result of the arm no data could change
+(`certainArm`, ruling 87), and stays, and generates nothing, where the
+data decides or a hole or a key nothing has bound stands in it; and so
+does a `filter`
 whose source generates nothing and is no map or list, or holds a form
 no reading has made yet (`Val.unmade`). An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
@@ -6245,7 +6301,12 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
       else (selectArm ds x arms' d').rideMoves s'.moves
     | none =>
-      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else if s'.unbound || unboundPats arms' || callPairs arms' || here.isNone && keyPairs arms'
+      then .select s' arms' d'
+      else match certainArm ds s' arms' d' with
+        | some r => r.rideMoves s'.moves
+        | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if ds.clashes s' then .nil else
@@ -6278,13 +6339,16 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
 A `match` selects by what its scrutinee outputs, as `outputD` reads
 it, so its arms never see a `type()` or `hide()` member the scrutinee
 carries: `match({a: 1, z: type(number)}, {a: 1}, {y: 1}, {y: 2})`
-takes the first arm though `z` is open, as both engines take it. A path
-copies its target without its marks, so `match($.w, …)` over
-`w: {a: 1, z: type(number)}` reads `z` as an open `number` and waits for
-the data, as a `match` over any open scrutinee does, and both engines
-wait there too, as ruling 49 asks, #743. The checker can't read a
-marked member through a path, so no row holds that case. Rows `os24` to
-`os32` of `test/spec/def-path.tsv` hold the scrutinee written in place.
+takes the first arm though `z` is open, as both engines take it. Rows
+`os24` to `os32` of `test/spec/def-path.tsv` hold the scrutinee written
+in place. Both engines still try a pattern that seals the map, or that
+names the marked member, against that member, where the definition
+reads the output alone, #965. A path copies its target without its
+marks, so `match($.w, …)` over `w: {a: 1, z: type(number)}` reads `z` as
+an open `number`, a scrutinee that generates nothing. It takes the arm
+`{a: 1}`, which every value it admits satisfies, and waits at
+`{a: 1, z: 5}`, which narrows `z`. The checker can't read a marked
+member through a path, so no row holds that case.
 
 A made `filter` tries each child as written, as ruling 51 asks, and
 holds each child its condition takes as the child itself: the member
@@ -6969,7 +7033,7 @@ instances without the key.
 so the order on documents reads each side as `vet` does, its term
 expanded under the environment of its expanded bodies:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def InstanceD (ds : Decls) (S : Val) (j : Data) : Prop := Instance ds.envE (ds.readR S) j
 
@@ -6983,7 +7047,7 @@ A recursion and its unrolling are below each other, which is the
 reference's row for recursive positions. A reference to a name admits
 what the expansion of its body admits, so each is below the other:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem alias_le_unroll {ds : Decls} {n : String} {body : Val} (h : ds.env n = some body) :
     .alias n ⊑[ds.envE] expand ds body :=
