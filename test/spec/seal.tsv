@@ -73,3 +73,24 @@ closed-instance-requires-missing-key-code	errc	T: type({x: integer, y: 1})\na: $
 copy-of-a-type-instance-is-open	gens	T: type({x: 1})\na: copy($.T) & {y: 2}	{"a":{"x":1,"y":2}}
 copy-of-a-closed-value-is-open	gens	b: close({x: 1})\na: copy($.b) & {y: 2}	{"a":{"x":1,"y":2},"b":{"x":1}}
 close-inside-a-type-instance-holds	gens	T: type({x: close({y: 1})})\na: open($.T) & {x: {z: 2}}	{"a":{"x":{"y":1,"z":2}}}
+#
+# A SEALED MAP WHOSE MEMBER READS A MEMBER BESIDE IT (#749). A seal's
+# value is its argument, so a path reads the sibling through a seal
+# that still waits on that very member, as it reads through a rider.
+seal-member-reads-a-sibling	gens	a: close({x: .y, y: 1})	{"a":{"x":1,"y":1}}
+seal-member-reads-a-sibling-written-first	gens	a: close({y: 1, x: .y})	{"a":{"x":1,"y":1}}
+seal-member-reads-a-sibling-by-its-whole-path	gens	a: close({x: $.a.y, y: 1})	{"a":{"x":1,"y":1}}
+seal-member-reads-a-sibling-from-below	gens	a: close({x: {z: ..y}, y: 1})	{"a":{"x":{"z":1},"y":1}}
+seal-at-the-root-member-reads-a-sibling	gens	close({a: 1, b: .a})	{"a":1,"b":1}
+open-member-reads-a-sibling	gens	a: open({x: .y, y: 1})	{"a":{"x":1,"y":1}}
+seal-member-reads-a-sibling-and-still-seals	errc	a: close({x: .y, y: 1})\na: {z: 3}	closed
+seal-member-reads-a-sibling-and-still-meets	errc	a: close({x: .y, y: 1})\na: {x: 2}	scalar_value
+seal-member-reads-a-sibling-the-data-fills	gens	a: close({x: .y, y: integer})\na: {y: 5}	{"a":{"x":5,"y":5}}
+rider-member-reads-a-sibling	gens	a: meta({x: .y, y: 1}, {})	{"a":{"x":1,"y":1}}
+seal-member-reads-a-sibling-that-is-missing	errc	a: close({x: .q, y: 1})	no_path
+seal-member-reads-a-sibling-beside-a-path	gens	a: close({x: .y, y: 1}) & $.b\nb: {y: 1}	{"a":{"x":1,"y":1},"b":{"y":1}}
+seal-member-reads-a-sibling-beside-a-path-written-first	gens	b: {y: 1}\na: close({x: .y, y: 1}) & $.b	{"a":{"x":1,"y":1},"b":{"y":1}}
+seal-member-reads-a-sibling-another-term-can't-add	errc	a: close({x: .y}) & $.b\nb: {y: 1}	closed
+seal-member-reads-a-sibling-another-term-settles	gens	a: close({x: .y, y: integer}) & {y: 2}	{"a":{"x":2,"y":2}}
+seal-member-reads-a-sibling-beside-another-seal	gens	a: close({x: .y, y: 1}) & close({y: integer, x: integer})	{"a":{"x":1,"y":1}}
+rider-member-reads-a-sibling-another-term-gives	gens	a: meta({x: .y}, {}) & {y: 2}	{"a":{"x":2,"y":2}}

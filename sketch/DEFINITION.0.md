@@ -813,7 +813,13 @@ until the phase that encodes it lands.
    so but q21 and q22: a path inside a rider's value to a member beside
    it leaves both `incomplete` (#416), where the ports move. The riders
    leave `spec/forms-outside.tsv`, whose bound falls from 4 to 1. The
-   marks of decision 10 wait.
+   marks of decision 10 wait. **Built 2026-11-24** in both ports: the
+   meet of a rider that waits with the data couldn't fold until the
+   member the path reads was known, so each term now answers for that
+   member itself, and a path reads through a seal that waits as it
+   reads through a rider, which also ends #749, a sealed map whose
+   member reads a member beside it. The two rows leave the ledger, its
+   bound 59.
 15. **The words `map` and `list`.** Raised 2026-10-19 by P6. The
    importer writes `map` for `type: object` with no other keyword and
    `list` for `type: array`. Both ports admit every map or every list

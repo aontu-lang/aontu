@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### A member of a sealed map may read a member beside it
+
+#749 and #416, in both engines. A seal's value is its argument, and so
+is a rider's, but a path couldn't read through either while it waited.
+So a sealed map whose member reads a sibling never resolved:
+
+- `a: close({x: .y, y: 1})` was `mapval_no_gen` in both engines. It is
+  `{"a": {"x": 1, "y": 1}}` now, by a relative path or by `$.a.y`, at
+  the root of a document too, and inside `open()`.
+- Under `aontu vet`, the same schema, and `meta()` or `deprecate()`
+  around such a map, was `incomplete` against data that fits it. It is
+  `valid` now, and data that gives the sibling another value is
+  `invalid`.
+
+Two things changed in each engine. A path reads a member through a
+`close()` or an `open()` that waits, as it already read through a rider.
+And where a rider or a seal that waits meets the data, each term of the
+meet answers for the member the path reads, since the meet can't fold
+until that member is known. The seal still holds: an extra key is
+`closed`, and another value for the member is a conflict.
+
+- `ts/src/val/RefVal.ts` and `go/ref.go`.
+- Rows q21 and q22 of `test/spec/def-path.tsv` leave `spec/ledger.tsv`,
+  whose bound falls from 61 to 59.
+- `test/spec/seal.tsv` gains 17 rows and `test/spec/vet.tsv` 20.
+- No existing row changed: both whole suites passed before the new rows
+  went in, but for the two rows above, which now agree.
+
 ### The definition refuses a miscounted call wherever it is written
 
 Decision 77, in the definition. Both engines refuse a call written with

@@ -123,6 +123,17 @@ function ownArgs(ctx, v) {
         return out;
     });
 }
+// A seal's value is its argument, as a rider's is: a path reads a member through one that waits.
+function throughWrap(v) {
+    v = (0, RecurseVal_1.throughRider)(v);
+    while (true === v?.isFunc && (true === v.isCloseFunc || true === v.isOpenFunc) && !v.done &&
+        null != v.peg?.[0]) {
+        v = (0, RecurseVal_1.throughRider)(v.peg[0]);
+    }
+    return v;
+}
+const waitingWrap = (t) => t !== throughWrap(t);
+const readsAsBag = (t) => true === throughWrap(t)?.isMap || true === throughWrap(t)?.isList;
 function pendingMarkWrapper(v) {
     if (true === v.isTypeFunc || true === v.isHideFunc) {
         return !v.done;
@@ -142,7 +153,7 @@ function pendingMarkWrapper(v) {
 // the wrapper only marks and its argument is the structure the path
 // names (see the call sites in `find`).
 function markedChild(v, part) {
-    v = (0, RecurseVal_1.throughRider)(v);
+    v = throughWrap(v);
     if (true === v?.isMap || true === v?.isList) {
         return member(v, part);
     }
@@ -427,7 +438,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         held = true;
                         peer = [arm[1], arm[2], pI];
                     }
-                    node = (0, RecurseVal_1.throughRider)(node);
+                    node = throughWrap(node);
                     if (node.isMap) {
                         node = node.peg[part];
                     }
@@ -465,6 +476,16 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         }
                         node = 1 === kids.length ?
                             kids[0] : new ConjunctVal_1.ConjunctVal({ peg: kids }, ctx);
+                    }
+                    // A meet can't fold while its rider or seal waits on this very member: each term answers.
+                    else if (true === node.isConjunct && Array.isArray(node.peg) &&
+                        node.peg.some(waitingWrap)) {
+                        const kids = node.peg.map((t) => markedChild(t, part))
+                            .filter((k) => null != k);
+                        if (0 === kids.length || !node.peg.every(readsAsBag)) {
+                            break;
+                        }
+                        node = 1 === kids.length ? kids[0] : new ConjunctVal_1.ConjunctVal({ peg: kids }, ctx);
                     }
                     // A choice inside a held arm is read before the arm: wait for it.
                     else if (node.done && !(held && (true === node.isDisjunct ||
