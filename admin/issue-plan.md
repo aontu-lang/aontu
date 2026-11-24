@@ -114,7 +114,7 @@ How both engines read a preference, a lone preference and a live disjunction arm
 
 ### Seals, marks, moves and generation-time checks
 
-11 issues (1 S, 7 M, 3 L), 14 ledger rows.
+12 issues (1 S, 8 M, 3 L), 14 ledger rows.
 
 A seal, a mark or a move, and the checks that wait for generation: #726 (bare `close()` and `open()`, decisions 44 to 46) carries 6 rows. #748 and #749 (a path into a container met with a deferred atom or a seal) also block the relations workstream.
 
@@ -131,10 +131,11 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 | [#343](https://github.com/aontu-lang/aontu/issues/343) | def | M |  | `string & (string & empty())` admits the empty string in both ports; the definition refuses it. |
 | [#770](https://github.com/aontu-lang/aontu/issues/770) | parity | L |  | type() block filled by statements answers unlike the whole block, ports split five ways; case 1 ruled (67). |
 | [#486](https://github.com/aontu-lang/aontu/issues/486) | parity | M |  | move with a meta/hide rider: TS and Go split on vet data overriding the copy |
+| [#937](https://github.com/aontu-lang/aontu/issues/937) | def | M |  | A check that waits for generation is judged or not by key order when a sibling can't generate. |
 
 ### Where copies, bodies and templates read paths and key()
 
-16 issues (1 S, 13 M, 2 L), 15 ledger rows.
+17 issues (1 S, 14 M, 2 L), 15 ledger rows.
 
 Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
 
@@ -156,6 +157,7 @@ Where a copy, a declaration's body or a template reads its relative paths and `k
 | [#762](https://github.com/aontu-lang/aontu/issues/762) | def | M | 1 | Recursive name used alone whose body links to its own member: engines expand it (valid), definition says incomplete. |
 | [#691](https://github.com/aontu-lang/aontu/issues/691) | def | M |  | A map spread's template cannot read a sibling it supplies at a member written in the same map. |
 | [#416](https://github.com/aontu-lang/aontu/issues/416) | def | M | 2 | A path inside a rider's value to a sibling member leaves both ports incomplete (`mapval_no_gen`). |
+| [#936](https://github.com/aontu-lang/aontu/issues/936) | def | M |  | A copied `each` or `pack` reads a relative path in its source where the target stands, not where the copy stands. |
 
 ## Phase 3: by area
 
@@ -203,7 +205,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-22 issues (3 S, 19 M), 3 ledger rows.
+23 issues (3 S, 20 M), 3 ledger rows.
 
 Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63 and built 2026-11-22, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, built in the definition the same day), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, built the same day), and #917, the same path written as a relative one, fixed the same day; #919, a pattern that reads the match's own place, and #922, what a scrutinee holding a `type()` or `hide()` member selects by, both ruled 2026-11-22 (85: the pattern reads the field; 86: the scrutinee's output). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
@@ -231,6 +233,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#868](https://github.com/aontu-lang/aontu/issues/868) | parity | M |  | A `match` whose pattern is a relative reference overflows the TypeScript stack, and a bound over it is `mapval_no_gen`; Go answers both. The bound is fixed 2026-11-22; the overflow is the parser defect of #326, fixed upstream in tabnas/expr#121. |
 | [#871](https://github.com/aontu-lang/aontu/issues/871) | parity | M |  | `maybe(v)` of a relative reference as a call's second or later argument never resolves in TypeScript; Go answers. Fixed 2026-11-22, with the second case of #868. |
 | [#861](https://github.com/aontu-lang/aontu/issues/861) | design | M |  | No single call projects one field of each member into a map that keeps the source's keys. C1 and C2 of the lang refinement plan: `at`, and a key for `pack`. |
+| [#938](https://github.com/aontu-lang/aontu/issues/938) | def | M |  | A `match` over a kind can't walk a schema since ruling 49 was built; use case 10's transforms wait on a ruling. |
 
 ### Declarations, loads, includes and built-in models
 
@@ -441,14 +444,15 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 43 | 47 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 75 | 25 |
+| 2 | alias cycles, preferences, seals and marks, copies | 45 | 47 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 25 |
 | 4 | diagnostics, tooling | 33 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | 2 |
 
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
-they stand on 2026-11-22 with #907 added. The ledger rows are counted
-on 2026-11-24, from the issue each row's cause names. The ledger's
-other 10 rows name decision 3 and no issue: they're #343's.
+they stand on 2026-11-22 with #907 added, and #936 to #938 on
+2026-11-24. The ledger rows are counted on 2026-11-24, from the issue
+each row's cause names. The ledger's other 10 rows name decision 3 and
+no issue: they're #343's.
