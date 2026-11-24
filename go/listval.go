@@ -50,10 +50,17 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 	}
 	out := make([]any, 0, len(l.peg))
 	outer := genPlace(ctx)
+	stalled := false
 	for i, e := range l.peg {
 		at := append(cp(l.path), itoa(i))
 		e = placeShared(e, at)
 		if (e.markedType() || e.markedHide()) && !probing(ctx) {
+			continue
+		}
+		if stalled {
+			if genable(e) {
+				alsoIncomplete(ctx, e, len(out), at)
+			}
 			continue
 		}
 		if !genable(e) {
@@ -83,7 +90,8 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			// records and walks on so sibling subtrees each contribute
 			// a finding, and the raise belongs to the caller.
 			makeNilErrFull(ctx, code, va, vb, "", details)
-			break
+			stalled = true
+			continue
 		}
 		ev, err := genAt(e, ctx, len(out), at)
 		if err != nil {
