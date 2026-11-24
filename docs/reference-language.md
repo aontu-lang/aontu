@@ -2171,13 +2171,18 @@ services: pack([web api], %row)
               "web": {"name": "web", "tag": "svc-web"}}}
 ```
 
-The definition reads a body with each key as any string (`Val.unplaced`
-in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and a use
+The definition reads a body with each key that reaches the body's own
+top, or climbs past it, as any string (`Val.unplaced` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and a use
 with each key placed. Rows from `key-in-a-body-fits-its-use` on of
 [`test/spec/gen-key.tsv`](../test/spec/gen-key.tsv) hold both engines to
-it. The definition reads a key inside the body as any string too, where
-both engines read the member's key, so it admits an unused
-`%T = {a: key(0) & "b"}` that both refuse, which
+it. A key that reads a step inside the body is that step's text at
+every use, so the definition reads it as that text whether or not
+anything uses the body (`Val.keysIn`, ruling 88): an unused
+`%T = {a: key(0) & "b"}` is an error in the definition, as in both
+engines. A key inside the body that a relative path reads, as in
+`%T = {a: key(0), b: .a & "q"}`, the definition still reads as any
+string where the path lands, and both engines refuse that body, which
 [#942](https://github.com/aontu-lang/aontu/issues/942) tracks.
 
 **An alias is not a path segment.** `$.%foo` is refused, at any depth:

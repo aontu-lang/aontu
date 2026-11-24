@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a key inside a declaration's body as its step's text
+
+#942, ruling 88, in the definition. A `key(n)` in a declaration's body
+waits for the use that places it, so the definition read every one as
+any string when it asked whether the body stands. A key that reads a
+step inside the body waits for nothing, though: it is that step's text
+at every use. So the definition let an unused body stand that no use
+could fit, where both engines refuse it:
+
+- `%T = {a: key(0) & "b"}`, `%T = {a: {b: key(1) & "z"}}` and
+  `%T = [key(0) & "9"]` are `error` now, as they were in both engines.
+- So are `%T = {a: upper(key(0)) & 1}`, `%T = key(-1) & "x"` and
+  `%T = {s: "zz", &: key(0) & "zz"}`.
+- `%T = key(0) & "x"` and `%T = {a: {b: key(2) & "z"}}` stand as
+  before, each key reaching the body's own top, which only a use
+  places.
+
+`Val.keysIn` in `spec/Aontu/Verdict.lean` reads each such key by
+`keyUpIn` in `spec/Aontu/Syntax.lean`, and `Decls.bodyIll` checks the
+body so read. Rows a378 to a419 of `test/spec/def-alias.tsv` hold both
+engines to it, and no other generated row changes.
+
+One case of #942 is left: a key inside the body that a relative path
+reads, `%T = {a: key(0), b: .a & "q"}`, is still any string where the
+path lands.
+
 ### A `match` over a kind takes the arm no data could change
 
 #938, ruling 87, in the definition and both engines. Since ruling 49 a

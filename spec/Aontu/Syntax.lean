@@ -487,6 +487,18 @@ def keyUpAt (pos : List Step) (n : ℤ) : Val :=
   | some .spread => if n = 0 then .key else .keyUp n
   | none => .lit (.str "")
 
+/-- `key(n)` read in a declaration's body at `pos`, the steps from the
+body's own top down, outermost first: the text of a step inside the
+body and `""` below none, as `keyUpAt` reads them, and `key(n)` as
+written, which only a use places, where it reaches the body's top or
+above (ruling 88). -/
+def keyUpIn (pos : List Step) (n : ℤ) : Val :=
+  if n < 0 then .lit (.str "") else
+  match pos.reverse[n.toNat]? with
+  | some (.seg s) => .lit (.str s.text)
+  | some .spread => if n = 0 then .key else .keyUp n
+  | none => .keyUp n
+
 /-- A position one step down, where there is one. -/
 def stepped (here : Option (List Step)) (s : Step) : Option (List Step) := here.map (· ++ [s])
 

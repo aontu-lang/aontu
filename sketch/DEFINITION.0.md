@@ -3330,7 +3330,19 @@ until the phase that encodes it lands.
    reads a step inside the body is that step's text at every use, so
    `Decls.bodyIll` reads it so: the step's text where the step is
    inside the body, `""` where the level is negative, and any string
-   only where the key reaches the body's own top or above.
+   only where the key reaches the body's own top or above. **Built in
+   the definition 2026-11-24**: `Val.keysIn` walks a body with the
+   steps from its top and reads each key by `keyUpIn`, and
+   `Decls.bodyIll` checks the body so read. A list's element past one
+   that could be absence or carry a mark as only a reading shows
+   (`Val.evident`) reads its keys from the element down. Rows a378 to
+   a419 of `test/spec/def-alias.tsv`, which both ports pass; no other
+   generated row changed. Six of #942's seven cases move. The seventh,
+   `%T = {a: key(0), b: .a & "q"}`, reads the key through a relative
+   path: the path pipeline names the place and reads the bare key at
+   the name's own top, so it is any string still. Placing the keys
+   ahead of that pipeline needs `Val.keysIn` to keep a term checkable,
+   and is left to its own step.
 89. **A default that reaches a disjunction through `pref()`, a path or
    a name.** Raised 2026-11-24 by #954, while fixing #482. An arm `*x`
    written in a disjunction is the arm `x` of rank one, with no parent
