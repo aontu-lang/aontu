@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 59 on 2026-11-24),
+  on 2026-11-22), ledger rows (394 at most then, 58 on 2026-11-24),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,7 +64,7 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-25 of its 59 on 2026-11-24. In order:
+25 of its 58 on 2026-11-24. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
@@ -268,7 +268,7 @@ Faults at an include or a built-in model's boundary, which lose structure or a s
 
 ### subsume and breaking
 
-5 issues (2 S, 3 M), 1 ledger row.
+5 issues (2 S, 3 M).
 
 The `subsume` and `breaking` gaps besides relations: a range inside a template (#321), recursive lists (#387), defaults at a list position (#424), and the missing finding for a document that does not stand up (#774, with #755).
 
@@ -276,7 +276,7 @@ The `subsume` and `breaking` gaps besides relations: a range inside a template (
 |---|---|---|---|---|
 | [#321](https://github.com/aontu-lang/aontu/issues/321) | bug | M |  | breaking and subsume answer undecided for any range change inside a spread template; outside one they decide. |
 | [#387](https://github.com/aontu-lang/aontu/issues/387) | def | M |  | subsume says a recursive list subsumes `[integer, any]`, though `[1, 5]` is a witness against it. |
-| [#424](https://github.com/aontu-lang/aontu/issues/424) | def | S | 1 | `subsume` under defaults ignores a default at a list position in both ports. |
+| [#424](https://github.com/aontu-lang/aontu/issues/424) | def | S |  | `subsume` under defaults ignores a default at a list position in both ports. Built in both ports 2026-11-24. |
 | [#774](https://github.com/aontu-lang/aontu/issues/774) | diag | S |  | subsume and breaking answer verdict error, exit 4, with no finding naming the failing document or cause. |
 | [#735](https://github.com/aontu-lang/aontu/issues/735) | diag | M |  | `subsume`/`breaking` lose a meet member's site: TypeScript writes -1:-1, Go 1:1. |
 
@@ -450,7 +450,7 @@ workstream above meets its tasks.
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
 | 2 | alias cycles, preferences, seals and marks, copies | 49 | 25 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 22 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 21 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | 2 |

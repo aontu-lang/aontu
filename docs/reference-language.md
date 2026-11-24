@@ -6569,6 +6569,10 @@ effective default indeterminate (`sub_default_indeterminate`,
 undecided). Adding a default where none existed is compatible;
 changing or removing one is `compat_default_changed`: previously
 generable documents materialise differently or become incomplete.
+`subsume` compares the defaults at each position both sides have, a
+map's member by its key and a list's element by its position, so
+`[number]` doesn't subsume `[*1 | number]`. A spread's template is no
+position.
 
 ### Rules, by value former
 

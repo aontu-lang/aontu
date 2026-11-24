@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### `subsume` compares a default at a list position
+
+#424, in both engines. Under the `defaults` profile, the one `aontu
+subsume` and `aontu breaking` use unless told otherwise, each engine
+compared the effective default at a map member and skipped a list's
+elements. So a default that changed inside a list went unreported:
+
+- `[number]` over `[*1 | number]` answered `subsumes`. It is
+  `does_not_subsume` now, with `compat_default_changed` at `$.0`.
+- `[*2 | number]` over `[*1 | number]` answered `subsumes` too, and
+  now answers the same way, as `{x: *2 | number}` over
+  `{x: *1 | number}` always did.
+- The walk goes on below a list: `[{b: number}]` over
+  `[{b: *1 | number}]` reports `$.0.b`.
+
+Each engine now walks a list by position as it walks a map by key, at
+each position both sides have. A default the general side adds is still
+no finding, a literal is still no default, and a spread's template is
+no position. The `values` profile is untouched.
+
+Row f269 of `test/spec/def-subsume.tsv` leaves `spec/ledger.tsv`, whose
+bound falls to 58. `test/spec/subsume.tsv` gains 14 rows.
+
 ### A member of a sealed map may read a member beside it
 
 #749 and #416, in both engines. A seal's value is its argument, and so
