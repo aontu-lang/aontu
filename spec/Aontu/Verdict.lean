@@ -4493,6 +4493,83 @@ refuse it with `ident_place` (decision 14 of the design note's §7). -/
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
 
+/-- Whether a list's element holds a position or not as written: a
+literal, a kind, a map, a list or absence, under any rider. A name, a
+path, a call or a meet could be absence or carry a mark that only a
+reading shows, and neither takes a position. -/
+def Val.evident : Val → Bool
+  | .lit _ | .map _ _ _ | .list _ _ _ | .absent | .any => true
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean => true
+  | .mapKind | .listKind | .pathKind => true
+  | .ride _ v _ => v.evident
+  | _ => false
+
+mutual
+/-- A declaration's body with each `key(n)` that reads a step inside it
+read as that step's text (`keyUpIn`, ruling 88), `pos` the steps from
+the body's top down: a member under its key, an element at the index it
+takes among those the list holds a position for, and a spread's
+template at the member the spread holds. A key is one text at every use
+where its step is the body's own, so the body is held to it used or
+not. An element past one whose position only a reading shows
+(`Val.evident`) stands at an index no one knows yet, so its keys are
+read from the element down. The template of an `each` or a `pack`, an
+`emit`'s table, a `filter`'s condition and a link's template stand
+where their instances land, so their keys stay as written. -/
+def Val.keysIn (pos : List Step) : Val → Val
+  | .keyUp n => keyUpIn pos n
+  | .map fs spread closed => .map (keysInFields pos fs) (keysInSpread (pos ++ [.spread]) spread) closed
+  | .list items spread closed =>
+    .list (keysInElems pos true 0 items) (keysInSpread (pos ++ [.spread]) spread) closed
+  | .meet a b => .meet (a.keysIn pos) (b.keysIn pos)
+  | .or arms => .or (keysInArms pos arms)
+  | .pref r x => .pref r (x.keysIn pos)
+  | .ride k v r => .ride k (v.keysIn pos) r
+  | .link v lt => .link (v.keysIn pos) lt
+  | .call f args =>
+    .call f (match f with
+      | .each | .pack | .emit | .apply => keysInHead pos args
+      | _ => keysInItems pos args)
+  | .len c => .len (c.keysIn pos)
+  | .must c m => .must (c.keysIn pos) m
+  | .nof n cs => .nof (n.keysIn pos) (keysInItems pos cs)
+  | .when c t e => .when (c.keysIn pos) (t.keysIn pos) (keysInSpread pos e)
+  | .contains c n => .contains (c.keysIn pos) (n.keysIn pos)
+  | .select s arms d => .select (s.keysIn pos) (keysInPairs pos arms) (keysInSpread pos d)
+  | .filter s c => .filter (s.keysIn pos) c
+  | v => v
+
+def keysInFields (pos : List Step) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.keysIn (pos ++ [.seg (.key k)])) :: keysInFields pos fs
+
+def keysInElems (pos : List Step) : Bool → ℕ → List Val → List Val
+  | _, _, [] => []
+  | known, i, v :: vs =>
+    v.keysIn (if known then pos ++ [.seg (.idx i)] else []) ::
+      keysInElems pos (known && v.evident) (if v.isAbsent || v.marked then i else i + 1) vs
+
+def keysInItems (pos : List Step) : List Val → List Val
+  | [] => []
+  | v :: vs => v.keysIn pos :: keysInItems pos vs
+
+def keysInHead (pos : List Step) : List Val → List Val
+  | [] => []
+  | v :: vs => v.keysIn pos :: vs
+
+def keysInArms (pos : List Step) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.keysIn pos) :: keysInArms pos arms
+
+def keysInPairs (pos : List Step) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.keysIn pos, r.keysIn pos) :: keysInPairs pos ps
+
+def keysInSpread (pos : List Step) : Option Val → Option Val
+  | none => none
+  | some s => some (s.keysIn pos)
+end
+
 mutual
 /-- A term with each part that waits for a place read as what any place
 could make of it: a hole as `any`, a `key(n)` as any string, since a
@@ -4571,16 +4648,20 @@ of the design note's §7). Each body is read with the parts that wait
 for the use that places them, a hole or a `key(n)`, read as what any
 place could make of them (`Val.unplaced`), and so is a name whose body
 waits (`Decls.waitNames`), so that what stands beside them is read. A
+`key(n)` that reads a step inside the body is one text at every place,
+so it is read as that text first (`Val.keysIn`, ruling 88), and only a
+key that reaches the body's own top or above waits. A
 waiting call is `nil` where it takes another count of arguments or an
 argument it reads as written doesn't stand, read against the bodies
 with each waiting part so read (`d0`). A name a source publishes is
 read where a destructure takes it, so not here. -/
 def Decls.bodyIll (ds : Decls) : Bool :=
-  let ws := ds.waitNames
+  let ks : Decls := ds.map fun d => (d.1, d.2.keysIn [])
+  let ws := ks.waitNames
   let w : String → Bool := fun n => ws.contains n
-  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
+  let d0 : Decls := ks.map fun d => (d.1, d.2.unplaced w fun _ => false)
   let ill : Val → Bool := fun t => ((normaliseD d0 (d0.readU t)).staged d0).illFormed
-  let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
+  let du : Decls := ks.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
     (((normaliseD du (du.readU (.alias d.1))).staged du).illFormed || ((normaliseD du (du.readU d.2)).staged du).illFormed)
 

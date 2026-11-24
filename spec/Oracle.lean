@@ -1045,7 +1045,13 @@ a body that names it wait too, through a call and through another name,
 so `add(%U, 1)` stands where `%U` waits and `add(%U, 1 & 2)` doesn't,
 while the name itself reads what its body fixes, so `%U & 2` is an
 error beside `%U = _ & 1`; and a waiting `key(n)` is any string, so
-`key(1) & 1` is an error and `key(1) & ""` stands. -/
+`key(1) & 1` is an error and `key(1) & ""` stands. A `key(n)` that
+reads a step inside the body is that step's text at every use (ruling
+88), so a body no use could fit is an error unused: a key under a
+member, two members down, through a call, at a list's index, below the
+body, and in a spread's template met with a member the body holds; and
+their neighbours stand, a key that reaches the body's top, one that
+agrees with its step, and the first of them used, against data. -/
 def aliasCases : List (Decls × Val × Data) :=
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
   let p : Val := .alias "p"
@@ -1201,7 +1207,25 @@ def aliasCases : List (Decls × Val × Data) :=
     ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 2))], int 1, j 1),
     ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 1))], int 1, j 1),
     ([("U", .map [("a", false, .hole), ("b", false, int 1)] none false),
-      ("T", .meet (.alias "U") (.map [("b", false, int 2)] none false))], int 1, j 1)]
+      ("T", .meet (.alias "U") (.map [("b", false, int 2)] none false))], int 1, j 1),
+    ([("T", .map [("a", false, .meet (.keyUp 0) (str "b"))] none false)], int 1, j 1),
+    ([("T", .map [("a", false, .map [("b", false, .meet (.keyUp 1) (str "z"))] none false)] none false)],
+      int 1, j 1),
+    ([("T", .map [("a", false, .meet (.call .upper [.keyUp 0]) (int 1))] none false)], int 1, j 1),
+    ([("T", .list [.meet (.keyUp 0) (str "9")] none false)], int 1, j 1),
+    ([("T", .meet (.keyUp (-1)) (str "x"))], int 1, j 1),
+    ([("T", .map [("s", false, str "zz")] (some (.meet (.keyUp 0) (str "zz"))) false)], int 1, j 1),
+    ([("T", .meet (.keyUp 0) (str "x"))], int 1, j 1),
+    ([("T", .map [("a", false, .map [("b", false, .meet (.keyUp 2) (str "z"))] none false)] none false)],
+      int 1, j 1),
+    ([("T", .map [("a", false, .map [("b", false, .meet (.keyUp 1) (str "a"))] none false)] none false)],
+      int 1, j 1),
+    ([("T", .list [.meet (.keyUp 0) (str "0")] none false)], int 1, j 1),
+    ([("T", .map [("a", false, .meet (.call .upper [.keyUp 0]) (str "A"))] none false)], int 1, j 1),
+    ([("T", .map [("s", false, str "s")] (some (.keyUp 0)) false)], int 1, j 1),
+    ([("T", .meet (.keyUp (-1)) (str ""))], int 1, j 1),
+    ([("T", .map [("a", false, .meet (.keyUp 0) (str "b"))] none false)], .alias "T",
+      .map [("a", .str "a")])]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/
