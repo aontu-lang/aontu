@@ -127,6 +127,12 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		met := trialUnify(ctx, clonePath(inner, cp(d.path)), clonePath(peer, cp(d.path)))
 		if nil == met {
 			oval[gI] = nil
+		} else if unread(met) {
+			// The arm's own value isn't read yet, so its gate can't answer and the meet is tried again.
+			cj := newConjunct([]Val{d, peer})
+			cj.path = cp(d.path)
+			cj.site.sp, cj.site.spu, cj.site.url = d.site.sp, d.site.spu, d.site.url
+			return cj
 		}
 	}
 
@@ -208,6 +214,30 @@ func (d *DisjunctVal) admitsToward(ctx *Ctx) bool {
 		if armAdmits(arm, ctx) {
 			return true
 		}
+	}
+	return false
+}
+
+func unread(v Val) bool {
+	switch n := v.(type) {
+	case *RefVal:
+		return true
+	case *MapVal:
+		for _, k := range n.keys {
+			if unread(n.peg[k]) {
+				return true
+			}
+		}
+	case *ListVal:
+		return slices.ContainsFunc(n.peg, unread)
+	case *ConjunctVal:
+		return slices.ContainsFunc(n.peg, unread)
+	case *DisjunctVal:
+		return slices.ContainsFunc(n.peg, unread)
+	case *FuncVal:
+		return slices.ContainsFunc(n.peg, unread)
+	case *PlusOpVal:
+		return slices.ContainsFunc(n.peg, unread)
 	}
 	return false
 }
