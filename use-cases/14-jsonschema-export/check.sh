@@ -97,14 +97,13 @@ ok "money: Dec2 pattern and the bigdecimal:2 const mark both cross"
 
 # 5. The loss report: residue.aontu collects one instance of each class
 # that cannot cross, the schema still exports (exit 0), and EVERY loss
-# is named on stderr with its path and construct. Note must() reports
-# as `nil` -- the engine holds the whole value residual, so the number
-# bound beside it is lost too (reference-api.md documents this loss
-# under `must`; the README records the difference).
+# is named on stderr with its path and construct. must() crosses as
+# allOf of its trial's schema, so its bound is kept, and its message
+# is the loss (reference-api.md documents it under `must`).
 run res 0 -- jsonschema --at report "$DIR/residue.aontu"
 diff -u "$DIR/expected/residue.json" "$WORK/res.out" \
   || fail "residue export drifted from expected/residue.json"
-has res err 'lossy: $.report.total nil:'
+has res err 'lossy: $.report.total must:'
 has res err 'lossy: $.report.amountEur bigdecimal:'
 has res err 'lossy: $.report.audit hide:'
 has res err 'lossy: $.report.slugs.& key:'
@@ -118,7 +117,7 @@ ok "residue: lossy export still exports, four losses each named"
 # exit 1 -- the mode for a pipeline that must not ship a schema
 # admitting more than the model does.
 run strict 1 -- jsonschema --strict --at report "$DIR/residue.aontu"
-has strict err 'lossy: $.report.total nil:'
+has strict err 'lossy: $.report.total must:'
 ok "--strict: a lossy export exits 1 instead of 0"
 
 # 7. --format json is the machine face of the same report: verdict
@@ -131,9 +130,10 @@ r = json.load(open(sys.argv[1]))
 assert r["aontu"]["verb"] == "jsonschema"
 assert r["verdict"] == "lossy", r["verdict"]
 assert {l["construct"] for l in r["lossy"]} \
-    == {"nil", "bigdecimal", "hide", "key"}
+    == {"must", "bigdecimal", "hide", "key"}
 assert all({"path", "construct", "reason"} <= set(l) for l in r["lossy"])
-assert r["schema"]["properties"]["total"] == {}
+assert r["schema"]["properties"]["total"] \
+    == {"allOf": [{"minimum": 0, "type": "number"}], "type": "number"}
 EOF
 ok "--format json: verdict lossy, losses as {path, construct, reason}"
 

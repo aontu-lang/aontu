@@ -580,13 +580,6 @@ func render(a *aontu.Aontu, src, mode string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		// A call to a function the language lacks is a nil the parse makes
-		// and no meet reports: it is refused as evaluation refuses it.
-		if aontu.HasUnknownFunction(v) {
-			if _, err := a.Generate(src); err != nil {
-				return "", err
-			}
-		}
 		return aontu.CanonRiders(v), nil
 	}
 	out, err := a.Generate(src)

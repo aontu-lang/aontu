@@ -8,6 +8,51 @@ each change affects.
 
 ## Unreleased
 
+### A map says what else is incomplete past a member that can't generate
+
+Both engines. A map or a list raises one finding for the first member
+that generates no value, and had stopped there. It now goes on, and
+each member after it that can generate still reports what is incomplete
+in it. Since a `match` waits for a scrutinee that generates no value
+(#743), a waiting `match` that sorts before its scrutinee had hidden the
+finding a reader acts on: with `plan: "free" | "pro"` and
+`limits: match(.plan, …)`, `aontu vet` named only `$.t.limits`, and now
+names `$.t.plan` as well. The verdict is unchanged, and so is every
+existing row. What isn't incomplete past that member is still left
+unjudged, which #937 tracks.
+
+- `ts/src/val/BagVal.ts`; `go/mapval.go` and `go/listval.go`.
+- Four rows of `test/spec/vet.tsv` and three of
+  `test/spec/gen-match.tsv` hold it.
+
+### The daily run of 2026-11-23
+
+Three of its failures are fixed here, and one waits on a ruling.
+
+- **Use case 05** expected the missing `plan` to be named, which the
+  change above restores.
+- **Use case 14** wrote `must((v) => 0 <= v, "…")`, which parses as six
+  arguments. The engines had read that wrong count in silence, as a
+  value that admits nothing, and the use case pinned the result as a
+  loss reported under `nil`. Decision 77 refuses it, as it did the same
+  call in the JSON Schema how-to. The model now writes
+  `must(min(0), "…")`, which crosses as `allOf` of its trial, its
+  message the loss.
+- **TypeScript on Windows** failed `cuecorpus.test.ts`, since a checkout
+  there gave the probes under `test/cue/` CRLF line ends, where each
+  shared row holds LF. `.gitattributes` now keeps them LF.
+- **The coverage gate** found real gaps, and ran out of time retrying.
+  `--canon` checked for an unknown call that decision 77 now refuses
+  before the check, in `ts/src/cli.ts` and `go/cmd/aontu/main.go`; the
+  check is removed. Three arms of `go/constraint.go` and
+  `go/generate.go` gain rows: a `must` condition whose path climbs past
+  the root, and a `match` over a map or a list that holds an open
+  member.
+- **Use case 10** still fails. Its two transforms walk a schema with
+  `match(_, integer, "number", …)`, and a `match` whose scrutinee is a
+  kind has waited for the data since ruling 49 was built (#743). Whether
+  such a `match` may select waits on a ruling.
+
 ### A copy reads its relative paths where it stands, in either order
 
 #504, #692, #696, #463 and #330 in both engines, and #520 in part. A
