@@ -1251,7 +1251,9 @@ def riderCases : List (Decls × Val × Data) :=
 reference copies a body with its marks cleared at every depth, so what
 the body hides its reader asks for, and a mark written at the place of
 the reference stays, through a name, a nested name, a recursive name,
-a meet, a rider, a spread and a selection. -/
+a meet, a rider, a spread and a selection. A list's element that carries
+a mark of its own the copy leaves out, as the list does where it is
+written (ruling 18), though a conflict in it is still the body's. -/
 def markAliasCases : List (Decls × Val × Data) :=
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let T : Val := .alias "T"
@@ -1275,7 +1277,14 @@ def markAliasCases : List (Decls × Val × Data) :=
     ([("T", .map [] (some (hide .integer)) false)], T, .map [("k", j 1)]),
     ([("T", hide (mp [("a", .integer)]))], mp [("x", T), ("y", hide T)], .map [("x", .map [("a", j 1)])]),
     ([("T", .select (int 1) [(int 1, mp [("a", hide (int 1))])] none)], T, .map []),
-    ([("T", .select (int 1) [(int 1, mp [("a", hide .integer)])] none)], T, .map [])]
+    ([("T", .select (int 1) [(int 1, mp [("a", hide .integer)])] none)], T, .map []),
+    ([("T", lst [hide (.lit (.str "h")), .lit (.str "k")])], T, .list [.str "k"]),
+    ([("T", lst [hide (.lit (.str "h")), .lit (.str "k")])], T, .list [.str "h", .str "k"]),
+    ([("T", lst [type .string, .lit (.str "k")])], T, .list [.str "k"]),
+    ([("T", lst [type .string, .lit (.str "k")])], T, .list [.str "x", .str "k"]),
+    ([("T", mp [("body", lst [hide (.lit (.str "h")), .lit (.str "k")])])], T, .map [("body", .list [.str "k"])]),
+    ([("T", lst [hide (int 1), int 2])], T, .list []),
+    ([("T", lst [hide (.meet (int 1) (int 2)), int 3])], T, .list [j 3])]
 
 /-- The cases of the seal of decision 10 of the design note's §7: a
 reference to a `type()` value reads it as a definition and its copy as

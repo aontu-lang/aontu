@@ -2283,7 +2283,7 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
   | @list items spread closed _ _ ihi ihs =>
     refine .list ?_ ?_
     · intro w hm
-      obtain ⟨v, hv, rfl⟩ := mem_unmarkItems.mp hm
+      obtain ⟨v, hv, rfl⟩ := mem_unmarkItems.mp (mem_standingOf hm)
       exact ihi v hv
     · intro t ht
       obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp ht

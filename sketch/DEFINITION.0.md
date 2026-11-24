@@ -945,7 +945,14 @@ until the phase that encodes it lands.
    An `each` leaves out an instance that carries a mark of its own the
    same way, and is `nil` where such an instance is a conflict, as both
    ports read it (#626, 2026-11-04): rows x2253 on in
-   `test/spec/def-call.tsv`.
+   `test/spec/def-call.tsv`. A name's copy of a list leaves a marked
+   element out too (#943, 2026-11-24): `Val.unmark` had cleared the
+   element's mark and kept the element, so `%T = [hide("h"), "k"]`
+   read through `%T` was `["h", "k"]` where a path to the same list,
+   and both ports through either, gave `["k"]`. It now keeps only the
+   elements whose written term carries no mark (`standingOf` in
+   `spec/Aontu/Names.lean`): rows n57 to n77 in
+   `test/spec/def-alias.tsv`, which both ports answer as it does.
    Both ports move, each list compacting once its own elements are
    read, and answer every row as the definition does. A marked `nil`
    still holds its position in both, which #540 tracks.
