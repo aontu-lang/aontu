@@ -293,7 +293,7 @@ class EmitFuncVal extends FuncBaseVal_1.FuncBaseVal {
         if (undefined === nodes) {
             return (0, err_1.makeNilErr)(ctx, 'emit_data', this);
         }
-        // A table a name holds is read as it is written, as one written in place is.
+        // A name's table is read as written, as one written in place is.
         let table = args?.[1];
         if (true === table?.isRef) {
             table = table.find(ctx) ?? table;
@@ -336,10 +336,8 @@ class EmitFuncVal extends FuncBaseVal_1.FuncBaseVal {
                 return this.refuse(ctx, { code: fail.code, details: fail.details });
             }
         }
-        // THE PIECES ARE PATHED WHERE THEY LAND, once the splicing has
-        // settled how many there are. A piece keeps no trace of the body
-        // it was written in: the body is a template, and a template's
-        // parse position is the one place it is never used.
+        // THE PIECES ARE PATHED WHERE THEY LAND, once the splicing has settled how many
+        // there are: a body is a template, never used at the place it is written.
         let at = 0;
         for (const piece of peg) {
             (0, Val_1.repathInstance)(piece, [...ctx.path, String(at)]);

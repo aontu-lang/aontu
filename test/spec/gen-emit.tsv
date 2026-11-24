@@ -203,3 +203,24 @@ emit-none-inside-file-list	errc	routes: [{ name: "list", verb: "GET" } { name: "
 emit-none-inside-file-list-path	err	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: file("client.ts", [emit($.routes, %route)])	Cannot resolve value at path $.out
 emit-none-bare	errc	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: emit($.routes, %route)	emit_none
 emit-none-bare-path	err	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: emit($.routes, %route)	Cannot resolve value at path $.out
+#
+# A PIECE THAT TAKES NO POSITION (ruling 52, #539). A piece a mark leaves
+# out of the list, or one that reads as absence, takes no position, so a
+# key(0) after it reads the index its own piece lands at.
+emit-key-after-a-hidden-piece	gens	v: emit([1, 2], {match: any, body: [hide("h"), key(0)]})	{"v":["0","1"]}
+emit-key-after-a-typed-piece	gens	v: emit([1, 2], {match: any, body: [type(string), key(0)]})	{"v":["0","1"]}
+emit-key-after-an-absent-piece	gens	v: emit([1, 2], {match: any, body: [maybe($.gone), key(0)]})	{"v":["0","1"]}
+emit-key-between-marked-pieces	gens	v: emit([1, 2], {match: any, body: [key(0), hide("h"), key(0)]})	{"v":["0","1","2","3"]}
+emit-key-before-a-hidden-piece	gens	v: emit([1, 2], {match: any, body: [key(0), hide("h")]})	{"v":["0","1"]}
+emit-key-of-the-field-after-a-hidden-piece	gens	v: emit([1, 2], {match: any, body: [hide("h"), key()]})	{"v":["v","v"]}
+emit-key-in-a-map-after-a-hidden-piece	gens	v: emit([1, 2], {match: any, body: [hide("h"), {k: key()}]})	{"v":[{"k":"0"},{"k":"1"}]}
+emit-key-two-up-in-a-map-after-a-hidden-piece	gens	v: emit([1, 2], {match: any, body: [hide("h"), {k: key(2)}]})	{"v":[{"k":"v"},{"k":"v"}]}
+#
+# A TABLE A NAME HOLDS (#528) reads its keys as one written in place
+# does: each piece where it lands, whichever is written first.
+emit-table-from-a-name	gens	%T = {match: any, body: [key(0)]}\nv: emit([1, 2], %T)	{"v":["0","1"]}
+emit-table-from-a-name-written-last	gens	v: emit([1, 2], %T)\n%T = {match: any, body: [key(0)]}	{"v":["0","1"]}
+emit-table-from-a-name-reads-the-field	gens	%T = {match: any, body: [key()]}\nv: emit([1, 2], %T)	{"v":["v","v"]}
+emit-table-from-a-name-with-a-map-piece	gens	%T = {match: any, body: [{k: key()}]}\nv: emit([1, 2], %T)	{"v":[{"k":"0"},{"k":"1"}]}
+emit-table-of-rules-from-a-name	gens	%T = [{match: 1, body: [key(0)]}, {match: any, body: [{k: key()}]}]\nv: emit([1, 2], %T)	{"v":["0",{"k":"1"}]}
+emit-table-from-a-name-reads-the-node	gens	%T = {match: any, body: [_, key(0)]}\nv: emit([7, 8], %T)	{"v":[7,"1",8,"3"]}

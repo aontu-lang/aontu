@@ -170,9 +170,8 @@ abstract class Val {
 
   // The target whose expansion (RecurseVal) copied this, until something else meets it.
   copied?: string
-  // What a relative path read here, as written with each term met, which a copy reads again (ruling 26).
+  // What a path or a key read here, as written, for a copy to read again (ruling 26); unplaced waits for its use.
   reread?: Val[]
-  // A key in a declaration's body, or a call over one, that waits for the use that places it.
   unplaced?: boolean
 
   origin?: string
