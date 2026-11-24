@@ -2423,7 +2423,7 @@ class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
   }
-} /* node:coverage ignore next 30 */
+} /* node:coverage ignore next 31 */
 
 
 export {

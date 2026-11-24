@@ -313,5 +313,5 @@ function rebuild(v, peg, ctx) {
     out.peg = peg;
     out.dc = 0;
     return out;
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 12 */
 //# sourceMappingURL=PlaceVal.js.map

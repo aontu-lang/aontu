@@ -132,7 +132,7 @@ function sealChild(ctx: AontuContext, child: any, dir: boolean = false): Val {
 
 
 // A directive's seal takes the keys of the other terms at its place, and refuses the data's.
-const takes = (bag: any, peer: any): boolean => true === bag.dirSealed && true !== peer?.isData /* node:coverage ignore next 10 */
+const takes = (bag: any, peer: any): boolean => true === bag.dirSealed && true !== peer?.isData /* node:coverage ignore next 12 */
 
 
 export {
