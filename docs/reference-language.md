@@ -2112,7 +2112,7 @@ text can write the alias out. With `payload: %json` and
 generates and hashes, and its canon is the same in both
 implementations, but the canon does not reparse on its own.
 
-**A `key(n)` in a body reads where the name is used.** A key that reads
+**A `key(n)` in a body reads at each use of the name.** A key that reads
 a member inside the body is that member's key at every use. One that
 climbs out of the body has no place until a use gives it one, so at the
 declaration it waits, as any string, and a call over it waits with it.
