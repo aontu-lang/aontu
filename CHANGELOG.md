@@ -47,7 +47,11 @@ Three of its failures are fixed here, and one waits on a ruling.
   check is removed. Three arms of `go/constraint.go` and
   `go/generate.go` gain rows: a `must` condition whose path climbs past
   the root, and a `match` over a map or a list that holds an open
-  member.
+  member. Six source files ended with a coverage-ignore count that
+  their export lists had outgrown, and `ts/test/covcheck.test.ts` now
+  holds each count to the lists after it. Go is at 100% again.
+  TypeScript is short by 14 items in `ts/src/cursor.ts` and
+  `ts/src/lsp.ts`, which #939 tracks.
 - **Use case 10** still fails. Its two transforms walk a schema with
   `match(_, integer, "number", …)`, and a `match` whose scrutinee is a
   kind has waited for the data since ruling 49 was built (#743). Whether
