@@ -45,7 +45,7 @@ ok "example.aontu evaluates to the expected policy document"
 # 2. Canonical form keeps the policy's meaning: the ADDRESSES, the
 # preserved default, and the relate() foreign-key constraints.
 #
-# Since ADR-014 there are no entity identities to keep: a node's name IS
+# There are no entity identities to keep: a node's name IS
 # its path, so what canon has to preserve is the address a grant was
 # written with. The assertion moved with the mechanism rather than
 # being dropped -- if `path($.permissions.admin_all)` stopped surviving canon,
@@ -95,7 +95,7 @@ has noname out 'verdict: incomplete'
 has noname out '[aontu/mapval_no_gen]'
 ok "vet: missing name reported incomplete (exit 3)"
 
-# 9. GAP CLOSED 2026-08-27 (ADR-007). A candidate with NO plan at all
+# 9. GAP CLOSED 2026-08-27. A candidate with NO plan at all
 # used to be `verdict: valid`: generation FOLDED the unresolved
 # `free|pro|enterprise` into a scalar conflict, and vet -- which keeps
 # incomplete-class findings -- filtered it out. It is now
@@ -130,7 +130,7 @@ has superuser err '$.roles.superuser'
 ok "proposal: new role refused by close() (exhaustive role set)"
 
 # 12. A hallucinated permission is refused (exit 1), AND THE REFUSAL
-# NOW NAMES THE GRANT. This assertion got sharper with ADR-014, so it
+# NOW NAMES THE GRANT. This assertion got sharper when the identity mark went, so it
 # is worth saying what it used to be: the located rel_unresolved was
 # unsurfaced inside the still-open Role disjunction, and what reached
 # the surface was a spurious `unify_cycle` the README had to apologise
@@ -174,7 +174,7 @@ has reg2 err '$.registry_invariant.one_owner_role'
 ok "registry: hidden filter+length invariant fires same-layer"
 
 # ------------------------------- the enum-with-default idiom
-# 2026-08-26: fixed by the preference admission gate (ADR-004) --
+# 2026-08-26: fixed by the preference admission gate --
 # assertions updated to the new behaviour. Checks 18-19 used to pin the
 # fail-open gap (superadmin accepted, verdict valid); the idiom now
 # enforces.
@@ -206,7 +206,7 @@ has plain out 'verdict: invalid'
 has plain out '[aontu/empty]'
 run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aontu" "$DIR/data/invite-member.aontu"
 # ...but no longer evaluates on its own: enforcement costs the default.
-# 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
+# 2026-08-27: the refusal is now `disjunct_no_gen`, class
 # incomplete -- "more than one alternative still admitted" -- rather
 # than a scalar_value CONFLICT between the enum's own branches, which
 # is what folding them together used to report.
@@ -220,7 +220,7 @@ run guarded 1 -- vet "$DIR/exhibits/enum-default-guarded.aontu" "$DIR/data/invit
 has guarded out 'verdict: invalid'
 run guardgen 0 -- "$DIR/exhibits/enum-default-guarded.aontu"
 has guardgen out '"role": "member"'
-ok "FIXED (ADR-011): pref & must() enforces AND keeps the default"
+ok "FIXED: pref & must() enforces AND keeps the default"
 
 # 23. Ranked preferences: * (team) outweighs ** (org baseline).
 run rank 0 -- "$DIR/exhibits/rank-default.aontu"
@@ -276,7 +276,7 @@ has lenmax out 'verdict: invalid'
 has lenmax out '$.x'
 ok "CLOSED: len(max(2)) refuses 3 data entries under vet"
 
-# 30. GAP CLOSED 2026-08-27 (ADR-007): stale references under vet. A
+# 30. GAP CLOSED 2026-08-27: stale references under vet. A
 # closed-map branch keyed on a data-supplied field via a reference used
 # to pass silently, because vet met the SETTLED schema -- the
 # standalone pass had already resolved `$.t.p` to `string` and replaced

@@ -117,7 +117,7 @@ function text(node) {
     return 'string' === node.t ? node.s : '';
 }
 // The official suite's shape: files of groups, each a schema and its
-// tests, read in the dialect the directory is written in (ADR-061).
+// tests, read in the dialect the directory is written in.
 function suiteGroups(dir, dialect) {
     const out = [];
     for (const file of files(dir, '', [])) {
@@ -153,7 +153,7 @@ function settle(text) {
     }
 }
 // Why a schema does not come back from import(export(import(S))) as its
-// first import (ADR-068), or undefined where it does.
+// first import (ADR-109), or undefined where it does.
 function roundTrip(schema, opts) {
     const again = { documents: opts.documents, formatAssertion: opts.formatAssertion, noMetaCheck: true };
     const first = (0, jsonschema_import_1.importJsonSchema)(schema, { ...again, path: opts.path, dialect: opts.dialect });

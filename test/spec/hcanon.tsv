@@ -95,7 +95,7 @@ canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: un
 hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: relate() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-KmW8_DBlgVUkMSUzEpe1LHPEWNtJaRnFqhNefib9O2w
 #
 # A link is written as the call the document wrote, at the field that
-# wrote it (ADR-080). So the hash tells a link from a path value that is
+# wrote it. So the hash tells a link from a path value that is
 # only data, and the form reads back to the same links.
 hcanon-relate-one-path	hcanon	a: next: relate() & path($.b)  b: {}	{"a":{"next":relate()&path($.b)},"b":{}}
 hash-relate-one-path	hash	a: next: relate() & path($.b)  b: {}	aon1-SxkQSGVzbu75zTHNXSjMY2gUNB0uQCe2qncMBhLLodY

@@ -2231,7 +2231,7 @@ Ruling 26 again: a path reference to a place whose terms read their own
 place is a copy of what the document writes there, read where the
 reference stands, as a use of a name is. What the data writes at the
 place is part of what the document writes there, as `vet(S, D)` and
-`eval(S ∪ D)` are one question (ADR-007), so it meets the copy too. -/
+`eval(S ∪ D)` are one question, so it meets the copy too. -/
 
 /-- What a term leaves for the next step of a path through its members
 alone, a map's member and a list's element at the step: as

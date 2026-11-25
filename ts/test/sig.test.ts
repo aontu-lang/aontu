@@ -113,7 +113,7 @@ describe('sig', () => {
   })
 
 
-  // ADR-080: canon writes a call the document wrote, never another in
+  // Canon writes a call the document wrote, never another in
   // its place. What it may write beside one is listed: the range a count
   // is read as, the value super() answers, and move()'s default.
   test('canon-writes-no-call-the-source-lacks', () => {

@@ -314,7 +314,7 @@ func newScalarKind(k Kind) *ScalarKindVal {
 	return v
 }
 
-func (k *ScalarKindVal) superior() Val { return top() } //coverage:ignore no caller: superOf answers for a kind peg (ADR-011 R4)
+func (k *ScalarKindVal) superior() Val { return top() } //coverage:ignore no caller: superOf answers for a kind peg
 func (k *ScalarKindVal) Canon() string {
 	if k.emptyOk {
 		return k.kind.String() + "&empty()"

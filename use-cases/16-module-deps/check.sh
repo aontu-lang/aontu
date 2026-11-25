@@ -196,7 +196,7 @@ ok "the architecture layers draw: four bands, every edge downward or sideways"
 # lines kept in step with it. One evaluation draws all seven, and
 # `--check` is the gate -- all or nothing, so a set whose fourth
 # figure refuses writes none of them. `views` is the document's own
-# key and `--views` says where to look (ADR-010).
+# key and `--views` says where to look (ADR-106).
 run views 0 -- view --views '$.views' --check "$DIR/views.aontu"
 # The same declarations, DRAWN rather than gated: a copy of the
 # document in a scratch directory writes the same seven figures there,

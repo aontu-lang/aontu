@@ -1,4 +1,4 @@
-# FIXED 2026-08-29 by ADR-011: keeping the default AND a must()
+# FIXED 2026-08-29 (the star is sugar): keeping the default AND a must()
 # backstop now does both.  Under vet this still refuses "superadmin"
 # (the must-carrying branch dies, the scalar branches die, empty), and
 # standalone evaluation generates "member" -- the preferred value

@@ -8,7 +8,7 @@
 # its arguments reports each element at its own index.
 # expected: findings at $.l.0.e and $.l.2.e
 # actual:   both at $.l.2.e (Go) / both at $.l.0.e (TypeScript)
-# FIXED 2026-09-07 (ADR-025).
+# FIXED 2026-09-07.
 E: hide(re("^g$"))
 ent: { U: close({ e: $.E }) }
 ent: hide({})

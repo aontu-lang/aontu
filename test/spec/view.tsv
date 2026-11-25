@@ -429,7 +429,7 @@ treemap-a-weight-past-two-to-the-53-is-unresolved	view	a: {size: 1e21}\nb: {size
 sequence-a-name-is-measured-in-code-points	view	flow: [{from: "🙂", to: "b", m: "é🙂"}]	{"ask":{"as":"text","from":"from","kind":"sequence","label":"m","steps":"$.flow","to":"to"},"kind":"sequence","loss":[],"text":"🙂      b\\n│      │\\n├─ é🙂 ►│\\n│      │","verdict":"rendered"}
 graph-er-an-encoded-name-never-meets-a-written-one	view	a: {columns: {"q_x": string, "x y": string, q_x_20_y: integer}, to: [&: relate(), path($.b)]}\nb: {}	{"ask":{"as":"er","columns":"columns","kind":"graph"},"kind":"graph","loss":[{"code":"unresolved_field","count":1,"detail":["$.b.columns"]}],"text":"erDiagram\\n  n_a[\\"a\\"] {\\n    string q_q_5f_x \\"q_x\\"\\n    integer q_q_5f_x_5f_20_5f_y \\"q_x_20_y\\"\\n    string q_x_20_y \\"x y\\"\\n  }\\n  n_b[\\"b\\"]\\n  n_a }o--o{ n_b : \\"to\\"","verdict":"lossy"}
 
-# SVG for every kind (ADR-078). The node-link kinds draw the arc
+# SVG for every kind (ADR-105). The node-link kinds draw the arc
 # drawing: a box per node on a row of its own, a band per group, and
 # each edge a bracket on a track of its own, tracks taken shortest span
 # first, so the drawing crosses exactly where the graph counts a

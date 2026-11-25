@@ -13,7 +13,7 @@ list-index	gen	a:[10,20,30] b:$.a.1	{"a":[10,20,30],"b":20}
 no-path	err	a:$.nope	Cannot resolve value: $.nope
 relative	gen	z:x:{a:62} z:y:.x.a	{"z":{"x":{"a":62},"y":62}}
 relative-add	gen	x:{a:4} y:.x.a	{"x":{"a":4},"y":4}
-# THE ENCLOSING KEY IS `key()`, AND ONLY `key()` (ADR-009). These three
+# THE ENCLOSING KEY IS `key()`, AND ONLY `key()`. These three
 # were written `.$KEY` until that name was removed; the assertions are
 # unchanged, because the two spellings agreed in every position where a
 # value does not travel.
@@ -45,7 +45,7 @@ key-nested-list-index-gens	gens	a:[{b:{k:key()}}]	{"a":[{"b":{"k":"b"}}]}
 # gives "c", not "a". Same rule that makes key() work under move() and
 # inside a spread template, reaching a plain reference too.
 #
-# This is the row ADR-009 needs. The removed `.$KEY` was EARLY-bound and
+# This is the row removing `.$KEY` needs. The removed `.$KEY` was EARLY-bound and
 # answered "a" here, so a document rewritten from one spelling to the
 # other changes value in exactly this shape (use-cases/BUGS.md §51) --
 # from the key of the definition to the key of the use, which is the
@@ -183,8 +183,8 @@ ref-unspellable-root-list	errc	**.[1]	no_path
 # lives in a fixture file, as file.tsv does.)
 ref-unspellable-no-collision	errc	@"__FIXTURES__/unspellable-key.aontu" b:$.a.true	no_path
 #
-# A REFERENCE'S COPY SHARES WHAT THE SOURCE IS STILL SETTLING
-# (ADR-025). The copy is a per-destination instance and owns the
+# A REFERENCE'S COPY SHARES WHAT THE SOURCE IS STILL SETTLING.
+# The copy is a per-destination instance and owns the
 # target's structure -- except where a STAGED call stands in it, which
 # has not decided and whose arguments are still being driven at its
 # own site. These three rows are the container shapes that carry such

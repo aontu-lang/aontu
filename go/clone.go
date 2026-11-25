@@ -314,8 +314,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		}
 		// `narrowed` rides with it: it is the override space the meets
 		// so far have left, and resuper() reapplies it whenever the gate
-		// is recomputed. Dropping it widened a pinned default back out
-		// (ADR-011 R1).
+		// is recomputed. Dropping it widened a pinned default back out.
 		out := &PrefVal{peg: peg, superpeg: n.superpeg,
 			narrowed: n.narrowed, alone: n.alone, rank: n.rank}
 		out.dc = n.dc

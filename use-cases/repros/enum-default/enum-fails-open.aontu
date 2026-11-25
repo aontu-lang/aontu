@@ -1,4 +1,4 @@
-# FIXED 2026-08-26 (the preference admission gate, ADR-004).
+# FIXED 2026-08-26 (the preference admission gate).
 # expected: 'autoo' refused -- it is not a member of the enum disjunction
 # actual (now matches): [aontu/empty] at $.k, exit 1 -- an override
 #         must be admitted by an alternative or equal the preferred

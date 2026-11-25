@@ -275,7 +275,7 @@ has mcp out 'VETSCHEMA ["schema","data"]'
 # surface (the MCP completion commit added subsume, breaking, set,
 # relations, hash and trim to the original six); reaches, view and
 # jsonschema followed, each with its verb, and `render` left with the
-# verb it wrapped (ADR-038).
+# verb it wrapped (ADR-108).
 ok "mcp: initialize + tools/list answer the expected tools"
 
 has mcp out 'VET_OK valid isError=false'

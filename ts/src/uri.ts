@@ -4,7 +4,7 @@
 // A URI reference, resolved and compared by the URI standard (RFC 3986):
 // the parse of appendix B, the resolution of section 5.2 and the case
 // and percent-encoding normalisation of section 6.2.2, and nothing a
-// host URL parser adds (ADR-003).
+// host URL parser adds (ADR-105).
 
 type UriParts = {
   scheme?: string

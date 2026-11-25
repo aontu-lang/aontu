@@ -96,7 +96,7 @@ func TestVersionFormat(t *testing.T) {
 	}
 }
 
-// ADR-041: one number names a release, so this reads the other port's
+// ADR-104: one number names a release, so this reads the other port's
 // literal.
 func TestVersionMatchesTheNpmPackage(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "ts", "package.json"))

@@ -103,7 +103,7 @@ grep -q 'no contributions' "$WORK/why.out" \
 ok "why: envelope-supplied field names the file that wrote it"
 
 # The price of the schema style: the contract never evaluates.
-# 2026-08-27 (ADR-007): the refusal is `disjunct_no_gen` on the
+# 2026-08-27: the refusal is `disjunct_no_gen` on the
 # envelope's `id: (integer | biginteger) & min(1)` -- an unresolved
 # disjunction is incomplete residue rather than a folded conflict -- so
 # evaluation stops at that field instead of a later constraint.
@@ -287,7 +287,7 @@ ok "the 0d data file is NOT strict JSON (pinned gap: producers cannot emit it)"
 
 # --- 6. Defaults vs enums: the two spellings. ---
 
-# 2026-08-26: fixed by the preference admission gate (ADR-004) --
+# 2026-08-26: fixed by the preference admission gate --
 # assertions updated to the new behaviour. The disjunct spelling now
 # ENFORCES the set: "9.9" is admitted by no alternative, so it vets
 # invalid ([aontu/empty]); the pref_not_instance advisory rides

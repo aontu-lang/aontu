@@ -138,7 +138,7 @@ shape-a-repetition-is-one-child-each	gens	G: hide(abnf("dur = \\"P\\" seg *seg\\
 # The classic dotted quad, four children of one rule.
 shape-a-dotted-quad	gens	G: hide(abnf("ip = \\"#\\" o \\".\\" o \\".\\" o \\".\\" o\\no = 1*3DIGIT\\nDIGIT = %x30-39\\n"))\nt: hide(parse($.G, "#192.168.0.1"))\noctets: pick($.t.kids, src)	{"octets":["192","168","0","1"]}
 #
-# VALUE ANNOTATIONS -- a grammar says what it BUILDS (ADR-033, amended
+# VALUE ANNOTATIONS -- a grammar says what it BUILDS (amended
 # 2026-09-12). A trailing RFC 5234 comment on a production names the
 # shape: `; @object <names...>` one member per part that produces a
 # value, `; @array` every such part as an element in order. The

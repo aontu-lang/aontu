@@ -202,7 +202,7 @@ func rereadOn(out, a, b Val) Val {
 }
 
 func uniteRaw(ctx *Ctx, a, b Val) Val {
-	// ABSENCE IS THE UNIT OF THE MEET (ADR-034). The dispatch below is
+	// ABSENCE IS THE UNIT OF THE MEET. The dispatch below is
 	// the LEFT operand's, so `&` commutes only if it is answered here.
 	if nil != a && nil != b {
 		if x, ok := a.(*AbsentVal); ok {

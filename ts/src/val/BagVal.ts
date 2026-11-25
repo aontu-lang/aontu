@@ -342,7 +342,7 @@ export function bagGenable(child: any): boolean {
 }
 
 
-// A container template waits for a member that has not decided (ADR-043).
+// A container template waits for a member that has not decided.
 export function undecided(child: any): boolean {
   return true === child.isMaybeFunc && !child.done
 }

@@ -1380,7 +1380,7 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 			sp: r.O0.SI, src: r.O0.Src})
 	} else if r.U["optional"] != true &&
 		(r.Child == nil || r.Child.Name != "multisource") {
-		// REQUIRED WINS (ADR-045): a plain pair votes for its key.
+		// REQUIRED WINS: a plain pair votes for its key.
 		req, _ := m[requiredKey].([]string)
 		m[requiredKey] = appendNew(req, key)
 	}
@@ -2575,7 +2575,7 @@ func asValDepth(node any, depth int) Val {
 	return newNil("parse_unknown")
 }
 
-// declareIdent marks ident() as a declaration's (ADR-056).
+// declareIdent marks ident() as a declaration's.
 func declareIdent(v Val) {
 	switch n := v.(type) {
 	case *FuncVal:

@@ -5120,7 +5120,7 @@ sr65	verdict	"v": must({"x": min($.v.y)}, "m")	{"v": {"x": 1, "y": 2}}	{"verdict
 sr66	verdict	"v": must({"x": min($.v.y)}, "m")	{"v": {"x": 3, "y": 2}}	{"verdict":"valid"}
 sr67	verdict	"v": must({"x": min($.v.y)}, "m")	{"v": {"x": 3, "y": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 sr68	verdict	"v": must({"x": min($.v.y)}, "m")	{"v": {"x": 3, "y": 2}}	{"verdict":"valid","opts":{"partial":true}}
-# One document in three orders follows in rows od0 on (ADR-081): a type and a
+# One document in three orders follows in rows od0 on: a type and a
 # subtype of it that name each other by path, the subtype written first, the
 # type written first, and the use written above both, each against no data,
 # data that keeps the type and data that breaks it. The definition reads the

@@ -10,7 +10,7 @@
 # A plain reference (`$.a.b` alone) stays the embedding it has always
 # been -- the row `capture-not-resolution` is the three-way contrast.
 #
-# Meets are SYNTACTIC, by the PREFIX rule (ADR-016): two path values
+# Meets are SYNTACTIC, by the PREFIX rule: two path values
 # meet when one spells a prefix of the other -- same anchor, the
 # shorter's segments opening the longer's -- and the result is the
 # LONGER: a path can always be told more precisely. Incomparable
@@ -37,7 +37,7 @@ capture-parent-step	gens	x: {auth:{}, b:{dep: path(..auth)}}	{"x":{"auth":{},"b"
 capture-dotted-is-relative	gens	q:{r:7} p: path(q.r)	{"p":".q.r","q":{"r":7}}
 capture-string-text	gens	a:{} d: path("$.a")	{"a":{},"d":"$.a"}
 # A COMPUTED string argument evaluates first, then converts by the
-# same grammar at resolve (ADR-016): addresses stay buildable.
+# same grammar at resolve: addresses stay buildable.
 computed-string-argument-converts	gens	a:{} d: path("$." + "a")	{"a":{},"d":"$.a"}
 # String text with no anchor is RELATIVE ("q.r" is the address .q.r,
 # the same address the raw spelling captures); only the anchor is
@@ -100,7 +100,7 @@ length-admits-a-path	gens	a:{} d: path($.a) & len(3)	{"a":{},"d":"$.a"}
 
 # --- neq over paths: exclusion identity is kind AND spelling ---------
 # `neq(path($.a))` excludes exactly that address -- never a plain
-# string that happens to spell it, which is the ADR-016 distinction
+# string that happens to spell it, which is the path-or-string distinction
 # stated as a constraint.
 neq-path-excludes-the-address	errc	a:1 x: neq(path($.a)) & path($.a)	constraint
 neq-path-ignores-a-string-spelling	gens	a:1 x: neq(path($.a)) & "$.a"	{"a":1,"x":"$.a"}

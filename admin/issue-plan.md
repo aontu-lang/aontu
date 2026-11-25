@@ -381,7 +381,7 @@ Coverage (#318, #732, #733), the language servers (#320, #834, #858, #859), the 
 | [#860](https://github.com/aontu-lang/aontu/issues/860) | tool | M |  | `trim --check` examines nothing below a key stated twice, an explicit `&` or a call, and answers `clean`. |
 | [#862](https://github.com/aontu-lang/aontu/issues/862) | design | M |  | No verb of either CLI, the REPL or the MCP tools can bind a host variable `$name`. HV1 of the lang refinement plan. |
 | [#869](https://github.com/aontu-lang/aontu/issues/869) | docs | S |  | `llms.txt` and `docs/lsp.md` count 68 built-ins where `test/spec/signature.tsv` declares 72. |
-| [#939](https://github.com/aontu-lang/aontu/issues/939) | bug | S |  | Coverage: `ts/src/cursor.ts` has 13 uncovered items on `main`, and `labelLength` in `ts/src/lsp.ts` one arm (ADR-002). |
+| [#939](https://github.com/aontu-lang/aontu/issues/939) | bug | S |  | Coverage: `ts/src/cursor.ts` has 13 uncovered items on `main`, and `labelLength` in `ts/src/lsp.ts` one arm (ADR-103). |
 
 ## With the lang refinement plan: three language changes
 

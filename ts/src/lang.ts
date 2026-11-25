@@ -239,7 +239,7 @@ let SCOPE_SEQ = 0
 const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
 const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
 const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
-// Keys a merged statement declared REQUIRED, so required wins (ADR-045).
+// Keys a merged statement declared REQUIRED, so required wins.
 const REQUIRED_MARK_KEY = RESERVED_KEY_PREFIX + 'required'
 
 // `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
@@ -849,7 +849,7 @@ help isolate the syntax error.`,
     mulof: MulofConstraintVal,
 
     // G1 phase 2: pattern membership, read and matched by aontu's own
-    // engine (ADR-060).
+    // engine (ADR-105).
     re: ReConstraintVal,
 
     len: LenConstraintVal,
@@ -1405,7 +1405,7 @@ help isolate the syntax error.`,
 
       .bc((r: Rule, ctx: JsonicContext) => {
         const optionalKeys = r.u.aontu_optional_keys ?? []
-        // REQUIRED WINS (ADR-045) between the statements of one map.
+        // REQUIRED WINS between the statements of one map.
         const requiredKeys: string[] = r.u.aontu_required_keys ?? []
         for (const k of requiredKeys) {
           const oi = optionalKeys.indexOf(k)
@@ -2112,7 +2112,7 @@ const textProcessor = (res: any) => {
 }
 
 // ident() is the whole of a declaration's value, or of one declaration
-// of a name declared more than once, whose values meet (ADR-056).
+// of a name declared more than once, whose values meet.
 function declareIdent(v: any): void {
   if (true === v?.isIdentFunc) {
     v.declared = true
@@ -2335,7 +2335,7 @@ function makeModelResolver(options: any) {
     const modref = memCapability ? undefined : parseModuleRef(path)
     if (null != modref) {
       // A bare `config.json` routes here now the major has left the
-      // name (ADR-022 part 4); the message says what was meant.
+      // name (ADR-111); the message says what was meant.
       const ext = localFileExt(modref.path)
       if (undefined !== ext &&
         undefined !== includeFormat(ext, options.textExt)) {

@@ -119,7 +119,7 @@
 #   Go's bound, a band whose lower edge moves with the host's stack
 #   size. The importer bounds
 #   what it writes instead: a disjunction or meet of more than 32
-#   members is nested in groups of at most 32 (ADR-047), so an
+#   members is nested in groups of at most 32 (ADR-109), so an
 #   imported schema never reaches the limit, while a hand-written chain
 #   of that length still does.
 #
@@ -411,11 +411,11 @@
 #   destination and dies no_path. The real fix is a TypeScript twin of
 #   Go's cloneAt/overlayPath -- a clone that takes a destination path --
 #   which is wider than any one finding and is the arm-for-arm
-#   correspondence ADR-001 asks for.
+#   correspondence ADR-102 asks for.
 #
 # ---------------------------------------------------------------------
 #
-# CLOSED 2026-08-30 by ADR-014 -- Go's DERIVED GRAPH loses most of its
+# CLOSED 2026-08-30 by removing the identity mark -- Go's DERIVED GRAPH loses most of its
 #   edges on a two-view
 #   id-merged model, so `relations` silently misses a real cycle and
 #   `reaches` would under-answer with it.
@@ -459,7 +459,7 @@
 #
 #   FIXED by removing the cause. The divergence was in "how each port's
 #   identity merge places a link-stamped value at an entity's other
-#   positions"; ADR-014 removes the identity merge, so there are no
+#   positions"; removing the identity mark removes the identity merge, so there are no
 #   other positions and a link is stamped where it is written. Both
 #   ports now report the same cycle over the same edge set, and
 #   `AONTU=<go binary> check.sh` passes all 20 assertions.
@@ -467,7 +467,7 @@
 #
 # ---------------------------------------------------------------------
 #
-# CLOSED 2026-08-30 by ADR-014 -- an id-spread refusal is pathed at `$`
+# CLOSED 2026-08-30 by removing the identity mark -- an id-spread refusal is pathed at `$`
 #   by TypeScript and at `$.&` by Go.
 #   issue: none filed yet; found 2026-08-27 while fixing the crash the
 #   same document caused (use-cases/BUGS.md 43). PRE-EXISTING and
@@ -483,7 +483,7 @@
 #   carries it -- which is a language answer rather than a port
 #   difference, and neither port was obviously right.
 #
-#   MOOT since ADR-014: `id_spread` was clearing rule 3, and the rule
+#   MOOT since the identity mark was removed: `id_spread` was clearing rule 3, and the rule
 #   existed only to stop one global name being stamped on every child
 #   of a bag. With no global names there is no rule and no code. The
 #   SHAPE the divergence was about -- a nil root carrying no collected

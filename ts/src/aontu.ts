@@ -508,7 +508,7 @@ export {
   reachCheck,
   jsonSchema,
   importJsonSchema,
-  // ADR-066: a vet report as JSON Schema's output units, located through
+  // A vet report as JSON Schema's output units, located through
   // the importer's source map, and a map read back from its file.
   vetOutput,
   readSourceMap,

@@ -2,7 +2,7 @@
 # giving both a default and enum enforcement before 2026-08-26. Still
 # works: unset -> {"k":"auto"}; k:'literal' -> passes; k:'autoo' ->
 # [aontu/match_none] exit 1 (error path names $.chk, not $.k). Since
-# the preference admission gate (ADR-004) landed, the plain
+# the preference admission gate landed, the plain
 # `k: *'auto'|'literal'|'data'` enforces on its own and this helper is
 # no longer needed; kept as the historical workaround.
 k: *'auto'

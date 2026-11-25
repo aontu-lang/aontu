@@ -92,7 +92,7 @@ function collectNils(root, seen) {
             v.peg.slice(1).forEach((arm) => walked.add(arm));
         }
         // A written `nil` under an optional key nobody supplied is no
-        // finding (ADR-046).
+        // finding.
         if (true === v.isMap) {
             for (const k of v.optionalKeys) {
                 if (true === v.peg[k]?.isNil && 'literal_nil' === v.peg[k].why) {

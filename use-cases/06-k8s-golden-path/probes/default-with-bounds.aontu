@@ -1,4 +1,4 @@
-# FIXED 2026-08-29 by ADR-011 (the star is sugar for `*x | super(x)`):
+# FIXED 2026-08-29 (the star is sugar for `*x | super(x)`):
 # a ranked default AND bounds on the same field now work.  The
 # preferred value answers the meet first, and 2 satisfies min(1) &
 # max(20), so the default generates -- while the bounds ride the

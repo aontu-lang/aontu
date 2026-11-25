@@ -166,7 +166,7 @@ function normaliseEscape(n, src, i, inClass) {
     return ['', '\\' + n + ', an escape whose meaning the two engines do not' +
             ' share', 0];
 }
-// Why the format refuses s, or undefined where it admits it (ADR-059).
+// Why the format refuses s, or undefined where it admits it (ADR-105).
 function formatWhy(f, s) {
     const head = 'format ' + f.name + ': ';
     if (undefined === f.gs) {
@@ -334,7 +334,7 @@ function sameScalar(a, b) {
         return (0, numcmp_1.towerRank)(a) === (0, numcmp_1.towerRank)(b) && 0 === (0, numcmp_1.cmpNumeric)(a, b);
     }
     if (true === a?.isPath || true === b?.isPath) {
-        // Path identity is kind AND spelling (ADR-016): `neq(path($.x))`
+        // Path identity is kind AND spelling: `neq(path($.x))`
         // excludes exactly that address, and never a plain string that
         // happens to spell it.
         return true === a?.isPath && true === b?.isPath && a.peg === b.peg;
@@ -382,7 +382,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.whens = [];
         this.contains = [];
         this.rests = [];
-        // The call each part of a merged residual was written as (ADR-066).
+        // The call each part of a merged residual was written as.
         this.sites = new Map();
         if (spec.state) {
             this.domain = spec.state.domain;
@@ -553,7 +553,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.res = [{ v: a, src, norm: (0, regex_1.exportForm)(src)[0], prog }];
             return;
         }
-        // A committed name or a grammar, read and checked once (ADR-059).
+        // A committed name or a grammar, read and checked once (ADR-105).
         if ('format' === atom) {
             if (!stringLeaf(a)) {
                 return bad('invalid-arg');
@@ -670,7 +670,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (settled) {
             // The residual the atom always meant, at this atom's site: a bound's
             // stands against the top unless it reads a choice, and another atom's
-            // over written nils alone, refusing as one written does (ADR-046).
+            // over written nils alone, refusing as one written does.
             const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx);
             built.path = this.path;
             built.site.row = this.site.row;
@@ -748,7 +748,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         return this.checkNofs(peer, ctx) ?? this.checkWhens(peer, ctx) ?? peer;
     }
-    // ADR-058: a member no applying cover evaluates must be admitted by the
+    // A member no applying cover evaluates must be admitted by the
     // atom's own schema.
     checkRests(peer, ctx) {
         const own = 0 === this.rests.length ? undefined : (0, admission_1.ownJson)(peer, ctx);

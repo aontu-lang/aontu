@@ -153,7 +153,7 @@ abstract class Val {
   // The aliases this value is a copy of, which the exporter writes as $ref.
   via?: string[]
 
-  // A declaration's record (ADR-056, ADR-073), which no copy carries.
+  // A declaration's record, which no copy carries.
   identity?: Record<string, any[]>
 
   // The graph atoms met here, which the relation checks read by key name.

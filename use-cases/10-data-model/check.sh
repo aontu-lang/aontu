@@ -175,9 +175,9 @@ has guniq '[aontu/constraint]'
 has guniq '$.customers'
 ok "unique(ledgerId) catches the duplicate ledgerId across customers"
 
-# 2026-08-26: gap 6 fixed by the template-clone isolation change
-# (ADR-005). This had TWO halves until ADR-014 removed the identity
-# mark and the `id(key(0))` half stopped being a spelling; the shared
+# 2026-08-26: gap 6 fixed by the template-clone isolation change.
+# This had TWO halves until the identity mark was removed
+# and the `id(key(0))` half stopped being a spelling; the shared
 # suite dropped its pin (load-alias-idspread) with it. What remains is
 # the half that was never about identity: an include whose record type
 # references a named alias used to SILENTLY DROP the record -- exit 0,
@@ -273,7 +273,7 @@ ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 # (which keys are optional -- README, BUGS.md 86) stated as data.
 #
 # EACH LANGUAGE SPELLS ITSELF NOW. There is no declaration lowering to
-# do it (ADR-038): the facts are shared and the spelling is not, so the
+# do it (ADR-108): the facts are shared and the spelling is not, so the
 # Go casing is `nom(.n, pascal, $.acronyms)` written in the transform
 # where it used to be the bundled profile's acronym set. That is the
 # cost of the decision, and this is where the corpus pays it.
@@ -307,7 +307,7 @@ if command -v go >/dev/null 2>&1; then
       || fail "the Go port did not build $x.aontu's tree"
     $AONTU model get out "$DIR/$x.aontu" 2>/dev/null > "$WORK/$x.ts.json"
     diff -u "$WORK/$x.ts.json" "$WORK/$x.go.json" \
-      || fail "$x.aontu: the two ports build different trees (ADR-001)"
+      || fail "$x.aontu: the two ports build different trees (ADR-102)"
   done
   ok "both ports build the same trees for both transforms"
 else

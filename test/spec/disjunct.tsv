@@ -39,7 +39,7 @@ disjunct-top-pref-not-deduped-canon	canon	x:*any|any	{"x":*any|any}
 # The members are genuinely different values, so no amount of deduping
 # reaches this: it survives the any|any fix entirely.
 #
-# ADR-007 REWROTE THE SPELLING, NOT THE POINT. These rows used to read
+# GENERATING AN INSTANCE REWROTE THE SPELLING, NOT THE POINT. These rows used to read
 # `null|any`, which the old generation FOLD turned into null (`null &
 # any` is null) -- an answer that came from the fold rather than from
 # the model, and one a plain `x:any` already refuses as incomplete. An
@@ -55,12 +55,12 @@ disjunct-null-plain-gens	gens	x:null|null	{"x":null}
 #
 # The unresolved forms themselves, in the class that makes vet work:
 # more than one alternative still admitted is INCOMPLETE residue, not a
-# conflict of the fold (use-cases/BUGS.md §13, ADR-007).
+# conflict of the fold (use-cases/BUGS.md §13).
 #
 # THE DEDUP IS STRUCTURAL. Two separately built maps are never the same
 # object, so identity-based dedup left `{"a":1}|{"a":1}` -- a
 # disjunction of one value spelled twice -- and the old generation fold
-# hid it by folding the value with itself. Under ADR-007 it would read
+# hid it by folding the value with itself. Generated as an instance it would read
 # as ambiguous, so the dedup compares SHAPE: container kind, closedness,
 # marks, optional keys and the key set, then the children pairwise. The
 # optional-key rows are the strict half: same keys, same values,
@@ -81,7 +81,7 @@ disjunct-mark-differs-stays	canon	x:type({a:1})|{a:1}	{"x":{"a":1}|{"a":1}}
 disjunct-keycount-differs-stays	canon	x:{a:1}|{a:1,b:2}	{"x":{"a":1}|{"a":1,"b":2}}
 disjunct-optional-differs-stays	canon	x:{a?:1,b:1}|{b?:1,a:1}	{"x":{"a"?:1,"b":1}|{"a":1,"b"?:1}}
 # TRANSLATED (BUGS.md §52 regime 4's fix): alternatives that GENERATE
-# the same value are resolved -- ADR-007's rule asked at the moment it
+# the same value are resolved -- the instance rule asked at the moment it
 # matters. These two arms differ in optionality alone; both generate
 # {"a":1,"b":1}, and one generated value is one value. (What forced
 # the rule: `[] | [&: T]` met by an empty list keeps both arms, since

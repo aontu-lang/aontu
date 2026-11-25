@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// G12 phase 18 (ADR-068): every schema of the official suite, in every
+// G12 phase 18 (ADR-109): every schema of the official suite, in every
 // dialect, comes back from import(export(import(S))) as import(S), canon
 // for canon and subsuming both ways, or its group is a row of the ledger
 // test/vectors/jsonschema/roundtrip.tsv.

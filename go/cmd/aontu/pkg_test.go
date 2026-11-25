@@ -586,7 +586,7 @@ func TestPkgVendorRefusesAnEscapingPath(t *testing.T) {
 
 // A project still carrying the older layout -- mod.aon, a root or
 // aontu_meta/ mod-lock.aon, aon_vendor/ -- is told the current one,
-// once, whatever the verb; nothing there is read (ADR-039).
+// once, whatever the verb; nothing there is read.
 func TestPkgNamesTheOldLayout(t *testing.T) {
 	dir := t.TempDir()
 	pkgWrite(t, filepath.Join(dir, "mod.aon"), "mod: { path: \"corp.example/app\" }\n")
@@ -616,7 +616,7 @@ func TestPkgNamesTheOldLayout(t *testing.T) {
 	}
 }
 
-// The generation ADR-042 withdrew: a project whose package file and
+// The withdrawn `.aon` generation: a project whose package file and
 // lockfile are spelled .aon declares nothing to any verb, so `verify`
 // would answer over an empty project rather than the real one.
 func TestPkgNamesTheWithdrawnExtension(t *testing.T) {

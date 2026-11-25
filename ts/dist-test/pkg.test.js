@@ -901,7 +901,7 @@ function withCache(dir, fn) {
         Assert.deepEqual(ok.report.findings, []);
     });
     (0, node_test_1.test)('the-gate-checks-outcome-as-well-as-acceptance', () => {
-        // ADR-022: `port: 8080` -> `port: integer` passes subsumption and
+        // ADR-111: `port: 8080` -> `port: integer` passes subsumption and
         // turns a working consumer build into an error.
         const prior = publishable('1.0.0', 'name: string\nport: 8080\n');
         const loosened = manifestOf(publishable('1.1.0', 'name: string\nport: integer\n'), prior);
@@ -942,7 +942,7 @@ function withCache(dir, fn) {
         Assert.equal(manifestOf(publishable('1.1.0', 'a: 1\n'), publishable('1.0.0', 'a: 1 & 2\n')).report.verdict, 'error');
     });
     (0, node_test_1.test)('there-is-no-major-to-bump-past-the-gate', () => {
-        // Under ADR-022 a breaking change needs a new NAME, chosen by the
+        // Under ADR-111 a breaking change needs a new NAME, chosen by the
         // publisher; a version number is not a promise the toolchain can
         // check, so a bigger one buys nothing at the gate.
         const prior = publishable('1.0.0', MODULE);

@@ -59,7 +59,7 @@ upgrade deliberately and run `make test` before loosening any pin.
 
 ### Where the ports do not mirror each other structurally
 
-Nowhere, without a register entry. ADR-001 asks the port to mirror
+Nowhere, without a register entry. ADR-102 asks the port to mirror
 TypeScript's *structure*, not only its results, and a shape difference
 answers the same bytes — so every row in the shared suite passes while
 the two files drift apart, and no gate in the spec can say otherwise.

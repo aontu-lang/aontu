@@ -130,7 +130,7 @@ import/publish line the thing is on rather than trusting the ear.
   A vendored package keeps the manifest and proof it was acquired with
   under its own `aontu_meta/`; a package in the user cache's store also
   keeps the lock it was verified against, which the vendored copy drops
-  so that the consumer's lock governs (ADR-039).
+  so that the consumer's lock governs.
 - The package verbs reach a repository through one seam, `PkgHttp`
   (`ts/src/pkg-net.ts`) and `PkgHTTP` (`go/pkgnet.go`); every decision
   is above it and the platform transport below it. Tests hand in a

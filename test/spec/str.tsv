@@ -129,7 +129,7 @@ rep-unmatched-group-is-empty	gens	o: rep("b", "(a)|(b)", "[$1$2]")\n	{"o":"[b]"}
 # fails on tomorrow's otherwise.
 # THE PATTERN IS THE PORTABLE SUBSET. rep() and split() need where a
 # match falls, which aontu's own matcher does not say (it answers only
-# whether a pattern matches, ADR-060), so each port's host engine runs
+# whether a pattern matches, ADR-105), so each port's host engine runs
 # them, over the syntax both hosts read alike: no Unicode property, no
 # named group, no repeat count above 1000, and no quantifier over a
 # group holding a quantifier or an alternation, which a backtracking

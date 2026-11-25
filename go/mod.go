@@ -20,7 +20,7 @@ type ModuleRef struct {
 	Hash string
 }
 
-// A package path is `<domain>/<path>` and carries no major (ADR-022).
+// A package path is `<domain>/<path>` and carries no major (ADR-111).
 var moduleRe = regexp.MustCompile(
 	`^([a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+(?:/[A-Za-z0-9._-]+)*)(?:#(aon1-[A-Za-z0-9_-]+))?$`)
 
@@ -87,7 +87,7 @@ func validateModulePath(path string) string {
 }
 
 // localFileExt is the extension of a routed path's final element, when
-// it carries one: the sign the import was meant as a file (ADR-022
+// it carries one: the sign the import was meant as a file (ADR-111
 // part 4).
 func localFileExt(path string) string {
 	elems := strings.Split(path, "/")
@@ -168,7 +168,7 @@ func lockJSON(text string) string {
 	return strings.Join(out, "\n")
 }
 
-// The user cache's trees (ADR-039 part 2).
+// The user cache's trees.
 func cacheStoreDir(cache, hash, pkg string) string {
 	return moduleDir(filepath.Join(cache, "store", hash), pkg)
 }

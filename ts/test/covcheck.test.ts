@@ -1,6 +1,6 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// The ADR-002 gate's own union rule: a gate that clears a gap fails
+// The ADR-103 gate's own union rule: a gate that clears a gap fails
 // silently. `test/covrun.js` calls the same checker.
 
 import { describe, test } from 'node:test'

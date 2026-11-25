@@ -281,7 +281,7 @@ grep -v 'search_reranker_v3.*message' "$OV" > "$OV.tmp" && mv "$OV.tmp" "$OV"
 
 echo "# -------------------------- write loop: the DEFERRED policy trap"
 
-# CRITICAL FINDING, CLOSED 2026-08-27 (ADR-007). `set`'s verdict is
+# CRITICAL FINDING, CLOSED 2026-08-27. `set`'s verdict is
 # vet's verdict of entry vs overlay, and vet used to meet the SETTLED
 # entry -- a tree whose must() audits had already been discharged
 # against the entry's own values, before the overlay existed. So
@@ -305,7 +305,7 @@ run zombieval 0 "$WORK/system.aontu"
 ok "the refused write never reached the overlay; runtime view stays valid"
 
 # The range audit is the same story, and closed the same way
-# (2026-08-27, ADR-007): an out-of-range rollout on the megacorp tenant
+# (2026-08-27): an out-of-range rollout on the megacorp tenant
 # used to be accepted even by the fleet-safe write path -- the catalog
 # field carries no inline range (phase-1 limit, README), and the
 # rollout_range must() audit had already been discharged against the

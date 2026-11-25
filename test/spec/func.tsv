@@ -138,8 +138,7 @@ lower-locale-independent-i	gens	x:lower("I")	{"x":"i"}
 upper-ascii-unchanged	gens	x:upper("abc")	{"x":"ABC"}
 lower-ascii-unchanged	gens	x:lower("ABC")	{"x":"abc"}
 upper-digits-punct-unchanged	gens	x:upper("a1!")	{"x":"A1!"}
-# path with a string argument reads ADDRESS TEXT (issue #38, then
-# ADR-015/016): text with no anchor is RELATIVE, the address the raw
+# path with a string argument reads ADDRESS TEXT (issue #38): text with no anchor is RELATIVE, the address the raw
 # spelling captures -- `path("b")` is the capture `path(.b)`, position-
 # independent data, not the value at b.
 path-scalar-name	gens	a:path("b") b:2	{"a":".b","b":2}
@@ -166,7 +165,7 @@ func-arity-constraint-two	errc	a:min(1,2)	func_arity
 func-arity-key-two	errc	a:key(1,2)	func_arity
 func-arity-msg	err	a:upper("x",0,1,2)	upper takes one to three arguments, but was given 4
 # A zero-arity builtin renders its own phrasing: before the {0,0} arm
-# (ADR-015's kinds returned it), map(1) claimed map takes exactly one.
+# (the path kinds returned it), map(1) claimed map takes exactly one.
 func-arity-none-msg	err	a:acyclic(1)	acyclic takes no arguments, but was given 1
 # The message words the interval the signature declares, for each
 # interval the table holds: a count, a pair, a ceiling and a floor.

@@ -19,7 +19,7 @@ exports.lockEntry = lockEntry;
 exports.refuseLocalFile = refuseLocalFile;
 exports.resolveModule = resolveModule;
 const node_path_1 = require("node:path");
-// A package path is `<domain>/<path>` and carries no major (ADR-022).
+// A package path is `<domain>/<path>` and carries no major (ADR-111).
 const MODULE_RE = /^([a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+(?:\/[A-Za-z0-9._-]+)*)(?:#(aon1-[A-Za-z0-9_-]+))?$/;
 const ALIAS_RE = /^(alias:[A-Za-z0-9._-]+)(?:#(aon1-[A-Za-z0-9_-]+))?$/;
 exports.ALIAS_PREFIX = 'alias:';
@@ -66,7 +66,7 @@ function validateModulePath(path) {
 }
 // The final element of a routed path, when it carries an extension the
 // include table knows, was meant as a file: the commonest mistake once
-// the major left the name (ADR-022 part 4), so it gets its own message.
+// the major left the name (ADR-111), so it gets its own message.
 function localFileExt(path) {
     const last = path.split('/').pop();
     const m = /\.([^.]+)$/.exec(last);
@@ -127,7 +127,7 @@ function modCacheDirFor(platform, env) {
     }
     return undefined;
 }
-// The user cache's trees (ADR-039 part 2).
+// The user cache's trees.
 function cacheStoreDir(cache, hash, pkg) {
     return moduleDir((0, node_path_1.join)(cache, 'store', hash), pkg);
 }

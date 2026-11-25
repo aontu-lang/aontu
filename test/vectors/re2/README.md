@@ -12,7 +12,7 @@ leftmost-first and then leftmost-longest. The runners,
 each pattern as `re()` does. They compare its verdict with the second
 result, RE2's unanchored search, which asks what `re()` asks: whether
 the pattern matches anywhere. RE2 reads `.`, `\A`, `\z`, `\b`, `\d` and
-`\w` as aontu does (ADR-003); its `\s` lacks `\v`, which aontu's holds,
+`\w` as aontu does (ADR-105); its `\s` lacks `\v`, which aontu's holds,
 and no string of the file holds one.
 
 A pattern `re()` refuses is RE2's syntax and not ECMA-262's: `\C`, an

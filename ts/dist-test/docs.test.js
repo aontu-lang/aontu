@@ -1005,7 +1005,7 @@ corpusDescribe('docs-style', () => {
             '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
     // The register's status column, held to it below, plus the markers it
-    // and ADR.md write in prose. A published page states what holds now,
+    // writes in prose. A published page states what holds now,
     // so one of these on it is a status its reader cannot act on.
     const PHASE_WORDS = /\b(LANDED|PARTIAL|NOT STARTED|RETIRED|SUPERSEDED|AMENDED)\b/g;
     const REGISTER = Path.join(REPO, 'sketch', 'capability-review', 'progress.md');
@@ -1145,7 +1145,7 @@ corpusDescribe('docs-style', () => {
         claim(phase('PARTIAL'), 'a status the register uses and nothing else did');
         claim(!phase('Nothing landed yet'), 'the lower-case word is ordinary prose');
         claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase');
-        claim(cites('ADR-018 removed the pipe'), 'a numbered decision record');
+        claim(cites('ADR-101 holds the definition'), 'a numbered decision record');
         claim(!cites('a G8 grammar'), 'a phase needs its number');
         claim(cites('the steps in admin/scripts'), 'the admin folder');
         claim(cites('[the gate](../admin/scripts/comment-gate.cjs)'), 'the admin folder climbed to from a page');
@@ -1267,7 +1267,7 @@ corpusTest('the-error-catalogue-is-the-registry', () => {
     Assert.deepEqual(wrong, [], 'catalogue rows disagreeing with the registry');
 });
 // trust.md spells its extension count in prose beside the list it
-// counts, so the two drift apart under ADR-042 exactly as the error
+// counts, so the two drift apart exactly as the error
 // totals above do. The page's own list is the subject: every extension
 // it names must be read by an include, and the stated count must be how
 // many it names.

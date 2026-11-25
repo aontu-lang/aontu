@@ -81,7 +81,7 @@ func nodeAt(root Val, path []string) bool {
 }
 
 // Reach answers whether `to` is reachable from `from` over the link
-// graph of src. Endpoints are `$.dotted` node paths (ADR-014).
+// graph of src. Endpoints are `$.dotted` node paths.
 func (a *Aontu) Reach(src, from, to string, opts *ReachOptions) ReachReport {
 	options := ReachOptions{}
 	if nil != opts {

@@ -133,7 +133,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         }
         // A residual still waiting for its definition keeps the meet open.
         out.dc = !open && outvals.every((v) => type_1.DONE === v.dc) ? type_1.DONE : this.dc + 1;
-        // A meet flattened in leaves its riders on the whole (ADR-052).
+        // A meet flattened in leaves its riders on the whole.
         for (const c of carried) {
             out = (0, unify_1.rideOn)(ctx, out, c, undefined);
         }

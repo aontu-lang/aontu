@@ -333,3 +333,213 @@ Still open: `aontu render` reads `$.out` by default (is that the
 location ADR-106 forbids, or a CLI default it permits?), and ADR-102
 keeps "TypeScript is canonical where the definition is silent" beside
 ADR-101.
+
+## 7. The migration as done
+
+Every `ADR-0NN` in the aontu repository outside `sketch/`,
+`CHANGELOG.md` and `ADR.md` was mapped in one pass by the table in
+section 5, with 132 hand-reviewed exact replacements for the
+citations a sentence leaned on. `ts/dist` and `ts/dist-test` were
+rebuilt from the edited sources, not edited.
+
+| Area | Renumbered | Removed or rewritten | All |
+|---|---|---|---|
+| `.github` | 3 | 8 | 11 |
+| `admin` | 1 | 1 | 2 |
+| `docs` | 13 | 8 | 21 |
+| `go` | 28 | 105 | 133 |
+| `spec` | 1 | 37 | 38 |
+| `test` | 74 | 171 | 245 |
+| top-level files | 21 | 7 | 28 |
+| `ts/dist` (rebuilt) | 17 | 75 | 92 |
+| `ts/dist-test` (rebuilt) | 11 | 13 | 24 |
+| `ts/src`, `ts/scripts` | 28 | 96 | 124 |
+| `ts/test` | 15 | 15 | 30 |
+| `use-cases` | 37 | 153 | 190 |
+| `web` | 0 | 2 | 2 |
+| all | 249 | 691 | 940 |
+
+The `module_local` hint cited the old ADR-022 in engine output, which
+the style guide forbids; the citation was removed from the hint in
+both ports and the web bundle rather than renumbered.
+
+**Open: history links.** `ts/test/docs.test.ts`'s
+`every-internal-link-resolves` reads `CHANGELOG.md` and
+`sketch/capability-review/`, whose links into the old record
+(`ADR.md#adr-0NN--…`) no longer resolve. Those files are history and
+were left alone, so that test fails until one of these is chosen: point
+those links at the old record's last commit
+(`https://github.com/aontu-lang/aontu/blob/ae76d1f523ca9ea535a09a30952b2efc23efe181/ADR.md#adr-0NN--…`,
+text untouched); drop their fragments; or let the test skip history
+files.
+
+## 8. Follow-up: the sibling repositories
+
+The system, mod and web repositories cite aontu's old numbers, which
+their comment gates leave unchecked. Listed from each repository's
+`origin/main`; the open `adopt-agent-info` branches change some of
+these lines, so re-run the list on whichever merges first. "Mechanical"
+means the section 5 pass handles the line; "by hand" means the
+sentence leans on the citation. `system/spec/registry.aontu` holds
+the numbers as data (`renders: [...]`), so its change is a data change.
+`web/test/worker.test.mjs` tests the comment gate's `elsewhere`
+rule with `aontu ADR-011` as its example: replace it with a number
+that exists, such as `aontu ADR-111`, and the same in
+`web/ADR.md`'s header.
+
+| Citation | Replacement | Pass |
+|---|---|---|
+| `system/.github/workflows/spec.yml:8` | ADR-001 → ADR-102 | mechanical |
+| `system/docs/design/CLI.0.md:114` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/docs/design/CLI.0.md:293` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/CLI.0.md:294` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/CLI.0.md:476` | ADR-012 → remove | by hand |
+| `system/docs/design/DISTRIBUTION.0.md:160` | ADR-012 → remove | by hand |
+| `system/docs/design/DISTRIBUTION.0.md:167` | ADR-001 → ADR-102; ADR-002 → ADR-103 | mechanical |
+| `system/docs/design/DISTRIBUTION.0.md:187` | ADR-013 → ADR-110 | mechanical |
+| `system/docs/design/DISTRIBUTION.0.md:216` | ADR-001 → ADR-102 | mechanical |
+| `system/docs/design/DISTRIBUTION.0.md:261` | ADR-013 → ADR-110 | mechanical |
+| `system/docs/design/DISTRIBUTION.0.md:293` | ADR-013 → ADR-110 | mechanical |
+| `system/docs/design/ENVIRONMENTS.0.md:273` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/LEGAL.0.md:25` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/LEGAL.0.md:104` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/LEGAL.0.md:234` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/LEGAL.0.md:236` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/LEGAL.0.md:290` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/LEGAL.0.md:435` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/LEGAL.0.md:547` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/LEGAL.0.md:627` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/LEGAL.0.md:628` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/LEGAL.0.md:632` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/README.md:28` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/README.md:100` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/README.md:110` | ADR-020 → ADR-111 | mechanical |
+| `system/docs/design/README.md:134` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/REPOSITORY.0.md:134` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:207` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/REPOSITORY.0.md:278` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:438` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:547` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:680` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/REPOSITORY.0.md:700` | ADR-013 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:729` | ADR-001 → ADR-102 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:957` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1066` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/REPOSITORY.0.md:1301` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/REPOSITORY.0.md:1312` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1392` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1473` | ADR-022 → ADR-111 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1498` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1603` | ADR-012 → remove | by hand |
+| `system/docs/design/REPOSITORY.0.md:1609` | ADR-012 → remove | by hand |
+| `system/docs/design/REPOSITORY.0.md:1677` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1852` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1919` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:1927` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:2000` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:2077` | ADR-002 → ADR-103 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:2080` | ADR-019 → ADR-110; ADR-021 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:2090` | ADR-013 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:2096` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:2108` | ADR-012 → remove | by hand |
+| `system/docs/design/REPOSITORY.0.md:2109` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/REPOSITORY.0.md:2189` | ADR-013 → ADR-110 | mechanical |
+| `system/docs/design/REPOSITORY.0.md:2207` | ADR-012 → remove | by hand |
+| `system/docs/design/REPOSITORY.0.md:2216` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/design/REPOSITORY.0.md:2219` | ADR-019 → ADR-110 | mechanical |
+| `system/docs/manual-tasks.md:45` | ADR-041 → ADR-104 | mechanical |
+| `system/docs/manual-tasks.md:53` | ADR-041 → ADR-104 | mechanical |
+| `system/docs/manual-tasks.md:404` | ADR-001 → ADR-102 | mechanical |
+| `system/docs/manual-tasks.md:668` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/docs/manual-tasks.md:806` | ADR-041 → ADR-104 | mechanical |
+| `system/docs/runbooks/key-custody.md:41` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/docs/runbooks/mirror-and-exit.md:5` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/README.md:77` | ADR-019 → ADR-110; ADR-020 → ADR-111; ADR-021 → ADR-110; ADR-022 → ADR-111; ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/README.md:116` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/README.md:353` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/README.md:430` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/README.md:441` | ADR-020 → ADR-111; ADR-022 → ADR-111 | mechanical |
+| `system/spec/README.md:445` | ADR-019 → ADR-110; ADR-022 → ADR-111; ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/README.md:449` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/README.md:450` | ADR-021 → ADR-110 | mechanical |
+| `system/spec/README.md:486` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/README.md:487` | ADR-020 → ADR-111; ADR-021 → ADR-110 | mechanical |
+| `system/spec/README.md:488` | ADR-022 → ADR-111 | mechanical |
+| `system/spec/README.md:489` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/README.md:502` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/README.md:541` | ADR-001 → ADR-102 | mechanical |
+| `system/spec/README.md:564` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/acquire.aontu:3` | ADR-019 → ADR-110; ADR-020 → ADR-111 | mechanical |
+| `system/spec/acquire.aontu:4` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/acquire.aontu:8` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/acquire.aontu:28` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/acquire.aontu:33` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/acquire.aontu:52` | ADR-020 → ADR-111 | mechanical |
+| `system/spec/diagram.mjs:171` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/layout.aontu:2` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/layout.aontu:12` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/locked.aontu:2` | ADR-019 → ADR-110; ADR-021 → ADR-110 | mechanical |
+| `system/spec/names.aontu:2` | ADR-020 → ADR-111; ADR-022 → ADR-111 | mechanical |
+| `system/spec/names.aontu:7` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/names.aontu:10` | ADR-020 → ADR-111 | mechanical |
+| `system/spec/names.aontu:14` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/names.aontu:55` | ADR-022 → ADR-111 | mechanical |
+| `system/spec/names.aontu:57` | ADR-022 → ADR-111 | mechanical |
+| `system/spec/names.aontu:78` | ADR-020 → ADR-111 | mechanical |
+| `system/spec/objects.aontu:2` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/objects.aontu:3` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/objects.aontu:14` | ADR-012 → remove | by hand |
+| `system/spec/objects.aontu:30` | ADR-012 → remove | by hand |
+| `system/spec/params.aontu:12` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/params.aontu:34` | ADR-022 → ADR-111 | mechanical |
+| `system/spec/params.aontu:50` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/params.aontu:53` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/params.aontu:54` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/params.aontu:55` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/params.aontu:56` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/params.aontu:57` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/params.aontu:59` | ADR-020 → ADR-111 | mechanical |
+| `system/spec/private.aontu:2` | ADR-021 → ADR-110 | mechanical |
+| `system/spec/private.aontu:28` | ADR-021 → ADR-110 | mechanical |
+| `system/spec/publish.aontu:2` | ADR-019 → ADR-110; ADR-020 → ADR-111 | mechanical |
+| `system/spec/publish.aontu:3` | ADR-022 → ADR-111; ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/publish.aontu:62` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/publish.aontu:63` | ADR-022 → ADR-111 | mechanical |
+| `system/spec/publish.aontu:65` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/registry.aontu:18` | ADR-019 → ADR-110; ADR-022 → ADR-111 | mechanical |
+| `system/spec/registry.aontu:19` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/registry.aontu:43` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/registry.aontu:49` | ADR-019 → ADR-110; ADR-020 → ADR-111; ADR-021 → ADR-110; ADR-022 → ADR-111; ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/registry.aontu:55` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/schema.aontu:21` | ADR-022 → ADR-111 | mechanical |
+| `system/spec/schema.aontu:47` | ADR-020 → ADR-111 | mechanical |
+| `system/spec/schema.aontu:56` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/schema.aontu:91` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/schema.aontu:142` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/schema.aontu:167` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/schema.aontu:177` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/schema.aontu:238` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/schema.aontu:271` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/schema.aontu:348` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/trust.aontu:2` | ADR-024 → remove, or point to aontu `docs/reference-packages.md`; ADR-019 → ADR-110 | by hand |
+| `system/spec/trust.aontu:29` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/trust.aontu:33` | ADR-019 → ADR-110 | mechanical |
+| `system/spec/trust.aontu:35` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/trust.aontu:47` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/vectors/first-seen-key.aontu:2` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/vectors/manifest-local-registry.aontu:2` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/vectors/manifest-missing-publisher.aontu:2` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/spec/vectors/names-major-in-path.aontu:2` | ADR-022 → ADR-111 | mechanical |
+| `system/spec/vectors/package-file-repo.aontu:2` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/spec/withdraw.aontu:2` | ADR-019 → ADR-110 | mechanical |
+| `system/worker/src/index.ts:7` | ADR-002 → ADR-103 | mechanical |
+| `system/worker/src/proof.ts:7` | ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `system/worker/src/spec.generated.ts:2` | ADR-022 → ADR-111; ADR-020 → ADR-111; ADR-024 → remove, or point to aontu `docs/reference-packages.md`; ADR-039 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `system/worker/src/token.ts:3` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `mod/src/c2sp.ts:5` | ADR-019 → ADR-110 | mechanical |
+| `mod/src/index.ts:32` | ADR-024 → remove, or point to aontu `docs/reference-packages.md` | by hand |
+| `mod/src/keyproof.ts:3` | ADR-024 → remove, or point to aontu `docs/reference-packages.md`; ADR-039 → remove, or point to aontu `docs/reference-packages.md` | mechanical |
+| `mod/src/note.ts:324` | ADR-002 → ADR-103 | mechanical |
+| `web/src/worker.ts:60` | ADR-011 → remove | by hand |
+| `web/test/worker.test.mjs:320` | ADR-011 → remove | by hand |
+

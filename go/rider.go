@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// unionRiders is the meet of rider records (ADR-052): each key holds a
+// unionRiders is the meet of rider records: each key holds a
 // sorted set of distinct values, keyed by `key`, so the meet is
 // commutative, idempotent, and never refuses.
 func unionRiders[T any](key func(T) string, recs ...map[string][]T) map[string][]T {
@@ -271,7 +271,7 @@ func deprecationMessage(rec map[string][]string) string {
 
 // metaRecord reads a record: a map of concrete data, under any keys; ok
 // is false where it is not one. What a key means is for the reader of the
-// record to say; the JSON Schema exporter reads its own keys (ADR-072).
+// record to say; the JSON Schema exporter reads its own keys.
 func metaRecord(r Val) (map[string][]Val, bool) {
 	m, isMap := r.(*MapVal)
 	if !isMap || !isData(r) {
@@ -328,7 +328,7 @@ func metaTexts(v Val, key string) []string {
 	return out
 }
 
-// identRecord reads a declaration's record: concrete data, any keys (ADR-073).
+// identRecord reads a declaration's record: concrete data, any keys.
 func identRecord(r Val) (map[string][]Val, bool) {
 	m, ok := r.(*MapVal)
 	if !ok || !isData(r) {

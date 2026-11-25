@@ -5,7 +5,7 @@ import { cmpCodePoint } from './keyorder'
 
 
 // A rider record holds a sorted set of distinct values under each key, any
-// string (ADR-072), so each is a null-prototype object; records meet as
+// string, so each is a null-prototype object; records meet as
 // their key-wise union: commutative, idempotent, and never refused.
 type RiderRecord<T> = Record<string, T[]>
 

@@ -1,4 +1,4 @@
-# 2026-08-26: FIXED by the template-clone isolation change (ADR-005) —
+# 2026-08-26: FIXED by the template-clone isolation change —
 # hide() wrapped directly around a pack call now hides the FIELD
 # exactly as hide({literal map}) does: a downstream pack over the
 # hidden children emits their values.  Historically the hide mark

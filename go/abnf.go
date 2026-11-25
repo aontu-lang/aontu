@@ -4,7 +4,7 @@ package aontu
 
 import "sort"
 
-// The grammar pair, ADR-033. Twin of ts/src/val/AbnfFuncVal.ts.
+// The grammar pair. Twin of ts/src/val/AbnfFuncVal.ts.
 
 func grammarSource(ctx *Ctx, f *FuncVal, g Val) Val {
 	src, ok := stringPeg(g)

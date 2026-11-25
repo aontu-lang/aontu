@@ -32,7 +32,7 @@
 # reference is SILENTLY DROPPED from generation (exit 0, customers:{}).
 # See README, gap 6, and gaps/include-alias-spread/. (A second half of
 # that gap wanted id(key(0)) in the bag spread and died with a bogus
-# [aontu/id_name]; ADR-014 removed the identity mark, so that half is
+# [aontu/id_name]; the identity mark is gone, so that half is
 # not a spelling any more.)
 # Every vocabulary constraint is therefore inlined at each use site;
 # the duplication below is the workaround, not the design.
@@ -71,7 +71,7 @@ schema: {
     # kills (or hangs) the evaluation (README, gap 7), so the relate()
     # is attached at the bag spread below instead.
     #
-    # The pattern checks the ADDRESS since ADR-014: a link is a tree
+    # The pattern checks the ADDRESS: a link is a tree
     # path, so the shape to pin is `$.customers.cust-NNNN` rather than
     # a bare id. It still catches a link into the wrong bag, which is
     # what it was for.
@@ -107,7 +107,7 @@ schema: {
 # GAP 6 IS CLOSED, AND NOT BY FIXING IT. This block used to want
 # `&: id(key(0)) & ...` to auto-declare every record an entity named
 # by its key, and could not have it: across the @ include it died with
-# [aontu/id_name]. ADR-014 removed the identity mark altogether -- a
+# [aontu/id_name]. The identity mark is gone altogether -- a
 # record's address IS `$.customers.cust-1001` -- so there is nothing
 # left to declare, and the per-record id() calls seed.aontu used to
 # carry are gone with it.

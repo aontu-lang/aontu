@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// The outcome half of the publish gate (ADR-022): every position the
+// The outcome half of the publish gate (ADR-111): every position the
 // prior version generates with nothing supplied, the next version must
 // generate, to the same value. Admission is Subsume's.
 

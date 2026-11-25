@@ -42,7 +42,7 @@ import finds them at their own URIs.
 
 Three more directories hold public corpora the format runners,
 `ts/test/format-corpus.test.ts` and `go/format_corpus_test.go`, read
-against the committed format grammars (ADR-059), each under its own
+against the committed format grammars (ADR-105), each under its own
 licence and with a README naming its upstream and its pin:
 
 - [`uritemplate-test/`](uritemplate-test/README.md), templates for
@@ -59,7 +59,7 @@ difference the README names, how many there are.
 
 Two more directories hold public corpora the pattern runners,
 `ts/test/regex-vectors.test.ts` and `go/regex_vectors_test.go`, read
-against aontu's own pattern matcher (ADR-060), each under its own
+against aontu's own pattern matcher (ADR-105), each under its own
 licence and with a README naming its upstream and its pin:
 
 - [`test262/`](test262/README.md), test262's generated property

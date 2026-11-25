@@ -206,7 +206,7 @@ function packageSelf(dir, options) {
     return self;
 }
 // What a package may contain (REPOSITORY.0.md §9.4): an enumerated
-// allowlist, refused by default. The data half is ADR-012's table.
+// allowlist, refused by default. The data half is the include table.
 exports.ARCHIVE_SOURCE_EXT = ['aontu'];
 exports.ARCHIVE_DATA_EXT = [
     'json', 'jsonld', 'jsonc', 'json5', 'jsonic', 'jsc', 'toml', 'yaml', 'yml',
@@ -423,7 +423,7 @@ function pkgVerify(root, options) {
             missing.push(key);
             continue;
         }
-        // BYTES BEFORE MEANING (ADR-019): the archive digest and the
+        // BYTES BEFORE MEANING (ADR-110): the archive digest and the
         // manifest's file list first, on fixed-size reads, then the one
         // evaluation.
         const before = mismatched.length;
@@ -721,7 +721,7 @@ function pkgManifest(root, options, against) {
     }
     // THE PUBLISH-TIME COMPATIBILITY GATE: G3's subsumption
     // (ts/src/subsume.ts), wired at the one place versions are minted,
-    // with no major to bump past it (ADR-022).
+    // with no major to bump past it (ADR-111).
     const prior = packageSelf(against, options);
     const priorMain = (0, node_path_1.join)(against, prior.main);
     if (!(0, node_fs_1.existsSync)(priorMain)) {

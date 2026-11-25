@@ -29,7 +29,7 @@ Role: type(
 # The role set is EXHAUSTIVE: close() makes an unknown role a located
 # [aontu/closed] error instead of a silent extension. A member
 # assignment refers to a role by its PATH (`$.roles.auditor`), which
-# since ADR-014 is the only name a node has.
+# is the only name a node has.
 roles: close({
   &: $.Role
   owner: {

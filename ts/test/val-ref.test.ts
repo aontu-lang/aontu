@@ -514,7 +514,7 @@ describe('val-ref', function() {
   })
 
 
-  // TRANSLATED FROM `key()`, which is gone (ADR-009). Every reading
+  // TRANSLATED FROM `key()`, which is gone. Every reading
   // below is unchanged except s4, and that one is the whole reason the
   // removal is an improvement rather than a rename -- see its note.
   test('key', () => {

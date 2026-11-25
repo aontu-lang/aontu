@@ -270,7 +270,7 @@ func viewTriples(graph Graph, at string, loss *[]ViewLoss) []viewTriple {
 		sort.Strings(hidden)
 		*loss = append(*loss, ViewLoss{Code: "hidden_contribution", Count: len(hidden), Detail: hidden})
 	}
-	// A link under an UNRESOLVED DISJUNCTION is not an edge (ADR-007),
+	// A link under an UNRESOLVED DISJUNCTION is not an edge,
 	// and the figure says so rather than dropping it in silence: the
 	// document has not decided, and a drawing that quietly picked an arm
 	// would be inventing the decision.
