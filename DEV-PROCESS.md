@@ -13,9 +13,14 @@ there, not here.
 
 ## The prompt log
 
-Every prompt given to an agent working in the project is recorded in
+Prompt logging starts enabled. While enabled, record prompts in
 [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md).
 
+- **Check for a logging directive when each prompt arrives.** If the
+  prompt starts with `prompt-log:off`, skip it and all following prompts
+  until one starts with `prompt-log:on`. Resume logging with that
+  `prompt-log:on` prompt. Keep the current logging state between turns,
+  and apply the same rule to prompts that arrive during a turn.
 - **Append the entry before the work starts**: the date and time the
   prompt was given, in UTC, the agent that took it, and the prompt as it
   was written, typos included. A prompt given while a turn is running is
