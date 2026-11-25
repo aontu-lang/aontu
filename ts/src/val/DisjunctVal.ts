@@ -71,6 +71,14 @@ class DisjunctVal extends JunctionVal {
 
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'Disjunct', this, peer)
 
+    // An arm that isn't read yet is read, the peer held, before the disjunction meets the peer:
+    // a default that reaches the arm stands as the arm it is whenever it settles (ruling 89).
+    if (!peer.isTop && this.peg.some(pends) && !this.readArms(peer, ctx)) {
+      const held = this.place(new ConjunctVal({ peg: [this, peer] }, ctx))
+      explainClose(te, held)
+      return held
+    }
+
     if (!this.prefsRanked) {
       const ranked = this.rankPrefs(ctx)
       // A clash between equal-rank defaults refuses for the whole
@@ -228,6 +236,28 @@ class DisjunctVal extends JunctionVal {
   }
 
 
+  // Reads each arm that isn't read yet; false where one still waits.
+  readArms(peer: Val, ctx: AontuContext): boolean {
+    const arms: Val[] = []
+    for (const v of this.peg) {
+      if (!pends(v)) {
+        arms.push(v)
+        continue
+      }
+      const rctx: any = ctx.holdArm(this.path, prefInnerPeg(v), peer)
+      rctx.err = []
+      rctx._trialMode = true
+      const read = unite(rctx, v, top(), 'dj-read')
+      if (0 === rctx.err.length && !read.isNil) {
+        arms.push(...(true === read.isDisjunct ? read.peg : [read]))
+      }
+    }
+    this.peg = arms
+    this.prefsRanked = false
+    return !arms.some(pends)
+  }
+
+
   rankPrefs(ctx: AontuContext): Val | undefined {
     const prefs: number[] = []
 
@@ -340,6 +370,11 @@ class DisjunctVal extends JunctionVal {
 
     return super.gen(ctx)
   }
+}
+
+
+function pends(v: any): boolean {
+  return true !== v.done && (true === v.isRef || true === v.isFunc || true === v.isConjunct)
 }
 
 

@@ -314,3 +314,45 @@ pref-arm-late-path-in-a-call-refuses	errc	x: (*upper($.a) | "a") & "B"\na: $.b\n
 pref-arm-late-path-in-a-call-admits	gens	x: (*upper($.a) | "a") & "C"\na: $.b\nb: "c"	{"a":"c","b":"c","x":"C"}
 pref-arm-late-path-in-a-sum-refuses	errc	x: (*($.a + 1) | "a") & 5\na: $.b\nb: 1	empty
 pref-arm-late-path-in-a-sum-admits	gens	x: (*($.a + 1) | "a") & 2\na: $.b\nb: 1	{"a":1,"b":1,"x":2}
+
+# A DEFAULT THAT REACHES A DISJUNCTION AS AN ARM (#954, ruling 89). An arm
+# that settles into a default, from a call, a name, a path or a meet, is the
+# arm of its rank with no parent type, as a written `*x` arm is, whether it
+# settles at once or after another path is read. A star written on such an
+# arm adds to the default's rank.
+arm-pref-call	errc	x: (pref(1) | "a") & 3	empty
+arm-pref-call-own	gen	x: (pref(1) | "a") & 1	{"x":1}
+arm-pref-call-default	gen	x: pref(1) | "a"	{"x":1}
+arm-pref-call-canon	canon	x: pref(1) | "a"	{"x":*1|"a"}
+arm-pref-over-path	errc	a: 1\nx: (pref($.a) | "a") & 3	empty
+arm-pref-over-path-late	errc	x: (pref($.a) | "a") & 3\na: $.b\nb: 1	empty
+arm-path	errc	d: *1\nx: ($.d | "a") & 3	empty
+arm-path-written-after	errc	x: ($.d | "a") & 3\nd: *1	empty
+arm-path-late	errc	x: ($.d | "a") & 3\nd: $.e\ne: *1	empty
+arm-path-default	gen	d: *1\nx: $.d | "a"	{"d":1,"x":1}
+arm-path-canon	canon	d: *1\nx: $.d | "a"	{"d":*1,"x":*1|"a"}
+arm-path-other-arm	gen	d: *1\nx: ($.d | "a") & "a"	{"d":1,"x":"a"}
+arm-path-read-on	errc	d: *1\nx: $.d | "a"\ny: $.x & 3	empty
+arm-name	errc	%T = *1\nx: (%T | "a") & 3	empty
+arm-copy	errc	d: *1\nx: (copy($.d) | "a") & 3	empty
+arm-move	errc	d: *1\nx: (move($.d) | "a") & 3	empty
+arm-rider	errc	d: *1\nx: (meta($.d, {}) | "a") & 3	empty
+arm-meet-with-kind	errc	d: *1\nx: (($.d & number) | "a") & 3	empty
+arm-match-result	errc	d: *1\nx: (match(1, 1, $.d) | "a") & 3	empty
+arm-match-result-pref	errc	x: (match(1, 1, pref(1)) | "a") & 3	empty
+arm-super-stays	gen	d: *1\nx: (super($.d) | "a") & 3	{"d":1,"x":3}
+arm-written-parent-stays	gen	d: *1 | number\nx: ($.d | "a") & 3	{"d":1,"x":3}
+arm-disjunction-met-stays	gen	d: *1 & (1 | 2 | 3)\nx: ($.d | "a") & 2	{"d":1,"x":2}
+arm-refused-default-is-parent	gen	x: ((*1 & min(2)) | "a") & 7	{"x":7}
+arm-parenthesised	errc	x: ((*1) | "a") & 3	empty
+arm-starred	errc	x: (*(*1) | "a") & 3	empty
+arm-starred-weaker	gen	x: *(*1) | *2	{"x":2}
+arm-two-ranks	gen	d: *1\ne: **2\nx: $.d | $.e	{"d":1,"e":2,"x":1}
+arm-rank-clash	errc	d: *1\nx: $.d | *2	pref_rank_clash
+arm-rank-agree	gen	a: 2\nx: pref($.a) | *2	{"a":2,"x":2}
+arm-rank-clash-late	errc	a: 1\nx: pref($.a) | *2	pref_rank_clash
+arm-map-default	errc	d: *{a: 1}\nx: ($.d | "a") & {a: 2}	empty
+arm-map-default-own	gen	d: *{a: 1}\nx: $.d | "a"	{"d":{"a":1},"x":{"a":1}}
+arm-in-list	errc	x: [pref(1) | "a"] & [3]	empty
+arm-in-template	errc	x: {&: pref(key(0)) | "a"}\nx: b: "q"	empty
+arm-in-template-key	gen	x: {&: pref(key(0)) | "a"}\nx: b: "b"	{"x":{"b":"b"}}
