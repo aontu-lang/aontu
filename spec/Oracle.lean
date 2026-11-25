@@ -2562,6 +2562,92 @@ theorem lone_pref_verdict_exact : ∀ c ∈ lonePrefCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (lonePrefCases_checkable c hc).1 (lonePrefCases_checkable c hc).2 v
 
+/-- A path in a lone preference's value that names nothing there, the
+schema's error whatever the data, as it is outside a preference (ruling
+53, #700): the path alone, against nothing, against data that supplies
+the member and against data that overrides another; the path in a meet
+term, in a call's argument and as an operand; a step into a scalar, a
+kind, a sealed map and a nested preference that lack the member, the
+last against data that has it too; a step into a path that itself names
+nothing; an index past the end of a member's list; a parent step out of
+a nested preference and out of a nested map; the preference one level down, one of rank two, and one met
+with a plain map. Then what stands: a path the map beside the
+preference answers, one the outer preference answers for a nested one,
+an index a member's list has, a path to an optional member, and the
+preference as an arm, where the path fails that arm alone. Then the same
+preference wherever a document can write it: beside a path another
+path reads, a step into a list's element and a path to a place outside
+that names nothing; as an optional member, under `hide` and `type`, as
+the template of `each`, a result of `when` taken or not, a branch of
+`nof`, the argument of `maybe`, which forgives only a path at its top,
+and the result a `match` takes; as a declaration's body, unused, used
+and used beside a map that has the member, each an error at the body's
+own place; and as a spread's template, which is no error until a member
+reads it, refuses a member the data gives without the one it names, and
+is an error at a member the schema writes without it. -/
+def strayPathCases : List (Decls × Val × Data) :=
+  let p (v : Val) : Val := .pref 1 v
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (d : Data) : Data := dm [("x", d)]
+  let ab (b : Val) : Val := m [("a", int 1), ("b", b)]
+  let lost := ab (rel 1 ["d"])
+  let inner := m [("a", p (m [("c", int 1)])), ("b", rel 1 ["a", "d"])]
+  let one : Val := .list [int 1] none true
+  let t (fs : List (String × Val)) : Val :=
+    m [("t", .map (fs.map fun f => (f.1, false, f.2)) (some (p lost)) false)]
+  let td (fs : List (String × Data)) : Data := dm [("t", dm [("m", dm fs)])]
+  [([], x (p lost), dm []),
+    ([], x (p lost), dx (dm [("d", j 5)])),
+    ([], x (p lost), dx (dm [("a", j 2)])),
+    ([], x (p (ab (.meet (rel 1 ["d"]) .number))), dm []),
+    ([], x (p (ab (c .upper [rel 1 ["d"]]))), dm []),
+    ([], x (p (ab (c .plus [rel 1 ["d"], int 1]))), dm []),
+    ([], x (p (ab (rel 1 ["a", "z"]))), dm []),
+    ([], x (p (m [("a", .string), ("b", rel 1 ["a", "d"])])), dm []),
+    ([], x (p (m [("a", .map [("c", false, int 1)] none true), ("b", rel 1 ["a", "d"])])), dm []),
+    ([], x (p inner), dm []),
+    ([], x (p inner), dx (dm [("a", dm [("c", j 1), ("d", j 2)])])),
+    ([], x (p (m [("b", rel 1 ["a", "z"]), ("a", rel 1 ["q"])])), dm []),
+    ([], x (p (m [("a", one), ("b", .path [.up 1, .key "a", .idx 3])])), dm []),
+    ([], x (p (m [("a", p (m [("c", rel 2 ["d"])]))])), dm []),
+    ([], x (p (m [("a", m [("c", rel 2 ["d"])])])), dm []),
+    ([], x (m [("y", p lost)]), dm []),
+    ([], x (.pref 2 lost), dm []),
+    ([], x (.meet (p lost) (m [("c", int 2)])), dm []),
+    ([], x (.meet (p lost) (m [("d", int 5)])), dm []),
+    ([], x (p (m [("a", p (m [("c", rel 2 ["d"])])), ("d", int 3)])), dm []),
+    ([], x (p (m [("a", one), ("b", .path [.up 1, .key "a", .idx 0])])), dm []),
+    ([], x (p (.map [("a", true, int 1), ("b", false, rel 1 ["a"])] none false)), dm []),
+    ([], x (.or [(1, lost), (0, str "z")]), dm []),
+    ([], x (.or [(1, lost), (0, str "z")]), dx (.str "z")),
+    ([], x (p (m [("b", rel 1 ["a"]), ("a", rel 1 ["q"])])), dm []),
+    ([], x (p (m [("a", one), ("b", .path [.up 1, .key "a", .idx 0, .key "z"])])), dm []),
+    ([], x (p (ab (.path [.key "q"]))), dm []),
+    ([], .map [("x", true, p lost)] none false, dm []),
+    ([], x (.ride .hide (p lost) []), dm []),
+    ([], x (.ride .type (p lost) []), dm []),
+    ([], x (c .each [lst [str "p"], p lost]), dm []),
+    ([], x (.when (.lit (.bool true)) (p lost) (some (int 2))), dm []),
+    ([], x (.when (.lit (.bool false)) (p lost) (some (int 2))), dm []),
+    ([], x (.nof (int 1) [p lost]), dm []),
+    ([], x (c .maybe [p lost]), dm []),
+    ([], x (.select (int 1) [(int 1, p lost)] (some (int 3))), dm []),
+    ([("T", p lost)], x (int 1), dm []),
+    ([("T", p lost)], x (.alias "T"), dm []),
+    ([("T", p lost)], x (.meet (.alias "T") (m [("d", int 2)])), dm []),
+    ([], t [], dm []),
+    ([], t [], td [("a", j 1), ("b", j 2)]),
+    ([], t [], td [("d", j 2)]),
+    ([], t [("m", m [])], dm []),
+    ([], t [("m", m [("d", int 2)])], dm [])]
+
+theorem strayPathCases_checkable : ∀ c ∈ strayPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem stray_path_verdict_exact : ∀ c ∈ strayPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (strayPathCases_checkable c hc).1 (strayPathCases_checkable c hc).2 v
+
 theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
 
@@ -9185,6 +9271,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# whichever way the value would go (#432), in rows wt0 on; a call in a spread's"
     IO.println "# template, and one in a result the value doesn't take, makes nothing wait."
     pathRows "wt" waitCases
+    IO.println "# A path in a lone preference's value that names nothing there is the schema's"
+    IO.println "# error whatever the data, as it is outside a preference (ruling 53), in rows"
+    IO.println "# sy0 on; a path the term beside the preference answers stands, and one in a"
+    IO.println "# preferred arm fails that arm alone. The same preference follows as an optional"
+    IO.println "# member, under a rider, in a call, as a declaration's body and as a spread's"
+    IO.println "# template, which is no error until a member reads it."
+    pathRows "sy" strayPathCases
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases
