@@ -35,7 +35,9 @@ needs `{} & %T`, or data at that place.
 - Row j210 of `test/spec/def-path.tsv` leaves `spec/ledger.tsv`, whose
   bound falls from 16 to 15, and #762 closes.
 - `test/spec/def-path.tsv` gains rows rx0 to rx47, 16 cases the
-  definition proves, each in three modes.
+  definition proves, each in three modes. `test/spec/vet.tsv` gains 18
+  rows for a name that is the template of a set of links in its own
+  body, each answer the definition's too.
 
 ### A link's template reads its relative paths at the link's target
 

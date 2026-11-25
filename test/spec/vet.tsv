@@ -1207,3 +1207,24 @@ vet-directive-beside-a-pref-call-over-a-path-takes-the-datas-key-under-partial	v
 vet-directive-beside-a-pref-call-over-a-path-admits-the-copy	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1}}	{"verdict":"valid"}
 vet-directive-beside-a-pref-call-over-a-path-admits-the-copy-with-no-fill	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
 vet-directive-beside-a-pref-call-over-a-path-admits-the-copy-under-partial	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+# A recursive name that is the template of a set of links in its own body (#762):
+# the name is recursive there too, so a use of it alone stays residual and one
+# met with a map or with data unfolds. Each row is the definition's answer too.
+vet-recursive-name-in-an-empty-set-of-links-stays-residual	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: %T	{}	{"verdict":"incomplete"}
+vet-recursive-name-in-an-empty-set-of-links-stays-residual-with-no-fill	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-recursive-name-in-an-empty-set-of-links-stays-residual-under-partial	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: %T	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-recursive-name-in-an-empty-set-of-links-unfolds-at-data	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: %T	{"x": {}}	{"verdict":"valid"}
+vet-recursive-name-in-an-empty-set-of-links-unfolds-at-data-with-no-fill	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: %T	{"x": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-recursive-name-in-an-empty-set-of-links-unfolds-at-data-under-partial	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: %T	{"x": {}}	{"verdict":"valid","opts":{"partial":true}}
+vet-recursive-name-in-an-empty-set-of-links-unfolds-at-a-map	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: {} & %T	{}	{"verdict":"valid"}
+vet-recursive-name-in-an-empty-set-of-links-unfolds-at-a-map-with-no-fill	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: {} & %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-recursive-name-in-an-empty-set-of-links-unfolds-at-a-map-under-partial	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: {} & %T	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-recursive-name-in-an-empty-set-of-links-refuses-a-bad-link	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: {} & %T	{"x": {"ns": {"a": "..m"}}}	{"verdict":"invalid"}
+vet-recursive-name-in-an-empty-set-of-links-refuses-a-bad-link-with-no-fill	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: {} & %T	{"x": {"ns": {"a": "..m"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-recursive-name-in-an-empty-set-of-links-refuses-a-bad-link-under-partial	verdict	%T = {m: {}, ns: relate(%T) & {}}\nx: {} & %T	{"x": {"ns": {"a": "..m"}}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-recursive-name-in-an-empty-list-of-links-stays-residual	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: %T	{}	{"verdict":"incomplete"}
+vet-recursive-name-in-an-empty-list-of-links-stays-residual-with-no-fill	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-recursive-name-in-an-empty-list-of-links-stays-residual-under-partial	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: %T	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-recursive-name-in-an-empty-list-of-links-unfolds-at-a-map	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: {} & %T	{}	{"verdict":"valid"}
+vet-recursive-name-in-an-empty-list-of-links-unfolds-at-a-map-with-no-fill	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: {} & %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-recursive-name-in-an-empty-list-of-links-unfolds-at-a-map-under-partial	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: {} & %T	{}	{"verdict":"valid","opts":{"partial":true}}
