@@ -4,6 +4,9 @@ import { FeatureVal } from './FeatureVal';
 declare function dropPendingMarkWrappers(v: Val): Val;
 declare function pendingMarkWrapper(v: any): boolean;
 declare function member(v: any, part: any): any;
+declare function landPaths(tmpl: Val, base: string[]): void;
+declare function landsOnly(tmpl: Val): boolean;
+declare function landedAt(ctx: AontuContext, tmpl: Val, to: string[]): Val;
 declare class RefVal extends FeatureVal {
     isRef: boolean;
     isGenable: boolean;
@@ -11,6 +14,7 @@ declare class RefVal extends FeatureVal {
     absolute: boolean;
     expansion: Val | undefined;
     rxc: number;
+    lands: boolean;
     prefix: boolean;
     copyFound: boolean;
     constructor(spec: {
@@ -32,4 +36,4 @@ declare class RefVal extends FeatureVal {
     gen(ctx: AontuContext): undefined;
     inspection(): string;
 }
-export { dropPendingMarkWrappers, member, pendingMarkWrapper, RefVal, };
+export { dropPendingMarkWrappers, landPaths, landedAt, landsOnly, member, pendingMarkWrapper, RefVal, };

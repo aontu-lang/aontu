@@ -3,6 +3,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RefVal = void 0;
 exports.dropPendingMarkWrappers = dropPendingMarkWrappers;
+exports.landPaths = landPaths;
+exports.landedAt = landedAt;
+exports.landsOnly = landsOnly;
 exports.member = member;
 exports.pendingMarkWrapper = pendingMarkWrapper;
 const utility_1 = require("../utility");
@@ -20,6 +23,7 @@ const FuncBaseVal_1 = require("./FuncBaseVal");
 const VarVal_1 = require("./VarVal");
 const FeatureVal_1 = require("./FeatureVal");
 const Val_1 = require("./Val");
+const walk_1 = require("../walk");
 const numkind_1 = require("./numkind");
 const BigIntegerVal_1 = require("./BigIntegerVal");
 const BigDecimalVal_1 = require("./BigDecimalVal");
@@ -196,6 +200,44 @@ function member(v, part) {
     }
     return v.peg[part];
 }
+// A link's template reads the relative paths that stay inside it where it lands, at the link's
+// target (ruling 50); one that climbs past the template reads where the link is written.
+function landPaths(tmpl, base) {
+    (0, walk_1.walkVals)(tmpl, (t) => {
+        if (true === t.isRef && !t.absolute) {
+            let climbs = 0;
+            while ('.' === t.peg[climbs]) {
+                climbs++;
+            }
+            t.lands = t.lands || climbs < t.path.length - base.length;
+        }
+        return true;
+    }, new Set());
+}
+// Whether a template waits for nothing but the paths it reads where it lands.
+function landsOnly(tmpl) {
+    let lands = false;
+    let other = false;
+    (0, walk_1.walkVals)(tmpl, (t) => {
+        lands = lands || (true === t.isRef && t.lands);
+        other = other || (true === t.isRef && !t.lands) ||
+            (true === t.isFunc && 0 === t.peg.length && !t.done);
+        return !other;
+    }, new Set());
+    return lands && !other;
+}
+// The template as it lands: each such path read at the target.
+function landedAt(ctx, tmpl, to) {
+    const out = tmpl.clone(ctx, { dup: true });
+    if (landsOnly(tmpl)) {
+        (0, Val_1.repathInstance)(out, to);
+    }
+    (0, walk_1.walkVals)(out, (t) => {
+        t.lands = false;
+        return true;
+    }, new Set());
+    return out;
+}
 const aliasname_1 = require("../aliasname");
 const rider_1 = require("../rider");
 const IdentFuncVal_1 = require("./IdentFuncVal");
@@ -211,6 +253,8 @@ class RefVal extends FeatureVal_1.FeatureVal {
         // a rendering of the settled tree, never a parse-time property.
         this.expansion = undefined;
         this.rxc = 0;
+        // A relative path in a link's template, which reads where the template lands (ruling 50).
+        this.lands = false;
         this.prefix = false;
         this.copyFound = false;
         this.peg = [];
@@ -282,7 +326,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Ref', this, peer);
         let out = this;
         if (this.id !== peer.id) {
-            let found = this.find(ctx);
+            let found = this.lands ? undefined : this.find(ctx);
             // `?? this` makes resolved non-nullish, so an unresolved reference
             // takes the RefVal arm below rather than a separate null arm.
             const resolved = found ?? this;
@@ -721,6 +765,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
         // where the level it came from left off.
         out.rxc = this.rxc;
         out.copyFound = this.copyFound;
+        out.lands = this.lands;
         return out;
     }
     // THE KEY THIS REFERENCE RESOLVES AGAINST, or undefined for a path
@@ -776,6 +821,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
             this.prefix ? 'prefix' : '',
         ].filter(p => '' != p).join(',');
     }
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 11 */
 exports.RefVal = RefVal;
 //# sourceMappingURL=RefVal.js.map
