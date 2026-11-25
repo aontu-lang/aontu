@@ -5787,8 +5787,8 @@ Both engines' test suites run rows the definition generates, as step 17 shows, a
 definition does. [`spec/ledger.tsv`](../spec/ledger.tsv) lists each such case,
 with the answer each side gives, which side changes, and why.
 
-In some, the engines admit what the definition refuses. No meet with
-`string` admits `""`:
+In some, the engines admitted what the definition refuses, and have
+since closed the difference. No meet with `string` admits `""`:
 
 <!-- test: quote spec/Aontu/Order.lean -->
 ```lean
@@ -5804,7 +5804,8 @@ theorem no_meet_with_string_admits_empty (env : Env) (root : Data) (b : Val) :
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
-/-- `string & (string & empty())` refuses `""`, which both engines admit. -/
+/-- `string & (string & empty())` refuses `""`: a `string` keeps its
+non-emptiness whatever it meets. -/
 example : ¬ Instance .empty (.meet .string .anyString) (.str "") :=
   fun ⟨_, h⟩ => no_meet_with_string_admits_empty _ _ _ h
 ```
@@ -5822,12 +5823,20 @@ and run it:
 <!-- test: run -->
 ```sh
 $ aontu -c waiver.aontu
-{"v":""}
+{"v":string&""}
 ```
 
-Both engines give `""` back: they let the `empty()` beside `string`
-widen the conjunction, which a greatest lower bound can't do. For this
-kind, the ledger names the engines as the side that changes.
+The `""` comes back refused, `string&""`, and evaluation fails on it
+with `string_empty`. Both engines once gave `""` back: they let the
+`empty()` beside one `string` lift the other's non-emptiness, which a
+greatest lower bound can't do. They now read `string & empty()` as the
+definition does, a kind of its own, and meet it with `string` as
+`string`. An `empty()` reads as part of that kind only where a
+conjunction writes it beside a `string`. In another statement, outside
+a parenthesised group, or behind a name or a path, it lifts nothing.
+The ten rows of
+[`test/spec/def-fragment.tsv`](../test/spec/def-fragment.tsv) that hold
+the case have left the ledger.
 
 Where the two engines differ from each other, the definition decides
 which changes. `[*1] | [1]` has two arms that single out `[1]`, and

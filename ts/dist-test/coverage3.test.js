@@ -521,12 +521,15 @@ function capture(fn) {
         const rel = new RelateFuncVal_1.RelateVal({ tval: new StringVal_1.StringVal({ peg: 'x' }, ctx) }, ctx);
         Assert.equal(rel.unify(new ConstraintKindVal_1.ConstraintKindVal({}, ctx), ctx).canon, 'constraint&relate("x")');
     });
-    // The empty-string flags fold idempotently, and a value carrying one
-    // hands it to an identical value that does not.
+    // The empty-string flags fold idempotently, a plain `string` stands
+    // against the wider kind, and a value carrying a flag hands it to an
+    // identical value that does not.
     (0, node_test_1.test)('empty-flags-api-only-arms', () => {
         const ctx = CTX();
-        const sk = new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx).withEmpty(ctx);
-        Assert.equal(sk.withEmpty(ctx), sk);
+        const sk = new ScalarKindVal_1.ScalarKindVal({ peg: String, emptyOk: true }, ctx);
+        const plain = new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx);
+        Assert.equal(plain.unify(sk, ctx), plain);
+        Assert.equal(sk.unify(plain, ctx), plain);
         const s = new StringVal_1.StringVal({ peg: 'x' }, ctx).withEmpty(ctx);
         Assert.equal(s.withEmpty(ctx), s);
         const bare = new StringVal_1.StringVal({ peg: 'x' }, ctx);
@@ -536,7 +539,9 @@ function capture(fn) {
         const strict = blank.withNonEmpty(ctx);
         Assert.equal(strict.needsNonEmpty, true);
         const both = strict.unify(blank.withEmpty(ctx), ctx);
-        Assert.equal(both.needsNonEmpty && both.emptyOk, true);
+        Assert.equal(both.needsNonEmpty && !both.emptyOk, true);
+        Assert.equal(blank.withEmpty(ctx).unify(strict, ctx), strict);
+        Assert.equal(strict.withEmpty(ctx), strict);
         const waived = A().unify('x: string & re("x") & empty()').peg.x;
         Assert.equal(waived.allowEmpty(ctx, new EmptyVal_1.EmptyVal({}, ctx)), waived);
         // With an argument, close() and open() are the ordinary calls.

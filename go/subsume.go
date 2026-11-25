@@ -589,7 +589,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Scalar kinds.
 	if gk, ok := g.(*ScalarKindVal); ok {
-		// A `string` without the waiver refuses the "" a waived one admits.
+		// A plain `string` refuses the "" that `string & empty()` admits.
 		strict := KindString == gk.kind && !gk.emptyOk
 		switch sn := s.(type) {
 		case *ScalarKindVal:

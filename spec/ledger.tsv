@@ -3,18 +3,8 @@
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, both where the ruled answer is neither side's, and the
 # cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 49.
+# A listed case that comes to agree fails the run. Bounded at 39.
 # name	src	instance	definition	ports	moves	cause
-c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c6829	({"x"?: string}) & ({"x"?: string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c6845	({"x"?: string}) & ({"x": string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c7213	({"x": string}) & ({"x"?: string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c7229	({"x": string}) & ({"x": string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c7565	({"x"?: string & empty()}) & ({"x"?: string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c7581	({"x"?: string & empty()}) & ({"x": string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c7949	({"x": string & empty()}) & ({"x"?: string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
-c7965	({"x": string & empty()}) & ({"x": string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 x498	match(1, (integer) + (1), "yes", "no")	"no"	valid	incomplete	definition	#432: a + that waits inside a match pattern, which the definition reads as refusing, since Judge refuses every value at a call, so the default arm admits the data; both ports wait on the pattern and leave the document incomplete
 x499	match(1, (integer) + (1), "yes", "no")	"no"	valid	incomplete	definition	#432: a + that waits inside a match pattern, which the definition reads as refusing, since Judge refuses every value at a call, so the default arm admits the data; both ports wait on the pattern and leave the document incomplete
 lp51	"x": *{&: {"name": "a", "url": .name}}	{"x": {"h": {"name": "b", "url": 1}}}	invalid	valid	ports	a lone preference's parent arm is the parent type of what its value reads as on its own, each path read where the value stands before any data and lifted (ruling 40); both ports lift a path inside the preference to any, so the parent arm takes values the ruling refuses (#704)

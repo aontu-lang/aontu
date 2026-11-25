@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 49 on 2026-11-25),
+  on 2026-11-22), ledger rows (394 at most then, 39 on 2026-11-25),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,13 +64,13 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-22 of its 55 on 2026-11-24. In order:
+16 of its 39 on 2026-11-25. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
    five are closed.
 2. **Preferences and disjunction arms**: the largest, 178 rows then and
-   18 now, already ruled.
+   9 now, already ruled.
 3. **Seals and marks**: led by #726's bare `close()` and `open()`, with
    57 rows then and 6 now, ruled by decisions 44 to 46. #748 and #749
    here also unblock the relations workstream.
@@ -135,7 +135,7 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 | [#633](https://github.com/aontu-lang/aontu/issues/633) | def | M |  | A mark on a generator's source reaches every instance in both engines; definition reads through it. |
 | [#668](https://github.com/aontu-lang/aontu/issues/668) | bug | M |  | `move` of a list element drops it from output, but vet keeps its position; output fails vet. |
 | [#346](https://github.com/aontu-lang/aontu/issues/346) | def | M |  | `close([1, 2])` met with `[&: integer]` loses its fixed length and admits `[1, 2, 3]` in both ports. Built in both ports 2026-11-24. |
-| [#343](https://github.com/aontu-lang/aontu/issues/343) | def | M |  | `string & (string & empty())` admits the empty string in both ports; the definition refuses it. |
+| [#343](https://github.com/aontu-lang/aontu/issues/343) | def | M |  | `string & (string & empty())` admitted the empty string in both ports; the definition refuses it. Built in both ports 2026-11-25, its 10 rows gone. |
 | [#770](https://github.com/aontu-lang/aontu/issues/770) | parity | L |  | type() block filled by statements answers unlike the whole block, ports split five ways; case 1 ruled (67). |
 | [#486](https://github.com/aontu-lang/aontu/issues/486) | parity | M |  | move with a meta/hide rider: TS and Go split on vet data overriding the copy |
 | [#937](https://github.com/aontu-lang/aontu/issues/937) | def | M |  | A check that waits for generation is judged or not by key order when a sibling can't generate. |
@@ -471,5 +471,4 @@ From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
 #944, #946 and #953 to #957 on 2026-11-24, and #970 and #971 on
 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
-each row's cause names. The ledger's other 10 rows name decision 3 and
-no issue: they're #343's.
+each row's cause names.

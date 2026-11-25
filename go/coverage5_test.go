@@ -74,13 +74,14 @@ func TestKeywordValsApiOnlyArms(t *testing.T) {
 func TestEmptyFlagsApiOnlyArms(t *testing.T) {
 	ctx := &Ctx{root: newMap()}
 
-	sk := newScalarKind(KindString).withEmpty()
-	if sk.withEmpty() != sk {
-		t.Fatalf("withEmpty on a kind that already admits \"\" is identity")
-	}
+	sk := newScalarKind(KindString)
+	sk.emptyOk = true
 	plain := newScalarKind(KindString)
-	if out := plain.Unify(sk, ctx); out != sk {
-		t.Fatalf("string & (string & empty()) keeps the waiver: got %s", out.Canon())
+	if out := plain.Unify(sk, ctx); out != plain {
+		t.Fatalf("string & (string & empty()) is string: got %s", out.Canon())
+	}
+	if out := sk.Unify(plain, ctx); out != plain {
+		t.Fatalf("(string & empty()) & string is string: got %s", out.Canon())
 	}
 
 	s := newString("x").withEmpty()
@@ -100,6 +101,9 @@ func TestEmptyFlagsApiOnlyArms(t *testing.T) {
 	out = blank.Unify(strict, ctx).(*ScalarVal)
 	if out == blank || !out.needsNonEmpty {
 		t.Fatalf("\"\" & (string & \"\") copies the demand: got %+v", out)
+	}
+	if strict.withEmpty() != strict {
+		t.Fatalf("empty() lifts no demand a plain string made")
 	}
 
 	c := newConstraint("re", []Val{newString("x")}, 0)

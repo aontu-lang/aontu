@@ -8,6 +8,51 @@ each change affects.
 
 ## Unreleased
 
+### A `string` met with `string & empty()` is `string`
+
+#343, decision 3 of the definition's design note, in both engines.
+**Breaking.** The meet is a greatest lower bound, so a `string` admits
+no more for what it meets, and `string` refuses `""`. Both engines
+carried the non-emptiness and an `empty()` as two flags that every meet
+combined with OR, so one `empty()` anywhere in a conjunction lifted the
+non-emptiness of every `string` in it. `string & empty()` is now a kind
+of its own, as the definition reads it, and `empty()` lifts nothing it
+doesn't stand beside:
+
+- `(string) & (string & empty())` is `string`, in either order, under a
+  key, in a list, in a spread's template and in an arm of a
+  disjunction. It was `string & empty()`.
+  `string & (string & empty()) & ""` is refused with `string_empty`. It
+  was `""`.
+- `(string & empty()) & (string & empty())` is `string & empty()`, as
+  before.
+- A conjunction that writes `string` and `empty()` among its terms, in
+  any order, with no parenthesis between them, reads the two as the
+  kind: `"" & empty() & string` and `string & re("^a*$") & empty() & ""`
+  are `""`, as before.
+- An `empty()` in another statement, outside a parenthesised group, or
+  behind a name or a path lifts nothing. `a: {x: string}` beside
+  `a: {x: ""}` and `a: {x: empty()}` is refused with `string_empty`,
+  and `(string & re("^a*$")) & empty() & ""` is too. Each was `""`.
+- A string constraint follows: `string & re("x") & empty()` met with
+  `string` is `string & re("x")`.
+- `empty()` standing apart from any `string` admits every string, as
+  before: `empty() & ""` is `""`, and the JSON Schema importer's
+  `empty()` for `type: "string"` reads as it did.
+
+Each parser folds the `string` and the `empty()` one written `&` chain
+holds into the kind (`ts/src/lang.ts`, `go/lang.go`). A plain `string`
+kind stands against the wider one, and a string value or residual that
+has met a plain `string` keeps that whatever else it meets. The hint of
+`string_empty` says to write `string & empty()`.
+
+Rows c2005, c2373, c6829, c6845, c7213, c7229, c7565, c7581, c7949 and
+c7965 of `test/spec/def-fragment.tsv` leave `spec/ledger.tsv`, whose
+bound falls to 39. `test/spec/types.tsv` gains 46 rows and
+`test/spec/vet.tsv` 78, and four rows of `types.tsv` that held the old
+answer take the new one. The reference's section on `empty()` and step
+15 of the definition's tutorial follow.
+
 ### A lone default reads a path outside it before data meets it
 
 #702, ruling 40, in both engines. `*x` alone is `x | super(x)`, and the

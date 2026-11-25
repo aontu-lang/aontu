@@ -517,7 +517,7 @@ const hints = {
     'not-scalar-type': 'Expected a scalar type but got a non-scalar type.',
     'map': 'Type mismatch: expected a map value but got a different type.',
     'list': 'Type mismatch: expected a list value but got a different type.',
-    'string_empty': 'The string type admits only NON-EMPTY strings. Meet it with empty() to\nadmit "" as well.\n \nExamples:\n  a: string & x              -> "x"\n  b: string & ""             -> nil   # "" is not a string value;\n  c: string & empty() & ""   -> ""    # ... unless empty() admits it.',
+    'string_empty': 'The string type admits only NON-EMPTY strings. Write string & empty()\nto admit "" as well.\n \nExamples:\n  a: string & x              -> "x"\n  b: string & ""             -> nil   # "" is not a string value;\n  c: string & empty() & ""   -> ""    # ... unless empty() stands beside it.',
     'empty_domain': 'empty() admits the empty string, so it only unifies with strings:\na string value, the string type, or a string constraint.',
     'constraint_kind': 'Type mismatch: expected a constraint (min, max, re, len, relate, ...)\nbut got a different type.',
     // Argument errors
