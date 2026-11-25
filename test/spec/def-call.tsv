@@ -555,8 +555,8 @@ x494	verdict	v: sum([*(meta(1, {})), 2])	v: 3	{"verdict":"valid","opts":{"partia
 x495	verdict	v: (*(meta(1, {}))) + (1)	v: 2	{"verdict":"valid"}
 x496	verdict	v: (*(meta(1, {}))) + (1)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
 x497	verdict	v: (*(meta(1, {}))) + (1)	v: 2	{"verdict":"valid","opts":{"partial":true}}
-x498	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"valid"}
-x499	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"valid","opts":{"noFill":true}}
+x498	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"incomplete"}
+x499	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"incomplete","opts":{"noFill":true}}
 x500	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"valid","opts":{"partial":true}}
 x501	verdict	v: match(2, (1) + (1), "yes", "no")	v: "yes"	{"verdict":"valid"}
 x502	verdict	v: match(2, (1) + (1), "yes", "no")	v: "yes"	{"verdict":"valid","opts":{"noFill":true}}

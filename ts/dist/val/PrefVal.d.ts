@@ -14,7 +14,9 @@ declare class PrefVal extends FeatureVal {
     private resuper;
     private restand;
     private overMet;
+    private own;
     private parentArm;
+    private waitsForPath;
     private stand;
     private meetPref;
     unify(peer: Val, ctx: AontuContext): Val;

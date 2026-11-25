@@ -734,10 +734,38 @@ help isolate the syntax error.`,
     const atTerm = (term) => true === term?.isVal && 1 <= term.site.row ? {
         row: term.site.row, col: term.site.col, src: term.site.src, len: term.site.len,
     } : undefined;
+    // The terms one written `&` chain holds, through its own steps and
+    // no parenthesis.
+    const chainTerms = (t) => true === t?.isConjunct && true === t.written ? t.peg.flatMap(chainTerms) : [t];
+    const plainString = (t) => true === t?.isScalarKind && String === t.peg && true !== t.emptyOk;
+    // `string & empty()` is a kind of its own, not a meet (decision 3): a
+    // chain that writes both reads them as it, where the first `string` stood.
+    const foldEmpty = (r, ctx, chain) => {
+        const words = (t) => plainString(t) || true === t?.folded;
+        if (!chain.some((t) => true === t?.isEmptyConstraint || true === t?.folded) ||
+            !chain.some(plainString)) {
+            return chain;
+        }
+        const head = chain.find(words);
+        const kind = true === head.folded ? head : opsite(new ScalarKindVal_1.ScalarKindVal({ peg: String, emptyOk: true }), r, ctx, atTerm(head));
+        kind.folded = true;
+        return chain.filter((t) => t === head || !(words(t) || true === t?.isEmptyConstraint))
+            .map((t) => t === head ? kind : t);
+    };
     let opmap = {
         'conjunct-infix': (r, ctx, _op, terms) => {
-            const peg = dropUnfilled(terms);
-            return opsite(new ConjunctVal_1.ConjunctVal({ peg }), r, ctx, atTerm(peg[0]));
+            let peg = dropUnfilled(terms);
+            const chain = peg.flatMap(chainTerms);
+            const read = foldEmpty(r, ctx, chain);
+            if (read !== chain) {
+                if (1 === read.length) {
+                    return read[0];
+                }
+                peg = read;
+            }
+            const out = new ConjunctVal_1.ConjunctVal({ peg });
+            out.written = true;
+            return opsite(out, r, ctx, atTerm(peg[0]));
         },
         'disjunct-infix': (r, ctx, _op, terms) => {
             const peg = dropUnfilled(terms);
@@ -832,6 +860,13 @@ help isolate the syntax error.`,
             // `a:()` — grouping parens with nothing inside.
             if (null == val)
                 return incompleteNil(r, ctx);
+            // A parenthesis ends the chain a `string & empty()` is read in.
+            if (true === val?.written) {
+                val.written = false;
+            }
+            else if (true === val?.folded) {
+                val.folded = false;
+            }
             // ... and the same for a GROUPING paren, whose value is passed
             // straight through: `(([]%))` yielded a raw array, and addsite went
             // on to write a site onto it, throwing a TypeError that escaped the

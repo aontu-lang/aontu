@@ -59,6 +59,7 @@ declare class AontuContext {
         n: number;
     };
     _fixroot: any;
+    _ownroot: any;
     _armAt?: Map<string, [Val, Val | undefined, boolean]>;
     budget: {
         passes: number;

@@ -12,6 +12,7 @@ const FeatureVal_1 = require("./FeatureVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const SuperFuncVal_1 = require("./SuperFuncVal");
 const DisjunctVal_1 = require("./DisjunctVal");
+const ConjunctVal_1 = require("./ConjunctVal");
 const genrec_1 = require("../genrec");
 function prefInnerPeg(v) {
     let out = v;
@@ -63,12 +64,25 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         stood.superpeg = gate;
         return stood;
     }
+    // The default read on its own, before any data: in the schema's own tree under vet (ruling 40).
+    own(ctx) {
+        const alone = this.alone ?? prefInnerPeg(this);
+        const octx = null == ctx._ownroot ? ctx : ctx.clone({ root: ctx._ownroot });
+        return (0, FuncBaseVal_1.trialUnify)(octx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), (0, top_1.top)());
+    }
     // Ruling 40: the parent arm lifts the default as read on its own.
     parentArm(ctx) {
-        const alone = this.alone ?? prefInnerPeg(this);
-        const own = (0, FuncBaseVal_1.trialUnify)(ctx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), (0, top_1.top)());
+        const own = this.own(ctx);
         return undefined === own ? this.superpeg.clone(ctx) :
             (0, unify_1.unite)(ctx, (0, SuperFuncVal_1.superOf)(ctx, own), this.superpeg.clone(ctx), 'pref/lift');
+    }
+    // Only a path to a place outside the default: one into it, a peer alone can answer.
+    waitsForPath(ctx) {
+        const own = this.own(ctx);
+        return undefined !== own && (0, DisjunctVal_1.unread)(own, (ref) => {
+            const to = [].concat(ref.plainRefPath());
+            return !this.path.every((p, i) => p === to[i]);
+        });
     }
     // Unchanged on both counts is the SAME preference, returned as
     // itself: minting a new one every pass would keep the fixpoint
@@ -164,6 +178,12 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         }
         else if (!peer.isTop) {
             why += 'super-';
+            // A path the value can't read on its own yet is read before a peer meets the preference.
+            if ((0, DisjunctVal_1.unread)(prefInnerPeg(this)) && this.waitsForPath(ctx)) {
+                const held = this.place(new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx));
+                (0, utility_1.explainClose)(te, held);
+                return held;
+            }
             const met = (0, FuncBaseVal_1.trialUnify)(ctx.holdArm(this.path, prefInnerPeg(this), peer), prefInnerPeg(this).clone(ctx), peer);
             if (undefined !== met) {
                 // An override space the peer empties leaves the preference

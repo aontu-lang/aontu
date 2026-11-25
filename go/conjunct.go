@@ -15,6 +15,8 @@ type ConjunctVal struct {
 	waits bool
 	// unmarked: this spread template without its marks (unmarkedTemplate).
 	unmarked Val
+	// chained: one step of an `&` chain as the parser read it, no parenthesis around it yet.
+	chained bool
 }
 
 func newConjunct(terms []Val) *ConjunctVal {

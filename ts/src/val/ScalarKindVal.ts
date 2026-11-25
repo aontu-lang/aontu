@@ -87,6 +87,8 @@ class ScalarKindVal extends FeatureVal {
 
   // `string & empty()`: the string kind that also admits "".
   emptyOk: boolean
+  // The parser read it from a `string` and an `empty()` in the chain it is still reading.
+  folded = false
 
   constructor(
     spec: ValSpec,
@@ -105,11 +107,6 @@ class ScalarKindVal extends FeatureVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     return super.clone(ctx, { emptyOk: this.emptyOk, ...(spec ?? {}) } as any)
-  }
-
-
-  withEmpty(ctx: AontuContext): Val {
-    return this.emptyOk ? this : this.clone(ctx, { emptyOk: true } as any)
   }
 
 
@@ -143,7 +140,7 @@ class ScalarKindVal extends FeatureVal {
     }
     else if (peerIsScalarKind) {
       if (this.peg === peer.peg) {
-        out = !this.emptyOk && true === (peer as any).emptyOk ? peer : this
+        out = this.emptyOk && true !== (peer as any).emptyOk ? peer : this
       }
       else if (kindSubsumes(this.peg, peer.peg)) {
         out = peer

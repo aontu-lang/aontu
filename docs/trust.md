@@ -104,7 +104,7 @@ Every evaluation halts within deterministic budgets counted in
 | budget     | counts                                   | current state |
 |------------|------------------------------------------|-----------------|
 | `passes`   | fixpoint passes over the whole model, and the rounds that evaluate a document with links | 9 (`ctx.budget.passes`, `ts/src/ctx.ts`, read as `maxcc` in `ts/src/unify.ts`; `go/unify.go`) |
-| `revisits` | same-pair re-unifications within a pass  | 999 (`ctx.budget.revisits`, `ts/src/ctx.ts`) |
+| `revisits` | same-pair re-unifications within a pass, apart from a repeat the pass answers without work | 999 (`ctx.budget.revisits`, `ts/src/ctx.ts`) |
 | `depth`    | structural recursion depth               | 1000 (`ctx.budget.depth`, `ts/src/ctx.ts`; `maxUniteDepth`, `go/unify.go`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. Before parsing, an entry source whose brackets nest past twice this budget is refused with `max_depth` in both engines (`findDeepNesting`), because the parser's path tracking grows with the square of the depth; a bracket in a string or a comment does not count, and an included source is not scanned. A parsed tree deeper than the same bound, such as a chain of keys that nests with no bracket, is refused with `max_depth` too, before anything recurses into it. |
 | `trials`   | admission trials, once for each position, trial schema and value | 100000 (`ctx.budget.trials`, `ts/src/ctx.ts`; `trialBudget`, `go/admit.go`). A repeated trial reads its first verdict and is not counted again. Shared: both engines report `trial_budget` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
 
@@ -178,9 +178,11 @@ Three notes on how the budgets behave, and one caveat:
 - `unify_cycle` remains *suspicion*, not proof, which is why it is class
   `budget` and not `reference`: the revisit bound cannot distinguish a
   genuine cycle from a model too large to settle within it. A legal
-  model with more than `MAXCYCLE` sibling conjunct terms at one path
-  does not trip it; a 1200-sibling-term fixture driven through both
-  engines pins that.
+  model with more sibling conjunct terms at one path than the bound
+  allows does not trip it, whether or not its members settle within
+  the pass: a fixture of 1200 sibling terms, and one of 600 sibling
+  statements whose members settle only on a later pass, driven through
+  both engines, pin that.
 
 ## Clause 3: determinism
 

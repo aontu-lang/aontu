@@ -718,7 +718,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             (true === this.pathKind && true !== peer.isPath)) {
             return this.fail(ctx, peer, by);
         }
-        if (this.nonEmpty && true === peer.isString) {
+        if (plainString(this) && true === peer.isString) {
             peer = peer.withNonEmpty(ctx);
         }
         if (this.emptyOk && true === peer.isString) {
@@ -1023,7 +1023,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (Number === marker || String === marker) {
             const d = Number === marker ? 'number' : 'string';
             const nonEmpty = true === this.nonEmpty || String === marker;
-            const emptyOk = true === this.emptyOk || true === peer.emptyOk;
+            const plain = plainString(this) || (String === marker && true !== peer.emptyOk);
+            const emptyOk = !plain && (true === this.emptyOk || true === peer.emptyOk);
             if (d === this.domain && nonEmpty === (true === this.nonEmpty) &&
                 emptyOk === (true === this.emptyOk)) {
                 return this;
@@ -1098,7 +1099,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.contains = byCanon([...this.contains, ...peer.contains], containsCanon);
         merged.rests = byCanon([...this.rests, ...peer.rests], restCanon);
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
-        merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
+        merged.emptyOk = (!plainString(this) && !plainString(peer) &&
+            (this.emptyOk || peer.emptyOk)) || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
         merged.sites = new Map([...partSites(peer), ...partSites(this)]);
         return this.finish(merged, ctx, peer);
@@ -1167,13 +1169,13 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             sites: this.sites,
         };
     }
-    // Meet with `empty()`: the residual becomes a string one that also
-    // admits "".
+    // Meet with `empty()`: the residual becomes a string one, which admits
+    // "" unless it has met a plain `string`.
     allowEmpty(ctx, peer) {
         if ('number' === this.domain || null != this.kind || this.pathKind) {
             return (0, err_1.makeNilErr)(ctx, 'empty_domain', peer, this);
         }
-        if (this.emptyOk && 'string' === this.domain) {
+        if ((this.emptyOk || this.nonEmpty) && 'string' === this.domain) {
             return this;
         }
         const merged = this.cloneState();
@@ -1635,6 +1637,10 @@ function stateAdmits(s, peer) {
 }
 // The part of a state refusing a scalar (a bound, excluded value, divisor or
 // pattern); null where its domain or kind does; undefined where none does.
+// It met a `string` that no `empty()` stood beside, which refuses "".
+function plainString(s) {
+    return true === s.nonEmpty && true !== s.emptyOk;
+}
 function stateRefuser(s, peer) {
     const domainOf = numericLeaf(peer) ? 'number' :
         stringishLeaf(peer) ? 'string' : undefined;

@@ -2041,7 +2041,14 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 	switch op.Name {
 	case "conjunct-infix":
 		vals := toVals(terms)
+		if read, ok := foldEmpty(chainTerms(vals)); ok {
+			if 1 == len(read) {
+				return read[0]
+			}
+			vals = read
+		}
 		c := newConjunct(vals)
+		c.chained = true
 		if len(vals) > 0 {
 			// Site AND span from the first term, which is the rule the
 			// canonical port states: a conjunct takes its site from its
@@ -2219,6 +2226,13 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				return n
 			}
 			gv := asVal(terms[0])
+			// A parenthesis ends the chain a `string & empty()` is read in.
+			switch g := gv.(type) {
+			case *ConjunctVal:
+				g.chained = false
+			case *ScalarKindVal:
+				g.folded = false
+			}
 			if r.ON > 0 {
 				gv.setPos(r.O0.SI)
 			}
@@ -2229,6 +2243,58 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		return incompleteNil(r)
 	}
 	return newNil("unknown_op")
+}
+
+// chainTerms lists the terms one written `&` chain holds, through its
+// own steps and no parenthesis.
+func chainTerms(vals []Val) []Val {
+	out := make([]Val, 0, len(vals))
+	for _, v := range vals {
+		if c, ok := v.(*ConjunctVal); ok && c.chained {
+			out = append(out, chainTerms(c.peg)...)
+		} else {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// stringWord tells a plain `string` kind and a kind this chain folded.
+func stringWord(v Val) (plain, folded bool) {
+	k, ok := v.(*ScalarKindVal)
+	return ok && KindString == k.kind && !k.emptyOk, ok && k.folded
+}
+
+// foldEmpty reads `string & empty()` as a kind of its own, not a meet
+// (decision 3): a chain that writes both holds it where the first
+// `string` stood.
+func foldEmpty(chain []Val) ([]Val, bool) {
+	waives, strs := false, false
+	for _, v := range chain {
+		_, e := v.(*EmptyVal)
+		plain, folded := stringWord(v)
+		waives = waives || e || folded
+		strs = strs || plain
+	}
+	if !waives || !strs {
+		return chain, false
+	}
+	out := make([]Val, 0, len(chain))
+	var kind *ScalarKindVal
+	for _, v := range chain {
+		plain, folded := stringWord(v)
+		if _, e := v.(*EmptyVal); e || ((plain || folded) && nil != kind) {
+			continue
+		}
+		if plain || folded {
+			k := *v.(*ScalarKindVal)
+			k.emptyOk, k.folded = true, true
+			kind = &k
+			v = kind
+		}
+		out = append(out, v)
+	}
+	return out, true
 }
 
 func negate(t any) Val {

@@ -3742,8 +3742,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .nothing => nothingOr a
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
-  | .ride k v r, b => .ride k (rec v b) r
-  | a, .ride k v r => .ride k (rec a v) r
+  | .ride k v r, b => rideLeft rec k v r b
+  | a, .ride k v r => rideRight rec a k v r
   | .link v t, b => .link (rec v b) t
   | a, .link v t => .link (rec a v) t
   | .or arms, b => meetNodes rec (.or arms) b
@@ -3775,7 +3775,7 @@ which the two rows would otherwise do without end. It checks whether a
 pair stayed as written with `Val.beq`, under which every term reads
 alike itself (`Val.beq_refl`), `map`, `list` and `_` among them. A
 rider of step 19 carries the meet of its value, so its record rides the
-result. A
+result, by `rideLeft` and `rideRight`. A
 disjunction meets a peer arm by arm,
 the side whose preference ranks stronger outermost (`meetNodes`), so
 that `*integer & **1` and `**1 & *integer` both default to `1`, the
@@ -3871,6 +3871,140 @@ $ echo $?
 the parent arm is `{a: integer, b: integer}`: it takes `{a: 2, b: 3}`
 and refuses `"s"`.
 
+A default that reaches a disjunction as an arm stands as the arm,
+at its rank and with no parent type, whichever way it got there, as
+ruling 89 reads it. Write `arm.aontu`:
+
+<!-- test: scenario arm -->
+<!-- test: file arm.aontu -->
+```aontu
+defaults: level: *"info"
+level: $.defaults.level|"debug"
+```
+
+then `arm-other.aontu`, a level neither arm names:
+
+<!-- test: file arm-other.aontu -->
+```aontu
+level: "other"
+```
+
+and run them:
+
+<!-- test: run -->
+```sh
+$ aontu arm.aontu
+{
+  "defaults": {
+    "level": "info"
+  },
+  "level": "info"
+}
+$ aontu vet arm.aontu arm-other.aontu
+verdict: invalid
+
+$.level: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.level
+  data: arm-other.aontu:1:8 ("other")
+  schema: arm.aontu:2:8 (*"info"|"debug")
+$.level: pref_not_instance [compat]
+  the default "info" is not an instance of any remaining alternative of *"info"|"debug"
+  schema: arm.aontu:1:19 ("info")
+$ echo $?
+1
+```
+
+`defaults.level` alone takes any string, since `*"info"` alone is
+`"info" | string`. Read into `level` it brings the one arm `*"info"`,
+so `level` admits `"info"` and `"debug"` and nothing wider. A `pref()`
+call, a name, `copy`, `move`, a rider, a `match`'s result and a meet
+that leaves the default standing all reach an arm the same way, and a
+star written on such an arm adds to the default's rank, so `*(*1)` is
+`**1`. Both engines read an arm that hasn't settled before the
+disjunction meets another term, so the answer never turns on when the
+arm settles.
+
+The meet marks the parent type, so that a later reader can tell it from
+an arm the document wrote:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- A lone preference's parent type, marked. `*x` alone is
+`x | super(x)`, and the mark tells that second arm from one a document
+writes: it admits what it admitted, and a disjunction that takes the
+preference as an arm leaves it out (ruling 89). -/
+abbrev Val.parentOf (t : Val) : Val := .ride .parent t []
+```
+
+The mark is a rider, so the arm admits what the type admits and every
+theorem of this step stands. Met with a plain term it stays on what the
+type narrows to, and it gives way to a disjunction or a preference:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+/-- A rider's value met with a term on its right: the rider carries the
+meet of its own value, as an annotation rides what its value becomes.
+The mark of a parent type (`Val.parentOf`) stays on what the type
+narrows to, but gives way to a disjunction or a preference, whose arms
+the document wrote: `*1 & (1 | 2)` is `*1 | 2`, where `*1 & integer`
+is still `*1` alone. -/
+def rideLeft (rec : Val → Val → Val) (k : Rider) (v : Val) (r : Record) (b : Val) : Val :=
+  if k == .parent && b.holdsNode then rec v b else .ride k (rec v b) r
+```
+
+`mkOr` reads the mark through where no arm prefers any longer, by
+`unparentArms`: in `*1 & min(2)` the default dies, and the parent
+type `integer & min(2)` stands as any arm does. A disjunction then
+reads each of its arms once the document's selections stand:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The arms a lone preference in normal form stands as where it is an
+arm of a disjunction: its own arms that prefer, the riders and links
+around it carried onto each, where every other arm it has is the parent
+type the meet marked (`Val.parentOf`); none for any other term. A
+disjunction a document writes has arms with no such mark, and a
+preference whose default a meet refused has no arm that prefers, so
+neither reads this way. -/
+def Val.loneArms : Val → Option (List (ℕ × Val))
+  | .or arms =>
+    if arms.any (fun p => p.1 != 0) && arms.all (fun p => p.1 != 0 || p.2.isParent) then
+      some (arms.filter fun p => p.1 != 0)
+    else none
+  | .ride k v r => v.loneArms.map fun arms => arms.map fun p => (p.1, .ride k p.2 r)
+  | .link v t => v.loneArms.map fun arms => arms.map fun p => (p.1, .link p.2 t)
+  | _ => none
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- An arm as a disjunction holds it once read (ruling 89). An arm that
+reads as a lone preference, whichever way it got there, a `pref()`, a
+name, a path's copy, a call's result or a meet that leaves the
+preference standing, is the arm of its rank with no parent type, as a
+written `*x` arm is: the disjunction admits what its arms say and no
+more. What it reads as is its normal form (`Val.loneArms`), and a rank
+the arm is written with adds to the preference's own, as stars count.
+Any other arm stands as written. -/
+def Decls.armStands (ds : Decls) (r : ℕ) (a : Val) : List (ℕ × Val) :=
+  if a.mayPrefer then
+    match (normaliseD ds a).loneArms with
+    | some arms => arms.map fun p => (r + p.1, p.2)
+    | none => [(r, a)]
+  else [(r, a)]
+```
+
+What a document writes stays. A path to `*1 | number` brings both
+arms, `*1 & (1 | 2 | 3)` is `*1 | 2 | 3`, and `super()` of a default is
+its parent type. A `move`'s value is a default too, and both engines
+make the move whichever arm holds it, so the disjunction carries the
+moves of such an arm on every arm, which `Decls.armMoves` reads: in
+`a: 1` beside `b: move($.a) | 2`, data that gives `b` as `2` still
+moves `a` away. Rows ar0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to the definition, beside the `vet-arm-*` rows of
+[`test/spec/vet.tsv`](../test/spec/vet.tsv).
+
 A preference alone is
 `x | super(x)`, as step 12 reads it, so `*8080 & min(1024)` is
 `*8080 | (integer & min(1024))`. Two maps merge key by key in
@@ -3920,10 +4054,12 @@ example : meet (.or [(0, .meet (.min (.num (.integer (.of 5)))) (.max (.num (.in
     (0, .lit (.num (.integer (.of 1))))]) .any = .or [(0, .lit (.num (.integer (.of 1))))] := rfl
 
 /-- `*8080 & min(1024)` is `*8080 | (integer & min(1024))`: the preference
-widens to its parent type, and each arm meets the bound. -/
+widens to its parent type, and each arm meets the bound. The second arm
+carries the mark of a parent type (`Val.parentOf`), which admits what
+the arm admits and tells it from an arm the document writes. -/
 example : meet (.pref 1 (.lit (.num (.integer (.of 8080))))) (.min (.num (.integer (.of 1024)))) =
     .or [(1, .lit (.num (.integer (.of 8080)))),
-      (0, .meet .integer (.min (.num (.integer (.of 1024)))))] := rfl
+      (0, (Val.meet .integer (.min (.num (.integer (.of 1024))))).parentOf)] := rfl
 
 /-- `close([1, 2]) & [&: integer]` is `close([1, 2])`: the seal fixes the
 length, and each position takes the spread. -/
@@ -5651,8 +5787,8 @@ Both engines' test suites run rows the definition generates, as step 17 shows, a
 definition does. [`spec/ledger.tsv`](../spec/ledger.tsv) lists each such case,
 with the answer each side gives, which side changes, and why.
 
-In some, the engines admit what the definition refuses. No meet with
-`string` admits `""`:
+In some, the engines admitted what the definition refuses, and have
+since closed the difference. No meet with `string` admits `""`:
 
 <!-- test: quote spec/Aontu/Order.lean -->
 ```lean
@@ -5668,7 +5804,8 @@ theorem no_meet_with_string_admits_empty (env : Env) (root : Data) (b : Val) :
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
-/-- `string & (string & empty())` refuses `""`, which both engines admit. -/
+/-- `string & (string & empty())` refuses `""`: a `string` keeps its
+non-emptiness whatever it meets. -/
 example : ¬ Instance .empty (.meet .string .anyString) (.str "") :=
   fun ⟨_, h⟩ => no_meet_with_string_admits_empty _ _ _ h
 ```
@@ -5686,12 +5823,20 @@ and run it:
 <!-- test: run -->
 ```sh
 $ aontu -c waiver.aontu
-{"v":""}
+{"v":string&""}
 ```
 
-Both engines give `""` back: they let the `empty()` beside `string`
-widen the conjunction, which a greatest lower bound can't do. For this
-kind, the ledger names the engines as the side that changes.
+The `""` comes back refused, `string&""`, and evaluation fails on it
+with `string_empty`. Both engines once gave `""` back: they let the
+`empty()` beside one `string` lift the other's non-emptiness, which a
+greatest lower bound can't do. They now read `string & empty()` as the
+definition does, a kind of its own, and meet it with `string` as
+`string`. An `empty()` reads as part of that kind only where a
+conjunction writes it beside a `string`. In another statement, outside
+a parenthesised group, or behind a name or a path, it lifts nothing.
+The ten rows of
+[`test/spec/def-fragment.tsv`](../test/spec/def-fragment.tsv) that hold
+the case have left the ledger.
 
 Where the two engines differ from each other, the definition decides
 which changes. `[*1] | [1]` has two arms that single out `[1]`, and
@@ -6372,7 +6517,11 @@ dead, written `nil` or not. So such a trial is an error where it stands, an arm 
 and a spread holding it refuses each member it's tried on. An argument a
 trial tries against a value instead, a branch of `nof`, `when`'s three
 and the conditions of `contains` and `filter`, admits nothing where it
-holds a conflict anywhere (`Decls.tried`), as one at its top does. -/
+holds a conflict anywhere (`Decls.tried`), as one at its top does. A
+`match` whose scrutinee generates a value reads as `selectRead` reads
+it, and a `nof`, a `must` and a `when` as `waitOr` does: one that tries
+a call that waits is the term that waits (`Val.waiting`), so that it
+neither admits nor refuses (#432). -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -6380,9 +6529,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let d' := resolveSpread ds b here d
     if ds.clashes s' then .nil else
     match outputD ds s' with
-    | some x =>
-      if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
-      else (selectArm ds x arms' d').rideMoves s'.moves
+    | some x => selectRead ds here x s' arms' d'
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
       else if s'.unbound || unboundPats arms' || callPairs arms' || here.isNone && keyPairs arms'
@@ -6534,15 +6681,23 @@ def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds)
 ```lean
   | .nof n cs =>
     if ds.clashes (resolveD ds b here n) then .nil
-    else .nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here))
-  | .must c m => if ds.clashes (resolveD ds b here c) then .nil else .must (resolveD ds b here c) m
+    else waitOr here (resolveD ds b here n :: (resolveItems ds b here cs).map (ds.tried here))
+      (.nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here)))
+  | .must c m =>
+    if ds.clashes (resolveD ds b here c) then .nil
+    else waitOr here [resolveD ds b here c] (.must (resolveD ds b here c) m)
   | .when c t e =>
-    .when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
-      ((resolveSpread ds b here e).map (ds.tried here))
+    waitOr here (ds.tried here (resolveD ds b here c) :: ds.tried here (resolveD ds b here t) ::
+        ((resolveSpread ds b here e).map (ds.tried here)).toList)
+      (.when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
+        ((resolveSpread ds b here e).map (ds.tried here)))
   | .contains c n =>
     if ds.clashes (resolveD ds b here n) then .nil
     else .contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n)
 ```
+
+`waitOr` holds a `nof`, a `must` or a `when` whose argument still waits
+for an operand, which the section on `+` below covers.
 
 Below the top of `must`'s condition a written `nil` stands as it does
 anywhere, so `must({b?: nil}, "m")` admits `{"x": 1}` and refuses
@@ -7614,12 +7769,80 @@ def Val.callAt : Val → Bool
 A sum no leaf holds, `9007199254740992 + 1`, is `nil`, so `vet` reads
 it as an error, as it reads `add(9007199254740992, 1)`.
 
-Inside a trial the definition doesn't wait yet. A `match` whose pattern
-is a waiting `+` passes over the pattern, since `Judge` refuses every
-value at a call, where both engines wait on the pattern, which #432
-tracks. A pattern that holds a call keeps the `match` unmade, so
+A trial that tries a call that waits has to wait with it. `Judge`
+refuses every value at a call, so a `match` would pass over a waiting
+`+` in a pattern and take a later arm, and a `nof` would count the
+branch as one that refuses. Both engines stage each argument before
+they try it, and answer `incomplete`. So the reading makes such a trial
+the term that waits, a `+` that takes neither operand:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.waiting : Val := .call .plus [.any, .any]
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def waitOr (here : Option (List Step)) (args : List Val) (t : Val) : Val :=
+  if here.isNone && keyItems args then t else if stallsItems args then .waiting else t
+```
+
+`resolveD` hands `waitOr` the arguments a `nof`, a `must` or a `when`
+tries. `Val.stalls` finds a `+`, a `join` or a `pref` the reading left
+as written in any of them: in a member, an element, an arm or a meet,
+though not in a spread's template, which nothing has read against a
+member yet. A `match` whose scrutinee has a value reads the same way:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def selectRead (ds : Decls) (here : Option (List Step)) (x : Data) (s : Val)
+    (arms : List (Val × Val)) (d : Option Val) : Val :=
+  if here.isNone && keyPairs arms then .select s arms d
+  else if callPats arms then
+    if illPats arms || !stallsItems (arms.map (·.1)) then .select s arms d
+    else Val.waiting.rideMoves s.moves
+  else (selectArm ds x arms d).rideMoves s.moves
+```
+
+One pattern that waits holds the whole `match`, whichever arm the value
+would take. Write `wait.aontu`:
+
+<!-- test: scenario wait -->
+<!-- test: file wait.aontu -->
+```aontu
+v: match(1, 1, "yes", integer + 1, "no")
+```
+
+and `wait-data.aontu`:
+
+<!-- test: file wait-data.aontu -->
+```aontu
+v: "yes"
+```
+
+Now vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet wait.aontu wait-data.aontu
+verdict: incomplete
+
+$.v: mapval_no_gen [incomplete]
+  [aontu/mapval_no_gen]: Cannot resolve value at path $.v
+  schema: wait.aontu:1:4 ("yes"&match(1,1,"yes",integer+1,"no"))
+$ echo $?
+3
+```
+
+The first arm alone would answer `"yes"`. The second pattern still
+waits, so neither engine selects. A pattern that holds a call the
+reading couldn't make keeps the `match` as written, so
 `match(1, add(integer, 1), "yes", "no")` is an error, as both engines
-answer.
+answer. Rows `wt0` on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to these readings, and the two rows that held the old one have left the
+ledger. `contains`, `rest` and `len` over such a call read another way
+in both engines, which #977 tracks.
 
 `join` folds a bag into one string with the texts `+` writes, the
 separator between them, `""` where there's none, so

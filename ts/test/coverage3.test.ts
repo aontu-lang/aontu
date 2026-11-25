@@ -600,12 +600,15 @@ describe('coverage3-funcs', () => {
     Assert.equal(rel.unify(new ConstraintKindVal({}, ctx), ctx).canon, 'constraint&relate("x")')
   })
 
-  // The empty-string flags fold idempotently, and a value carrying one
-  // hands it to an identical value that does not.
+  // The empty-string flags fold idempotently, a plain `string` stands
+  // against the wider kind, and a value carrying a flag hands it to an
+  // identical value that does not.
   test('empty-flags-api-only-arms', () => {
     const ctx = CTX()
-    const sk: any = new ScalarKindVal({ peg: String }, ctx).withEmpty(ctx)
-    Assert.equal(sk.withEmpty(ctx), sk)
+    const sk: any = new ScalarKindVal({ peg: String, emptyOk: true } as any, ctx)
+    const plain: any = new ScalarKindVal({ peg: String }, ctx)
+    Assert.equal(plain.unify(sk, ctx), plain)
+    Assert.equal(sk.unify(plain, ctx), plain)
 
     const s: any = new StringVal({ peg: 'x' }, ctx).withEmpty(ctx)
     Assert.equal(s.withEmpty(ctx), s)
@@ -616,7 +619,9 @@ describe('coverage3-funcs', () => {
     const strict: any = blank.withNonEmpty(ctx)
     Assert.equal(strict.needsNonEmpty, true)
     const both: any = strict.unify(blank.withEmpty(ctx), ctx)
-    Assert.equal(both.needsNonEmpty && both.emptyOk, true)
+    Assert.equal(both.needsNonEmpty && !both.emptyOk, true)
+    Assert.equal(blank.withEmpty(ctx).unify(strict, ctx), strict)
+    Assert.equal(strict.withEmpty(ctx), strict)
 
     const waived: any = A().unify('x: string & re("x") & empty()').peg.x
     Assert.equal(waived.allowEmpty(ctx, new EmptyVal({}, ctx)), waived)

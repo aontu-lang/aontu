@@ -3659,14 +3659,55 @@ theorem meetBase_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
       · exact hl _ _ ha
       · exact atomMeet_checkableA ha hb
 
+theorem Val.unparent_checkableA : ∀ {v : Val}, v.CheckableA → v.unparent.CheckableA
+  | .ride .parent v _, h => by
+    rw [Val.unparent]
+    cases h with | ride hv => exact Val.unparent_checkableA hv
+  | .ride .metadata _ _, h | .ride .deprecate _ _, h | .ride .ident _ _, h | .ride .type _ _, h
+  | .ride .hide _ _, h | .ride .opened _ _, h | .ride .lifts _ _, h | .ride .seals _ _, h
+  | .ride (.move _) _ _, h | .ride .void _ _, h => h
+  | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h | .anyString, h
+  | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h | .min _, h | .max _, h
+  | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h | .unique _, h | .re _, h
+  | .format _, h | .grammar _, h | .any, h | .nil, h | .absent, h | .nothing, h | .map _ _ _, h
+  | .list _ _ _, h | .or _, h | .pref _ _, h | .meet _ _, h | .alias _, h | .path _, h | .addr _, h
+  | .nof _ _, h | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
+  | .filter _ _, h | .link _ _, h | .key, h | .keyUp _, h | .hole, h | .call _ _, h => h
+
+theorem Val.parents_checkableA {v : Val} (h : v.CheckableA) : v.parents.CheckableA := by
+  cases v with
+  | or arms =>
+    simp only [Val.parents]
+    cases h with
+    | or ha =>
+      refine .or fun r a hm => ?_
+      obtain ⟨p, hp, he⟩ := List.mem_map.mp hm
+      split at he
+      · simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact .ride (Val.unparent_checkableA (ha p.1 p.2 hp))
+      · subst he
+        exact ha r a hp
+  | _ => exact h
+
+theorem unparentArms_checkableA {live : List (ℕ × Val)} (h : ∀ p, p ∈ live → p.2.CheckableA) :
+    ∀ p, p ∈ unparentArms live → p.2.CheckableA := by
+  unfold unparentArms
+  split
+  · exact h
+  · intro p hp
+    obtain ⟨q, hq, rfl⟩ := List.mem_map.mp hp
+    exact Val.unparent_checkableA (h q hq)
+
 theorem mkOr_checkableA {arms : List (ℕ × Val)} (h : ∀ p, p ∈ arms → p.2.CheckableA) :
     (mkOr arms).CheckableA := by
   simp only [mkOr]
   split
   · exact .nil
   · refine .or fun r a hm => ?_
-    obtain ⟨p, hp, hq⟩ := List.mem_flatMap.mp (List.mem_filter.mp hm).1
-    exact flattenArm_checkableA (h p hp) (r, a) hq
+    refine unparentArms_checkableA (fun p hp => ?_) (r, a) hm
+    obtain ⟨q, hq, hq'⟩ := List.mem_flatMap.mp (List.mem_filter.mp hp).1
+    exact flattenArm_checkableA (h q hq) p hq'
 
 section
 variable {m : Val → Val → Val}
@@ -3895,24 +3936,24 @@ theorem mkOr_or_right {a : Val} {arms : List (ℕ × Val)} (ha : a.CheckableA) (
     exact hr _ _ ha (h q.1 q.2 hq)
 
 theorem mkOr_pref_left {r : ℕ} {x b : Val} (hx : (Val.pref r x).CheckableA) (hb : b.CheckableA) :
-    (mkOrF rec [(r, rec x b), (0, rec x.super b)]).CheckableA := by
+    (mkOrF rec [(r, rec x b), (0, rec x.super.parentOf b)]).CheckableA := by
   cases hx with
   | pref hx =>
     refine mkOrF_checkableA hr fun p hp => ?_
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hp
     rcases hp with rfl | rfl
     · exact hr _ _ hx hb
-    · exact hr _ _ hx.super hb
+    · exact hr _ _ (.ride hx.super) hb
 
 theorem mkOr_pref_right {a : Val} {r : ℕ} {y : Val} (ha : a.CheckableA) (hy : (Val.pref r y).CheckableA) :
-    (mkOrF rec [(r, rec a y), (0, rec a y.super)]).CheckableA := by
+    (mkOrF rec [(r, rec a y), (0, rec a y.super.parentOf)]).CheckableA := by
   cases hy with
   | pref hy =>
     refine mkOrF_checkableA hr fun p hp => ?_
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hp
     rcases hp with rfl | rfl
     · exact hr _ _ ha hy
-    · exact hr _ _ ha hy.super
+    · exact hr _ _ ha (.ride hy.super)
 
 theorem nodeRight_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
     (nodeRight rec a b).CheckableA := by
@@ -3939,7 +3980,7 @@ theorem armsOf_checkableA {v : Val} (h : v.CheckableA) : ∀ p, p ∈ v.armsOf �
       simp only [Val.armsOf, List.mem_cons, List.not_mem_nil, or_false] at hp
       rcases hp with rfl | rfl
       · exact hx
-      · exact hx.super
+      · exact .ride hx.super
   | _ => intro p hp; rw [List.mem_singleton.mp hp]; exact h
 
 theorem nodeNorm_checkableA {v : Val} (h : v.CheckableA) : (nodeNorm rec v).CheckableA := by
@@ -3983,8 +4024,13 @@ theorem nodeTie_checkableA {r : ℕ} {a b : Val} (ha : a.CheckableA) (hb : b.Che
     armsOf_checkableA ha p (List.mem_filter.mp hp).1
   have hqb : ∀ p, p ∈ armsOffRank r b → p.2.CheckableA := fun p hp =>
     armsOf_checkableA hb p (List.mem_filter.mp hp).1
-  have hrest : (rec (.or (armsOffRank r a)) (.or (armsOffRank r b))).CheckableA :=
+  have hrest₀ : (rec (.or (armsOffRank r a)) (.or (armsOffRank r b))).CheckableA :=
     hr _ _ (.or fun r' a' h => hqa (r', a') h) (.or fun r' a' h => hqb (r', a') h)
+  have hrest : (tieRest rec r a b).CheckableA := by
+    unfold tieRest
+    split
+    · exact Val.parents_checkableA hrest₀
+    · exact hrest₀
   unfold nodeTie
   split
   · refine mkOrF_checkableA hr fun p hp => ?_
@@ -4051,7 +4097,7 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     .map (fun _ _ _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
   have hanyL : (Val.list [] none false).CheckableA :=
     .list (fun _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
-  cases a <;> cases b <;> (unfold meetStep; dsimp only) <;> first
+  cases a <;> cases b <;> (unfold meetStep; dsimp only [rideLeft, rideRight]) <;> first
     | exact .nil
     | (split <;> first | exact .nil | exact hb | exact ha)
     | exact absentOr_checkableA (hr _ _ .any hb)
@@ -4061,8 +4107,12 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     | exact meetBase_checkableA hl ha hb
     | exact (match ha with | .meet h₁ h₂ => hr _ _ h₁ (hr _ _ h₂ hb))
     | exact meetRight_checkableA hr ha hb
-    | exact (match ha with | .ride h => .ride (hr _ _ h hb))
-    | exact (match hb with | .ride h => .ride (hr _ _ ha h))
+    | (split <;> first
+        | exact (match ha with | .ride h => hr _ _ h hb)
+        | exact (match ha with | .ride h => .ride (hr _ _ h hb)))
+    | (split <;> first
+        | exact (match hb with | .ride h => hr _ _ ha h)
+        | exact (match hb with | .ride h => .ride (hr _ _ ha h)))
     | exact (match ha with | .link h ht => .link (hr _ _ h hb) ht)
     | exact (match hb with | .link h ht => .link (hr _ _ ha h) ht)
     | exact meetNodes_checkableA hr ha hb

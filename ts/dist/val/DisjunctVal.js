@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DisjunctVal = void 0;
 exports.meetRanked = meetRanked;
+exports.unread = unread;
 const type_1 = require("../type");
 const err_1 = require("../err");
 const exactjson_1 = require("../exactjson");
@@ -34,6 +35,13 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
     unify(peer, ctx) {
         peer = peer ?? (0, top_1.top)();
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Disjunct', this, peer);
+        // An arm that isn't read yet is read, the peer held, before the disjunction meets the peer:
+        // a default that reaches the arm stands as the arm it is whenever it settles (ruling 89).
+        if (!peer.isTop && this.peg.some(pends) && !this.readArms(peer, ctx)) {
+            const held = this.place(new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx));
+            (0, utility_1.explainClose)(te, held);
+            return held;
+        }
         if (!this.prefsRanked) {
             const ranked = this.rankPrefs(ctx);
             // A clash between equal-rank defaults refuses for the whole
@@ -138,9 +146,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         // Remove duplicates, and normalize
         if (1 < oval.length) {
             for (let vI = 0; vI < oval.length; vI++) {
-                if (oval[vI].isDisjunct) {
-                    oval.splice(vI, 1, ...oval[vI].peg);
-                }
+                oval.splice(vI, 1, ...flatArms(oval[vI]));
             }
             dedupArms(ctx, oval, false);
         }
@@ -166,6 +172,26 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         }
         (0, utility_1.explainClose)(te, out);
         return out;
+    }
+    // Reads each arm that isn't read yet; false where one still waits.
+    readArms(peer, ctx) {
+        const arms = [];
+        for (const v of this.peg) {
+            if (!pends(v)) {
+                arms.push(v);
+                continue;
+            }
+            const rctx = ctx.holdArm(this.path, (0, PrefVal_1.prefInnerPeg)(v), peer);
+            rctx.err = [];
+            rctx._trialMode = true;
+            const read = (0, unify_1.unite)(rctx, v, (0, top_1.top)(), 'dj-read');
+            if (0 === rctx.err.length && !read.isNil) {
+                arms.push(...flatArms(read));
+            }
+        }
+        this.peg = arms;
+        this.prefsRanked = false;
+        return !arms.some(pends);
     }
     rankPrefs(ctx) {
         const prefs = [];
@@ -261,9 +287,16 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.DisjunctVal = DisjunctVal;
-function unread(v) {
+function flatArms(v) {
+    return true === v.isDisjunct ? v.peg : [v];
+}
+function pends(v) {
+    return true !== v.done && (true === v.isRef || true === v.isFunc || true === v.isConjunct);
+}
+function unread(v, which) {
     const kids = true === v.isBag || true === v.isJunction || true === v.isFunc || true === v.isOp;
-    return true === v.isRef || kids && Object.values(v.peg).some(unread);
+    return true === v.isRef ? undefined === which || which(v) :
+        kids && Object.values(v.peg).some((k) => unread(k, which));
 }
 function dedupArms(ctx, oval, ranked) {
     // Dedup: duplicate Vals in the disjunct are replaced with the
