@@ -634,6 +634,8 @@ function vet(schemaSrc, dataSrc, opts) {
             bag.spread.cj = argumentForm(bag.spread.cj, ctx);
         }
     }
+    ;
+    ctx._ownroot = schemaVal;
     const pair = new ConjunctVal_1.ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx);
     const unified = aontu.unify(pair, undefined, ctx);
     const seen = new Set();

@@ -2163,7 +2163,14 @@ until the phase that encodes it lands.
    `invalid` (lq27 to lq29); a path in a template inside the value,
    which both lift to `any` in the parent arm (lp51 to lp53); and under
    `vet` a path to a place outside the value, where the data overrides
-   the default at once (lp63 to lp65).
+   the default at once (lp63 to lp65). **Built in both ports
+   2026-11-25** (#702): a lone preference whose value can't read one
+   of its paths on its own yet waits for the path before a peer meets
+   it, as a disjunction waits for an arm, so the parent arm lifts what
+   the path reads under `vet` as it does when evaluated. A path to a
+   member of the value itself reads on its own, and the peer narrows
+   it as before. The six rows lp63 to lp65 and lpl63 to lpl65 leave
+   the ledger, whose bound falls to 49.
 
 41. **Preferences of different ranks that meet.** Raised 2026-11-11
    while building the reference's rule that compatible defaults fold.

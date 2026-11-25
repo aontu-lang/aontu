@@ -822,6 +822,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	if "" != options.At {
 		ctx.fixroot = schemaVal
 	}
+	ctx.ownroot = schemaVal
 	unified := unifyRoot(pair, ctx)
 	ctx.root = unified
 

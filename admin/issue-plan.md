@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 55 on 2026-11-24),
+  on 2026-11-22), ledger rows (394 at most then, 49 on 2026-11-25),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -94,14 +94,14 @@ A name or a path that reaches itself consuming no key or element is a static `er
 
 ### Preferences and disjunction arms
 
-18 issues (5 S, 11 M, 2 L), 15 ledger rows.
+18 issues (5 S, 11 M, 2 L), 9 ledger rows.
 
 How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714, the layers, was built and closed on 2026-11-20, and its rows left the ledger with most of #700's, #702's and #704's. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
 | [#700](https://github.com/aontu-lang/aontu/issues/700) | def | L | 3 | A path in a live disjunction arm or lone preference waits; both ports say incomplete, the definition valid. |
-| [#702](https://github.com/aontu-lang/aontu/issues/702) | def | M | 6 | Lone preference with an outside path: both ports' vet contradicts their own eval; definition sides with eval. |
+| [#702](https://github.com/aontu-lang/aontu/issues/702) | def | M |  | Lone preference with an outside path: both ports' vet contradicted their own eval; definition sides with eval. Built in both ports 2026-11-25: a lone preference waits for a path its value can't read on its own. |
 | [#704](https://github.com/aontu-lang/aontu/issues/704) | def | M | 6 | A lone preference's parent arm lifts a path inside it to any, not the parent type it reads. |
 | [#714](https://github.com/aontu-lang/aontu/issues/714) | def | L |  | Meeting preferences of different ranks drops the higher rank's constraint and default; rulings 41, 42, decision 43. |
 | [#482](https://github.com/aontu-lang/aontu/issues/482) | def | M |  | A made default clash (`pref(1 \| 2)`, meets) reads invalid under vet, where a written clash is error. Built in both ports 2026-11-24. |
@@ -460,7 +460,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 56 | 22 |
+| 2 | alias cycles, preferences, seals and marks, copies | 56 | 16 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 21 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
@@ -470,6 +470,6 @@ The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
 #944, #946 and #953 to #957 on 2026-11-24, and #970 and #971 on
-2026-11-25. The ledger rows are counted on 2026-11-24, from the issue
+2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
 each row's cause names. The ledger's other 10 rows name decision 3 and
 no issue: they're #343's.
