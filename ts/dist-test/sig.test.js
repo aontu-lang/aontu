@@ -128,6 +128,39 @@ const SHARED = Path.join(__dirname, '..', '..', 'test', 'spec', 'signature.tsv')
         (0, expect_1.expect)(0 < rows).equal(true);
         (0, expect_1.expect)(undeclared).equal([]);
     });
+    // ADR-080: canon writes a call the document wrote, never another in
+    // its place. What it may write beside one is listed: the range a count
+    // is read as, the value super() answers, and move()'s default.
+    (0, node_test_1.test)('canon-writes-no-call-the-source-lacks', () => {
+        const declared = (0, sig_1.parseSigText)(sigdecl_1.SIGDECL);
+        const beside = {
+            min: ['len', 'contains'], max: ['len', 'contains'], empty: ['super'], pref: ['move'],
+        };
+        const calls = (text) => new Set(Array.from(text.replace(/"(?:[^"\\]|\\.)*"/g, '""').matchAll(/([A-Za-z_][A-Za-z0-9_]*)\(/g), (m) => m[1]));
+        const dir = Path.dirname(SHARED);
+        const strays = [];
+        let rows = 0;
+        for (const file of Fs.readdirSync(dir).filter((f) => f.endsWith('.tsv')).sort()) {
+            for (const line of Fs.readFileSync(Path.join(dir, file), 'utf8').split('\n')) {
+                const cols = line.split('\t');
+                // An included model's text is not in the row.
+                if (line.startsWith('#') || ('canon' !== cols[1] && 'hcanon' !== cols[1]) ||
+                    cols[2].includes('@"')) {
+                    continue;
+                }
+                rows++;
+                const written = calls(cols[2]);
+                for (const name of calls(cols[3])) {
+                    if (name in declared && !written.has(name) &&
+                        !(beside[name] ?? []).some((b) => written.has(b))) {
+                        strays.push(file + ':' + cols[0] + ' writes ' + name + '(');
+                    }
+                }
+            }
+        }
+        (0, expect_1.expect)(0 < rows).equal(true);
+        (0, expect_1.expect)(strays).equal([]);
+    });
     (0, node_test_1.test)('malformed-declarations-are-errors', () => {
         const bad = [
             '',

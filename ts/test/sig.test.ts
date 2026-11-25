@@ -113,6 +113,43 @@ describe('sig', () => {
   })
 
 
+  // ADR-080: canon writes a call the document wrote, never another in
+  // its place. What it may write beside one is listed: the range a count
+  // is read as, the value super() answers, and move()'s default.
+  test('canon-writes-no-call-the-source-lacks', () => {
+    const declared = parseSigText(SIGDECL)
+    const beside: Record<string, string[]> = {
+      min: ['len', 'contains'], max: ['len', 'contains'], empty: ['super'], pref: ['move'],
+    }
+    const calls = (text: string) => new Set(Array.from(
+      text.replace(/"(?:[^"\\]|\\.)*"/g, '""').matchAll(/([A-Za-z_][A-Za-z0-9_]*)\(/g),
+      (m) => m[1]))
+    const dir = Path.dirname(SHARED)
+    const strays: string[] = []
+    let rows = 0
+    for (const file of Fs.readdirSync(dir).filter((f) => f.endsWith('.tsv')).sort()) {
+      for (const line of Fs.readFileSync(Path.join(dir, file), 'utf8').split('\n')) {
+        const cols = line.split('\t')
+        // An included model's text is not in the row.
+        if (line.startsWith('#') || ('canon' !== cols[1] && 'hcanon' !== cols[1]) ||
+          cols[2].includes('@"')) {
+          continue
+        }
+        rows++
+        const written = calls(cols[2])
+        for (const name of calls(cols[3])) {
+          if (name in declared && !written.has(name) &&
+            !(beside[name] ?? []).some((b) => written.has(b))) {
+            strays.push(file + ':' + cols[0] + ' writes ' + name + '(')
+          }
+        }
+      }
+    }
+    expect(0 < rows).equal(true)
+    expect(strays).equal([])
+  })
+
+
   test('malformed-declarations-are-errors', () => {
     const bad = [
       '',

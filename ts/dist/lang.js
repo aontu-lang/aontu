@@ -708,12 +708,11 @@ help isolate the syntax error.`,
             terms = terms[0];
         }
         const args = terms.map(rawToVal);
-        // keyed IS READ AS THE GUARDED SPREAD IT MEANS, so canon, a refusal
-        // and the JSON Schema exporter all write the one form.
+        // keyed IS CARRIED OUT BY THE MATCH ON key(0) IT MEANS, and keeps its name.
         if ('keyed' === fname) {
             const up = addsite(new IntegerVal_1.IntegerVal({ peg: 0 }), r, ctx);
             const key = addsite(new KeyFuncVal_1.KeyFuncVal({ peg: [up] }), r, ctx);
-            return new MatchFuncVal_1.MatchFuncVal({
+            return new MatchFuncVal_1.KeyedFuncVal({
                 peg: [key, args[0], args[1], args[2] ?? addsite((0, top_1.top)(), r, ctx)],
             });
         }

@@ -2102,3 +2102,9 @@ all four as recommended; continue
 ```text
 Merge and continue
 ```
+
+## 2026-11-24 23:21:12 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Merge; confirm you are following all adrs in particular canon forms match builtins used (even if there are internal "rewrites" that reuse other builtins). Report on overall progress then continue work
+```

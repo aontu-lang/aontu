@@ -1116,7 +1116,7 @@ function keyArms(v) {
     for (let i = 1; i < v.peg.length - (undefined === def ? 0 : 1); i += 2) {
         arms.push([v.peg[i], v.peg[i + 1]]);
     }
-    return { arms, def };
+    return { arms, def, name: v.callname() };
 }
 // A key test that is a pattern alone, as the importer writes a
 // patternProperties key; a propertyNames schema is a string's.
@@ -1228,7 +1228,7 @@ function spreadKeywords(ctx, path, declared, spr) {
         const def = restOut(ctx, at, g.def);
         const anyArm = g.arms.every(([, r]) => true === r.isTop);
         if (names.length + res.length < g.arms.length) {
-            lose(ctx, at, 'match', 'JSON Schema chooses a member\'s schema by its name or a pattern, so an ' +
+            lose(ctx, at, g.name, 'JSON Schema chooses a member\'s schema by its name or a pattern, so an ' +
                 'arm testing its key any other way has no spelling, and this spread is DROPPED');
         }
         else if (anyArm && undefined === out.additionalProperties &&
@@ -1241,7 +1241,7 @@ function spreadKeywords(ctx, path, declared, spr) {
             extra.push(armsPart(ctx, at, g, def));
         }
         else {
-            lose(ctx, at, 'match', 'arms whose keys can overlap have no JSON Schema spelling, since every ' +
+            lose(ctx, at, g.name, 'arms whose keys can overlap have no JSON Schema spelling, since every ' +
                 'matching keyword applies where match takes the first arm, so this ' +
                 'spread is DROPPED');
         }
@@ -1266,7 +1266,7 @@ function listKeywords(ctx, path, spr) {
             return [{ items: armOut(ctx, at, t) }];
         }
         if (!g.arms.every(([test], j) => true === test.isScalar && String(j) === test.peg)) {
-            lose(ctx, at, 'match', 'JSON Schema places a list member by its position from the first, so ' +
+            lose(ctx, at, g.name, 'JSON Schema places a list member by its position from the first, so ' +
                 'arms that are not the positions in order have no spelling, and this ' +
                 'spread is DROPPED');
             return [];

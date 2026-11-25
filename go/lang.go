@@ -2826,8 +2826,9 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 		sp = r.O0.SI
 	}
 
-	// keyed is read as the guarded spread it means: one form for canon and a refusal.
-	if "keyed" == name {
+	// keyed is carried out by the match on key(0) it means, and keeps its name.
+	keyed := "keyed" == name
+	if keyed {
 		sited := func(v Val) Val {
 			v.setPos(sp)
 			stampSrc(v, r)
@@ -2854,6 +2855,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	}
 
 	fv := newFunc(name, args)
+	fv.keyed = keyed
 	if r.ON > 0 {
 		fv.site.sp = r.O0.SI
 		stampSrc(fv, r)

@@ -19,21 +19,31 @@ out:
 cfg: { &: keyed(re("^env_"), string), env_name: prod, other: 1 }
 ```
 
-It is a spelling of the guarded spread and adds no form. Each reader
-rewrites the call to `match(key(0), p, t, e)` where it builds it, so
-the two spellings have one canonical form and one hash, a refusal and
-`model why` show the `match`, and the JSON Schema exporter writes
-`patternProperties` for it. The formatter keeps the spelling the
-author wrote. A seal is unchanged, on ruling 19: a closed map and a
-type's instance still refuse a key that only the pattern admits.
+It means `match(key(0), p, t, e)`, and each engine carries it out by
+that match. The match has no text of its own: canon and the hash form
+write `keyed` under its own name, as ADR-080 asks of every builtin,
+with `e` left out where it is `any`. So a `keyed` call and the `match`
+it means are two canonical forms with two hashes. A refusal,
+`model why` and a hover show `keyed`, and the JSON Schema exporter
+writes `patternProperties` for it and reports a spread it drops under
+`keyed`. The formatter keeps the spelling the author wrote. A seal is
+unchanged, on ruling 19: a closed map and a type's instance still
+refuse a key that only the pattern admits.
 
 - The name is in the signature table, the four published grammars,
   the functions reference and both language servers' rosters.
 - `Val.keyedCall` in `spec/Aontu/Syntax.lean` is its reading in the
   definition, and rows yk0 on of `test/spec/def-trial.tsv` are
   generated from it.
-- The 47 rows of the new `test/spec/keyed.tsv` hold both engines to
+- The 54 rows of the new `test/spec/keyed.tsv` hold both engines to
   it.
+- `subsume` compares a spread that reads its key by its text, so a
+  `keyed` call against the `match` it means is `undecided`.
+- A test in each port, `canon-writes-no-call-the-source-lacks` and
+  `TestCanonWritesNoCallTheSourceLacks`, holds every `canon` and
+  `hcanon` row of the shared suite to ADR-080: canon writes no builtin
+  its source does not write, beside the range a count is read as, the
+  value `super()` answers and the default a `move()` leaves.
 
 The wording of a wrong count is corrected with it. The message
 collapsed several intervals, so it would have said `keyed takes one to

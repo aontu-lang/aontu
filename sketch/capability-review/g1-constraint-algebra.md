@@ -891,9 +891,10 @@ admits `"zebra"` and refuses `"apple"`.
   the key form.** Ruling 18 of
   [the plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
   adopted a named call, `keyed(p, t, e?)`, and its task KP1 built it in
-  both ports: each reader rewrites the call to the guarded spread
-  `match(key(0), p, t, e)` (`buildCall` in `ts/src/lang.ts` and
-  `go/lang.go`), and `test/spec/keyed.tsv` holds it. The key form the
+  both ports: each engine carries the call out by the guarded spread
+  `match(key(0), p, t, e)` it means (`buildCall` in `ts/src/lang.ts`
+  and `go/lang.go`) and writes it as `keyed` in canon, as ADR-080
+  asks, and `test/spec/keyed.tsv` holds it. The key form the
   note proposed, `&"…"`, is still a parse error in both ports,
   identically, and is not planned. From 2026-08-28 to the ruling this
   was held as deferred by the maintainer's decision, a deferral and

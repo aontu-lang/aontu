@@ -253,6 +253,8 @@ type FuncVal struct {
 	prepared bool
 	// declared marks ident() as the whole value of an alias declaration.
 	declared bool
+	// keyed marks the match on key(0) that carries out a keyed() call.
+	keyed    bool
 	unmarked Val
 }
 
@@ -279,12 +281,29 @@ func keptCustom(record *MapVal) {
 
 func (f *FuncVal) superior() Val { return top() }
 
+// callName is the name the document called it by.
+func (f *FuncVal) callName() string {
+	if f.keyed {
+		return "keyed"
+	}
+	return f.name
+}
+
+// A keyed() call is written under its own name, not as the match that
+// carries it out (ADR-080), its default left out where it is `any`.
 func (f *FuncVal) Canon() string {
-	parts := make([]string, len(f.peg))
-	for i, a := range f.peg {
+	peg := f.peg
+	if f.keyed {
+		peg = peg[1:]
+		if isTop(peg[2]) {
+			peg = peg[:2]
+		}
+	}
+	parts := make([]string, len(peg))
+	for i, a := range peg {
 		parts[i] = a.Canon()
 	}
-	return f.name + "(" + strings.Join(parts, ",") + ")"
+	return f.callName() + "(" + strings.Join(parts, ",") + ")"
 }
 
 func (f *FuncVal) Gen(ctx *Ctx) (any, error) {
@@ -527,7 +546,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			if driven {
 				out = rereadCall(out, newpeg, peer, func() Val {
 					nf := newFunc(f.name, newpeg)
-					nf.declared, nf.mtype, nf.mhide = f.declared, newtype, newhide
+					nf.declared, nf.keyed, nf.mtype, nf.mhide = f.declared, f.keyed, newtype, newhide
 					nf.path, nf.site = cp(f.path), f.site
 					return nf
 				}, wrapperFuncs[f.name])
@@ -536,7 +555,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	} else if isTop(peer) {
 		f.notdone()
 		nf := newFunc(f.name, newpeg)
-		nf.declared = f.declared
+		nf.declared, nf.keyed = f.declared, f.keyed
 		nf.path = cp(f.path)
 		nf.dc = f.dc
 		nf.site.sp, nf.site.spu, nf.site.url = f.site.sp, f.site.spu, f.site.url

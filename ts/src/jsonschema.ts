@@ -1372,7 +1372,7 @@ function armOut(ctx: Ctx, path: string[], r: any): any {
 
 // A spread guarded by its key, match(key(0), test, result, ..., default),
 // as its arms and default; undefined for any other spread.
-function keyArms(v: any): { arms: any[][], def: any } | undefined {
+function keyArms(v: any): { arms: any[][], def: any, name: string } | undefined {
   const key = v.peg?.[0]
   if (true !== v.isMatchFunc || true !== key?.isKeyFunc || 0 !== keyLevel(key)) {
     return undefined
@@ -1382,7 +1382,7 @@ function keyArms(v: any): { arms: any[][], def: any } | undefined {
   for (let i = 1; i < v.peg.length - (undefined === def ? 0 : 1); i += 2) {
     arms.push([v.peg[i], v.peg[i + 1]])
   }
-  return { arms, def }
+  return { arms, def, name: v.callname() }
 }
 
 
@@ -1447,7 +1447,7 @@ function spreadKeywords(ctx: Ctx, path: string[], declared: string[], spr: any):
   const out: any = {}
   const extra: any[] = []
   const patterns: Record<string, any> = {}
-  const rest: { arms: any[][], def: any, tests: any[] }[] = []
+  const rest: { arms: any[][], def: any, name: string, tests: any[] }[] = []
   const plain: any[] = []
   terms.forEach((t: any, i: number) => {
     const g = guarded[i]
@@ -1505,7 +1505,7 @@ function spreadKeywords(ctx: Ctx, path: string[], declared: string[], spr: any):
     const def = restOut(ctx, at, g.def)
     const anyArm = g.arms.every(([, r]) => true === r.isTop)
     if (names.length + res.length < g.arms.length) {
-      lose(ctx, at, 'match',
+      lose(ctx, at, g.name,
         'JSON Schema chooses a member\'s schema by its name or a pattern, so an ' +
         'arm testing its key any other way has no spelling, and this spread is DROPPED')
     }
@@ -1519,7 +1519,7 @@ function spreadKeywords(ctx: Ctx, path: string[], declared: string[], spr: any):
       extra.push(armsPart(ctx, at, g, def))
     }
     else {
-      lose(ctx, at, 'match',
+      lose(ctx, at, g.name,
         'arms whose keys can overlap have no JSON Schema spelling, since every ' +
         'matching keyword applies where match takes the first arm, so this ' +
         'spread is DROPPED')
@@ -1548,7 +1548,7 @@ function listKeywords(ctx: Ctx, path: string[], spr: any): any[] | undefined {
     }
     if (!g.arms.every(([test]: any[], j: number) =>
       true === test.isScalar && String(j) === test.peg)) {
-      lose(ctx, at, 'match',
+      lose(ctx, at, g.name,
         'JSON Schema places a list member by its position from the first, so ' +
         'arms that are not the positions in order have no spelling, and this ' +
         'spread is DROPPED')

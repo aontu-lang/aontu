@@ -141,7 +141,7 @@ import { TranslateFuncVal } from './val/TranslateFuncVal'
 import { EachFuncVal } from './val/EachFuncVal'
 import { ApplyFuncVal } from './val/ApplyFuncVal'
 import { FilterFuncVal } from './val/FilterFuncVal'
-import { MatchFuncVal } from './val/MatchFuncVal'
+import { MatchFuncVal, KeyedFuncVal } from './val/MatchFuncVal'
 import { EmitFuncVal } from './val/EmitFuncVal'
 import {
   EscFuncVal, UscFuncVal, RepFuncVal, SplitFuncVal,
@@ -956,12 +956,11 @@ help isolate the syntax error.`,
       terms = terms[0]
     }
     const args = terms.map(rawToVal)
-    // keyed IS READ AS THE GUARDED SPREAD IT MEANS, so canon, a refusal
-    // and the JSON Schema exporter all write the one form.
+    // keyed IS CARRIED OUT BY THE MATCH ON key(0) IT MEANS, and keeps its name.
     if ('keyed' === fname) {
       const up = addsite(new IntegerVal({ peg: 0 }), r, ctx)
       const key = addsite(new KeyFuncVal({ peg: [up] }), r, ctx)
-      return new MatchFuncVal({
+      return new KeyedFuncVal({
         peg: [key, args[0], args[1], args[2] ?? addsite(top(), r, ctx)],
       })
     }

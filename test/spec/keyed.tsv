@@ -1,21 +1,28 @@
-# THE SHORT FORM FOR A KEY PATTERN: keyed(p, t, e?) is read as
+# THE SHORT FORM FOR A KEY PATTERN: keyed(p, t, e?) means
 # match(key(0), p, t, e), with `any` where e is left out (ruling 18 of
-# sketch/LANG-REFINEMENT-PLAN.0.md). It is a spelling and adds no form:
-# the reader rewrites it, so canon, a hash, a refusal and the JSON Schema
-# export all show the match. Each expectation is what both engines answer.
-# Columns: name<TAB>mode<TAB>src<TAB>expect, with data before expect in the
+# sketch/LANG-REFINEMENT-PLAN.0.md), and each engine carries it out by
+# that match. The match has no text of its own: canon, the hash form, a
+# refusal and a loss report all write keyed under its own name (ADR-080).
+# Each expectation is what both engines answer. Columns:
+# name<TAB>mode<TAB>src<TAB>expect, with data before expect in the
 # five-column modes.
-# One canonical form for the two spellings.
-keyed-canon-is-the-match	canon	a: { &: keyed(re("^env_"), string), env_name: prod }	{"a":{&:match(key(0),re("^env_"),string,any),"env_name":"prod"}}
-keyed-canon-default	canon	a: { &: keyed(re("^env_"), string, nil), env_name: prod }	{"a":{&:match(key(0),re("^env_"),string,nil),"env_name":"prod"}}
-keyed-canon-any-written	canon	a: { &: keyed(re("^env_"), string, any) }	{"a":{&:match(key(0),re("^env_"),string,any)}}
-keyed-canon-list	canon	a: [&: keyed("0", string, integer)]	{"a":[&:match(key(0),"0",string,integer)]}
-keyed-canon-nested	canon	a: { &: keyed(re("^a"), { &: keyed(re("^b"), integer) }) }	{"a":{&:match(key(0),re("^a"),{&:match(key(0),re("^b"),integer,any)},any)}}
-keyed-canon-two-patterns	canon	a: { &: keyed(re("^env_"), string) & keyed(re("_port$"), integer) }	{"a":{&:match(key(0),re("^env_"),string,any)&match(key(0),re("_port$"),integer,any)}}
-keyed-hash-short	hash	a: { &: keyed(re("^env_"), string) }	aon1-NjHA0yB0l9kQNXrE8lqcLvBRblgQNu5D43TxrfiWjiE
-keyed-hash-long	hash	a: { &: match(key(0), re("^env_"), string, any) }	aon1-NjHA0yB0l9kQNXrE8lqcLvBRblgQNu5D43TxrfiWjiE
-keyed-hash-default-short	hash	a: { &: keyed(re("^env_"), string, nil) }	aon1-TOaCepmjLl0bEuqYFv60ySvsAOO17kuED1aJi3ysug4
-keyed-hash-default-long	hash	a: { &: match(key(0), re("^env_"), string, nil) }	aon1-TOaCepmjLl0bEuqYFv60ySvsAOO17kuED1aJi3ysug4
+# Canon writes the call the document wrote, its default left out where
+# it is `any`, and never the match that carries it out.
+keyed-canon-is-keyed	canon	a: { &: keyed(re("^env_"), string), env_name: prod }	{"a":{&:keyed(re("^env_"),string),"env_name":"prod"}}
+keyed-canon-default	canon	a: { &: keyed(re("^env_"), string, nil), env_name: prod }	{"a":{&:keyed(re("^env_"),string,nil),"env_name":"prod"}}
+keyed-canon-any-written	canon	a: { &: keyed(re("^env_"), string, any) }	{"a":{&:keyed(re("^env_"),string)}}
+keyed-canon-list	canon	a: [&: keyed("0", string, integer)]	{"a":[&:keyed("0",string,integer)]}
+keyed-canon-nested	canon	a: { &: keyed(re("^a"), { &: keyed(re("^b"), integer) }) }	{"a":{&:keyed(re("^a"),{&:keyed(re("^b"),integer)})}}
+keyed-canon-two-patterns	canon	a: { &: keyed(re("^env_"), string) & keyed(re("_port$"), integer) }	{"a":{&:keyed(re("^env_"),string)&keyed(re("_port$"),integer)}}
+keyed-canon-beside-its-match	canon	a: { &: keyed(re("^env_"), string) } & { &: match(key(0), re("^env_"), string, any) }	{"a":{&:keyed(re("^env_"),string)&match(key(0),re("^env_"),string,any)}}
+keyed-canon-repeated-is-one	canon	a: { &: keyed(re("^env_"), string) } & { &: keyed(re("^env_"), string, any) }	{"a":{&:keyed(re("^env_"),string)}}
+keyed-canon-copied	canon	T: { &: keyed(re("^env_"), string) }\na: $.T & { env_a: x }	{"T":{&:keyed(re("^env_"),string)},"a":{&:keyed(re("^env_"),string),"env_a":"x"}}
+# The hash form writes keyed too, so a keyed call and the match that
+# carries it out are two documents with two hashes.
+keyed-hcanon	hcanon	a: { &: keyed(re("^env_"), string, nil), env_a: x }	{"a":{&:keyed(re("^env_"),string,nil),"env_a":"x"}}
+keyed-hash	hash	a: { &: keyed(re("^env_"), string) }	aon1-iccfAynprtypkoVh_s7cBMupWjCQBWiOg5ff_8uoIjE
+keyed-hash-any-written	hash	a: { &: keyed(re("^env_"), string, any) }	aon1-iccfAynprtypkoVh_s7cBMupWjCQBWiOg5ff_8uoIjE
+keyed-hash-of-its-match	hash	a: { &: match(key(0), re("^env_"), string, any) }	aon1-NjHA0yB0l9kQNXrE8lqcLvBRblgQNu5D43TxrfiWjiE
 # A key the pattern admits is held to the schema; any other is held to
 # the last argument, and left alone where there is none.
 keyed-holds-an-admitted-key	gens	a: { &: keyed(re("^env_"), string), env_name: prod, other: 1 }	{"a":{"env_name":"prod","other":1}}
@@ -46,7 +53,7 @@ keyed-arity-none	errc	a: keyed()	func_arity
 keyed-arity-one	errc	a: keyed(re("^env_"))	func_arity
 keyed-arity-four	errc	a: keyed(re("^env_"), string, nil, 1)	func_arity
 keyed-arity-msg	err	a: keyed(re("^env_"))	keyed takes two or three arguments, but was given 1
-keyed-refusal-shows-the-match	err	a: { &: keyed(re("^env_"), string) } & 1	{&:match(key(0),re("^env_"),string,any)}
+keyed-refusal-names-keyed	err	a: { &: keyed(re("^env_"), string) } & 1	{&:keyed(re("^env_"),string)}
 # vet reads the short form as the schema it means.
 keyed-vet-valid	vet	a:{&:keyed(re("^env_"),string,nil)}	a:{env_a:"s"}	{"findings":[],"truncated":false,"verdict":"valid"}
 keyed-vet-key-refused	vet	a:{&:keyed(re("^env_"),string,nil)}	a:{z:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.z","pointer":"/a/z","severity":"error","sites":[{"col":6,"file":"schema","len":5,"role":"schema","row":1,"src":"keyed","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
@@ -54,12 +61,19 @@ keyed-vet-mismatch	vet	a:{&:keyed(re("^env_"),string)}	a:{env_a:1}	{"findings":[
 keyed-vet-other-key-left-alone	vet	a:{&:keyed(re("^env_"),string)}	a:{z:1}	{"findings":[],"truncated":false,"verdict":"valid"}
 keyed-vet-reference-pattern	vet	P:re("^env_")\na:{&:keyed($.P,string)}	a:{env_a:1,z:2}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a.env_a","pointer":"/a/env_a","severity":"error","sites":[{"col":10,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":6,"file":"schema","len":5,"role":"schema","row":2,"src":"keyed","value":"string"}]},{"class":"incomplete","code":"mapval_no_gen","path":"$.P","pointer":"/P","severity":"error","sites":[{"col":3,"file":"schema","len":2,"role":"schema","row":1,"src":"re","value":"re(\\"^env_\\")"}]}],"truncated":false,"verdict":"invalid"}
 keyed-vet-reference-schema	vet	T:integer\na:{&:keyed(re("^env_"),$.T)}	T:1\na:{env_a:"x"}	{"findings":[{"class":"conflict","code":"scalar_kind","path":"$.a.env_a","pointer":"/a/env_a","severity":"error","sites":[{"col":10,"file":"data","len":3,"role":"data","row":2,"src":"\\"x\\"","value":"\\"x\\""},{"col":6,"file":"schema","len":5,"role":"schema","row":2,"src":"keyed","value":"1"}]}],"truncated":false,"verdict":"invalid"}
-# The JSON Schema export writes what it writes for the match.
+# The JSON Schema export writes the keywords the call means, and reports
+# a spread it drops under the name keyed.
 keyed-exports-patternproperties	jsonschema	a: { &: keyed(re("^x"), number) }	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"patternProperties":{"^x":{"type":"number"}},"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
 keyed-exports-additionalproperties-false	jsonschema	a: { b?: 1, &: keyed("b", any, nil) }	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":false,"properties":{"b":{"const":1,"type":"integer"}},"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
+keyed-export-loss-names-keyed	jsonschema	a: { &: keyed(len(max(2)), string) }	{"lossy":[{"construct":"keyed","path":"$.a.&","reason":"JSON Schema chooses a member's schema by its name or a pattern, so an arm testing its key any other way has no spelling, and this spread is DROPPED"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+keyed-export-list-loss-names-keyed	jsonschema	a: [&: keyed("1", string)]	{"lossy":[{"construct":"keyed","path":"$.a.&","reason":"JSON Schema places a list member by its position from the first, so arms that are not the positions in order have no spelling, and this spread is DROPPED"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"array"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+# subsume compares a spread that reads its key by its text, so a keyed
+# call subsumes itself, and against the match it means it is undecided.
+keyed-subsumes-itself	subsumption	a: { &: keyed(re("^env_"), string) }	a: { &: keyed(re("^env_"), string, any) }	{"verdict":"subsumes"}
+keyed-against-its-match-is-undecided	subsumption	a: { &: keyed(re("^env_"), string) }	a: { &: match(key(0), re("^env_"), string, any) }	{"verdict":"undecided"}
 # The formatter keeps the spelling the author wrote.
 keyed-fmt-keeps-the-spelling	fmt	a: {&: keyed( re("^env_"),string ), env_name: prod}	a: { &: keyed(re("^env_"), string) env_name:prod }\n
-# A cursor on an argument is on the spread's value, as in the long form.
+# A cursor on an argument is on the spread's value.
 keyed-at-the-call	at	a: { &: keyed(re("^env_"), string), env_a: x }	0:9	{"on":"value","path":["a","&"],"range":{"end":{"character":13,"line":0},"start":{"character":8,"line":0}},"sites":null}
 keyed-at-the-pattern	at	a: { &: keyed(re("^env_"), string), env_a: x }	0:15	{"on":"value","path":["a","&"],"range":{"end":{"character":16,"line":0},"start":{"character":14,"line":0}},"sites":null}
 keyed-at-the-schema	at	a: { &: keyed(re("^env_"), string), env_a: x }	0:28	{"on":"value","path":["a","&"],"range":{"end":{"character":33,"line":0},"start":{"character":27,"line":0}},"sites":null}

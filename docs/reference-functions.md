@@ -420,8 +420,8 @@ peer it lands beside. `any` is the result word where the declaration
 cannot name the result: twelve wrappers that answer whatever they were
 given, plus `pick`, which answers a projection out of every child,
 `apply`, which answers what its template makes of a value, `match`,
-which answers one of its pattern results, and `keyed`, which is read as
-a `match`.
+which answers one of its pattern results, and `keyed`, which answers its
+schema or its default.
 
 ## Slices
 

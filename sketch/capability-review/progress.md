@@ -539,9 +539,11 @@ surface depended on nothing, and shipped in 0.53.0 with the rest.
 and adds no phase to the table. G1 held N3 as deferred; ruling 18 of
 [the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
 took it up as a call in place of the key form, and its task KP1 built
-it. `buildCall` in `ts/src/lang.ts` and `go/lang.go` rewrites the call
-to `match(key(0), p, t, e)`, with `any` where `e` is left out, so it is
-G8 phase 2's `match` from there on. It is declared in
+it. `buildCall` in `ts/src/lang.ts` and `go/lang.go` builds the
+`match(key(0), p, t, e)` that carries it out, with `any` where `e` is
+left out, so it evaluates as G8 phase 2's `match` does, and canon
+writes it as `keyed` (`KeyedFuncVal`, and `callName` in `go/func.go`),
+as ADR-080 asks. It is declared in
 `test/spec/signature.tsv` (72 -> 73 builtins), named in the four
 grammars and both LSP completion lists, read in the definition as
 `Val.keyedCall` (`spec/Aontu/Syntax.lean`), and held by
