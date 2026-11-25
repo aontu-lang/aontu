@@ -2,6 +2,8 @@
 
 package aontu
 
+import "slices"
+
 type PrefVal struct {
 	base
 	peg      Val
@@ -74,9 +76,14 @@ func (p *PrefVal) parentArm(ctx *Ctx) Val {
 	return unite(ctx, superOf(cp(p.path), own), clonePath(p.superpeg, cp(p.path)))
 }
 
+// waitsForPath: only a path to a place outside the default; one into it,
+// a peer alone can answer.
 func (p *PrefVal) waitsForPath(ctx *Ctx) bool {
 	own := p.own(ctx)
-	return nil != own && unread(own)
+	return nil != own && unreadWhich(own, func(r *RefVal) bool {
+		to := r.plainRefPath()
+		return nil == to || !(len(p.path) <= len(to) && slices.Equal(p.path, to[:len(p.path)]))
+	})
 }
 
 // A preference met with another of its rank meets their override

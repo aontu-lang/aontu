@@ -2177,7 +2177,12 @@ until the phase that encodes it lands.
    the path reads under `vet` as it does when evaluated. A path to a
    member of the value itself reads on its own, and the peer narrows
    it as before. The six rows lp63 to lp65 and lpl63 to lpl65 leave
-   the ledger, whose bound falls to 49.
+   the ledger, whose bound falls to 49. From the same day the
+   preference waits only for a path to a place outside its value
+   (#979): one into its own place that the value doesn't hold, `.c` in
+   `x: (*{a: 1, b: .c}) & {c: 2}`, only the peer answers, and the first
+   cut waited for it for good, so that the document no longer
+   evaluated in either port.
 
 41. **Preferences of different ranks that meet.** Raised 2026-11-11
    while building the reference's rule that compatible defaults fold.

@@ -94,7 +94,7 @@ A name or a path that reaches itself consuming no key or element is a static `er
 
 ### Preferences and disjunction arms
 
-18 issues (5 S, 11 M, 2 L), 9 ledger rows.
+19 issues (6 S, 11 M, 2 L), 9 ledger rows.
 
 How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714, the layers, was built and closed on 2026-11-20, and its rows left the ledger with most of #700's, #702's and #704's. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
 
@@ -102,6 +102,7 @@ How both engines read a preference, a lone preference and a live disjunction arm
 |---|---|---|---|---|
 | [#700](https://github.com/aontu-lang/aontu/issues/700) | def | L | 3 | A path in a live disjunction arm or lone preference waits; both ports say incomplete, the definition valid. |
 | [#702](https://github.com/aontu-lang/aontu/issues/702) | def | M |  | Lone preference with an outside path: both ports' vet contradicted their own eval; definition sides with eval. Built in both ports 2026-11-25: a lone preference waits for a path its value can't read on its own. |
+| [#979](https://github.com/aontu-lang/aontu/issues/979) | bug | S |  | A lone default whose path only the term beside it answers no longer evaluated, a regression from #702's change. Fixed in both ports 2026-11-25. |
 | [#704](https://github.com/aontu-lang/aontu/issues/704) | def | M | 6 | A lone preference's parent arm lifts a path inside it to any, not the parent type it reads. |
 | [#714](https://github.com/aontu-lang/aontu/issues/714) | def | L |  | Meeting preferences of different ranks drops the higher rank's constraint and default; rulings 41, 42, decision 43. |
 | [#482](https://github.com/aontu-lang/aontu/issues/482) | def | M |  | A made default clash (`pref(1 \| 2)`, meets) reads invalid under vet, where a written clash is error. Built in both ports 2026-11-24. |
@@ -461,7 +462,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 56 | 16 |
+| 2 | alias cycles, preferences, seals and marks, copies | 57 | 16 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 77 | 21 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
@@ -470,6 +471,6 @@ workstream above meets its tasks.
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
-#944, #946 and #953 to #957 on 2026-11-24, and #970, #971 and #977 on
-2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
+#944, #946 and #953 to #957 on 2026-11-24, and #970, #971, #977 and
+#979 on 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
 each row's cause names.

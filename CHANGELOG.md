@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A lone default's path that the term beside it answers reads there again
+
+#979, in both engines. The change for #702 made a lone default wait for
+a path its value can't read on its own before a peer meets it. A path
+into the default's own place that the default doesn't hold can only be
+answered by the peer, so the default waited for good:
+
+- `x: (*{a: 1, b: .c}) & {c: 2}` is `{"x":{"a":1,"b":2,"c":2}}` again.
+  It was `mapval_no_gen`, in either order of the two terms and where
+  they are two statements. `aontu vet` answered as before throughout.
+- The default still waits for a path to a place outside it, so `y: 1`
+  beside `x: (*{a: 1, b: $.y}) & {c: 2}` reads `b` as `1` first.
+
+Each engine waits only where the default, read on its own, still holds
+a path to a place outside it. `test/spec/pref.tsv` gains 10 rows and
+`test/spec/vet.tsv` 24, each answer the definition's too.
+
 ### A trial over a call that waits, waits with it
 
 #432, in the definition. A `+` or a `join` that takes no operand yet,

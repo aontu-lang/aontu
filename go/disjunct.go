@@ -269,25 +269,31 @@ func pends(v Val) bool {
 }
 
 func unread(v Val) bool {
+	return unreadWhich(v, func(*RefVal) bool { return true })
+}
+
+// unreadWhich: whether a value holds an unread path that `which` takes.
+func unreadWhich(v Val, which func(*RefVal) bool) bool {
+	in := func(k Val) bool { return unreadWhich(k, which) }
 	switch n := v.(type) {
 	case *RefVal:
-		return true
+		return which(n)
 	case *MapVal:
 		for _, k := range n.keys {
-			if unread(n.peg[k]) {
+			if in(n.peg[k]) {
 				return true
 			}
 		}
 	case *ListVal:
-		return slices.ContainsFunc(n.peg, unread)
+		return slices.ContainsFunc(n.peg, in)
 	case *ConjunctVal:
-		return slices.ContainsFunc(n.peg, unread)
+		return slices.ContainsFunc(n.peg, in)
 	case *DisjunctVal:
-		return slices.ContainsFunc(n.peg, unread)
+		return slices.ContainsFunc(n.peg, in)
 	case *FuncVal:
-		return slices.ContainsFunc(n.peg, unread)
+		return slices.ContainsFunc(n.peg, in)
 	case *PlusOpVal:
-		return slices.ContainsFunc(n.peg, unread)
+		return slices.ContainsFunc(n.peg, in)
 	}
 	return false
 }
