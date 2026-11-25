@@ -33,5 +33,5 @@ function bindingFailure(src) {
         return String(err.message).split('\n')[0];
     }
     return (0, walk_1.holdsReference)(v) ? 'a binding is a value, and reads no path or variable' : undefined;
-}
+} /* node:coverage ignore next 6 */
 //# sourceMappingURL=hostvars.js.map
