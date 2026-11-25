@@ -44,7 +44,9 @@ always refused a later term that added one.
 - Rows dirp6 to dirp11 of `test/spec/def-path.tsv` leave
   `spec/ledger.tsv`, whose bound falls from 28 to 22.
 - `test/spec/def-path.tsv` gains rows db0 to db182, 61 cases the
-  definition proves, each in three modes.
+  definition proves, each in three modes. `test/spec/vet.tsv` gains 6
+  rows for a directive beside a `pref()` call over a path, which meets
+  the data as it stands.
 - `close() & copy($.b)` seals the copy under `vet` too, as it did when
   evaluated alone. The definition's seal stops at a call, which #998
   tracks with its other limit here: a path that copies a place sealed
