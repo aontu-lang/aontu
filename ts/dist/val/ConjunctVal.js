@@ -26,6 +26,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         this.waits = false;
         // One step of an `&` chain as the parser read it, no parenthesis around it yet.
         this.written = false;
+        this.own = false;
         this.mark.type = !!spec.mark?.type;
         this.mark.hide = !!spec.mark?.hide;
         this.peg = (Array.isArray(this.peg) ? this.peg : [])
@@ -47,6 +48,12 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
         const carried = [];
         this.peg = norm(this.peg, carried, true === peer.isTop);
+        if (true === peer.isData && this.peg.some(sealish)) {
+            const alone = this.apart(peer, ctx);
+            if (undefined !== alone) {
+                return alone;
+            }
+        }
         // Unify each term of conjunct against peer
         let upeer = [];
         let newtype = this.mark.type || peer.mark.type;
@@ -125,6 +132,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         }
         else {
             out = new ConjunctVal({ peg: outvals, mark: { type: newtype, hide: newhide } }, ctx);
+            out.own = this.own;
             out.site.row = this.site.row;
             out.site.col = this.site.col;
             out.site.url = this.site.url;
@@ -140,8 +148,23 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         (0, utility_1.explainClose)(te, out);
         return out;
     }
+    // A directive's seal covers the place's own terms, not the data's (decision 44): they meet first.
+    apart(peer, ctx) {
+        if (this.peg.some((t) => t.isRef)) {
+            this.own = true;
+            const out = new ConjunctVal({ peg: [this, peer] }, ctx);
+            out.dc = this.dc + 1;
+            out.site = this.site;
+            out.path = this.path;
+            return out;
+        }
+        const bags = this.peg.every((t) => sealish(t) || true === t.isMap || true === t.isList);
+        const met = bags ? this.unify((0, top_1.top)(), ctx) : this;
+        return true === met.isConjunct ? undefined : (0, unify_1.unite)(ctx, met, peer, 'cj-apart');
+    }
     clone(ctx, spec) {
         let out = super.clone(ctx, spec);
+        out.own = this.own;
         return out;
     }
     getJunctionSymbol() {
@@ -172,6 +195,8 @@ function sameTerms(cj, t0, t1) {
 }
 const bareDirective = (t) => (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length;
 exports.bareDirective = bareDirective;
+// A bare directive still to fold, or a bag one sealed.
+const sealish = (t) => true === t.isSeal || bareDirective(t) || true === t.dirSealed;
 function holdsRef(v) {
     let found = false;
     const seen = new Set();
@@ -217,7 +242,7 @@ function placeTerms(t) {
 function norm(terms, carried, lift) {
     let expand = [];
     for (const t of terms) {
-        if (t.isConjunct) {
+        if (t.isConjunct && true !== t.own) {
             if ((0, rider_1.rides)(t)) {
                 carried.push(t);
             }
