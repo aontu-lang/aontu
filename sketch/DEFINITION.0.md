@@ -2451,6 +2451,26 @@ until the phase that encodes it lands.
    Rows dir102 to dir107, dir177 to dir182, dir189 to dir203 and dir210
    to dir215 leave the ledger, its bound 138, which leaves #726 the six
    rows of a directive beside a path.
+   **Built in both ports 2026-11-25, a directive beside a path** (#726):
+   a meet that holds a directive's seal, pending or folded into a bag
+   (`dirSealed`), beside a path keeps `vet`'s data apart until the copy
+   has landed, so the place's own terms meet before the data does and
+   the seal takes the copy's keys and refuses the data's. A meet of
+   bags and a directive that never met alone, a template's clone at a
+   member the data adds or the root's beside a reference, meets alone
+   first for the same reason, so `close() & {x: $.y, y: integer}`
+   refuses the data's `z`. Rows dirp6 to dirp11 leave the ledger, its
+   bound 22, and #726 holds no row. Rows db0 on of
+   `test/spec/def-path.tsv`, 183 in all, hold 61 more cases, and both
+   ports answer every one as the definition does. The definition has a
+   limit of its own here: a path keeps the term of the first round that
+   reaches it (`Decls.pathIn`), where the copy beside the directive
+   hasn't landed, so `c: $.a` beside `a: close() & $.b` copies `a`
+   unsealed, where both ports copy the seal (#998). #726 closes; what
+   is left of a bare directive has an issue each: `open()` lifting one
+   term's seal only (#995), `close()` beside a default whose value is a
+   path (#996), and `open()` in the argument of `pref` or `super`,
+   which wants a ruling (#997).
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`

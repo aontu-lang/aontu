@@ -3173,6 +3173,24 @@ def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
     (ds.docPaths S).length
 ```
 
+A directive beside a path needs no rule of its own. The expansion
+reads a path's name before it reads the directives of step 8, so the
+place holds the target's term beside the directive. With `b: {x: 1}`,
+`a: close() & $.b` seals `a` with `x` alone, and
+`{"a": {"x": 1, "y": 2}}` is invalid. The path reads the tree the data
+has met, so a key the data adds to `b` is one the seal covers:
+`{"a": {"x": 1, "y": 2}, "b": {"x": 1, "y": 2}}` is valid. A bare
+`open()` beside a path lifts a seal the copy carries. Rows `db0` on of
+`test/spec/def-path.tsv` hold 61 such cases: at a member, an element, a
+default's value, an arm and a spread's template, and with the path
+inside the terms a directive seals. Both engines answer each as the
+definition does, as #726 asked: each holds the data apart from such a
+place until the copy has landed, so the place's own terms meet first.
+The copy of such a place is where the definition falls short. A path
+keeps the term of the first round that reaches it, and in that round
+the copy beside the directive hasn't landed. So `c: $.a` copies `a`
+unsealed, where both engines copy the seal, which #998 tracks.
+
 Both trees leave out a `match` whose scrutinee or a pattern, and a
 `must` whose condition, holds a path into the place the term itself
 stands at, by `Val.dropSelf`. Such a path reads what the rest of the document holds
@@ -11141,6 +11159,10 @@ disjunction or a selection, a spread whose template reads its member's
 place keeps its template as written, so a relative path in it resolves
 nowhere, and so does a generator's template there, whether the
 document writes it there or in a name it uses there.
+
+Nor does it seal a path's copy of a place that a bare `close()` beside
+a path seals. The directive seals the place itself, as step 9 shows,
+and both engines seal the copy too, which #998 tracks.
 
 Nor does it read a path reference's copy of a recursion where the copy
 stands. A path reference inside its own place, `b?: $.a` within `a`,
