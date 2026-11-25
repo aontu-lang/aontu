@@ -64,6 +64,33 @@ read a path between them differently in the two engines (#983). Outside
 a default, `when` and `nof` over an argument that holds such a path
 wait, and a `match` result not taken passes (#984).
 
+### A host value that reads a path is refused in both engines
+
+Three slips against ADR-001, found when the owner asked that every
+decision record be confirmed as followed, and corrected in both
+engines.
+
+- A binding given through the engines' own option, `hostVars` in
+  TypeScript and `HostVars` in Go, whose source still read a path was
+  let through, and the ports then read it differently: with
+  `{ n: { value: ".k" } }` over `k: 1` and `b: { k: 2, a: $n }`,
+  TypeScript answered `1` and Go `2`. The commands already refused
+  such a binding. Both engines now refuse it where the document reads
+  it, as `invalid_var_kind`: a variable is a value. Rows in
+  `test/spec/var.tsv` hold it. A binding that its own source refused,
+  an unknown function in it for one, keeps that refusal.
+- An error in a binding's own source, and a binding with both a source
+  option and `text`, were framed at different places in each port, and
+  Go named the path the document read the binding at where TypeScript
+  named the path inside the binding. Both now frame it at the option
+  that bound it and name the path inside the binding.
+- Go finds a prefix operator's place by reading back from its operand,
+  where TypeScript reads the operator's token. The two answer alike,
+  and the difference is now registered in `DIVERGENCE.md`.
+
+The plan gains a section, "Where the plan meets the decision records",
+that lists each proposal a record forbids or constrains as it stands.
+
 ### A lone default's path that the term beside it answers reads there again
 
 #979, in both engines. The change for #702 made a lone default wait for
@@ -240,6 +267,7 @@ a disjunction by its normal form (`Val.loneArms`).
 `test/spec/def-path.tsv` gains rows da0 to da149 and as0 to as5,
 `test/spec/vet.tsv` 165 rows and `test/spec/pref.tsv` 40. No other
 generated row changes.
+
 
 ### `keyed(p, t, e?)`: a short form for a key pattern
 

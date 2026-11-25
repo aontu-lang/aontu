@@ -4,6 +4,7 @@
 // names a document reads, and whether a binding's source is a value.
 
 import { Aontu } from './aontu'
+import { eachPart, holdsReference } from './walk'
 import type { AontuOptions } from './type'
 
 
@@ -34,29 +35,8 @@ function bindingFailure(src: string): string | undefined {
   catch (err: any) {
     return String(err.message).split('\n')[0]
   }
-  let holds = false
-  eachPart(v, (n: any) => { holds = holds || true === n.isRef || true === n.isVar })
-  return holds ? 'a binding is a value, and reads no path or variable' : undefined
+  return holdsReference(v) ? 'a binding is a value, and reads no path or variable' : undefined
 }
-
-
-function eachPart(root: any, visit: (v: any) => void): void {
-  const seen = new Set<any>()
-  const stack: any[] = [root]
-  while (0 < stack.length) {
-    const v = stack.pop()
-    if (true !== v?.isVal || seen.has(v)) {
-      continue
-    }
-    seen.add(v)
-    visit(v)
-    const peg: any = v.peg
-    const kids: any[] = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
-      null != peg && 'object' === typeof peg ? Object.values(peg) : []
-    kids.forEach((kid: any) => stack.push(kid))
-    stack.push(v.spread?.cj)
-  }
-} /* node:coverage ignore next 6 */
 
 
 export {

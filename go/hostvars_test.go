@@ -7,7 +7,9 @@
 package aontu
 
 import (
+	"encoding/json"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -89,5 +91,57 @@ func TestHostVarsMemberCanons(t *testing.T) {
 	a.HostVars = map[string]HostVar{"n": {Value: "\"x\"", From: "--vars f.aontu"}}
 	if _, err := a.Generate("k: integer & $n\n"); nil == err || !strings.Contains(err.Error(), "--> --vars f.aontu n:1:1\n") {
 		t.Fatalf("%v", err)
+	}
+}
+
+// a-binding-reads-no-path-and-is-framed-at-its-option in
+// ts/test/hostvars.test.ts holds the same cases to the same answers.
+func TestHostVarsReadNoPathAndAreFramedAtTheirOption(t *testing.T) {
+	ansi := regexp.MustCompile("\x1b\\[[0-9;]*m")
+	answer := func(hv map[string]HostVar, src string) string {
+		out, err := (&Aontu{HostVars: hv}).Generate(src)
+		if nil == err {
+			b, _ := json.Marshal(out)
+			return string(b)
+		}
+		lines := strings.Split(ansi.ReplaceAllString(err.Error(), ""), "\n")
+		frame := ""
+		for _, l := range lines {
+			if strings.HasPrefix(strings.TrimSpace(l), "-->") {
+				frame = strings.TrimSpace(l)
+				break
+			}
+		}
+		return strings.TrimSpace(lines[0]) + " | " + frame
+	}
+	doc := "k: 1\nb: { k: 2, a: $n }"
+	refused := "[aontu/invalid_var_kind]: Cannot unify values at path $.b.a | --> <no-file>:2:15"
+	clash := "[aontu/scalar_kind]: Cannot unify values at path $.a | --> "
+	unknown := "[aontu/unknown_function]: Cannot resolve value at path "
+	for _, c := range []struct {
+		hv        map[string]HostVar
+		src, want string
+	}{
+		{map[string]HostVar{"n": {Value: ".k"}}, doc, refused},
+		{map[string]HostVar{"n": {Value: "$.k"}}, doc, refused},
+		{map[string]HostVar{"n": {Value: "{x: $.k}"}}, "k: 1\nb: $n",
+			"[aontu/no_path]: Cannot resolve value at path $.x | --> --var n:1:5"},
+		{map[string]HostVar{"n": {Value: "$m"}, "m": {Value: "1"}}, "b: $n",
+			"[aontu/unknown_var]: Cannot unify values at path $ | --> --var n:1:1"},
+		{map[string]HostVar{"n": {Value: "{x: 1}"}}, "b: $n", `{"b":{"x":1}}`},
+		// A binding its own source refused keeps that refusal, a path beside it or not.
+		{map[string]HostVar{"n": {Value: "foo(1)"}}, doc, unknown + "$ | --> --var n:1:1"},
+		{map[string]HostVar{"n": {Value: "foo($.k)"}}, doc, unknown + "$ | --> --var n:1:1"},
+		{map[string]HostVar{"n": {Value: "{a: foo(1), b: .k}"}}, doc, unknown + "$.a | --> --var n:1:5"},
+		{map[string]HostVar{"n": {Value: "pref(1, $.k)"}}, doc,
+			"[aontu/func_arity]: Cannot resolve value at path $ | --> --var n:1:1"},
+		{map[string]HostVar{"n": {Value: "x", Text: true, From: "--vars f"}}, "a: $n & 1",
+			clash + "--vars f n:1:1"},
+		{map[string]HostVar{"n": {Value: "x", Text: true}}, "a: $n & 1", clash + "--var-text n:1:1"},
+		{map[string]HostVar{"n": {Value: `"x"`, From: "--vars f"}}, "a: $n & 1", clash + "--vars f n:1:1"},
+	} {
+		if got := answer(c.hv, c.src); c.want != got {
+			t.Errorf("%v over %q:\n got  %s\n want %s", c.hv, c.src, got, c.want)
+		}
 	}
 }

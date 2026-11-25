@@ -392,4 +392,44 @@ describe('hostvars', () => {
     // A module evaluates with no host.
     Assert.throws(() => new Aontu().generate('a: $n\n'), /unknown_var/)
   })
+
+
+  // TestHostVarsReadNoPathAndAreFramedAtTheirOption in go/hostvars_test.go
+  // holds the same cases to the same answers.
+  test('a-binding-reads-no-path-and-is-framed-at-its-option', () => {
+    const answer = (hostVars: any, src: string): string => {
+      try {
+        return JSON.stringify(new Aontu({ hostVars }).generate(src))
+      }
+      catch (err: any) {
+        const lines = String(err.message).replace(/\x1b\[[0-9;]*m/g, '').split('\n')
+          .map((l) => l.trim())
+        return [lines[0], lines.find((l) => l.startsWith('-->'))].join(' | ')
+      }
+    }
+    const doc = 'k: 1\nb: { k: 2, a: $n }'
+    const refused = '[aontu/invalid_var_kind]: Cannot unify values at path $.b.a | --> <no-file>:2:15'
+    Assert.equal(answer({ n: { value: '.k' } }, doc), refused)
+    Assert.equal(answer({ n: { value: '$.k' } }, doc), refused)
+    Assert.equal(answer({ n: { value: '{x: $.k}' } }, 'k: 1\nb: $n'),
+      '[aontu/no_path]: Cannot resolve value at path $.x | --> --var n:1:5')
+    Assert.equal(answer({ n: { value: '$m' }, m: { value: '1' } }, 'b: $n'),
+      '[aontu/unknown_var]: Cannot unify values at path $ | --> --var n:1:1')
+    Assert.equal(answer({ n: { value: '{x: 1}' } }, 'b: $n'), '{"b":{"x":1}}')
+    // A binding its own source refused keeps that refusal, a path beside it or not.
+    const unknown = '[aontu/unknown_function]: Cannot resolve value at path '
+    Assert.equal(answer({ n: { value: 'foo(1)' } }, doc), unknown + '$ | --> --var n:1:1')
+    Assert.equal(answer({ n: { value: 'foo($.k)' } }, doc), unknown + '$ | --> --var n:1:1')
+    Assert.equal(answer({ n: { value: '{a: foo(1), b: .k}' } }, doc),
+      unknown + '$.a | --> --var n:1:5')
+    Assert.equal(answer({ n: { value: 'pref(1, $.k)' } }, doc),
+      '[aontu/func_arity]: Cannot resolve value at path $ | --> --var n:1:1')
+    const clash = '[aontu/scalar_kind]: Cannot unify values at path $.a | --> '
+    Assert.equal(answer({ n: { value: 'x', text: true, from: '--vars f' } }, 'a: $n & 1'),
+      clash + '--vars f n:1:1')
+    Assert.equal(answer({ n: { value: 'x', text: true } }, 'a: $n & 1'),
+      clash + '--var-text n:1:1')
+    Assert.equal(answer({ n: { value: '"x"', from: '--vars f' } }, 'a: $n & 1'),
+      clash + '--vars f n:1:1')
+  })
 })

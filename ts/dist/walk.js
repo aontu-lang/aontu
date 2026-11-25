@@ -5,6 +5,8 @@ exports.walkVals = walkVals;
 exports.settledTrials = settledTrials;
 exports.collectNils = collectNils;
 exports.parseNilIn = parseNilIn;
+exports.eachPart = eachPart;
+exports.holdsReference = holdsReference;
 const keyorder_1 = require("./keyorder");
 function walkVals(v, visit, seen) {
     if (null == v || 'object' !== typeof v || true !== v.isVal) {
@@ -113,5 +115,28 @@ function parseNilIn(v) {
         }
     }
     return first;
+}
+function eachPart(root, visit) {
+    const seen = new Set();
+    const stack = [root];
+    while (0 < stack.length) {
+        const v = stack.pop();
+        if (true !== v?.isVal || seen.has(v)) {
+            continue;
+        }
+        seen.add(v);
+        visit(v);
+        const peg = v.peg;
+        const kids = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
+            null != peg && 'object' === typeof peg ? Object.values(peg) : [];
+        kids.forEach((kid) => stack.push(kid));
+        stack.push(v.spread?.cj);
+    }
+}
+// Whether a value still reads a path or a variable.
+function holdsReference(root) {
+    let holds = false;
+    eachPart(root, (v) => { holds = holds || true === v.isRef || true === v.isVar; });
+    return holds;
 }
 //# sourceMappingURL=walk.js.map

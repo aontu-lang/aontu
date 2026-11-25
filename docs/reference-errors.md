@@ -342,7 +342,7 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `gen_address` | 0.77.0 | A relative address that climbs past the root, asked for its absolute form by a `form` option. ([Addresses: `form`](reference-language.md#addresses-form)) |
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
-| `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
+| `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects, or its value still reads a path or another variable. ([Variables `$name`](reference-language.md#variables-name)) |
 | `jsonschema_dialect` | 0.77.0 | The `$schema` of a JSON Schema resource names a dialect aontu does not read, and no document of the set is a meta-schema by that URI. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `jsonschema_duplicate` | 0.77.0 | A JSON Schema resource declares one `$anchor` name twice, or two schemas declare one `$id`, so no reference to it could be answered by walk order alone. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `jsonschema_ref` | 0.77.0 | A JSON Schema reference names no schema the import can reach. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |

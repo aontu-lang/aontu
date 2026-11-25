@@ -36,3 +36,9 @@ var-path-seg-exact-int-not-rounded	err	a:{"1152921504606847000":7}\nb:$.a.$big	C
 
 # A null binding has no text, so it names no step (Go and the definition).
 var-path-seg-null-names-no-step	errc	q: {"null": 3}\nx: $.q.$nul	no_path
+
+# A binding is a value. One that still reads a path has no place to read
+# it from, so it is refused where it is read, in both engines.
+var-reading-a-path-is-refused	errc	k:1\nb:{k:2,a:$pathed}	invalid_var_kind
+var-reading-a-path-is-refused-at-the-top	errc	k:1\na:$pathed	invalid_var_kind
+var-reading-a-path-is-refused-under-a-meet	errc	k:1\na:$pathed&integer	invalid_var_kind

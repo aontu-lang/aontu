@@ -6,6 +6,7 @@ exports.bindingFailure = bindingFailure;
 // Host bindings as the command line and the MCP server take them: the
 // names a document reads, and whether a binding's source is a value.
 const aontu_1 = require("./aontu");
+const walk_1 = require("./walk");
 // The names a document reads, into read; false where it doesn't parse.
 function varNamesIn(src, opts, read) {
     let root;
@@ -15,7 +16,7 @@ function varNamesIn(src, opts, read) {
     catch (_err) {
         return false;
     }
-    eachPart(root, (v) => {
+    (0, walk_1.eachPart)(root, (v) => {
         if (true === v.isVar && 'string' === typeof v.peg?.peg) {
             read.add(v.peg.peg);
         }
@@ -31,25 +32,6 @@ function bindingFailure(src) {
     catch (err) {
         return String(err.message).split('\n')[0];
     }
-    let holds = false;
-    eachPart(v, (n) => { holds = holds || true === n.isRef || true === n.isVar; });
-    return holds ? 'a binding is a value, and reads no path or variable' : undefined;
+    return (0, walk_1.holdsReference)(v) ? 'a binding is a value, and reads no path or variable' : undefined;
 }
-function eachPart(root, visit) {
-    const seen = new Set();
-    const stack = [root];
-    while (0 < stack.length) {
-        const v = stack.pop();
-        if (true !== v?.isVal || seen.has(v)) {
-            continue;
-        }
-        seen.add(v);
-        visit(v);
-        const peg = v.peg;
-        const kids = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
-            null != peg && 'object' === typeof peg ? Object.values(peg) : [];
-        kids.forEach((kid) => stack.push(kid));
-        stack.push(v.spread?.cj);
-    }
-} /* node:coverage ignore next 6 */
 //# sourceMappingURL=hostvars.js.map
