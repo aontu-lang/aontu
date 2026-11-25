@@ -100,16 +100,18 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         return stood;
     }
     // The default read on its own, before any data: in the schema's own tree under vet (ruling 40).
-    own(ctx) {
-        const alone = this.alone ?? prefInnerPeg(this);
+    own(ctx, alone = this.alone ?? prefInnerPeg(this)) {
         const octx = null == ctx._ownroot ? ctx : ctx.clone({ root: ctx._ownroot });
         return (0, FuncBaseVal_1.trialUnify)(octx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), (0, top_1.top)());
     }
-    // Ruling 40: the parent arm lifts the default as read on its own.
+    // Ruling 40: the parent arm lifts the default as read on its own, each template read at a member it meets first.
     parentArm(ctx) {
         const own = this.own(ctx);
-        return undefined === own ? this.superpeg.clone(ctx) :
-            (0, unify_1.unite)(ctx, (0, SuperFuncVal_1.superOf)(ctx, own), this.superpeg.clone(ctx), 'pref/lift');
+        const probe = undefined === own ? undefined : (0, SuperFuncVal_1.probeOf)(ctx, own);
+        const met = undefined === probe ? undefined : (0, FuncBaseVal_1.trialUnify)(ctx, own.clone(ctx), probe);
+        const read = (undefined === met ? undefined : this.own(ctx, met)) ?? own;
+        return undefined === read ? this.superpeg.clone(ctx) :
+            (0, unify_1.unite)(ctx, (0, SuperFuncVal_1.unprobe)((0, SuperFuncVal_1.superOf)(ctx, read)), this.superpeg.clone(ctx), 'pref/lift');
     }
     // Only a path to a place outside the default: one into it, a peer alone can answer.
     waitsForPath(ctx) {

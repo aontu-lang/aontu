@@ -3,6 +3,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SuperFuncVal = void 0;
 exports.superOf = superOf;
+exports.probeOf = probeOf;
+exports.unprobe = unprobe;
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const MapVal_1 = require("./MapVal");
 const BagVal_1 = require("./BagVal");
@@ -10,6 +12,7 @@ const ListVal_1 = require("./ListVal");
 const DisjunctVal_1 = require("./DisjunctVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const top_1 = require("./top");
+const aliasname_1 = require("../aliasname");
 class SuperFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -32,6 +35,37 @@ class SuperFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
 }
 exports.SuperFuncVal = SuperFuncVal;
+const PROBE = aliasname_1.RESERVED_KEY_PREFIX + 'probe';
+// Ruling 40: a template reads its paths at a member, so the lift gives each one a member to read at.
+function probeOf(ctx, v) {
+    if (true !== v.isMap) {
+        return undefined;
+    }
+    const peg = (0, BagVal_1.keyTable)();
+    for (const k of Object.keys(v.peg)) {
+        const kid = probeOf(ctx, v.peg[k]);
+        if (undefined !== kid) {
+            peg[k] = kid;
+        }
+    }
+    const tmpl = v.spread?.cj;
+    const inner = null == tmpl ? undefined : probeOf(ctx, tmpl);
+    if (undefined !== inner || (null != tmpl && (0, DisjunctVal_1.unread)(tmpl))) {
+        peg[PROBE] = inner ?? (true === tmpl.isMap ? new MapVal_1.MapVal({ peg: (0, BagVal_1.keyTable)() }, ctx) : (0, top_1.top)());
+    }
+    return 0 < Object.keys(peg).length ? new MapVal_1.MapVal({ peg }, ctx) : undefined;
+}
+// The member a template was read at is the template's lift.
+function unprobe(v) {
+    if (true === v.isMap) {
+        Object.keys(v.peg).forEach((k) => unprobe(v.peg[k]));
+        if (undefined !== v.peg[PROBE]) {
+            v.spread.cj = v.peg[PROBE];
+            delete v.peg[PROBE];
+        }
+    }
+    return v;
+}
 // superOf answers the immediate parent type of a RESOLVED value (the
 // caller drives arguments before resolve fires, so pending forms --
 // held conjuncts, unresolved references, holes -- never arrive).
@@ -109,5 +143,5 @@ function superOf(ctx, v) {
         return sup;
     }
     return v.place((0, top_1.top)());
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 8 */
 //# sourceMappingURL=SuperFuncVal.js.map

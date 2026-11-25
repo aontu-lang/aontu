@@ -1950,8 +1950,9 @@ takes what overrides the default, is the parent type of what the value
 reads as on its own: in `x: *{a: 1, b: .a}` the default is `{a: 1, b:
 1}` and the parent arm is `{a: integer, b: integer}`, so `{a: 2, b: 3}`
 passes and `{a: 2, b: "s"}` doesn't. Both engines read a lone
-preference so. They still lift a path in a template inside the value
-to `any` in the parent arm, which #704 tracks. A preference waits for a
+preference so, and a template inside it the same: in `x: *{&: {name:
+"a", url: .name}}` the parent arm holds each member's `url` to
+`string`, the parent type of the `name` it reads. A preference waits for a
 path to a place outside its value before a peer meets it, so `y: 1`
 beside `x: *{a: 1, b: $.y}` refuses `{a: 2, b: "s"}` under `vet` as it
 does when evaluated. A path into its own place that only a term beside
