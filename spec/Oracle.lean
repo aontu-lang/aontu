@@ -4,6 +4,7 @@ import Aontu.Verdict
 import Aontu.Paths
 import Oracle.Print
 import Aontu.Subsume
+import Aontu.Profiles
 import Aontu.Reorder
 import Aontu.Written
 
@@ -1044,7 +1045,13 @@ a body that names it wait too, through a call and through another name,
 so `add(%U, 1)` stands where `%U` waits and `add(%U, 1 & 2)` doesn't,
 while the name itself reads what its body fixes, so `%U & 2` is an
 error beside `%U = _ & 1`; and a waiting `key(n)` is any string, so
-`key(1) & 1` is an error and `key(1) & ""` stands. -/
+`key(1) & 1` is an error and `key(1) & ""` stands. A `key(n)` that
+reads a step inside the body is that step's text at every use (ruling
+88), so a body no use could fit is an error unused: a key under a
+member, two members down, through a call, at a list's index, below the
+body, and in a spread's template met with a member the body holds; and
+their neighbours stand, a key that reaches the body's top, one that
+agrees with its step, and the first of them used, against data. -/
 def aliasCases : List (Decls × Val × Data) :=
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
   let p : Val := .alias "p"
@@ -1200,7 +1207,25 @@ def aliasCases : List (Decls × Val × Data) :=
     ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 2))], int 1, j 1),
     ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 1))], int 1, j 1),
     ([("U", .map [("a", false, .hole), ("b", false, int 1)] none false),
-      ("T", .meet (.alias "U") (.map [("b", false, int 2)] none false))], int 1, j 1)]
+      ("T", .meet (.alias "U") (.map [("b", false, int 2)] none false))], int 1, j 1),
+    ([("T", .map [("a", false, .meet (.keyUp 0) (str "b"))] none false)], int 1, j 1),
+    ([("T", .map [("a", false, .map [("b", false, .meet (.keyUp 1) (str "z"))] none false)] none false)],
+      int 1, j 1),
+    ([("T", .map [("a", false, .meet (.call .upper [.keyUp 0]) (int 1))] none false)], int 1, j 1),
+    ([("T", .list [.meet (.keyUp 0) (str "9")] none false)], int 1, j 1),
+    ([("T", .meet (.keyUp (-1)) (str "x"))], int 1, j 1),
+    ([("T", .map [("s", false, str "zz")] (some (.meet (.keyUp 0) (str "zz"))) false)], int 1, j 1),
+    ([("T", .meet (.keyUp 0) (str "x"))], int 1, j 1),
+    ([("T", .map [("a", false, .map [("b", false, .meet (.keyUp 2) (str "z"))] none false)] none false)],
+      int 1, j 1),
+    ([("T", .map [("a", false, .map [("b", false, .meet (.keyUp 1) (str "a"))] none false)] none false)],
+      int 1, j 1),
+    ([("T", .list [.meet (.keyUp 0) (str "0")] none false)], int 1, j 1),
+    ([("T", .map [("a", false, .meet (.call .upper [.keyUp 0]) (str "A"))] none false)], int 1, j 1),
+    ([("T", .map [("s", false, str "s")] (some (.keyUp 0)) false)], int 1, j 1),
+    ([("T", .meet (.keyUp (-1)) (str ""))], int 1, j 1),
+    ([("T", .map [("a", false, .meet (.keyUp 0) (str "b"))] none false)], .alias "T",
+      .map [("a", .str "a")])]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/
@@ -3589,6 +3614,87 @@ theorem openSelectCases_reads : ∀ c ∈ openSelectCases, c.1.readsPD c.2.1 c.2
 theorem openSelect_verdict_exact : ∀ c ∈ openSelectCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_readsD (openSelectCases_reads c hc) v
+
+/-- Ruling 87: a `match` whose scrutinee generates no value takes the
+arm no data could change. An arm whose pattern the scrutinee sits below
+is taken: a kind under itself and under `number`, a bound under a looser
+one, a disjunction each of whose arms does, and a sealed map under its
+own seal. An arm that shares nothing with the scrutinee is passed over,
+for a later arm, for the default, and for no arm at all, which is an
+error. And an open map under a sealed pattern waits for the data, which
+keeps to the pattern or adds a key. Each beside no data, and some beside
+data that agrees with the arm taken and data that names another. -/
+def certainSelectCases : List (Decls × Val × Data) :=
+  let sel (s : Val) (arms : List (Val × Val)) (d : Option Val := some (str "other")) : Val :=
+    m [("t", .select s arms d)]
+  let t (x : String) : Data := .map [("t", .str x)]
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let shut : Val := .map [("a", false, .integer)] none true
+  let kinds : Val := sel .integer [(.integer, str "number"), (.string, str "string")]
+  let both : Val := sel (.or [(0, int 1), (0, int 2)]) [(.integer, str "a")] (some (str "b"))
+  let later : Val := sel .integer [(.string, str "s"), (.number, str "n")]
+  let sealedPat : Val := m [("x", m [("a", .integer)]),
+    ("t", .select (.path [.key "x"]) [(shut, str "T")] (some (str "D")))]
+  [([], kinds, .map []), ([], kinds, t "number"), ([], kinds, t "string"),
+    ([], sel .integer [(.number, str "number")], .map []),
+    ([], sel (.meet .integer (min 3)) [(min 1, str "big")], .map []),
+    ([], both, .map []), ([], both, t "b"),
+    ([], sel (.or [(0, .meet .integer (min 1)), (0, .meet .biginteger (min 1))])
+      [(.number, str "number")], .map []),
+    ([], later, .map []), ([], later, t "s"),
+    ([], sel .integer [(.string, str "s"), (.boolean, str "b")], .map []),
+    ([], sel .integer [(.string, str "s")] none, .map []),
+    ([], sel shut [(shut, str "T")] (some (str "D")), .map []),
+    ([], sealedPat, .map [("x", .map [("a", j 1)])]),
+    ([], sealedPat, .map [("x", .map [("a", j 1), ("b", j 2)])])]
+
+set_option maxRecDepth 16384 in
+theorem certainSelectCases_reads : ∀ c ∈ certainSelectCases, c.1.readsPD c.2.1 c.2.2 = true := by
+  decide +kernel
+
+theorem certainSelect_verdict_exact : ∀ c ∈ certainSelectCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_readsD (certainSelectCases_reads c hc) v
+
+/-- Ruling 90: a spread's template that holds two defaults of the picked
+rank that disagree is the schema's error where it is written, whatever
+the data. A map's template and a list's, against no data, a member that
+picks one default and one that picks neither; the clash made by `pref`,
+a member of the template, a template's own template, and under
+`type()`; beside a member the schema declares; in a template that reads
+its member's key or a member beside it, which is read as written; in a
+template that is a path to the clash; and in a body nothing uses. Their
+neighbours stand: one default, two that agree, and two of different
+ranks. -/
+def templateClashCases : List (Decls × Val × Data) :=
+  let two : Val := .or [(1, int 1), (1, int 2)]
+  let sp (t : Val) (fs : List (String × Val) := []) : Val :=
+    .map (fs.map fun f => (f.1, false, f.2)) (some t) false
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (fs : List (String × Data)) : Data := .map [("x", .map fs)]
+  [([], x (sp two), .map []),
+    ([], x (sp two), dx [("k", j 1)]),
+    ([], x (sp two), dx [("k", j 3)]),
+    ([], x (sp (.call .pref [.or [(0, int 1), (0, int 2)]])), dx [("k", j 1)]),
+    ([], x (.list [] (some two) false), .map [("x", .list [j 1])]),
+    ([], x (sp two [("k", .number)]), .map []),
+    ([], x (sp (m [("a", two)])), .map []),
+    ([], x (sp (sp two)), .map []),
+    ([], x (sp (.ride .type two [])), .map []),
+    ([], x (sp (m [("a", .keyUp 0), ("b", two)])), .map []),
+    ([], x (sp (m [("a", .path [.up 1, .key "b"]), ("b", two)])), .map []),
+    ([], m [("x", sp (.path [.key "d"])), ("d", two)], .map []),
+    ([("T", sp two)], m [("v", int 1)], .map [("v", j 1)]),
+    ([], x (sp (.or [(1, int 1), (0, int 2)])), dx [("k", j 2)]),
+    ([], x (sp (.or [(1, int 1), (1, int 1)])), .map []),
+    ([], x (sp (.or [(2, int 1), (1, int 2)])), .map [])]
+
+theorem templateClashCases_checkable : ∀ c ∈ templateClashCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem templateClash_verdict_exact : ∀ c ∈ templateClashCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (templateClashCases_checkable c hc).1 (templateClashCases_checkable c hc).2 v
 
 /-- A `match` whose scrutinee, and a `must` whose condition, reads the
 place the term stands at, which reads what the rest of the document
@@ -8895,6 +9001,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A match whose scrutinee the schema leaves open waits for the data (ruling 49),"
     IO.println "# in rows os0 on."
     pathRows "os" openSelectCases
+    IO.println "# A match whose scrutinee generates no value takes the arm no data could change"
+    IO.println "# (ruling 87), in rows ca0 on: an arm the scrutinee sits below is taken, one"
+    IO.println "# that shares nothing with it is passed over, and any other waits for the data."
+    pathRows "ca" certainSelectCases
+    IO.println "# A spread's template that holds two defaults of the picked rank that disagree is"
+    IO.println "# the schema's error where it is written, whatever the data (ruling 90), in rows"
+    IO.println "# tc0 on."
+    pathRows "tc" templateClashCases
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases

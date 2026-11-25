@@ -799,6 +799,17 @@ for each whatever the data. A clash only the data makes is the data's.
 In `a: number` beside `x: pref($.a) | *2`, data that gives `a` as `1`
 leaves `x` nothing to admit, so `vet` answers `invalid`.
 
+A spread's template follows the same rule where the document writes it.
+`x: {&: *1 | *2}` can give no member a default, so `vet` answers `error`
+with `pref_rank_clash`: with no member, with one the data gives as `1`,
+and with one it gives as `3`. `x: [&: *1 | *2]`, `x: {&: {a: *1 | *2}}`
+and `x: {&: pref(1 | 2)}` answer the same. A default that reads its
+member makes no clash in the template alone, so
+`x: {&: *key(0) | *"a"}` stands. Ruling 90 set this, and the definition
+reads it by `Val.tmplClash` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) and
+`Decls.unread` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean).
+
 **An arm that wasn't a default stays one**, whichever side of the meet
 holds it. In `(*1 | 2) & *integer` the defaults `1` and `integer` fold
 into `1`, and `2` stays an alternative, so the default is `1`. In
@@ -1374,14 +1385,44 @@ true, false)` answers `false` when `side_effect` is unset (the effective
 value is `"readonly"`), and `true` only when it is genuinely
 `destructive`. Before this rule a pattern could *select* an arm by
 overriding the default, deriving a value that contradicted the one
-generated beside it. **A scrutinee that generates no value waits for
-the data**: a kind, a bound or a disjunction with no default among its
-arms. So `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}` takes its
-arm from the data's `kind`, and where nothing settles the scrutinee the
-`match` stays incomplete, as `match(1|2, integer, a, b)` does though
-every arm meets the pattern. The `match` reads its scrutinee as the
-output reads it, so its arms never see a `type()` or `hide()` member
-the scrutinee carries.
+generated beside it.
+
+**A scrutinee that generates no value takes the arm no data could
+change**: a kind, a bound or a disjunction with no default among its
+arms. Ruling 87 has the `match` read its arms in order. It takes an arm
+whose pattern every value of the scrutinee satisfies, passes over an arm
+that shares no value with the scrutinee, and waits for the data at any
+other arm. So `match(1 | 2, integer, a, b)` is `a`, and a walk over a
+schema can name each field's kind:
+
+```aontu
+schema: type({ id:integer name:string on:boolean })
+
+names: pack(type($.schema), {
+  t: match(_, integer, "number", string, "string", "unknown")
+})
+```
+
+```json
+{"names":{"id":{"t":"number"},"name":{"t":"string"},"on":{"t":"unknown"}}}
+```
+
+`match(integer, 1, "one", integer, "number", "unknown")` waits, since
+data of `1` would take its first arm, and
+`x: {kind: string, v: match(.kind, "a", 1, "b", 2)}` takes its arm from
+the data's `kind`. Where nothing settles such a scrutinee the `match`
+stays incomplete.
+
+"Every value satisfies" is the order [`aontu subsume`](#subsumption)
+asks under its `values` profile: a kind sits under itself and under
+`number`, and a bound under a looser one. A map sits under a pattern
+member by member, with its seal, as a list does, and a disjunction arm
+by arm. So
+`integer & min(1) | biginteger & min(1)` takes a `number` arm and waits
+at an `integer` one, which only half of it satisfies, and an open map
+waits at a sealed pattern, which data with one more key would fail. The
+`match` reads its scrutinee as the output reads it, so its arms never
+see a `type()` or `hide()` member the scrutinee carries.
 
 Both wait for the model to settle before they answer, for the reason
 `pack` and `each` do: a bag that is still being merged into is the
@@ -1396,7 +1437,7 @@ accepts a document the arm it selects refuses. Inside a generator's
 template the hole is the source child, the scrutinee is a value by the
 time the match runs, and the form works as documented above.
 
-The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way, in both engines too, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, #922, and a scrutinee that generates nothing waits, rows `os0` on. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked, and waits while that member is open.
+The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way, in both engines too, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, #922. A scrutinee that generates nothing takes the arm `certainArm` finds, the first whose pattern it sits below as `leDecF` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) decides the order, every arm before it sharing nothing with the scrutinee, and waits where there is no such arm, #938, rows `os0` and `ca0` on. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked, and waits while that member is open.
 
 ## The placeholder `_`
 
@@ -2141,13 +2182,18 @@ services: pack([web api], %row)
               "web": {"name": "web", "tag": "svc-web"}}}
 ```
 
-The definition reads a body with each key as any string (`Val.unplaced`
-in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and a use
+The definition reads a body with each key that reaches the body's own
+top, or climbs past it, as any string (`Val.unplaced` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)), and a use
 with each key placed. Rows from `key-in-a-body-fits-its-use` on of
 [`test/spec/gen-key.tsv`](../test/spec/gen-key.tsv) hold both engines to
-it. The definition reads a key inside the body as any string too, where
-both engines read the member's key, so it admits an unused
-`%T = {a: key(0) & "b"}` that both refuse, which
+it. A key that reads a step inside the body is that step's text at
+every use, so the definition reads it as that text whether or not
+anything uses the body (`Val.keysIn`, ruling 88): an unused
+`%T = {a: key(0) & "b"}` is an error in the definition, as in both
+engines. A key inside the body that a relative path reads, as in
+`%T = {a: key(0), b: .a & "q"}`, the definition still reads as any
+string where the path lands, and both engines refuse that body, which
 [#942](https://github.com/aontu-lang/aontu/issues/942) tracks.
 
 **An alias is not a path segment.** `$.%foo` is refused, at any depth:
@@ -6567,7 +6613,7 @@ Neither guess is safe: a gate that wrongly reports "compatible" ships
 the break, and one that wrongly reports "breaking" sends its reader
 after a failure that isn't there.
 
-The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves. The definition decides both profiles position by position: `defaultsLe_of_walk` and `genLe_of_walk` prove the profile's order where `leDecF` proves the order and the walk of `defaultsAt` or `marksAt` fails nowhere, and `not_defaultsLe_of_refutes` and `not_genLe_of_refutes` refute it at one position. The rows from f0 on and w0 on of [`test/spec/def-subsume.tsv`](../test/spec/def-subsume.tsv) hold both engines to them.
+The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Profiles.lean`](../spec/Aontu/Profiles.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves. The definition decides both profiles position by position: `defaultsLe_of_walk` and `genLe_of_walk` prove the profile's order where `leDecF` proves the order and the walk of `defaultsAt` or `marksAt` fails nowhere, and `not_defaultsLe_of_refutes` and `not_genLe_of_refutes` refute it at one position. The rows from f0 on and w0 on of [`test/spec/def-subsume.tsv`](../test/spec/def-subsume.tsv) hold both engines to them.
 
 ### Profiles
 
@@ -6695,7 +6741,7 @@ it does anywhere else. It compares a recursion with no structure to
 unfold, as `a: $.a` has none, as residue: identical ones subsume, and
 any other pair is `undecided`.
 
-The definition states the order on documents as `LeD` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), each side read under its own declarations as `vet` reads it, with `SubsumeCorrectD` the contract on an answer; a recursion and its unrolling are below each other, `alias_le_unroll` and `unroll_le_alias`, and two readings that read no name are ordered as under the empty environment, `leD_of_le`. Two recursions of one shape under different names it leaves undecided.
+The definition states the order on documents as `LeD` in [`spec/Aontu/Profiles.lean`](../spec/Aontu/Profiles.lean), each side read under its own declarations as `vet` reads it, with `SubsumeCorrectD` the contract on an answer; a recursion and its unrolling are below each other, `alias_le_unroll` and `unroll_le_alias`, and two readings that read no name are ordered as under the empty environment, `leD_of_le`. Two recursions of one shape under different names it leaves undecided.
 
 ### Default validity
 
@@ -7329,7 +7375,7 @@ subsume each other in both directions. `min(0)&max(10)` and `max(10)&min(0)`
 normalise identically, and the canonical atom order below is what makes
 that true by construction rather than by a special case.
 
-The algebra's own table is theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): an interval below one that contains it (`min_le_min_iff`, `max_le_max_iff`, `min_le_above_iff`, `max_le_beneath_iff`, `above_le_min_of_le`, `beneath_le_max_of_le`, and `min_str_le_min_iff` and `max_str_le_max_iff` for strings), a concrete number below the bounds that admit it (`lit_le_min_iff` and the rest), `neq_le_neq` and `len_le_len`. `leDecF` decides them with its proof, and `not_le_of_witness` refutes with one instance.
+The algebra's own table is theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): an interval below one that contains it (`min_le_min_iff`, `max_le_max_iff`, `min_le_above_iff`, `max_le_beneath_iff`, `above_le_min_of_le`, `beneath_le_max_of_le`, and `min_str_le_min_iff` and `max_str_le_max_iff` for strings), a concrete number below the bounds that admit it (`lit_le_min_iff` and the rest), `neq_le_neq` and `len_le_len`, `mulof_le_mulof` for a divisor below one that divides it, and `integer_le_mulof`, `biginteger_le_mulof`, and `lit_num_le_mulof` for an integral side or a whole multiple below a divisor of one. `leDecF` decides them with its proof, and `not_le_of_witness` refutes with one instance.
 
 ### Endpoint tightening: lazy endpoints, eager emptiness
 

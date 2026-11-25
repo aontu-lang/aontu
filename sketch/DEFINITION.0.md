@@ -195,7 +195,8 @@ One module per layer:
 | `Aontu/Admits.lean` | `Judge`, the trial of a value on a datum with its answer, admission and refusal as one relation with a rule per form and per answer; `judge_unique`, that no value gives both; and `Instance`, admission of a whole document |
 | `Aontu/Output.lean` | from P2: `Gen` and `Output` under a document root, what evaluation singles out, and that it is unique |
 | `Aontu/Order.lean` | `Le` with one root per side, and the meet as a greatest lower bound |
-| `Aontu/Subsume.lean` | from P5: one contract per `subsume` profile, `values` against `Le`, `defaults` also against `Output` at every position for the effective default, `gen` also against the marks, as a predicate until they are terms; and the reference's table of rules as theorems of `Le` |
+| `Aontu/Subsume.lean` | from P5: the reference's table of rules as theorems of `Le`, and `leDecF`, which decides the order where those rows do and which a `match` reads to take an arm before the data comes (ruling 87) |
+| `Aontu/Profiles.lean` | from P5: one contract per `subsume` profile, `values` against `Le`, `defaults` also against `Output` at every position for the effective default, `gen` also against the marks, as a predicate until they are terms; and the order on documents |
 | `Aontu/Trial.lean` | the trial schemas as theorems: ADR-055, ADR-049's `not`, ADR-050, ADR-051 and ADR-058 landed (P4) |
 | `Aontu/Verdict.lean` | from P5: ill-formed values, and `valid`, `invalid`, `incomplete` and `error` defined over `Admits` and `Output`, with the `vet` modes as parameters |
 | `Aontu/Check.lean` | the verified checker, each function beside its `_iff` theorem |
@@ -683,7 +684,7 @@ until the phase that encodes it lands.
    fragment gains 141 rows more, o0 on, which both ports answer as the
    definition does. A marked list element is decision 18.
 11. **The effective default under `defaults`.** Raised 2026-10-19
-   by P5. `DefaultsLe` (`spec/Aontu/Subsume.lean`) holds the general
+   by P5. `DefaultsLe` (`spec/Aontu/Profiles.lean`) holds the general
    side to every value the specific side singles out at a position, a
    literal's own value included, since replacing `{a: 1}` by
    `{a: integer}` leaves a document that generated before incomplete,
@@ -3302,7 +3303,23 @@ until the phase that encodes it lands.
    `match(integer, 1, "one", integer, "number", …)` waits, since data of
    `1` would take its first arm, and ruling 49's own case,
    `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}`, waits as it
-   did. The definition and both ports move.
+   did. The definition and both ports move. **Built 2026-11-24** in the
+   definition and both ports. "Every value satisfies" is the order
+   `subsume` asks: `certainArm` reads `leDecF`, which moved ahead of
+   `Verdict.lean` with the order's rules (`Subsume.lean`), the profiles
+   going to `Profiles.lean`, and each port reads `subsumeNode` under the
+   `values` profile. An arm is passed over where the meet of scrutinee
+   and pattern is dead. `leDecF` gained the rows the ports decide and it
+   didn't: a whole number under `mulof`, and two patterns, formats or
+   grammars written alike. Rows ca0 to ca44 of
+   `test/spec/def-path.tsv` and 39 rows of `test/spec/gen-match.tsv`;
+   no generated row changed its answer. Over the 3,364 pairs of the
+   oracle's subsumption values the three agree but where a pattern
+   holds a written `nil` (21 pairs: the ports wait, the definition
+   passes the arm over) or a default against a default scrutinee (one
+   pair), beside the differences `main` had already, which are filed as
+   #962 to #965. Use case 10's transforms take a `number` arm for
+   `integer | biginteger`.
 88. **A key that reads inside an unused declaration's body.** Raised
    2026-11-24 by #942, while building #528. `Decls.bodyIll` reads every
    `key(n)` in a body as any string (`Val.unplaced`), which is right
@@ -3313,7 +3330,19 @@ until the phase that encodes it lands.
    reads a step inside the body is that step's text at every use, so
    `Decls.bodyIll` reads it so: the step's text where the step is
    inside the body, `""` where the level is negative, and any string
-   only where the key reaches the body's own top or above.
+   only where the key reaches the body's own top or above. **Built in
+   the definition 2026-11-24**: `Val.keysIn` walks a body with the
+   steps from its top and reads each key by `keyUpIn`, and
+   `Decls.bodyIll` checks the body so read. A list's element past one
+   that could be absence or carry a mark as only a reading shows
+   (`Val.evident`) reads its keys from the element down. Rows a378 to
+   a419 of `test/spec/def-alias.tsv`, which both ports pass; no other
+   generated row changed. Six of #942's seven cases move. The seventh,
+   `%T = {a: key(0), b: .a & "q"}`, reads the key through a relative
+   path: the path pipeline names the place and reads the bare key at
+   the name's own top, so it is any string still. Placing the keys
+   ahead of that pipeline needs `Val.keysIn` to keep a term checkable,
+   and is left to its own step.
 89. **A default that reaches a disjunction through `pref()`, a path or
    a name.** Raised 2026-11-24 by #954, while fixing #482. An arm `*x`
    written in a disjunction is the arm `x` of rank one, with no parent
@@ -3340,7 +3369,21 @@ until the phase that encodes it lands.
    the picked rank that disagree can give no member a default, so it is
    refused where it is written, whatever the data, as decision 77
    refuses a miscounted call wherever it stands. The definition and
-   both ports move.
+   both ports move. **Built 2026-11-24** in the definition and both
+   ports. `Val.illFormed` reads a map's and a list's spread for a
+   clash (`Val.tmplClash`), at any depth of the template. A template
+   that reads its member is read at each member, so a document with no
+   member left it unread: `Decls.templatesClash` reads each template as
+   written, and `Decls.unread` joins it to a load left unmade, the
+   document's error in `VetP` and `OutputP`. Each port reads a bag's
+   template in the pass that ranks a settled disjunction, with its
+   calls made by a trial at its own place, unless it holds a key, a
+   hole or a path, which a trial there would misread or move. Rows tc0
+   to tc47 of `test/spec/def-path.tsv` and 42 rows of
+   `test/spec/vet.tsv`; no other generated row changed. A default that
+   reads its member's key is no clash where it is written, in all
+   three. With data, both ports still leave such a default unresolved,
+   which is #465.
 
 ## 8. Risks
 

@@ -16,6 +16,7 @@ import { prefInnerPeg } from './PrefVal'
 import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import { readsPlace } from './ConstraintVal'
+import { subsumeNode, newPairs } from '../subsume'
 
 
 export function effectiveScrutinee(v: Val): Val {
@@ -40,6 +41,12 @@ function generates(v: Val): boolean {
   return true === s?.isScalar || true === s?.isNil || true === s?.isAbsent ||
     ((true === s?.isMap || true === s?.isList) &&
       Object.entries(s.peg).every(([k, c]: [string, any]) => unseen(k, c) || generates(c)))
+}
+
+
+function below(scrutinee: Val, pattern: Val): boolean {
+  const state: any = { profile: 'values', findings: [], generalUrl: '', specificUrl: '', pairs: newPairs() }
+  return 'yes' === subsumeNode(state, [], pattern, scrutinee)
 }
 
 
@@ -87,17 +94,14 @@ class MatchFuncVal extends FuncBaseVal {
 
   unify(peer: Val, ctx: AontuContext): Val {
     // The scrutinee and the PATTERNS are driven; the results are not
-    // (see the header). driveStagedArgs takes a prefix, so the odd
-    // positions are driven one at a time.
-    // A path to the match's own place reads the peer held there; a
-    // scrutinee waits, read again, until it generates a value.
+    // (see the header), and the odd positions one at a time. A path to
+    // the match's own place reads the peer held there; a scrutinee waits,
+    // read again, until it generates a value or no data could change the
+    // arm it takes (ruling 87).
     const held = peer.isTop ? ctx : ctx.holdArm(this.path, peer, undefined, true)
     const scrut = this.peg[0].done ? undefined : this.peg[0].clone(ctx, { dup: true })
     let ready = this.driveStagedArgs(held, 1)
-    if (ready && !generates(this.peg[0])) {
-      this.peg[0] = scrut ?? this.peg[0]
-      ready = false
-    }
+    const open = ready && !generates(this.peg[0])
     const last = this.peg.length - (this.hasDefault() ? 1 : 0)
     for (let i = 1; i < last; i += 2) {
       const arg: Val = this.peg[i]
@@ -105,6 +109,10 @@ class MatchFuncVal extends FuncBaseVal {
         this.peg[i] = arg.unify(top(), readsPlace(arg, this.path) ? held : ctx)
       }
       ready = ready && true === this.peg[i].done
+    }
+    if (open && !(ready && this.certain(ctx))) {
+      this.peg[0] = scrut ?? this.peg[0]
+      ready = false
     }
 
     if (!ready || !ctx.settle) {
@@ -115,6 +123,18 @@ class MatchFuncVal extends FuncBaseVal {
   }
 
 
+  // The first arm the scrutinee shares a value with is taken where every value it admits satisfies the pattern.
+  certain(ctx: AontuContext): boolean {
+    const last = this.peg.length - (this.hasDefault() ? 1 : 0)
+    for (let i = 1; i < last; i += 2) {
+      if (undefined !== trialUnify(ctx, this.peg[0].clone(ctx), this.peg[i].clone(ctx))) {
+        return below(this.peg[0], this.peg[i])
+      }
+    }
+    return true
+  }
+
+
   resolve(ctx: AontuContext, args: Val[]) {
     const scrutinee: Val = effectiveScrutinee(args[0])
     const dflt: Val | undefined = this.hasDefault() ?
@@ -122,6 +142,7 @@ class MatchFuncVal extends FuncBaseVal {
     const last = args.length - (undefined === dflt ? 0 : 1)
 
     const tried: string[] = []
+    const open = !generates(args[0])
 
     for (let i = 1; i < last; i += 2) {
       const pattern: Val = args[i]
@@ -131,7 +152,7 @@ class MatchFuncVal extends FuncBaseVal {
       // against a TOP peer, and a pattern that failed must be
       // untouched for the next document that reads its canon.
       const met = trialUnify(ctx, scrutinee.clone(ctx), pattern.clone(ctx))
-      if (undefined !== met && sameMembers(scrutinee, met, ctx, true)) {
+      if (undefined !== met && (sameMembers(scrutinee, met, ctx, true) || (open && below(args[0], pattern)))) {
         return placed(args[i + 1], ctx)
       }
     }

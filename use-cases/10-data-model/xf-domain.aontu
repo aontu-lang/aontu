@@ -13,6 +13,13 @@
 # generate is not a member either, so a transform over a schema does
 # not see them (use-cases/BUGS.md 86); xf-order.aontu states optionality
 # as data instead.
+#
+# THE ARMS ARE KINDS THE FIELDS SIT INSIDE. A field here is a schema,
+# with no value to select by, so an arm is taken where every value the
+# field admits satisfies it, and passed over where none does (#938).
+# `ledgerId` is `integer | biginteger`, so the arm that names it is
+# `number`: `integer` alone would take one half of it, and the match
+# would wait for data that a walk over a schema never has.
 @"./domain.aontu"
 
 step: hide(pack(type($.schema), {
@@ -23,8 +30,7 @@ step: hide(pack(type($.schema), {
           f: "  " + key(1) + ": "
             + match(
               _,
-              integer, "number",
-              biginteger, "bigint",
+              number, "number",
               string, "string",
               boolean, "boolean",
               [], "unknown[]",

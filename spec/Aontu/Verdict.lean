@@ -2,6 +2,7 @@ import Aontu.Output
 import Aontu.Alias
 import Aontu.Text
 import Aontu.Read
+import Aontu.Subsume
 
 /-!
 # The verdicts
@@ -118,6 +119,20 @@ an error of the document, not an empty answer. -/
 def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | [], d => d.getD .nil
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
+
+/-- The arm no data could change, for a scrutinee `s` that generates no
+value (ruling 87). The arms are read in order: one that shares nothing
+with the scrutinee, their meet dead, is passed over; one whose pattern
+every value of the scrutinee satisfies, the scrutinee below the pattern
+in the order as `leDecF` decides it, is taken; and any other leaves the
+selection to the data, `none`. Past the last arm the default stands, or
+`nil`. -/
+def certainArm (ds : Decls) (s : Val) : List (Val × Val) → Option Val → Option Val
+  | [], d => some (d.getD .nil)
+  | (p, r) :: arms, d =>
+    if (normaliseD ds (.meet s p)).dead then certainArm ds s arms d
+    else if (leDecF .empty 64 (normaliseD ds s) (normaliseD ds p)).isSome then some r
+    else none
 
 /-- A lone preference in normal form, `*x | super(x)`, read as `x`. -/
 def Val.lonePref : Val → Val
@@ -1113,6 +1128,21 @@ def keyItems : List Val → Bool := holdsItems Val.isKeyUp
 
 def keyPairs : List (Val × Val) → Bool := holdsPairs Val.isKeyUp
 
+/-- Whether a term is `key()`, a `key(n)` or the hole `_`: a term whose
+value is the member it lands on. -/
+def Val.isUnbound : Val → Bool
+  | .key | .keyUp _ | .hole => true
+  | _ => false
+
+/-- Whether a term holds one at any depth, so that nothing can be said
+of its values until it lands. -/
+def Val.unbound : Val → Bool := Val.holds Val.isUnbound
+
+/-- Whether a pattern of a selection does. -/
+def unboundPats : List (Val × Val) → Bool
+  | [] => false
+  | (p, _) :: ps => p.unbound || unboundPats ps
+
 mutual
 /-- Whether a term waits for the place a use gives it: whether it holds
 the hole `_` or a `key(n)` at any depth, or names a declaration `w`
@@ -1801,10 +1831,44 @@ arm's size (decision 16 of the design note's §7). -/
 def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 
 mutual
+/-- Whether a spread's template holds a preference clash (`clash`), in
+the template itself or in a member, an element, an arm or a template it
+holds. Two defaults of the picked rank that disagree can give no member
+a default, so such a template doesn't stand where it is written,
+whatever lands on it (ruling 90). -/
+def Val.tmplClash : Val → Bool
+  | .or arms => clash arms || tmplClashArms arms
+  | .map fs spread _ => tmplClashFields fs || tmplClashSpread spread
+  | .list items spread _ => tmplClashItems items || tmplClashSpread spread
+  | .pref _ x => x.tmplClash
+  | .meet a b => a.tmplClash || b.tmplClash
+  | .ride _ v _ => v.tmplClash
+  | .link v _ => v.tmplClash
+  | _ => false
+
+def tmplClashFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.tmplClash || tmplClashFields fs
+
+def tmplClashItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.tmplClash || tmplClashItems vs
+
+def tmplClashArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.tmplClash || tmplClashArms arms
+
+def tmplClashSpread : Option Val → Bool
+  | none => false
+  | some t => t.tmplClash
+end
+
+mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, and the one
 a document writes, which stands (`Val.void`, ruling 54), a
-preference clash, a size that holds a disjunction or a preference, and
+preference clash, in a spread's template too (`Val.tmplClash`, ruling
+90), a size that holds a disjunction or a preference, and
 a call the reading could not make. A `+`, a `join` and a `pref` that
 the reading leaves as written stand where their arguments do and they
 have as many as they take. A hole that nothing binds is read before
@@ -1813,8 +1877,8 @@ this (`Decls.illFormedR`). The verdict reads it of a term staged
 def Val.illFormed : Val → Bool
   | .nil => true
   | .len c => c.sizeIll
-  | .map fs _ _ => illFields fs
-  | .list items _ _ => illItems items
+  | .map fs spread _ => illFields fs || tmplClashSpread spread
+  | .list items spread _ => illItems items || tmplClashSpread spread
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
@@ -1966,7 +2030,10 @@ members its condition takes as the terms they are (`filterTakes`, ruling
 otherwise a value that generates a container is the members whose data
 its condition admits, as a term; and one whose source generates a
 scalar, which has no members, is `nil`. A selection whose scrutinee
-generates nothing stays, and generates nothing, and so does a `filter`
+generates nothing is the result of the arm no data could change
+(`certainArm`, ruling 87), and stays, and generates nothing, where the
+data decides or a hole or a key nothing has bound stands in it; and so
+does a `filter`
 whose source generates nothing and is no map or list, or holds a form
 no reading has made yet (`Val.unmade`). An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
@@ -2032,7 +2099,12 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
       else (selectArm ds x arms' d').rideMoves s'.moves
     | none =>
-      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else if s'.unbound || unboundPats arms' || callPairs arms' || here.isNone && keyPairs arms'
+      then .select s' arms' d'
+      else match certainArm ds s' arms' d' with
+        | some r => r.rideMoves s'.moves
+        | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if ds.clashes s' then .nil else
@@ -2598,6 +2670,42 @@ def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.r
 /-- How a document reads with its keys as written: the root its paths
 read, so that a key a path reaches reads where the path lands. -/
 def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S).filled
+
+mutual
+/-- Whether a term in normal form holds a spread whose template has a
+preference clash (`Val.tmplClash`), at any depth of members, elements,
+arms, preferences, meets and riders. -/
+def Val.spreadsClash : Val → Bool
+  | .map fs spread _ => spreadsClashFields fs || tmplClashSpread spread
+  | .list items spread _ => spreadsClashItems items || tmplClashSpread spread
+  | .or arms => spreadsClashArms arms
+  | .pref _ x => x.spreadsClash
+  | .meet a b => a.spreadsClash || b.spreadsClash
+  | .ride _ v _ => v.spreadsClash
+  | .link v _ => v.spreadsClash
+  | _ => false
+
+def spreadsClashFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.spreadsClash || spreadsClashFields fs
+
+def spreadsClashItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.spreadsClash || spreadsClashItems vs
+
+def spreadsClashArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.spreadsClash || spreadsClashArms arms
+end
+
+/-- Whether a spread's template, as the document writes it in its
+schema or in a body, holds a preference clash: read with no place, so
+that a template that reads its member's key or a member beside it is
+read too, which a reading at each member would leave unread where the
+document holds no member (ruling 90). -/
+def Decls.templatesClash (ds : Decls) (S : Val) : Bool :=
+  ((normaliseD ds (ds.readU S)).staged ds).spreadsClash ||
+    ds.any fun d => ((normaliseD ds (ds.readU d.2)).staged ds).spreadsClash
 
 /-- How a document reads against data: the schema as read, met with the
 data, the data last, and read again, so that a call whose arguments the
@@ -3843,14 +3951,21 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
           (resolveSpread ds b here d)
           else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves Val.key.moves
       | none => if (normaliseD ds .key).isAbsent then .absent else if (normaliseD ds .key).dead then .nil
-          else .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
+          else if Val.key.unbound || unboundPats (resolvePairs ds b here arms) ||
+            callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
+          then .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)
+          else match certainArm ds .key (resolvePairs ds b here arms) (resolveSpread ds b here d) with
+            | some r => r.rideMoves Val.key.moves
+            | none => .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds .key = none := rfl
     rw [hg]
     dsimp only
+    have hu : Val.key.unbound = true := by simp [Val.unbound, Val.holds, Val.isUnbound]
     split
     · exact .absent
     split
     · exact .nil
+    simp only [hu, Bool.true_or, if_true]
     refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
     · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
       exact ihp p₀ r₀ hm₀ hb
@@ -3872,7 +3987,12 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
           (resolveSpread ds b here d)
           else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves (Val.lit sc).moves
       | none => if (normaliseD ds (.lit sc)).isAbsent then .absent else if (normaliseD ds (.lit sc)).dead then .nil
-          else .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
+          else if (Val.lit sc).unbound || unboundPats (resolvePairs ds b here arms) ||
+            callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
+          then .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)
+          else match certainArm ds (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d) with
+            | some r => r.rideMoves (Val.lit sc).moves
+            | none => .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
     rw [hg]
     dsimp only
@@ -4443,6 +4563,83 @@ refuse it with `ident_place` (decision 14 of the design note's §7). -/
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
 
+/-- Whether a list's element holds a position or not as written: a
+literal, a kind, a map, a list or absence, under any rider. A name, a
+path, a call or a meet could be absence or carry a mark that only a
+reading shows, and neither takes a position. -/
+def Val.evident : Val → Bool
+  | .lit _ | .map _ _ _ | .list _ _ _ | .absent | .any => true
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean => true
+  | .mapKind | .listKind | .pathKind => true
+  | .ride _ v _ => v.evident
+  | _ => false
+
+mutual
+/-- A declaration's body with each `key(n)` that reads a step inside it
+read as that step's text (`keyUpIn`, ruling 88), `pos` the steps from
+the body's top down: a member under its key, an element at the index it
+takes among those the list holds a position for, and a spread's
+template at the member the spread holds. A key is one text at every use
+where its step is the body's own, so the body is held to it used or
+not. An element past one whose position only a reading shows
+(`Val.evident`) stands at an index no one knows yet, so its keys are
+read from the element down. The template of an `each` or a `pack`, an
+`emit`'s table, a `filter`'s condition and a link's template stand
+where their instances land, so their keys stay as written. -/
+def Val.keysIn (pos : List Step) : Val → Val
+  | .keyUp n => keyUpIn pos n
+  | .map fs spread closed => .map (keysInFields pos fs) (keysInSpread (pos ++ [.spread]) spread) closed
+  | .list items spread closed =>
+    .list (keysInElems pos true 0 items) (keysInSpread (pos ++ [.spread]) spread) closed
+  | .meet a b => .meet (a.keysIn pos) (b.keysIn pos)
+  | .or arms => .or (keysInArms pos arms)
+  | .pref r x => .pref r (x.keysIn pos)
+  | .ride k v r => .ride k (v.keysIn pos) r
+  | .link v lt => .link (v.keysIn pos) lt
+  | .call f args =>
+    .call f (match f with
+      | .each | .pack | .emit | .apply => keysInHead pos args
+      | _ => keysInItems pos args)
+  | .len c => .len (c.keysIn pos)
+  | .must c m => .must (c.keysIn pos) m
+  | .nof n cs => .nof (n.keysIn pos) (keysInItems pos cs)
+  | .when c t e => .when (c.keysIn pos) (t.keysIn pos) (keysInSpread pos e)
+  | .contains c n => .contains (c.keysIn pos) (n.keysIn pos)
+  | .select s arms d => .select (s.keysIn pos) (keysInPairs pos arms) (keysInSpread pos d)
+  | .filter s c => .filter (s.keysIn pos) c
+  | v => v
+
+def keysInFields (pos : List Step) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.keysIn (pos ++ [.seg (.key k)])) :: keysInFields pos fs
+
+def keysInElems (pos : List Step) : Bool → ℕ → List Val → List Val
+  | _, _, [] => []
+  | known, i, v :: vs =>
+    v.keysIn (if known then pos ++ [.seg (.idx i)] else []) ::
+      keysInElems pos (known && v.evident) (if v.isAbsent || v.marked then i else i + 1) vs
+
+def keysInItems (pos : List Step) : List Val → List Val
+  | [] => []
+  | v :: vs => v.keysIn pos :: keysInItems pos vs
+
+def keysInHead (pos : List Step) : List Val → List Val
+  | [] => []
+  | v :: vs => v.keysIn pos :: vs
+
+def keysInArms (pos : List Step) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.keysIn pos) :: keysInArms pos arms
+
+def keysInPairs (pos : List Step) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.keysIn pos, r.keysIn pos) :: keysInPairs pos ps
+
+def keysInSpread (pos : List Step) : Option Val → Option Val
+  | none => none
+  | some s => some (s.keysIn pos)
+end
+
 mutual
 /-- A term with each part that waits for a place read as what any place
 could make of it: a hole as `any`, a `key(n)` as any string, since a
@@ -4521,16 +4718,20 @@ of the design note's §7). Each body is read with the parts that wait
 for the use that places them, a hole or a `key(n)`, read as what any
 place could make of them (`Val.unplaced`), and so is a name whose body
 waits (`Decls.waitNames`), so that what stands beside them is read. A
+`key(n)` that reads a step inside the body is one text at every place,
+so it is read as that text first (`Val.keysIn`, ruling 88), and only a
+key that reaches the body's own top or above waits. A
 waiting call is `nil` where it takes another count of arguments or an
 argument it reads as written doesn't stand, read against the bodies
 with each waiting part so read (`d0`). A name a source publishes is
 read where a destructure takes it, so not here. -/
 def Decls.bodyIll (ds : Decls) : Bool :=
-  let ws := ds.waitNames
+  let ks : Decls := ds.map fun d => (d.1, d.2.keysIn [])
+  let ws := ks.waitNames
   let w : String → Bool := fun n => ws.contains n
-  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
+  let d0 : Decls := ks.map fun d => (d.1, d.2.unplaced w fun _ => false)
   let ill : Val → Bool := fun t => ((normaliseD d0 (d0.readU t)).staged d0).illFormed
-  let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
+  let du : Decls := ks.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
     (((normaliseD du (du.readU (.alias d.1))).staged du).illFormed || ((normaliseD du (du.readU d.2)).staged du).illFormed)
 

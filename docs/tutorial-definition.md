@@ -28,7 +28,8 @@ a term admits, and none declares its own.
 | [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct, and `super`, the parent type of a term |
 | [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) | what each term admits, one rule for each form |
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, the strict bounds under their closed ones, two declarations of one key, and the contract any `subsume` must meet |
-| [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) | the profiles of `subsume`, one contract each, and the reference's table of rules as theorems |
+| [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) | the reference's table of subsumption rules as theorems, and the procedure that decides the order |
+| [`spec/Aontu/Profiles.lean`](../spec/Aontu/Profiles.lean) | the profiles of `subsume`, one contract each, and the order on documents |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
 | [`spec/Aontu/Tour.lean`](../spec/Aontu/Tour.lean) | the examples this page walks through |
@@ -4012,7 +4013,7 @@ must declare one that singles out the same value. A preference declares
 a default, and so does a disjunction with a preferred arm. A rider,
 which step 19 comes to, declares what its value declares:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def Val.declaresDefault : Val → Bool
   | .pref _ _ => true
@@ -4022,7 +4023,7 @@ def Val.declaresDefault : Val → Bool
   | _ => false
 ```
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def DefaultsLe (env : Env) (a b : Val) : Prop :=
   a ⊑[env] b ∧
@@ -4035,7 +4036,7 @@ def DefaultsLe (env : Env) (a b : Val) : Prop :=
 is below the second in the order, and `defaults` tells them apart,
 since the first singles out `2` where the second singles out `1`:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem defaults_sees_the_default :
 ```
@@ -4043,7 +4044,7 @@ theorem defaults_sees_the_default :
 Wrapping the first in a rider changes nothing: `meta(*2 | number, {})`
 isn't below `*1 | number` under `defaults` either.
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem defaults_sees_through_riders :
 ```
@@ -4053,7 +4054,7 @@ A literal singles out its own value, and declares no default, so
 holds under `defaults` as it does under `values`, which is how the
 reference defines an effective default and how both ports answer:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
     DefaultsLe env (.lit s) b := by
@@ -4063,7 +4064,7 @@ theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
 have, a container's spread among them, since a mark, `type()` or
 `hide()`, decides what the output holds, as step 13 shows:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def MarksAgree (a b : Val) : Prop :=
   ∀ (p : List MarkSeg) (wa wb : Val), (normalise a).atM p = some wa → (normalise b).atM p = some wb →
@@ -4097,7 +4098,7 @@ The definition decides the other two profiles position by position.
 `defaultsAt` decides what `defaults` asks at one position, reading each
 side's output through `output_iff`:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def defaultsAt (a b : Val) : Bool :=
   !a.declaresDefault ||
@@ -4185,6 +4186,21 @@ theorem min_le_min_iff (n m : Number) : .min (.num n) ⊑[env] .min (.num m) ↔
 theorem mulof_le_mulof {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
     .mulof a ⊑[env] .mulof b := by
 ```
+
+A whole number is a multiple of one, so `integer` is below `mulof(d)`
+wherever one is a multiple of `d`, `mulof(1)` and `mulof(0.5)` among
+them, and `biginteger` with it:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem integer_le_mulof {d : Number} (hd : d.Positive) (h : (d.shown.2 : ℤ) % d.shown.1 = 0) :
+    .integer ⊑[env] .mulof d := by
+```
+
+`leDecF` reads these rows, and a pattern below one written alike, as a
+format and a grammar are. A `match` reads the order by it too,
+as step 16 shows, so a row added here is an arm a `match` can take
+before the data comes.
 
 ## 11. Two declarations of one key
 
@@ -5124,13 +5140,42 @@ names a waiting body waits too, through a call or another name, so
 stays a name, though, so it reads its own body read the same way, and
 what that body fixes holds: `%T = %U & 2` beside `%U = _ & 1` is an
 `error`, as both engines answer. Both engines read a `key(n)` that
-climbs out of the body as waiting too. One that reads a member inside
-the body they read as that member's key, where the definition reads any
-string, so it admits an unused `%T = {a: key(0) & "b"}` that both
-refuse, which #942 tracks. And both skip a
+climbs out of the body as waiting too. And both skip a
 conflict met with a call that waits through a name, so they answer
 `valid` for `%T = add(%U, 1) & (1 & 2)`, which the definition reads as
 an `error` and #530 tracks.
+
+A `key(n)` that reads a step inside the body waits for nothing, since
+every use gives that step the same text. Ruling 88 has the check read
+the key as that text first, by `Val.keysIn`, which walks the body with
+the steps from its top and reads each key by `keyUpIn`:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- `key(n)` read in a declaration's body at `pos`, the steps from the
+body's own top down, outermost first: the text of a step inside the
+body and `""` below none, as `keyUpAt` reads them, and `key(n)` as
+written, which only a use places, where it reaches the body's top or
+above (ruling 88). -/
+def keyUpIn (pos : List Step) (n : ℤ) : Val :=
+  if n < 0 then .lit (.str "") else
+  match pos.reverse[n.toNat]? with
+  | some (.seg s) => .lit (.str s.text)
+  | some .spread => if n = 0 then .key else .keyUp n
+  | none => .keyUp n
+```
+
+So `%T = {a: key(0) & "b"}` is an `error` unused, `"a"` met with `"b"`,
+and so are `%T = [key(0) & "9"]` and `%T = {a: upper(key(0)) & 1}`,
+whose call the reading makes once its key is text. `%T = {a: {b: key(2) & "z"}}`
+stands, its key reaching the body's own top, which only a use places.
+Rows `a378` on of `test/spec/def-alias.tsv` hold both engines to each.
+A list's element past one that could be absence or carry a mark stands
+at an index only a reading shows, so the walk reads its keys from the
+element down (`Val.evident`). One case remains: a key inside the body
+that a relative path reads, `%T = {a: key(0), b: .a & "q"}`, is any
+string still where the path lands, and both engines refuse that body,
+which #942 tracks.
 
 A call or a trial that waits for its hole still reads the arguments
 both engines read as written: a call's own, a size, the count of `nof`
@@ -5153,11 +5198,12 @@ source publishes is read where a destructure takes it, so not here:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.bodyIll (ds : Decls) : Bool :=
-  let ws := ds.waitNames
+  let ks : Decls := ds.map fun d => (d.1, d.2.keysIn [])
+  let ws := ks.waitNames
   let w : String → Bool := fun n => ws.contains n
-  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
+  let d0 : Decls := ks.map fun d => (d.1, d.2.unplaced w fun _ => false)
   let ill : Val → Bool := fun t => ((normaliseD d0 (d0.readU t)).staged d0).illFormed
-  let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
+  let du : Decls := ks.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
     (((normaliseD du (du.readU (.alias d.1))).staged du).illFormed || ((normaliseD du (du.readU d.2)).staged du).illFormed)
 ```
@@ -5329,8 +5375,8 @@ makes doesn't, so the verdict reads a required member that holds one as
 def Val.illFormed : Val → Bool
   | .nil => true
   | .len c => c.sizeIll
-  | .map fs _ _ => illFields fs
-  | .list items _ _ => illItems items
+  | .map fs spread _ => illFields fs || tmplClashSpread spread
+  | .list items spread _ => illItems items || tmplClashSpread spread
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
@@ -5344,6 +5390,59 @@ def Val.illFormed : Val → Bool
   | .select _ arms _ => illPats arms
   | _ => false
 ```
+
+The check reads a spread's template for one thing only, a preference
+clash.
+`x: *1 | *2` is the schema's error, and ruling 90 reads the same
+disjunction as a template, `x: {&: *1 | *2}`, the same way: two
+defaults of the picked rank that disagree can give no member a default,
+so the template doesn't stand where the document writes it, whatever
+the data. A `nil` in a template still stands, since both engines read
+one only against a member:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- Whether a spread's template holds a preference clash (`clash`), in
+the template itself or in a member, an element, an arm or a template it
+holds. Two defaults of the picked rank that disagree can give no member
+a default, so such a template doesn't stand where it is written,
+whatever lands on it (ruling 90). -/
+def Val.tmplClash : Val → Bool
+  | .or arms => clash arms || tmplClashArms arms
+  | .map fs spread _ => tmplClashFields fs || tmplClashSpread spread
+  | .list items spread _ => tmplClashItems items || tmplClashSpread spread
+  | .pref _ x => x.tmplClash
+  | .meet a b => a.tmplClash || b.tmplClash
+  | .ride _ v _ => v.tmplClash
+  | .link v _ => v.tmplClash
+  | _ => false
+```
+
+So `x: {&: {a: *1 | *2}}` and `x: {&: pref(1 | 2)}` are an `error` too,
+against data that picks one default as against none, where the
+definition once answered `valid` and both engines `invalid`. A default
+that reads its member's key makes no clash in the template alone, since
+`clash` counts the values the picked arms generate, and a key
+generates none: `x: {&: *key(0) | *"a"}` stands. The reading takes a
+template that reads its member, by a key or a relative path, to each
+member, and a document that holds no member would leave it unread. So
+the verdict reads each template as the document writes it first, by
+`Decls.templatesClash`, and answers `error` before anything else:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- Whether a document can't be read: it still holds a load
+(`Decls.loadsLeft`), or a spread's template that, as the document
+writes it, holds a preference clash (`Decls.templatesClash`, ruling 90),
+which can give no member a default whatever lands on it. Either is an
+`error` before anything else is asked. -/
+def Decls.unread (ds : Decls) (S : Val) : Bool :=
+  ds.loadsLeft S || (ds.loaded S).1.templatesClash (ds.loaded S).2
+```
+
+Rows `tc0` on of `test/spec/def-path.tsv` hold both engines to each of
+these, and the rows of `test/spec/vet.tsv` under ruling 90 hold the
+shapes beside them.
 
 The schema is read, `Decls.readR`, as its expansion with its
 selections made, which step 16 comes to. `invalid` is a schema that
@@ -6161,9 +6260,46 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
 ```
 
-and a term reads with its selections made, where one whose scrutinee
-generates nothing stays, and generates nothing, as a `match` on a
-scrutinee that waits does. The reading carries `b`, the member a hole in a
+A scrutinee that generates nothing has no value to select by: a kind, a
+bound, or a disjunction with no default among its arms. Ruling 87 has
+the `match` take the arm no data could change. It reads the arms in
+order, passes over one that shares nothing with the scrutinee, takes
+one whose pattern every value of the scrutinee satisfies, and leaves
+any other to the data. "Every value satisfies" is step 10's order, the
+scrutinee below the pattern, and `leDecF` decides it, so each arm taken
+comes with the proof that it holds, `leDecF_sound`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The arm no data could change, for a scrutinee `s` that generates no
+value (ruling 87). The arms are read in order: one that shares nothing
+with the scrutinee, their meet dead, is passed over; one whose pattern
+every value of the scrutinee satisfies, the scrutinee below the pattern
+in the order as `leDecF` decides it, is taken; and any other leaves the
+selection to the data, `none`. Past the last arm the default stands, or
+`nil`. -/
+def certainArm (ds : Decls) (s : Val) : List (Val × Val) → Option Val → Option Val
+  | [], d => some (d.getD .nil)
+  | (p, r) :: arms, d =>
+    if (normaliseD ds (.meet s p)).dead then certainArm ds s arms d
+    else if (leDecF .empty 64 (normaliseD ds s) (normaliseD ds p)).isSome then some r
+    else none
+```
+
+So `match(integer, integer, "number", string, "string", "unknown")` is
+`"number"`, and a walk over a schema can name each field's kind, which
+#938 asked for. `match(integer, 1, "one", integer, "number", "unknown")`
+waits, since data of `1` would take its first arm, and so does an open
+map at a sealed pattern, which data with one more key would fail.
+`integer & min(1) | biginteger & min(1)` takes a `number` arm, each of
+its arms below it, and waits at an `integer` one, which half of it
+satisfies. Rows `ca0` on of `test/spec/def-path.tsv` hold the arms taken
+and passed over. The rows of `test/spec/gen-match.tsv` under ruling 87
+hold the ones that wait too, and both engines and the definition read
+each of them alike.
+
+A term reads with its selections made, where a `match` that waits
+stays, and generates nothing. The reading carries `b`, the member a hole in a
 template reads as, which step 27 covers, and `here`, the position a
 term stands at, which step 29 covers:
 
@@ -6179,7 +6315,10 @@ members its condition takes as the terms they are (`filterTakes`, ruling
 otherwise a value that generates a container is the members whose data
 its condition admits, as a term; and one whose source generates a
 scalar, which has no members, is `nil`. A selection whose scrutinee
-generates nothing stays, and generates nothing, and so does a `filter`
+generates nothing is the result of the arm no data could change
+(`certainArm`, ruling 87), and stays, and generates nothing, where the
+data decides or a hole or a key nothing has bound stands in it; and so
+does a `filter`
 whose source generates nothing and is no map or list, or holds a form
 no reading has made yet (`Val.unmade`). An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
@@ -6245,7 +6384,12 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
       else (selectArm ds x arms' d').rideMoves s'.moves
     | none =>
-      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else if s'.unbound || unboundPats arms' || callPairs arms' || here.isNone && keyPairs arms'
+      then .select s' arms' d'
+      else match certainArm ds s' arms' d' with
+        | some r => r.rideMoves s'.moves
+        | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if ds.clashes s' then .nil else
@@ -6278,13 +6422,16 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
 A `match` selects by what its scrutinee outputs, as `outputD` reads
 it, so its arms never see a `type()` or `hide()` member the scrutinee
 carries: `match({a: 1, z: type(number)}, {a: 1}, {y: 1}, {y: 2})`
-takes the first arm though `z` is open, as both engines take it. A path
-copies its target without its marks, so `match($.w, …)` over
-`w: {a: 1, z: type(number)}` reads `z` as an open `number` and waits for
-the data, as a `match` over any open scrutinee does, and both engines
-wait there too, as ruling 49 asks, #743. The checker can't read a
-marked member through a path, so no row holds that case. Rows `os24` to
-`os32` of `test/spec/def-path.tsv` hold the scrutinee written in place.
+takes the first arm though `z` is open, as both engines take it. Rows
+`os24` to `os32` of `test/spec/def-path.tsv` hold the scrutinee written
+in place. Both engines still try a pattern that seals the map, or that
+names the marked member, against that member, where the definition
+reads the output alone, #965. A path copies its target without its
+marks, so `match($.w, …)` over `w: {a: 1, z: type(number)}` reads `z` as
+an open `number`, a scrutinee that generates nothing. It takes the arm
+`{a: 1}`, which every value it admits satisfies, and waits at
+`{a: 1, z: 5}`, which narrows `z`. The checker can't read a marked
+member through a path, so no row holds that case.
 
 A made `filter` tries each child as written, as ruling 51 asks, and
 holds each child its condition takes as the child itself: the member
@@ -6969,7 +7116,7 @@ instances without the key.
 so the order on documents reads each side as `vet` does, its term
 expanded under the environment of its expanded bodies:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 def InstanceD (ds : Decls) (S : Val) (j : Data) : Prop := Instance ds.envE (ds.readR S) j
 
@@ -6983,7 +7130,7 @@ A recursion and its unrolling are below each other, which is the
 reference's row for recursive positions. A reference to a name admits
 what the expansion of its body admits, so each is below the other:
 
-<!-- test: quote spec/Aontu/Subsume.lean -->
+<!-- test: quote spec/Aontu/Profiles.lean -->
 ```lean
 theorem alias_le_unroll {ds : Decls} {n : String} {body : Val} (h : ds.env n = some body) :
     .alias n ⊑[ds.envE] expand ds body :=
@@ -10214,12 +10361,13 @@ source may have, and one the chain already holds, a cycle, each leave
 the load as written, a load the reading can't make. The verdict reads
 the document with its sources read in, and is an `error` wherever a
 load remains, even in an arm a selection leaves out, since both engines
-read every load before anything else:
+read every load before anything else. `Decls.unread` holds that test,
+beside the template clash that step 14 covers:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  if ds.loadsLeft S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
+  if ds.unread S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
 ```
 
 A source refuses data as anything the document writes does. Write

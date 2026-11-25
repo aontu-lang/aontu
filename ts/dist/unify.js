@@ -18,6 +18,7 @@ const ConjunctVal_1 = require("./val/ConjunctVal");
 const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
 const BagVal_1 = require("./val/BagVal");
+const FuncBaseVal_1 = require("./val/FuncBaseVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const alias_1 = require("./alias");
 const rider_1 = require("./rider");
@@ -115,18 +116,32 @@ function holds(v, mark) {
     const kids = true === v.isMap || true === v.isList || true === v.isConjunct ? v.peg : {};
     return mark(v) || Object.keys(kids).some((k) => holds(kids[k], mark));
 }
-// A disjunction a meet or a call leaves ranks its defaults as a written one does, so its clash is
-// the same error (foldArms in spec/Aontu/Meet.lean). A copy is ranked: generation folds the tree's own.
+// A disjunction a meet or a call leaves ranks its defaults as a written one does (foldArms in
+// spec/Aontu/Meet.lean), in a spread's template too (ruling 90). A copy is ranked.
 function rankSettled(ctx, v, seen) {
     if (seen.has(v)) {
         return;
     }
     seen.add(v);
-    if (true === v.isDisjunct && !v.prefsRanked) {
+    if (true === v.isDisjunct && !v.prefsRanked && !landsRead(v)) {
         v.clone(ctx, { path: v.path }).rankPrefs(ctx.clone({ path: v.path }));
     }
-    const kids = true === v.isPref ? [v.peg] : true === v.isBag || true === v.isJunction ? Object.values(v.peg) : [];
-    kids.forEach((k) => rankSettled(ctx, k, seen));
+    const marks = true === v.isTypeFunc || true === v.isHideFunc;
+    const kids = true === v.isPref ? [v.peg] :
+        true === v.isBag || true === v.isJunction || marks ? Object.values(v.peg) : [];
+    const tmpl = v.spread?.cj;
+    const made = null == tmpl ? [] : landsRead(tmpl, true) ? [tmpl] :
+        [(0, FuncBaseVal_1.trialUnify)(ctx.clone({ path: [...v.path, '&'] }), tmpl.clone(ctx), (0, top_1.top)()) ?? tmpl];
+    kids.concat(made).forEach((k) => rankSettled(ctx, k, seen));
+}
+// Whether a template reads the member it lands on, at any depth: a key, a hole or a relative
+// path, and with `any` a path of either kind or a trial, which settling it early would read or move.
+function landsRead(v, any = false) {
+    const kids = true === v?.isRef || null == v?.peg || 'object' !== typeof v.peg ? [] :
+        true === v.peg.isVal ? [v.peg] : Object.values(v.peg);
+    return true === v?.isKeyFunc || true === v?.isPlace || (any && true === v?.isConstraint) ||
+        (true === v?.isRef && (any || !v.absolute)) ||
+        kids.concat(v?.spread?.cj ?? []).some((k) => landsRead(k, any));
 }
 const rereads = (v) => undefined !== v.reread;
 const unplaced = (v) => true === v.unplaced;

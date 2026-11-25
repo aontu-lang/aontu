@@ -267,12 +267,13 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	}
 
 	tried := []string{}
+	open := !generates(args[0])
 	for i := 1; i < last; i += 2 {
 		tried = append(tried, args[i].Canon())
 		ctx.slot = base
 		met := trialUnify(ctx,
 			clonePath(scrutinee, base), clonePath(args[i], base))
-		if nil != met && sameMembers(scrutinee, met, ctx, true) {
+		if nil != met && (sameMembers(scrutinee, met, ctx, true) || (open && matchBelow(args[0], args[i]))) {
 			// The RESULT is the answer: a match MAPS a value to another
 			// value rather than narrowing the scrutinee by the arm (see
 			// the TS MatchFuncVal header for why the design's `v & p & r`
@@ -331,7 +332,8 @@ func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 }
 
 // matchDrive: a path to the match's own place reads the peer held there, as
-// TypeScript's does; a scrutinee waits, read again, until it generates a value.
+// TypeScript's does; a scrutinee waits, read again, until it generates a value
+// or no data could change the arm it takes (ruling 87).
 func matchDrive(ctx *Ctx, f *FuncVal, base []string, peer Val) bool {
 	idx := stagedArgIdx(f)
 	drive := func(at []int, own bool) (ok bool) {
@@ -346,7 +348,11 @@ func matchDrive(ctx *Ctx, f *FuncVal, base []string, peer Val) bool {
 		scrut = cloneAt(f.peg[0], f.peg[0].vpath(), true)
 	}
 	ready := drive(idx[:1], true)
-	if ready && !generates(f.peg[0]) {
+	open := ready && !generates(f.peg[0])
+	for _, i := range idx[1:] {
+		ready = drive([]int{i}, readsPlace(f.peg[i], f.path)) && ready
+	}
+	if open && !(ready && matchCertain(ctx, f, base)) {
 		if nil != scrut {
 			peg := append([]Val{}, f.peg...)
 			peg[0] = scrut
@@ -354,10 +360,28 @@ func matchDrive(ctx *Ctx, f *FuncVal, base []string, peer Val) bool {
 		}
 		ready = false
 	}
-	for _, i := range idx[1:] {
-		ready = drive([]int{i}, readsPlace(f.peg[i], f.path)) && ready
-	}
 	return ready
+}
+
+// matchCertain: the first arm the scrutinee shares a value with is taken where its pattern subsumes the scrutinee.
+func matchCertain(ctx *Ctx, f *FuncVal, base []string) bool {
+	last := len(f.peg)
+	if matchHasDefault(f.peg) {
+		last--
+	}
+	for i := 1; i < last; i += 2 {
+		ctx.slot = base
+		if nil != trialUnify(ctx, clonePath(f.peg[0], base), clonePath(f.peg[i], base)) {
+			return matchBelow(f.peg[0], f.peg[i])
+		}
+	}
+	return true
+}
+
+// matchBelow: whether every value the scrutinee admits satisfies the pattern, as subsume answers it.
+func matchBelow(scrutinee, pattern Val) bool {
+	st := &subState{profile: "values", pairs: newSubPairs()}
+	return subYes == subsumeNode(st, nil, pattern, scrutinee)
 }
 
 // generates: a scalar, or a bag whose output members are such; a nil or an absence goes on as before.

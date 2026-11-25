@@ -53,6 +53,114 @@ signature table declares, `rep takes exactly three arguments` among
 them, and a test in each port refuses a declared interval that has no
 wording.
 
+### A spread's template that holds a default clash is the schema's error
+
+#957, ruling 90, in the definition and both engines. `x: *1 | *2` is
+`pref_rank_clash`, two defaults of one rank that disagree. Written as a
+spread's template, `x: {&: *1 | *2}`, the same disjunction stood as a
+schema. Both engines then refused every member the data wrote, as
+`pref_rank_clash` at the member, and the definition let a member the
+data gave as `1` pick that arm. Such a template can give no member a
+default, so it is refused where it is written, whatever the data:
+
+- `x: {&: *1 | *2}` is `error` under `aontu vet`, against `{}`, against
+  `{"x": {"k": 1}}` and against `{"x": {"k": 3}}`. It was `valid`,
+  then `invalid` in both engines and `valid` in the definition, then
+  `invalid`.
+- So are `x: [&: *1 | *2]`, `x: {&: {a: *1 | *2}}`,
+  `x: {&: {&: *1 | *2}}` and `x: {&: pref(1 | 2)}`, and a template
+  under `type()` or `hide()`.
+- `x: {&: *1 | 2}`, `x: {&: *1 | *1}` and `x: {&: **1 | *2}` stand as
+  before, and so does `x: {&: *key(0) | *"a"}`: a default that reads
+  its member is no clash where it is written.
+
+Each engine reads a bag's template in the pass that ranks what a meet
+or a call leaves once the document settles, with the template's calls
+made unless it holds a key, a hole or a path. The definition reads a
+spread by `Val.tmplClash` in `Val.illFormed`, and each template as
+written by `Decls.templatesClash`, which `Decls.unread` joins to a load
+left unmade as the document's error before anything else is asked.
+
+`test/spec/def-path.tsv` gains rows tc0 to tc47 and `test/spec/vet.tsv`
+42 rows. No other generated row changes.
+
+### The definition reads a key inside a declaration's body as its step's text
+
+#942, ruling 88, in the definition. A `key(n)` in a declaration's body
+waits for the use that places it, so the definition read every one as
+any string when it asked whether the body stands. A key that reads a
+step inside the body waits for nothing, though: it is that step's text
+at every use. So the definition let an unused body stand that no use
+could fit, where both engines refuse it:
+
+- `%T = {a: key(0) & "b"}`, `%T = {a: {b: key(1) & "z"}}` and
+  `%T = [key(0) & "9"]` are `error` now, as they were in both engines.
+- So are `%T = {a: upper(key(0)) & 1}`, `%T = key(-1) & "x"` and
+  `%T = {s: "zz", &: key(0) & "zz"}`.
+- `%T = key(0) & "x"` and `%T = {a: {b: key(2) & "z"}}` stand as
+  before, each key reaching the body's own top, which only a use
+  places.
+
+`Val.keysIn` in `spec/Aontu/Verdict.lean` reads each such key by
+`keyUpIn` in `spec/Aontu/Syntax.lean`, and `Decls.bodyIll` checks the
+body so read. Rows a378 to a419 of `test/spec/def-alias.tsv` hold both
+engines to it, and no other generated row changes.
+
+One case of #942 is left: a key inside the body that a relative path
+reads, `%T = {a: key(0), b: .a & "q"}`, is still any string where the
+path lands.
+
+### A `match` over a kind takes the arm no data could change
+
+#938, ruling 87, in the definition and both engines. Since ruling 49 a
+`match` whose scrutinee generates no value waited for the data, so
+`match(integer, integer, "number", string, "string", "unknown")` was
+incomplete, a walk over a schema couldn't name each field's kind, and
+use case 10's two transforms stopped generating.
+
+Such a `match` now reads its arms in order. It takes an arm whose
+pattern every value of the scrutinee satisfies, passes over an arm that
+shares no value with the scrutinee, and waits at any other:
+
+- `match(integer, integer, "number", string, "string", "unknown")` is
+  `"number"`, and `match(1 | 2, integer, a, b)` is `a`.
+- `match(boolean, integer, "number", string, "string", "unknown")` is
+  `"unknown"`, and with no default it is `match_none`.
+- `match(integer, 1, "one", integer, "number", "unknown")` waits, since
+  data of `1` would take its first arm, and
+  `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}` waits as it did.
+
+"Every value satisfies" is the order `aontu subsume` asks under its
+`values` profile, read by the same code in each engine. So a bound sits
+under a looser one, `integer & min(1) | biginteger & min(1)` takes a
+`number` arm and waits at an `integer` one, and an open map waits at a
+sealed pattern, which data with one more key would fail. A scrutinee
+that generates a value selects as before.
+
+- `spec/Aontu/Verdict.lean`: `certainArm` finds the arm, by `leDecF`,
+  and `resolveD` makes the selection with it.
+- `spec/Aontu/Subsume.lean` now holds the order's rules and `leDecF`
+  alone, ahead of `Verdict.lean`, and the profiles of `subsume` and the
+  order on documents move to the new `spec/Aontu/Profiles.lean`.
+- `leDecF` gains the rows both engines already decide: `integer` and
+  `biginteger` below `mulof(d)` where one is a multiple of `d`
+  (`integer_le_mulof`, `biginteger_le_mulof`), a number below a
+  `mulof` it is a multiple of (`lit_num_le_mulof`), and two patterns,
+  formats or grammars written alike.
+
+`test/spec/def-path.tsv` gains rows ca0 to ca44, `test/spec/gen-match.tsv`
+39 rows, and `test/spec/def-subsume.tsv` 21, for the pairs `leDecF` now
+decides. No generated row changes its answer.
+
+Use case 10's transforms name `ledgerId`'s `integer | biginteger` by a
+`number` arm, and render byte for byte as before.
+
+Found on the way and filed: a `filter` in the definition drops a member
+whose bound sits inside the condition's (#962); a pattern that holds a
+default refuses the default's own value in both engines (#963); a
+pattern is tried against an optional or a marked member the generated
+value lacks (#964, #965).
+
 ### A value is sited where it is written
 
 Ruling 65 of the definition, built in both parsers: #327 and #391. An

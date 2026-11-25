@@ -8,6 +8,7 @@ import Aontu.Alias
 import Aontu.Verdict
 import Aontu.Paths
 import Aontu.Subsume
+import Aontu.Profiles
 import Aontu.Reorder
 import Aontu.Written
 

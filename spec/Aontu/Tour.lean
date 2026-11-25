@@ -7,6 +7,7 @@ import Aontu.Output
 import Aontu.Verdict
 import Aontu.Paths
 import Aontu.Subsume
+import Aontu.Profiles
 
 /-!
 # The tour's examples
@@ -660,10 +661,12 @@ example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map 
 /-- `{x: $.y, y: integer}`. -/
 abbrev refDoc (y : Val) : Val := .map [("x", false, .path [.key "y"]), ("y", false, y)] none false
 
+set_option maxHeartbeats 400000 in
 /-- `$.y` is declared as what the document holds at `y`: under
 `{"x": 1, "y": 1}` that is `integer & 1`, and the document is valid. -/
 example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) = .valid := by decide
 
+set_option maxHeartbeats 400000 in
 /-- Under `{"x": 1, "y": 2}` it is `2`, which `x: 1` refuses. -/
 example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) = .invalid := by decide
 
