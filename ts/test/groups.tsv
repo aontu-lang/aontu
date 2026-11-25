@@ -41,6 +41,7 @@
 2	lang.test.ts
 2	unify.test.ts
 2	grammar.test.ts
+2	editors.test.ts
 2	func.test.ts
 2	bignum.test.ts
 2	exactjson.test.ts

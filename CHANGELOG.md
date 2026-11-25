@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### A JetBrains client for the language server
+
+Task LS9 of the lang refinement plan. `editors/jetbrains/` is a fourth
+editor client, for IntelliJ IDEA and the other JetBrains IDEs. It is a
+template for [LSP4IJ](https://plugins.jetbrains.com/plugin/23257-lsp4ij),
+the plugin that connects a JetBrains IDE to any language server, and a
+README: no plugin of aontu's own, and nothing to build.
+
+- The template starts `aontu lsp`, as `cmd /C aontu lsp` on Windows,
+  and maps the filename pattern `*.aontu` to the language `aontu`.
+- Syntax colours come from the published TextMate grammar. A JetBrains
+  IDE reads `editors/vscode` as a TextMate bundle, so the client
+  carries no copy of the grammar.
+- `ts/test/editors.test.ts` holds the template to the command and the
+  extension the other clients use, and to the fields LSP4IJ reads.
+
+It was built where no JetBrains IDE runs. LSP4IJ 0.30.1's own reader
+accepts the template, IntelliJ's TextMate library reads the bundle and
+colours a sample, and both servers answer a whole session through
+LSP4J, the protocol library LSP4IJ uses. Opening a file in an IDE, and
+the Windows command, are untried.
+
 ### `keyed` is documented: a reference section and a how-to
 
 Task KP2 of the lang refinement plan. The language reference gains a

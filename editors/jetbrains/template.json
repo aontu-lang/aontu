@@ -1,0 +1,24 @@
+{
+  "id": "aontu",
+  "name": "Aontu Language Server",
+  "url": "https://github.com/aontu-lang/aontu/blob/main/editors/jetbrains/README.md",
+  "programArgs": {
+    "default": "aontu lsp",
+    "windows": "cmd /C aontu lsp"
+  },
+  "transports": [
+    {
+      "mode": "stdio"
+    }
+  ],
+  "fileTypeMappings": [
+    {
+      "fileType": {
+        "patterns": [
+          "*.aontu"
+        ]
+      },
+      "languageId": "aontu"
+    }
+  ]
+}

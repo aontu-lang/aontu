@@ -48,7 +48,7 @@ belongs in the pages below; add it there, not here.
 ├── admin/               # notes, trackers, scripts
 ├── docs/                # only valid, up-to-date documentation
 ├── sketch/              # working files, to be ignored
-├── editors/             # editor plugins (VS Code, Emacs, Vim) → aontu-lsp
+├── editors/             # editor clients (VS Code, Emacs, Vim, JetBrains) → aontu-lsp
 ├── test/spec/           # shared test cases — *.tsv (language-agnostic)
 ├── ts/                  # canonical TypeScript implementation
 │   ├── src/  test/      # source and tests

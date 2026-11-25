@@ -40,7 +40,7 @@ the codes a report carries.
 | the prose entrypoint | `aontu agentsmd --write <file>` | the stanza naming a document's pin, root keys, shape and commands | [`aontu agentsmd`](reference-api.md#aontu-agentsmd) |
 | the structured-output bridge | `aontu jsonschema` | a JSON Schema for the document, and the list of what it could not say | [`aontu jsonschema`](reference-api.md#aontu-jsonschema) |
 | the published grammars | the files in [`grammar/`](../grammar/) | the emission surface, for a constrained decoder or a highlighter | [grammar reference](reference-grammar.md) |
-| the editor plugins | [`editors/`](../editors/) for Visual Studio Code, Emacs and Vim | the language server, wired to an editor | [editor configuration](lsp.md#editor-configuration) |
+| the editor plugins | [`editors/`](../editors/) for Visual Studio Code, Emacs, Vim, and the JetBrains IDEs | the language server, wired to an editor | [editor configuration](lsp.md#editor-configuration) |
 
 A door is a way in, not a tier: the tool server answers with the
 report the verb prints, and the verb prints what the library returned.
