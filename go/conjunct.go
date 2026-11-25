@@ -273,11 +273,7 @@ func (c *ConjunctVal) apart(terms []Val, peer Val, ctx *Ctx) Val {
 			return nil
 		}
 	}
-	met := c.Unify(top(), ctx)
-	if _, waits := met.(*ConjunctVal); waits {
-		return nil
-	}
-	return unite(ctx, met, peer)
+	return unite(ctx, c.Unify(top(), ctx), peer)
 }
 
 // A bag of the data vet meets the schema with.

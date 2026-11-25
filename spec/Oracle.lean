@@ -2778,6 +2778,118 @@ theorem directive_path_verdict_exact : ∀ c ∈ directivePathCases, ∀ (m : Mo
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (directivePathCases_checkable c hc).1 (directivePathCases_checkable c hc).2 v
 
+/-- A bare directive beside a path, at more places and against more
+data than `directivePathCases` holds: `close()` beside a path sealing
+the copy with the keys the path's target holds, the data's among them,
+and every level beneath but one held open; beside a path and a map, two
+paths, a path into a member, a path to a list, a scalar, a kind, a
+sealed map, a choice and another path; the directive and the path
+written in two maps; both directives at one place; a member nested in a
+map, in a list, optional, under a default and in an arm; a spread's
+template, of a map and of a list, alone and beside a member the map
+declares; a path inside the terms a directive seals, at the root, in a
+template and in `copy`'s argument; a target that reads the place that
+copies it; and a path that names nothing. -/
+def directiveBesideCases : List (Decls × Val × Data) :=
+  let bopen : Val := .ride .lifts .any []
+  let bclose : Val := .ride .seals .any []
+  let pb : Val := p ["b"]
+  let x1 : Val := m [("x", int 1)]
+  let y2 : Val := m [("y", int 2)]
+  let dx : Data := .map [("x", j 1)]
+  let dxy : Data := .map [("x", j 1), ("y", j 2)]
+  let dxyz : Data := .map [("x", j 1), ("y", j 2), ("z", j 3)]
+  let cb : Val := m [("b", x1), ("a", .meet bclose pb)]
+  let cby : Val := m [("b", x1), ("a", .meet (.meet bclose pb) y2)]
+  let ocb : Val := m [("b", cl [("x", int 1)]), ("a", .meet (.meet bopen bclose) pb)]
+  let two : Val := m [("b", x1), ("v", .meet (m [("a", bclose)]) (m [("a", pb)]))]
+  let arms : Val := m [("b", .or [(0, x1), (0, y2)]), ("a", .meet bclose pb)]
+  let tm : Val := m [("b", x1), ("v", tmpl (.meet bclose pb))]
+  let root : Val := .meet bclose (m [("x", p ["y"]), ("y", .integer)])
+  let tin : Val := m [("v", tmpl (.meet bclose (m [("x", p ["v", "n", "y"]), ("y", .integer)])))]
+  let lb : Val := m [("b", lst [int 1, int 2]), ("a", .meet bclose pb)]
+  let self : Val := m [("w", m [("x", p ["v", "y"]), ("y", .integer)]), ("v", .meet bclose (p ["w"]))]
+  let pp : Val := m [("b", x1), ("d", y2), ("a", .meet (.meet bclose pb) (p ["d"]))]
+  let kb : Val := m [("b", m [("x", .integer)]), ("a", .meet bclose pb)]
+  let opt : Val := mo [("b", false, x1), ("a", true, .meet bclose pb)]
+  let td : Val := m [("b", x1), ("v", ms [("m", y2)] (.meet bclose pb))]
+  let rb : Val := m [("b", x1), ("a", .meet bclose (rel 1 ["b"]))]
+  let lt : Val := m [("b", x1), ("v", .list [] (some (.meet bclose pb)) false)]
+  let df : Val := m [("b", x1), ("a", .pref 1 (.meet bclose pb))]
+  let ho : Val := m [("b", m [("x", .ride .opened (m [("y", int 1)]) [])]), ("a", .meet bclose pb)]
+  let arm : Val := m [("b", x1), ("a", .or [(0, .meet bclose pb), (0, m [("k", int 1)])])]
+  let ob : Val := mo [("b", false, mo [("x", false, int 1), ("o", true, int 2)]), ("a", false, .meet bclose pb)]
+  let ct : Val := m [("v", tmpl (.call .copy [.meet bclose (m [("x", p ["s"])])])), ("s", int 1)]
+  [([], cb, .map [("a", dx), ("b", dx)]),
+    ([], cb, .map [("b", dx)]),
+    ([], cb, .map [("b", dxy)]),
+    ([], cb, .map [("a", j 5)]),
+    ([], cby, .map [("a", dxy), ("b", dx)]),
+    ([], cby, .map [("a", dxyz), ("b", dx)]),
+    ([], ocb, .map [("a", dxy), ("b", dx)]),
+    ([], ocb, .map [("a", dx), ("b", dx)]),
+    ([], m [("b", m [("x", m [("y", int 1)])]), ("a", .meet bclose pb)],
+      .map [("a", .map [("x", .map [("y", j 1), ("z", j 2)])])]),
+    ([], m [("b", m [("x", m [("y", int 1)])]), ("a", .meet bclose pb)], .map [("a", .map [("x", .map [("y", j 1)])])]),
+    ([], two, .map [("v", .map [("a", dxy)]), ("b", dx)]),
+    ([], two, .map [("v", .map [("a", dx)]), ("b", dx)]),
+    ([], arms, .map [("a", .map [("x", j 1), ("z", j 3)])]),
+    ([], arms, .map [("a", dx)]),
+    ([], tm, .map [("v", .map [("m", dxy)]), ("b", dx)]),
+    ([], tm, .map [("v", .map [("m", dx)]), ("b", dx)]),
+    ([], root, .map [("x", j 2), ("y", j 2), ("z", j 1)]),
+    ([], root, .map [("x", j 2), ("y", j 2)]),
+    ([], tin, .map [("v", .map [("n", .map [("x", j 2), ("y", j 2), ("z", j 1)])])]),
+    ([], tin, .map [("v", .map [("n", .map [("x", j 2), ("y", j 2)])])]),
+    ([], lb, .map [("a", .list [j 1, j 2, j 3])]),
+    ([], lb, .map [("a", .list [j 1, j 2])]),
+    ([], m [("b", int 1), ("a", .meet bclose pb)], .map [("a", j 1)]),
+    ([], m [("b", x1), ("a", .meet bopen pb)], .map [("a", dxy)]),
+    ([], self, .map [("v", .map [("x", j 2), ("y", j 2), ("z", j 1)]), ("w", .map [("x", j 2), ("y", j 2)])]),
+    ([], self, .map [("v", .map [("x", j 2), ("y", j 2)]), ("w", .map [("x", j 2), ("y", j 2)])]),
+    ([], pp, .map [("a", dxy)]),
+    ([], pp, .map [("a", dxyz)]),
+    ([], m [("b", cl [("x", int 1)]), ("a", .meet bclose pb)], .map [("a", dxy)]),
+    ([], m [("b", .meet bclose x1), ("a", .meet bopen pb)], .map [("a", dxy)]),
+    ([], m [("b", m [("k", x1)]), ("a", .meet bclose (p ["b", "k"]))], .map [("a", dxy)]),
+    ([], m [("b", .mapKind), ("a", .meet bclose pb)], .map [("a", dxy), ("b", dx)]),
+    ([], kb, .map [("a", .map [("x", j 5)]), ("b", .map [("x", j 7)])]),
+    ([], kb, .map [("a", .map [("x", j 3)])]),
+    ([], kb, .map [("a", .map [("x", j 3), ("y", j 1)])]),
+    ([], m [("b", x1), ("v", m [("a", .meet bclose pb)])], .map [("v", .map [("a", dxy)])]),
+    ([], m [("b", x1), ("v", lst [.meet bclose pb])], .map [("v", .list [dxy])]),
+    ([], opt, .map [("a", dxy)]),
+    ([], opt, .map []),
+    ([], td, .map [("v", .map [("m", dxy)])]),
+    ([], td, .map [("v", .map [("m", dxyz)])]),
+    ([], rb, .map [("a", dxy)]),
+    ([], rb, .map [("a", dx)]),
+    ([], lt, .map [("v", .list [dxy])]),
+    ([], lt, .map [("v", .list [dx])]),
+    ([], df, .map [("a", dxy)]),
+    ([], df, .map []),
+    ([], ho, .map [("a", .map [("x", .map [("y", j 1), ("z", j 2)])])]),
+    ([], ho, .map [("a", .map [("x", .map [("y", j 1)]), ("w", j 1)])]),
+    ([], arm, .map [("a", dxy)]),
+    ([], arm, .map [("a", .map [("k", j 1)])]),
+    ([], arm, .map [("a", dx)]),
+    ([], ob, .map [("a", .map [("x", j 1), ("o", j 2)])]),
+    ([], ob, .map [("a", .map [("x", j 1), ("z", j 2)])]),
+    ([], m [("b", ms [("x", int 1)] .integer), ("a", .meet bclose pb)], .map [("a", .map [("x", j 1), ("z", j 2)])]),
+    ([], m [("b", x1), ("a", .meet bclose pb), ("c", .meet bclose pb)], .map [("a", dx), ("c", dxy)]),
+    ([], m [("b", x1), ("m", pb), ("a", .meet bclose (p ["m"]))], .map [("a", dxy)]),
+    ([], ct, .map [("v", .map [("m", dxy)]), ("s", j 1)]),
+    ([], ct, .map [("v", .map [("m", dx)]), ("s", j 1)]),
+    ([], m [("a", .meet bclose (p ["d"]))], .map [("d", dx), ("a", dx)]),
+    ([], m [("a", .meet bclose (p ["nope"]))], .map [("a", dx)])]
+
+theorem directiveBesideCases_checkable : ∀ c ∈ directiveBesideCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem directive_beside_verdict_exact : ∀ c ∈ directiveBesideCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (directiveBesideCases_checkable c hc).1 (directiveBesideCases_checkable c hc).2 v
+
 /-- `maybe` over paths that name something and paths that name nothing:
 absence at a required key and at an optional one, as a list's element,
 an arm and a call's argument, and met with a literal and a kind, beside
@@ -9309,6 +9421,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# the terms read there, open() beside one lifting the target's seal, and"
     IO.println "# close() at the document's root."
     pathRows "dirp" directivePathCases
+    IO.println "# A bare directive beside a path at more places follows in rows db0 on: the"
+    IO.println "# copy sealed with the keys its target holds, beside a map and a second path,"
+    IO.println "# in a template, under a default and in an arm, and a path inside the terms"
+    IO.println "# a directive seals, at the root, in a template and in copy's argument."
+    pathRows "db" directiveBesideCases
     IO.println "# A link's template read where it lands, at the link's target (ruling 50),"
     IO.println "# follows in rows ll0 on."
     pathRows "ll" linkLandCases

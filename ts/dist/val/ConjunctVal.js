@@ -159,8 +159,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             return out;
         }
         const bags = this.peg.every((t) => sealish(t) || true === t.isMap || true === t.isList);
-        const met = bags ? this.unify((0, top_1.top)(), ctx) : this;
-        return true === met.isConjunct ? undefined : (0, unify_1.unite)(ctx, met, peer, 'cj-apart');
+        return bags ? (0, unify_1.unite)(ctx, this.unify((0, top_1.top)(), ctx), peer, 'cj-apart') : undefined;
     }
     clone(ctx, spec) {
         let out = super.clone(ctx, spec);

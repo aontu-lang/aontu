@@ -225,8 +225,7 @@ class ConjunctVal extends JunctionVal {
       return out
     }
     const bags = this.peg.every((t: any) => sealish(t) || true === t.isMap || true === t.isList)
-    const met = bags ? this.unify(top(), ctx) : this
-    return true === met.isConjunct ? undefined : unite(ctx, met, peer, 'cj-apart')
+    return bags ? unite(ctx, this.unify(top(), ctx), peer, 'cj-apart') : undefined
   }
 
 

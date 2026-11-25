@@ -5803,6 +5803,11 @@ merge, is closed exactly as `close({...})` is, and a child that
 resolves later inside a closed value (a reference, a pending call) is
 closed when it does. Unmet, `close()` does not generate.
 
+A path beside a bare `close()` supplies its copy as one of the terms at
+the place. With `b: {x: 1}`, `a: close() & $.b` seals `a` with the keys
+`b` holds, and `vet` refuses data that adds another key to `a`. A bare
+`open()` beside a path lifts a seal the copy carries.
+
 **A type is closed for its instances.** A copy of a `type()`-marked
 value taken by reference is an instance, and adds nothing at any depth,
 while the type's own statements still extend it. See [Marks: `type` and
