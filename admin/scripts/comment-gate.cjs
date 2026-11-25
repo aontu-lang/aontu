@@ -116,6 +116,20 @@ function sourceFiles() {
 }
 
 
+// A slash after one of these words opens a regular expression, though
+// the word ends in a letter, as a name before a division does.
+const REGEX_AFTER = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new',
+  'delete', 'void', 'throw', 'case', 'do', 'else', 'yield', 'await'])
+
+function wordBefore(text, i) {
+  let end = i
+  while (0 < end && /\s/.test(text[end - 1])) end--
+  let start = end
+  while (0 < start && /[\w$]/.test(text[start - 1])) start--
+  return '.' === text[start - 1] ? '' : text.slice(start, end)
+}
+
+
 // A hand-rolled lexer, because the gate has to see comments in every
 // language in scope and no parser for them is installable at gate time.
 function lex(text, syntax) {
@@ -127,7 +141,8 @@ function lex(text, syntax) {
   let prev = ''
   const n = text.length
 
-  const isRegexStart = () => s.regex && !/[\w$)\]]/.test(prev)
+  const isRegexStart = () => s.regex
+    && (!/[\w$)\]]/.test(prev) || REGEX_AFTER.has(wordBefore(text, i)))
 
   while (i < n) {
     const c = text[i]
@@ -161,7 +176,13 @@ function lex(text, syntax) {
       codeLine.add(line)
       i++
       while (i < n) {
-        if (!raw && text[i] === '\\') { i += 2; continue }
+        if (!raw && text[i] === '\\') {
+          // A line continuation: the string goes on, and so does the line count.
+          const crlf = text[i + 1] === '\r' && text[i + 2] === '\n'
+          if (crlf || text[i + 1] === '\n') line++
+          i += crlf ? 3 : 2
+          continue
+        }
         if (text[i] === '\n') { if (quote !== '`') break; line++ }
         if (text[i] === quote) { i++; break }
         i++
