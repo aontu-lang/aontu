@@ -3799,6 +3799,70 @@ theorem armStandsSelect_verdict_exact : ∀ c ∈ armStandsSelectCases, ∀ (m :
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_readsD (armStandsSelectCases_reads c hc) v
 
+/-- A trial over a call that waits, waiting with it (#432): a `match`
+whose pattern holds a `+` that takes no operand yet, against the value
+its default gives, against another and against nothing; one whose first
+pattern would take the value while a later one waits, as both ports
+stage every pattern before they select; one whose selected result
+waits, and one whose unselected result does, which is the arm it takes;
+the call in an arm and in a member of a pattern, and in a spread's
+template, where nothing waits on it; a `join` that waits; and a pattern
+that holds an unmade call beside the waiting one, and a selected result
+that is one, each an error. Then `nof`, over a branch that waits, alone
+and beside one that admits, in a member of a branch and in a spread's
+template, where the branch admits the empty list, beside a branch that
+doesn't stand, which admits nothing, and with a count that waits;
+`must`; and `when`, whichever of its three waits. A trial inside a
+trial waits with it, and so does one in an arm, in a list and beside a
+value it meets; an optional member holding one may be absent, and a
+spread holding one waits on each member. -/
+def waitCases : List (Decls × Val × Data) :=
+  let w : Val := c .plus [.integer, int 1]
+  let unmade : Val := c .add [.integer, int 1]
+  let sv (t : Val) : Val := m [("v", t)]
+  let dv (d : Data) : Data := .map [("v", d)]
+  let sl (arms : List (Val × Val)) (d : Option Val) : Val := .select (int 1) arms d
+  let no : Option Val := some (str "no")
+  [([], sv (sl [(w, str "yes")] no), dv (.str "no")),
+    ([], sv (sl [(w, str "yes")] no), dv (.str "z")),
+    ([], sv (sl [(w, str "yes")] no), .map []),
+    ([], sv (sl [(int 1, str "yes"), (w, str "no")] none), dv (.str "yes")),
+    ([], sv (sl [(int 1, w)] no), dv (j 2)),
+    ([], sv (sl [(int 2, w)] no), dv (.str "no")),
+    ([], sv (sl [(int 2, w)] no), dv (j 3)),
+    ([], sv (sl [(.or [(0, int 1), (0, w)], str "yes")] no), dv (.str "yes")),
+    ([], sv (sl [(m [("a", w)], str "yes")] no), dv (.str "no")),
+    ([], sv (sl [(.list [] (some w) false, str "yes")] no), dv (.str "no")),
+    ([], sv (sl [(c .join [lst [str "a", .string]], str "yes")] no), dv (.str "no")),
+    ([], sv (sl [(m [("a", w), ("b", unmade)], str "yes")] no), dv (.str "no")),
+    ([], sv (sl [(int 1, unmade)] no), dv (j 5)),
+    ([], sv (.nof (int 0) [w]), dv (j 5)),
+    ([], sv (.nof (int 1) [w, int 5]), dv (j 5)),
+    ([], sv (.nof (int 0) [w]), .map []),
+    ([], sv (.nof (int 0) [m [("a", w)]]), dv (j 5)),
+    ([], sv (.nof (int 0) [.list [] (some w) false]), dv (.list [])),
+    ([], sv (.nof (int 0) [m [("a", w), ("b", unmade)]]), dv (j 5)),
+    ([], sv (.nof w [int 5]), dv (j 5)),
+    ([], sv (.must w "m"), dv (j 5)),
+    ([], sv (.when w (str "a") (some (str "b"))), dv (.str "b")),
+    ([], sv (.when .string w (some (str "b"))), dv (.str "b")),
+    ([], sv (.when w (str "a") none), dv (j 1)),
+    ([], sv (.nof (int 0) [.nof (int 0) [w]]), dv (j 5)),
+    ([], sv (.nof (int 1) [sl [(w, str "yes")] no]), dv (.str "no")),
+    ([], sv (.or [(0, .nof (int 0) [w]), (0, str "a")]), dv (.str "a")),
+    ([], sv (lst [.nof (int 0) [w]]), dv (.list [j 5])),
+    ([], .map [("v", true, .nof (int 0) [w])] none false, .map []),
+    ([], sv (.meet (.nof (int 0) [w]) (int 5)), .map []),
+    ([], sv (.map [] (some (.nof (int 0) [w])) false), dv (.map [("a", j 5)])),
+    ([], sv (.meet (.must (int 1) "m") (.nof (int 0) [w])), dv (j 1))]
+
+theorem waitCases_checkable : ∀ c ∈ waitCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem wait_verdict_exact : ∀ c ∈ waitCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (waitCases_checkable c hc).1 (waitCases_checkable c hc).2 v
+
 /-- A `match` whose scrutinee, and a `must` whose condition, reads the
 place the term stands at, which reads what the rest of the document
 holds there, without the term (`Val.dropSelf`): the rule of #818,
@@ -9114,9 +9178,13 @@ def main (args : List String) : IO UInt32 := do
     pathRows "tc" templateClashCases
     IO.println "# A default that reaches a disjunction as an arm, by a call, a name, a path or a"
     IO.println "# meet, stands as the arm it is, of its rank with no parent type (ruling 89), in"
-    IO.println "# rows ar0 on, and a match's result that is one in rows as0 on."
-    pathRows "ar" armStandsCases
+    IO.println "# rows da0 on, and a match's result that is one in rows as0 on."
+    pathRows "da" armStandsCases
     pathRows "as" armStandsSelectCases
+    IO.println "# A match, a nof, a must or a when that tries a call that waits waits with it,"
+    IO.println "# whichever way the value would go (#432), in rows wt0 on; a call in a spread's"
+    IO.println "# template, and one in a result the value doesn't take, makes nothing wait."
+    pathRows "wt" waitCases
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases

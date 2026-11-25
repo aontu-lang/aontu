@@ -2112,6 +2112,81 @@ def Decls.armMoves (ds : Decls) (a : Val) : List String :=
   if a.moves.isEmpty then [] else if (normaliseD ds a).loneArms.isSome then a.moves else []
 
 mutual
+/-- Whether a term holds a call that waits, a `+`, a `join` or a `pref`
+the reading left as written: at its top, in a member, an element, an
+arm or a meet, through riders and links. A spread's template and a
+term under `*` are left out, as neither port waits on a call there. -/
+def Val.stalls : Val → Bool
+  | .call .plus _ | .call .join _ | .call .pref _ => true
+  | .map fs _ _ => stallsFields fs
+  | .list items _ _ => stallsItems items
+  | .or arms => stallsArms arms
+  | .meet a b => a.stalls || b.stalls
+  | .ride _ v _ => v.stalls
+  | .link v _ => v.stalls
+  | _ => false
+
+def stallsFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.stalls || stallsFields fs
+
+def stallsItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.stalls || stallsItems vs
+
+def stallsArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.stalls || stallsArms arms
+end
+
+/-- The term that waits: a `+` that takes neither operand, which stands,
+generates nothing and refuses every value where a trial tries it, so
+that a document holding it where a value must stand is `incomplete`. -/
+def Val.waiting : Val := .call .plus [.any, .any]
+
+theorem Val.waiting_checkableA : Val.waiting.CheckableA :=
+  .call fun a ha => by
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+    rcases ha with rfl | rfl <;> exact .any
+
+/-- A trial as it reads where an argument it tries waits (`Val.stalls`):
+as the term that waits, since both ports stage each argument before
+they try it, so that the trial neither admits nor refuses (#432). One
+that computes with a key no position places yet stays as written, to be
+read where it lands. -/
+def waitOr (here : Option (List Step)) (args : List Val) (t : Val) : Val :=
+  if here.isNone && keyItems args then t else if stallsItems args then .waiting else t
+
+theorem waitOr_checkableA {here : Option (List Step)} {args : List Val} {t : Val}
+    (h : t.CheckableA) : (waitOr here args t).CheckableA := by
+  unfold waitOr; split
+  · exact h
+  · split
+    · exact Val.waiting_checkableA
+    · exact h
+
+/-- Whether a selection's patterns hold a call, at any depth. -/
+def callPats : List (Val × Val) → Bool
+  | [] => false
+  | (p, _) :: ps => (p.holds fun | .call _ _ => true | _ => false) || callPats ps
+
+/-- A selection whose scrutinee outputs `x`, as it reads. One whose
+arms compute with a key no position places yet stays as written, to be
+read where it lands. One whose patterns hold a call stays as written
+where a pattern doesn't stand, an error, or where none waits, and is
+the term that waits where one does (`Val.stalls`), whichever arm the
+value would take, as both ports stage every pattern before they select
+(#432). Any other is the result its arms select, a call that result
+holds read where the selection stood. -/
+def selectRead (ds : Decls) (here : Option (List Step)) (x : Data) (s : Val)
+    (arms : List (Val × Val)) (d : Option Val) : Val :=
+  if here.isNone && keyPairs arms then .select s arms d
+  else if callPats arms then
+    if illPats arms || !stallsItems (arms.map (·.1)) then .select s arms d
+    else Val.waiting.rideMoves s.moves
+  else (selectArm ds x arms d).rideMoves s.moves
+
+mutual
 /-- A term with its selections made, `b` the member a generator's
 template is read for, which each hole in the template stands for, and
 `here` the position the term stands at, where one is placed: each
@@ -2179,7 +2254,11 @@ dead, written `nil` or not. So such a trial is an error where it stands, an arm 
 and a spread holding it refuses each member it's tried on. An argument a
 trial tries against a value instead, a branch of `nof`, `when`'s three
 and the conditions of `contains` and `filter`, admits nothing where it
-holds a conflict anywhere (`Decls.tried`), as one at its top does. -/
+holds a conflict anywhere (`Decls.tried`), as one at its top does. A
+`match` whose scrutinee generates a value reads as `selectRead` reads
+it, and a `nof`, a `must` and a `when` as `waitOr` does: one that tries
+a call that waits is the term that waits (`Val.waiting`), so that it
+neither admits nor refuses (#432). -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -2187,9 +2266,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let d' := resolveSpread ds b here d
     if ds.clashes s' then .nil else
     match outputD ds s' with
-    | some x =>
-      if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
-      else (selectArm ds x arms' d').rideMoves s'.moves
+    | some x => selectRead ds here x s' arms' d'
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
       else if s'.unbound || unboundPats arms' || callPairs arms' || here.isNone && keyPairs arms'
@@ -2296,11 +2373,16 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .meet a c => .meet (resolveD ds b here a) (resolveD ds b here c)
   | .nof n cs =>
     if ds.clashes (resolveD ds b here n) then .nil
-    else .nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here))
-  | .must c m => if ds.clashes (resolveD ds b here c) then .nil else .must (resolveD ds b here c) m
+    else waitOr here (resolveD ds b here n :: (resolveItems ds b here cs).map (ds.tried here))
+      (.nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here)))
+  | .must c m =>
+    if ds.clashes (resolveD ds b here c) then .nil
+    else waitOr here [resolveD ds b here c] (.must (resolveD ds b here c) m)
   | .when c t e =>
-    .when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
-      ((resolveSpread ds b here e).map (ds.tried here))
+    waitOr here (ds.tried here (resolveD ds b here c) :: ds.tried here (resolveD ds b here t) ::
+        ((resolveSpread ds b here e).map (ds.tried here)).toList)
+      (.when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
+        ((resolveSpread ds b here e).map (ds.tried here)))
   | .contains c n =>
     if ds.clashes (resolveD ds b here n) then .nil
     else .contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n)
@@ -3919,6 +4001,21 @@ theorem emitsA_of_none {ds : Decls} {v : Val}
   · rw [hb] at h
     exact absurd h (by simp)
 
+/-- A selection on a literal reads as a term the checker can read:
+itself, the term that waits, or one of its arms' results. -/
+theorem selectRead_checkableA {ds : Decls} {here : Option (List Step)} {x : Data} {sc : Scalar}
+    {arms : List (Val × Val)} {d : Option Val} (hp : ∀ p r, (p, r) ∈ arms → p.CheckableA)
+    (hr : ∀ p r, (p, r) ∈ arms → r.CheckableA) (hd : ∀ e, d = some e → e.CheckableA) :
+    (selectRead ds here x (.lit sc) arms d).CheckableA := by
+  unfold selectRead
+  split
+  · exact .selectLit hp hr hd
+  · split
+    · split
+      · exact .selectLit hp hr hd
+      · exact rideMoves_checkableA Val.waiting_checkableA
+    · exact rideMoves_checkableA (selectArm_checkableA hr hd)
+
 /-- A term the checker can read reads, for whatever node and wherever it
 stands, as a term it can read, and the pieces it makes read in an
 `emit` are terms it can read too. -/
@@ -3993,7 +4090,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     simp only [resolveD]
     split
     · exact .nil
-    refine .nof (ihn hb) fun c hc => ?_
+    refine waitOr_checkableA (.nof (ihn hb) fun c hc => ?_)
     obtain ⟨c₁, hc₁, rfl⟩ := List.mem_map.mp hc
     obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc₁
     exact Decls.tried_checkableA (ihcs c₀ hc₀ hb)
@@ -4002,14 +4099,14 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace ih := @And.left _ _ ih
     simp only [resolveD]; split
     · exact .nil
-    · exact .must (ih hb)
+    · exact waitOr_checkableA (.must (ih hb))
   | when _ _ _ ihc iht ihe =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ihc := @And.left _ _ ihc
     replace iht := @And.left _ _ iht
     replace ihe := fun e' he => @And.left _ _ (ihe e' he)
     simp only [resolveD]
-    refine .when (Decls.tried_checkableA (ihc hb)) (Decls.tried_checkableA (iht hb)) fun e he => ?_
+    refine waitOr_checkableA (.when (Decls.tried_checkableA (ihc hb)) (Decls.tried_checkableA (iht hb)) fun e he => ?_)
     obtain ⟨e₁, he₁, rfl⟩ := Option.map_eq_some_iff.mp he
     obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he₁
     exact Decls.tried_checkableA (ihe e₀ he₀ hb)
@@ -4049,10 +4146,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     split
     · exact .nil
     show (match genD ds .key with
-      | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
-          then Val.select .key (resolvePairs ds b here arms)
-          (resolveSpread ds b here d)
-          else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves Val.key.moves
+      | some x => selectRead ds here x .key (resolvePairs ds b here arms) (resolveSpread ds b here d)
       | none => if (normaliseD ds .key).isAbsent then .absent else if (normaliseD ds .key).dead then .nil
           else if Val.key.unbound || unboundPats (resolvePairs ds b here arms) ||
             callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
@@ -4085,10 +4179,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     split
     · exact .nil
     show (match genD ds (.lit sc) with
-      | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
-          then Val.select (.lit sc) (resolvePairs ds b here arms)
-          (resolveSpread ds b here d)
-          else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves (Val.lit sc).moves
+      | some x => selectRead ds here x (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)
       | none => if (normaliseD ds (.lit sc)).isAbsent then .absent else if (normaliseD ds (.lit sc)).dead then .nil
           else if (Val.lit sc).unbound || unboundPats (resolvePairs ds b here arms) ||
             callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
@@ -4099,19 +4190,13 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     have hg : genD ds (.lit sc) = some sc.data := rfl
     rw [hg]
     dsimp only
-    split
-    · refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
-      · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
-        exact ihp p₀ r₀ hm₀ hb
-      · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
-        exact ihr p₀ r₀ hm₀ hb
-      · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
-        exact ihd e₀ he₀ hb
-    · refine rideMoves_checkableA (selectArm_checkableA (fun p r hm => ?_) (fun e he => ?_))
-      · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
-        exact ihr p₀ r₀ hm₀ hb
-      · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
-        exact ihd e₀ he₀ hb
+    refine selectRead_checkableA (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
+      exact ihp p₀ r₀ hm₀ hb
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
+      exact ihr p₀ r₀ hm₀ hb
+    · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
+      exact ihd e₀ he₀ hb
   | @call f args hargs ih =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     have ih1 : ∀ a, a ∈ args → ResolvesA ds a := fun a ha => @And.left _ _ (ih a ha)

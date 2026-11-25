@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 39 on 2026-11-25),
+  on 2026-11-22), ledger rows (394 at most then, 37 on 2026-11-25),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,7 +64,7 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-16 of its 39 on 2026-11-25. In order:
+16 of its 37 on 2026-11-25. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
@@ -216,7 +216,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-23 issues (3 S, 20 M).
+24 issues (3 S, 21 M).
 
 Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63 and built 2026-11-22, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, built in the definition the same day), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, built the same day), and #917, the same path written as a relative one, fixed the same day; #919, a pattern that reads the match's own place, and #922, what a scrutinee holding a `type()` or `hide()` member selects by, both ruled 2026-11-22 (85: the pattern reads the field; 86: the scrutinee's output). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
@@ -240,6 +240,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#922](https://github.com/aontu-lang/aontu/issues/922) | def | M |  | A scrutinee holding an open `type()` or `hide()` member keeps a `match` waiting in the definition, which reads the whole value, where both ports match at once. Ruled as 86: a `match` selects by what its scrutinee outputs, so the definition moves and both ports leave marked members out of the wait; 2026-11-23, no exception for a path, which copies its target without its marks. Built in the definition and both ports 2026-11-23. |
 | [#847](https://github.com/aontu-lang/aontu/issues/847) | bug | M |  | `filter` and `match` miss a default inside a map: the member is dropped or another arm taken, with no finding. Ruled as 78: the trial reads the value the member generates. |
 | [#870](https://github.com/aontu-lang/aontu/issues/870) | bug | M |  | A call to an unknown name, or with a wrong count, is silent inside a trial, in a disjunction's arm and under `maybe`. Ruled as 77: refused wherever it stands. Built 2026-11-22 in both ports, and 2026-11-24 in the definition. |
+| [#977](https://github.com/aontu-lang/aontu/issues/977) | def | M |  | A call that waits inside `contains`, `rest`, `len`, a branch under `*` or a spread's template: both ports answer unlike `nof`, and the definition unlike both. Asks for a ruling. |
 | [#850](https://github.com/aontu-lang/aontu/issues/850) | parity | M |  | A `match` whose result is a relative reference overflows the TypeScript stack; Go answers. |
 | [#868](https://github.com/aontu-lang/aontu/issues/868) | parity | M |  | A `match` whose pattern is a relative reference overflows the TypeScript stack, and a bound over it is `mapval_no_gen`; Go answers both. The bound is fixed 2026-11-22; the overflow is the parser defect of #326, fixed upstream in tabnas/expr#121. |
 | [#871](https://github.com/aontu-lang/aontu/issues/871) | parity | M |  | `maybe(v)` of a relative reference as a call's second or later argument never resolves in TypeScript; Go answers. Fixed 2026-11-22, with the second case of #868. |
@@ -393,7 +394,7 @@ These can run at any point. #826 and #828 are already in phase 1.
 
 ### The definition
 
-5 issues (2 S, 2 M, 1 L), 2 ledger rows.
+5 issues (2 S, 2 M, 1 L).
 
 #403 and #432 are proof and reading gaps in `spec/`, and #829 lists the redundancy the first review pass left.
 
@@ -403,7 +404,7 @@ These can run at any point. #826 and #828 are already in phase 1.
 | [#828](https://github.com/aontu-lang/aontu/issues/828) | spec | S |  | Oracle `readThroughCases` lists `relate([_])` against `"x"` twice, so dr27–dr29 repeat dr21–dr23. |
 | [#829](https://github.com/aontu-lang/aontu/issues/829) | spec | L |  | Tracking list of remaining definition and proof redundancy left after the first review pass, #827. |
 | [#403](https://github.com/aontu-lang/aontu/issues/403) | spec | M |  | Definition: a selection in a recursive body over an open scrutinee lacks a VetP theorem and rows. |
-| [#432](https://github.com/aontu-lang/aontu/issues/432) | spec | M | 2 | Definition reads a waiting `+` inside a trial as refusing; both ports wait (incomplete). |
+| [#432](https://github.com/aontu-lang/aontu/issues/432) | spec | M |  | Definition read a waiting `+` inside a trial as refusing; both ports wait (incomplete). Built in the definition 2026-11-25 for `match`, `nof`, `must` and `when`, its 2 rows gone; #977 holds the forms both ports read another way. |
 
 ### Repository process
 
@@ -461,14 +462,14 @@ workstream above meets its tasks.
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
 | 2 | alias cycles, preferences, seals and marks, copies | 56 | 16 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 76 | 21 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 77 | 21 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
-| alongside | the definition, the repository | 9 | 2 |
+| alongside | the definition, the repository | 9 | |
 
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
-#944, #946 and #953 to #957 on 2026-11-24, and #970 and #971 on
+#944, #946 and #953 to #957 on 2026-11-24, and #970, #971 and #977 on
 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
 each row's cause names.
