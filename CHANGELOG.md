@@ -8,6 +8,36 @@ each change affects.
 
 ## Unreleased
 
+### A lone default reads a path outside it before data meets it
+
+#702, ruling 40, in both engines. `*x` alone is `x | super(x)`, and the
+parent arm, which takes what overrides the default, is the parent type
+of what `x` reads as on its own, before any data. Both engines read it
+so when a document was evaluated. Under `aontu vet` the data met the
+preference before a path to a place outside it was read, and the parent
+arm lifted the path to `any`:
+
+- `y: 1` beside `x: *{a: 1, b: $.y}` is `invalid` against
+  `{"y": 1, "x": {"a": 2, "b": "s"}}`. It was `valid`. `b` reads `1`,
+  so the parent arm asks an integer of it, and `{"a": 2, "b": 3}`
+  stays `valid`.
+- The answer is the same where `y` is written after `x`, and where `y`
+  is itself a path.
+- The parent arm reads the path in the schema's own tree, so data that
+  gives `y` a value doesn't narrow it: `y: integer` beside the same `x`
+  takes `{"y": 2, "x": {"a": 2, "b": 2.5}}`.
+- A path to a member of the default itself, `x: *{a: integer, b: .a}`,
+  reads as before: the data narrows what it reads.
+
+Each engine makes a lone preference wait for a path its value can't
+read on its own before a peer meets it, and under `vet` reads the
+default on its own in the schema's own tree, which `vet` already
+unifies first.
+
+Rows lp63 to lp65 and lpl63 to lpl65 of `test/spec/def-path.tsv` leave
+`spec/ledger.tsv`, whose bound falls to 49. `test/spec/vet.tsv` gains
+54 rows.
+
 ### A default that reaches a disjunction as an arm stands as that arm
 
 #954, ruling 89, in the definition and both engines. An arm `*x`

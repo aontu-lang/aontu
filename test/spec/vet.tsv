@@ -935,3 +935,66 @@ vet-arm-a-path-to-a-disjunction-brings-its-arms-under-partial	verdict	d: 1 | 2\n
 vet-arm-a-path-to-a-disjunction-bounds	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid"}
 vet-arm-a-path-to-a-disjunction-bounds-with-no-fill	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
 vet-arm-a-path-to-a-disjunction-bounds-under-partial	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+
+# A LONE DEFAULT OVER A PATH TO A PLACE OUTSIDE IT (#702, ruling 40). The
+# parent arm, which takes what overrides the default, is the parent type
+# of what the default reads as on its own, before any data. A preference
+# waits for a path its value can't read on its own before a peer meets
+# it, and reads the path in the schema's own tree, so the answer is the
+# same in whatever order the places are written and whatever the data
+# gives the place the path names. Rows lp63 to lp65 of def-path.tsv are
+# the generated ones, and each answer here is the definition's too.
+vet-lone-a-path-outside-against-another-kind	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-against-another-kind-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-another-kind-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-against-its-parent-type	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-against-its-parent-type-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-its-parent-type-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-against-its-own-value	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 1, "b": 1}}	{"verdict":"valid"}
+vet-lone-a-path-outside-against-its-own-value-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-its-own-value-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-against-nothing	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1}	{"verdict":"valid"}
+vet-lone-a-path-outside-against-nothing-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-nothing-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-written-after	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-written-after-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-written-after-under-partial	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-written-after-against-its-parent-type	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-written-after-against-its-parent-type-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-written-after-against-its-parent-type-under-partial	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-through-a-path	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-through-a-path-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-through-a-path-under-partial	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-through-a-path-against-its-parent-type	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-through-a-path-against-its-parent-type-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": 3}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-a-path-outside-through-a-path-against-its-parent-type-under-partial	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-the-data-settles	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"valid"}
+vet-lone-a-path-outside-the-data-settles-with-no-fill	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-the-data-settles-under-partial	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-the-data-settles-against-its-parent-type	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-the-data-settles-against-its-parent-type-with-no-fill	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-the-data-settles-against-its-parent-type-under-partial	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-scalar-over-a-path-against-another-kind	verdict	y: 1\nx: *$.y	{"y": 1, "x": "s"}	{"verdict":"invalid"}
+vet-lone-a-scalar-over-a-path-against-another-kind-with-no-fill	verdict	y: 1\nx: *$.y	{"y": 1, "x": "s"}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-scalar-over-a-path-against-another-kind-under-partial	verdict	y: 1\nx: *$.y	{"y": 1, "x": "s"}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-scalar-over-a-path-against-its-parent-type	verdict	y: 1\nx: *$.y	{"y": 1, "x": 3}	{"verdict":"valid"}
+vet-lone-a-scalar-over-a-path-against-its-parent-type-with-no-fill	verdict	y: 1\nx: *$.y	{"y": 1, "x": 3}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-scalar-over-a-path-against-its-parent-type-under-partial	verdict	y: 1\nx: *$.y	{"y": 1, "x": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-list-over-a-path-against-another-kind	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": ["s"]}	{"verdict":"invalid"}
+vet-lone-a-list-over-a-path-against-another-kind-with-no-fill	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": ["s"]}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-list-over-a-path-against-another-kind-under-partial	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": ["s"]}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-list-over-a-path-against-its-parent-type	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": [2]}	{"verdict":"valid"}
+vet-lone-a-list-over-a-path-against-its-parent-type-with-no-fill	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": [2]}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-list-over-a-path-against-its-parent-type-under-partial	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": [2]}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-to-its-own-member-reads-the-data	verdict	x: *{a: integer, b: .a}	{"x": {"a": 5}}	{"verdict":"valid"}
+vet-lone-a-path-to-its-own-member-reads-the-data-with-no-fill	verdict	x: *{a: integer, b: .a}	{"x": {"a": 5}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-a-path-to-its-own-member-reads-the-data-under-partial	verdict	x: *{a: integer, b: .a}	{"x": {"a": 5}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-to-its-own-member-against-another-kind	verdict	x: *{a: 1, b: .a}	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-to-its-own-member-against-another-kind-with-no-fill	verdict	x: *{a: 1, b: .a}	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-to-its-own-member-against-another-kind-under-partial	verdict	x: *{a: 1, b: .a}	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-reads-the-schema-not-the-data	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 2.5}}	{"verdict":"valid"}
+vet-lone-a-path-outside-reads-the-schema-not-the-data-with-no-fill	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 2.5}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-reads-the-schema-not-the-data-under-partial	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 2.5}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-reads-the-schema-against-another-kind	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-reads-the-schema-against-another-kind-with-no-fill	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-reads-the-schema-against-another-kind-under-partial	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}

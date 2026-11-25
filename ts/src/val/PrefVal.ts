@@ -26,7 +26,8 @@ import { top } from './top'
 import { FeatureVal } from './FeatureVal'
 import { trialUnify } from './FuncBaseVal'
 import { superOf } from './SuperFuncVal'
-import { meetRanked } from './DisjunctVal'
+import { meetRanked, unread } from './DisjunctVal'
+import { ConjunctVal } from './ConjunctVal'
 import { genHeld } from '../genrec'
 
 
@@ -108,12 +109,25 @@ class PrefVal extends FeatureVal {
   }
 
 
+  // The default read on its own, before any data: in the schema's own tree under vet (ruling 40).
+  private own(ctx: AontuContext): Val | undefined {
+    const alone = this.alone ?? prefInnerPeg(this)
+    const octx = null == (ctx as any)._ownroot ? ctx : ctx.clone({ root: (ctx as any)._ownroot })
+    return trialUnify(octx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), top())
+  }
+
+
   // Ruling 40: the parent arm lifts the default as read on its own.
   private parentArm(ctx: AontuContext): Val {
-    const alone = this.alone ?? prefInnerPeg(this)
-    const own = trialUnify(ctx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), top())
+    const own = this.own(ctx)
     return undefined === own ? this.superpeg.clone(ctx) :
       unite(ctx, superOf(ctx, own), this.superpeg.clone(ctx), 'pref/lift')
+  }
+
+
+  private waitsForPath(ctx: AontuContext): boolean {
+    const own = this.own(ctx)
+    return undefined !== own && unread(own)
   }
 
 
@@ -235,6 +249,13 @@ class PrefVal extends FeatureVal {
     }
     else if (!peer.isTop) {
       why += 'super-'
+
+      // A path the value can't read on its own yet is read before a peer meets the preference.
+      if (unread(prefInnerPeg(this)) && this.waitsForPath(ctx)) {
+        const held = this.place(new ConjunctVal({ peg: [this, peer] }, ctx))
+        explainClose(te, held)
+        return held
+      }
 
       const met = trialUnify(ctx.holdArm(this.path, prefInnerPeg(this), peer),
         prefInnerPeg(this).clone(ctx), peer)

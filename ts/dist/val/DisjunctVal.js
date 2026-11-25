@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DisjunctVal = void 0;
 exports.meetRanked = meetRanked;
+exports.unread = unread;
 const type_1 = require("../type");
 const err_1 = require("../err");
 const exactjson_1 = require("../exactjson");
