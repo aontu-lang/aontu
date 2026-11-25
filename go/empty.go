@@ -2,9 +2,10 @@
 
 package aontu
 
-// EmptyVal is `empty()`: the constraint that admits "" where `string`
-// alone does not. It waives rather than narrows, so it folds first in a
-// conjunct.
+// EmptyVal is `empty()` standing apart from a `string`: every string.
+// Written beside `string` in one conjunction it is that kind's second
+// word, which the parser reads; met any other way it widens nothing
+// (decision 3).
 type EmptyVal struct {
 	base
 }
@@ -33,7 +34,7 @@ func (e *EmptyVal) Unify(peer Val, ctx *Ctx) Val {
 		return e
 	case *ScalarKindVal:
 		if KindString == p.kind {
-			return p.withEmpty()
+			return p
 		}
 	case *ScalarVal:
 		if KindString == p.kind {

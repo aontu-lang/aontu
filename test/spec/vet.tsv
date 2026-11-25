@@ -998,3 +998,83 @@ vet-lone-a-path-outside-reads-the-schema-not-the-data-under-partial	verdict	y: i
 vet-lone-a-path-outside-reads-the-schema-against-another-kind	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
 vet-lone-a-path-outside-reads-the-schema-against-another-kind-with-no-fill	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
 vet-lone-a-path-outside-reads-the-schema-against-another-kind-under-partial	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+# `string` MET WITH `string & empty()` IS `string` (#343): each row is the
+# definition's answer too, where it reads `string & empty()` as `anyString`.
+vet-string-meets-string-with-empty-against-the-empty-string	verdict	v: (string) & (string & empty())	{"v": ""}	{"verdict":"invalid"}
+vet-string-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-meets-string-against-a-string	verdict	v: (string & empty()) & (string)	{"v": "a"}	{"verdict":"valid"}
+vet-string-with-empty-meets-string-against-a-string-with-no-fill	verdict	v: (string & empty()) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-meets-string-against-a-string-under-partial	verdict	v: (string & empty()) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-with-empty-meets-itself-against-the-empty-string	verdict	v: (string & empty()) & (string & empty())	{"v": ""}	{"verdict":"valid"}
+vet-string-with-empty-meets-itself-against-the-empty-string-with-no-fill	verdict	v: (string & empty()) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-meets-itself-against-the-empty-string-under-partial	verdict	v: (string & empty()) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-bounded-string-with-empty-meets-string-against-the-empty-string	verdict	v: (string & empty() & max("b")) & (string)	{"v": ""}	{"verdict":"invalid"}
+vet-bounded-string-with-empty-meets-string-against-the-empty-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-bounded-string-with-empty-meets-string-against-the-empty-string-under-partial	verdict	v: (string & empty() & max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-bounded-string-with-empty-meets-string-against-a-string	verdict	v: (string & empty() & max("b")) & (string)	{"v": "a"}	{"verdict":"valid"}
+vet-bounded-string-with-empty-meets-string-against-a-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-bounded-string-with-empty-meets-string-against-a-string-under-partial	verdict	v: (string & empty() & max("b")) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-meets-bounded-string-with-empty-against-the-empty-string	verdict	v: (string) & (string & empty() & max("b"))	{"v": ""}	{"verdict":"invalid"}
+vet-string-meets-bounded-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string) & (string & empty() & max("b"))	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-meets-bounded-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string) & (string & empty() & max("b"))	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-a-bound-meets-string-against-the-empty-string	verdict	v: (max("b")) & (string)	{"v": ""}	{"verdict":"invalid"}
+vet-a-bound-meets-string-against-the-empty-string-with-no-fill	verdict	v: (max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-a-bound-meets-string-against-the-empty-string-under-partial	verdict	v: (max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-a-bound-meets-string-with-empty-against-the-empty-string	verdict	v: (max("b")) & (string & empty())	{"v": ""}	{"verdict":"valid"}
+vet-a-bound-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (max("b")) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-a-bound-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (max("b")) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-a-bound-alone-against-the-empty-string	verdict	v: max("b")	{"v": ""}	{"verdict":"valid"}
+vet-a-bound-alone-against-the-empty-string-with-no-fill	verdict	v: max("b")	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-a-bound-alone-against-the-empty-string-under-partial	verdict	v: max("b")	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-two-bounded-strings-with-empty-against-the-empty-string	verdict	v: (string & empty() & max("b")) & (string & empty() & max("c"))	{"v": ""}	{"verdict":"valid"}
+vet-two-bounded-strings-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string & empty() & max("c"))	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-two-bounded-strings-with-empty-against-the-empty-string-under-partial	verdict	v: (string & empty() & max("b")) & (string & empty() & max("c"))	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-bounded-string-with-empty-meets-bounded-string-against-the-empty-string	verdict	v: (string & empty() & max("b")) & (string & max("c"))	{"v": ""}	{"verdict":"invalid"}
+vet-bounded-string-with-empty-meets-bounded-string-against-the-empty-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string & max("c"))	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-bounded-string-with-empty-meets-bounded-string-against-the-empty-string-under-partial	verdict	v: (string & empty() & max("b")) & (string & max("c"))	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-bounded-string-meets-string-with-empty-against-the-empty-string	verdict	v: (string & max("b")) & (string & empty())	{"v": ""}	{"verdict":"invalid"}
+vet-bounded-string-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string & max("b")) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-bounded-string-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string & max("b")) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-bounded-string-meets-string-with-empty-against-a-string	verdict	v: (string & max("b")) & (string & empty())	{"v": "a"}	{"verdict":"valid"}
+vet-bounded-string-meets-string-with-empty-against-a-string-with-no-fill	verdict	v: (string & max("b")) & (string & empty())	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-bounded-string-meets-string-with-empty-against-a-string-under-partial	verdict	v: (string & max("b")) & (string & empty())	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-in-an-arm-meets-string-with-empty-against-the-empty-string	verdict	v: (string | 1) & (string & empty())	{"v": ""}	{"verdict":"invalid"}
+vet-string-in-an-arm-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string | 1) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-in-an-arm-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string | 1) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-in-an-arm-meets-string-against-the-empty-string	verdict	v: (string & empty() | 1) & (string)	{"v": ""}	{"verdict":"invalid"}
+vet-string-with-empty-in-an-arm-meets-string-against-the-empty-string-with-no-fill	verdict	v: (string & empty() | 1) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-with-empty-in-an-arm-meets-string-against-the-empty-string-under-partial	verdict	v: (string & empty() | 1) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-a-meet-in-an-arm-against-the-empty-string	verdict	v: (string) & (string & empty()) | 1	{"v": ""}	{"verdict":"invalid"}
+vet-a-meet-in-an-arm-against-the-empty-string-with-no-fill	verdict	v: (string) & (string & empty()) | 1	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-a-meet-in-an-arm-against-the-empty-string-under-partial	verdict	v: (string) & (string & empty()) | 1	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-in-a-list-meets-string-with-empty-against-the-empty-string	verdict	v: ([string & empty()]) & ([string])	{"v": [""]}	{"verdict":"invalid"}
+vet-string-in-a-list-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: ([string & empty()]) & ([string])	{"v": [""]}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-in-a-list-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: ([string & empty()]) & ([string])	{"v": [""]}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-in-two-lists-against-the-empty-string	verdict	v: ([string & empty()]) & ([string & empty()])	{"v": [""]}	{"verdict":"valid"}
+vet-string-with-empty-in-two-lists-against-the-empty-string-with-no-fill	verdict	v: ([string & empty()]) & ([string & empty()])	{"v": [""]}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-in-two-lists-against-the-empty-string-under-partial	verdict	v: ([string & empty()]) & ([string & empty()])	{"v": [""]}	{"verdict":"valid","opts":{"partial":true}}
+vet-empty-in-another-statement-against-the-empty-string	verdict	v: string\nv: empty()	{"v": ""}	{"verdict":"invalid"}
+vet-empty-in-another-statement-against-the-empty-string-with-no-fill	verdict	v: string\nv: empty()	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-empty-in-another-statement-against-the-empty-string-under-partial	verdict	v: string\nv: empty()	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-empty-outside-a-group-against-the-empty-string	verdict	v: (string & max("b")) & empty()	{"v": ""}	{"verdict":"invalid"}
+vet-empty-outside-a-group-against-the-empty-string-with-no-fill	verdict	v: (string & max("b")) & empty()	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-empty-outside-a-group-against-the-empty-string-under-partial	verdict	v: (string & max("b")) & empty()	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-empty-through-a-name-against-the-empty-string	verdict	%E = empty()\nv: string & %E	{"v": ""}	{"verdict":"invalid"}
+vet-empty-through-a-name-against-the-empty-string-with-no-fill	verdict	%E = empty()\nv: string & %E	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-empty-through-a-name-against-the-empty-string-under-partial	verdict	%E = empty()\nv: string & %E	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-through-a-name-meets-string-against-the-empty-string	verdict	%T = string & empty()\nv: %T & string	{"v": ""}	{"verdict":"invalid"}
+vet-string-with-empty-through-a-name-meets-string-against-the-empty-string-with-no-fill	verdict	%T = string & empty()\nv: %T & string	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-name-meets-string-against-the-empty-string-under-partial	verdict	%T = string & empty()\nv: %T & string	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-through-a-name-against-the-empty-string	verdict	%T = string & empty()\nv: %T	{"v": ""}	{"verdict":"valid"}
+vet-string-with-empty-through-a-name-against-the-empty-string-with-no-fill	verdict	%T = string & empty()\nv: %T	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-name-against-the-empty-string-under-partial	verdict	%T = string & empty()\nv: %T	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-with-empty-through-a-path-meets-string-against-the-empty-string	verdict	s: string & empty()\nv: $.s & string	{"s": "", "v": ""}	{"verdict":"invalid"}
+vet-string-with-empty-through-a-path-meets-string-against-the-empty-string-with-no-fill	verdict	s: string & empty()\nv: $.s & string	{"s": "", "v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-path-meets-string-against-the-empty-string-under-partial	verdict	s: string & empty()\nv: $.s & string	{"s": "", "v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-through-a-path-against-the-empty-string	verdict	s: string & empty()\nv: $.s	{"s": "", "v": ""}	{"verdict":"valid"}
+vet-string-with-empty-through-a-path-against-the-empty-string-with-no-fill	verdict	s: string & empty()\nv: $.s	{"s": "", "v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-path-against-the-empty-string-under-partial	verdict	s: string & empty()\nv: $.s	{"s": "", "v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid"}
+vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string-with-no-fill	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string-under-partial	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}

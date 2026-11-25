@@ -60,14 +60,14 @@ reference-carries-a-nested-constraint	canon	t: {p: constraint & min(1)}\nx: $.t 
 reference-carries-a-constraint-in-a-list	canon	t: [constraint & min(1)]\nv: $.t & [5]	{"t":[constraint&min(1)],"v":[5]}
 reference-carries-a-constraint-in-a-disjunction	canon	t: (constraint & min(1)) | "x"\nv: $.t & 5	{"t":constraint&min(1)|"x","v":5}
 
-# `string` MEANS A NON-EMPTY STRING; `empty()` ADMITS "".
+# `string` MEANS A NON-EMPTY STRING; `string & empty()` ADMITS "".
 #
-# `empty()` waives the requirement rather than adding one, which is not
-# a meet, so it is carried as two FLAGS on the string -- "met string"
-# and "met empty()" -- that every meet ORs together, and generation
-# decides. The answer is the same whichever of them meets "" first,
-# including across statements; the cost is that a refused "" is not
-# pruned from a disjunction. `empty()` only unifies with strings.
+# `string & empty()` is a kind of its own, not a meet: a `string` and an
+# `empty()` written in one conjunction, no parenthesis between them, read
+# as it. A `string` met any other way keeps its non-emptiness, which is
+# carried as a FLAG every meet keeps, and generation decides. The answer
+# is the same whichever term meets "" first; the cost is that a refused
+# "" is not pruned from a disjunction. `empty()` only unifies with strings.
 string-admits-a-non-empty-string	gens	a: string & x	{"a":"x"}
 string-refuses-the-empty-string	errc	b: string & ""	string_empty
 string-empty-canon	canon	b: string & ""	{"b":string&""}
@@ -92,8 +92,8 @@ string-length-with-empty-admits	gens	c: string & empty() & len(max(2)) & ""	{"c"
 string-bounds-still-apply	gens	c: string & min("a") & b	{"c":"b"}
 empty-is-a-constraint	canon	c: constraint & empty()	{"c":constraint&empty()}
 string-template-refuses-the-empty-string	errc	c: {&: string}\nc: {x: ""}	string_empty
-empty-across-statements	gens	a: {x: string}\na: {x: ""}\na: {x: empty()}	{"a":{"x":""}}
-empty-across-statements-reordered	gens	a: {x: ""}\na: {x: empty()}\na: {x: string}	{"a":{"x":""}}
+empty-across-statements	errc	a: {x: string}\na: {x: ""}\na: {x: empty()}	string_empty
+empty-across-statements-reordered	errc	a: {x: ""}\na: {x: empty()}\na: {x: string}	string_empty
 empty-through-a-reference	canon	s: string & empty()\nt: $.s & ""	{"s":string&empty(),"t":""}
 a-refused-empty-string-is-not-pruned	errc	c: string & ""|"z"	disjunct_no_gen
 string-in-a-list-refuses-the-empty-string	errc	c: [string & ""]	string_empty
@@ -172,8 +172,8 @@ empty-meets-constraint	canon	a: empty() & constraint	{"a":constraint&empty()}
 constraint-meets-empty	canon	a: constraint & empty()	{"a":constraint&empty()}
 empty-does-not-generate	errc	a: empty()	mapval_no_gen
 string-kind-empty-twice	canon	a: string & empty() & empty()	{"a":string&empty()}
-string-kind-then-string-with-empty	canon	a: string\na: string & empty()	{"a":string&empty()}
-string-with-empty-then-string-kind	canon	a: string & empty()\na: string	{"a":string&empty()}
+string-kind-then-string-with-empty	canon	a: string\na: string & empty()	{"a":string}
+string-with-empty-then-string-kind	canon	a: string & empty()\na: string	{"a":string}
 string-value-empty-twice	canon	a: "x" & empty() & empty()	{"a":"x"}
 non-empty-string-value-then-plain	gens	a: string & "x"\na: "x"	{"a":"x"}
 plain-string-value-then-non-empty	gens	a: "x"\na: string & "x"	{"a":"x"}
@@ -217,3 +217,54 @@ map-kind-meets-a-spread-disjunction	canon	{a: map, &: (1|{}) & any}	{&:(1|{})&an
 list-kind-meets-a-spread-disjunction	canon	{a: list, &: (1|[]) & any}	{&:(1|[])&any,"a":[]}
 empty-meets-a-preferred-disjunction	canon	a: (*"s"|1) & empty()	{"a":*"s"}
 empty-meets-two-match-spreads	canon	{a?: empty(), &: match(key(0), re("^x"), number, any), &: match(key(0), re("^y"), boolean, any)}	{&:match(key(0),re("^x"),number,any)&match(key(0),re("^y"),boolean,any),"a"?:empty()}
+# `string` MET WITH `string & empty()` IS `string` (#343): the meet is a
+# greatest lower bound, so nothing a `string` meets lifts its
+# non-emptiness. An `empty()` reads as part of the kind only beside a
+# `string` in one conjunction; a parenthesis, a statement, a name or a
+# path between them leaves the `string` as it stands.
+string-meets-string-with-empty	canon	v: (string) & (string & empty())	{"v":string}
+string-with-empty-meets-string	canon	v: (string & empty()) & (string)	{"v":string}
+string-with-empty-meets-itself	canon	v: (string & empty()) & (string & empty())	{"v":string&empty()}
+string-meets-string-with-empty-and-the-empty-string	errc	v: string & (string & empty()) & ""	string_empty
+string-with-empty-twice-admits-the-empty-string	gens	v: (string & empty()) & (string & empty()) & ""	{"v":""}
+string-under-a-key-meets-string-with-empty	canon	v: {x: string} & {x: string & empty()}	{"v":{"x":string}}
+string-with-empty-under-a-key-meets-string	canon	v: {x: string & empty()} & {x: string}	{"v":{"x":string}}
+string-in-a-list-meets-string-with-empty	canon	v: [string & empty()] & [string]	{"v":[string]}
+string-with-empty-in-a-template-meets-string	canon	v: {&: string & empty()} & {a: string}	{"v":{&:string&empty(),"a":string}}
+string-in-a-template-meets-string-with-empty	canon	v: {&: string} & {a: string & empty()}	{"v":{&:string,"a":string}}
+string-in-an-arm-meets-string-with-empty	canon	v: (string | 1) & (string & empty())	{"v":string}
+string-with-empty-in-an-arm-meets-string	canon	v: (string & empty() | 1) & string	{"v":string}
+empty-in-another-statement-lifts-nothing	canon	a: string\na: empty()	{"a":string}
+empty-in-an-earlier-statement-lifts-nothing	canon	a: empty()\na: string	{"a":string}
+empty-outside-a-group-lifts-nothing	canon	v: (string & re("^a*$")) & empty()	{"v":string&re("^a*$")}
+empty-outside-a-group-refuses-the-empty-string	errc	v: (string & re("^a*$")) & empty() & ""	string_empty
+empty-through-a-name-lifts-nothing	canon	%E = empty()\nv: string & %E	{"v":string}
+string-through-a-name-keeps-its-non-emptiness	canon	%T = string\nv: %T & empty()	{"v":string}
+string-with-empty-through-a-name-meets-string	canon	%T = string & empty()\nv: %T & string	{"v":string}
+string-with-empty-through-a-path-meets-string	canon	s: string & empty()\nt: $.s & string	{"s":string&empty(),"t":string}
+string-with-empty-through-a-path-meets-string-and-the-empty-string	canon	s: string & empty()\nt: $.s & string & ""	{"s":string&empty(),"t":string&""}
+string-through-a-path-meets-empty	canon	s: string\nt: $.s & empty()	{"s":string,"t":string}
+string-then-the-empty-string-then-string-with-empty	errc	a: string\na: ""\na: string & empty()	string_empty
+string-then-string-with-empty-then-the-empty-string	errc	a: string\na: string & empty()\na: ""	string_empty
+the-empty-string-then-string-then-string-with-empty	errc	a: ""\na: string\na: string & empty()	string_empty
+the-empty-string-then-string-with-empty-then-string	errc	a: ""\na: string & empty()\na: string	string_empty
+string-with-empty-then-string-then-the-empty-string	errc	a: string & empty()\na: string\na: ""	string_empty
+string-with-empty-then-the-empty-string-then-string	errc	a: string & empty()\na: ""\na: string	string_empty
+string-with-empty-then-the-empty-string-twice	gens	a: string & empty()\na: ""\na: string & empty()	{"a":""}
+string-pattern-with-empty-meets-string	canon	x: string & re("x") & empty()\nx: string	{"x":string&re("x")}
+string-meets-string-pattern-with-empty	canon	x: string\nx: string & re("x") & empty()	{"x":string&re("x")}
+string-pattern-with-empty-meets-itself	canon	x: string & re("x") & empty()\nx: string & re("x") & empty()	{"x":string&re("x")&empty()}
+string-pattern-with-empty-meets-string-pattern	canon	x: string & re("x") & empty()\nx: string & re("y")	{"x":string&re("x")&re("y")}
+string-length-with-empty-meets-string	canon	x: string & empty() & len(max(2))\nx: string	{"x":string&len(integer&min(0)&max(2))}
+pattern-with-empty-meets-string	canon	x: re("^a*$") & empty()\nx: string	{"x":string&re("^a*$")}
+pattern-with-empty-then-string-refuses-the-empty-string	errc	x: re("^a*$") & empty()\nx: string\nx: ""	string_empty
+pattern-with-empty-admits-the-empty-string	gens	x: re("^a*$") & empty()\nx: ""	{"x":""}
+string-pattern-with-empty-then-string-refuses-the-empty-string	errc	x: string & re("^a*$") & empty()\nx: ""\nx: string	string_empty
+string-with-empty-and-a-string-in-one-conjunction	canon	v: string & empty() & string	{"v":string&empty()}
+empty-and-two-strings-in-one-conjunction	canon	v: empty() & string & string	{"v":string&empty()}
+two-strings-and-empty-in-one-conjunction	canon	v: string & string & empty()	{"v":string&empty()}
+string-with-empty-and-a-string-admit-the-empty-string	gens	v: "" & string & empty() & string	{"v":""}
+string-beside-a-parenthesised-empty	canon	v: string & (empty())	{"v":string&empty()}
+parenthesised-string-beside-a-parenthesised-empty	canon	v: (string) & (empty())	{"v":string&empty()}
+string-with-empty-in-nested-parentheses	gens	v: ((string & empty())) & ""	{"v":""}
+string-with-empty-as-an-argument-meets-string	canon	v: super(string & empty()) & string	{"v":string}

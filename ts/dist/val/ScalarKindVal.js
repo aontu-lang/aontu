@@ -66,9 +66,6 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
     clone(ctx, spec) {
         return super.clone(ctx, { emptyOk: this.emptyOk, ...(spec ?? {}) });
     }
-    withEmpty(ctx) {
-        return this.emptyOk ? this : this.clone(ctx, { emptyOk: true });
-    }
     unify(peer, ctx) {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'ScalarKind', this, peer);
         const peerIsScalarVal = peer.isScalar;
@@ -95,7 +92,7 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
         }
         else if (peerIsScalarKind) {
             if (this.peg === peer.peg) {
-                out = !this.emptyOk && true === peer.emptyOk ? peer : this;
+                out = this.emptyOk && true !== peer.emptyOk ? peer : this;
             }
             else if (kindSubsumes(this.peg, peer.peg)) {
                 out = peer;

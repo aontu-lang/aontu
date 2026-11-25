@@ -21,31 +21,30 @@ class StringVal extends ScalarVal_1.ScalarVal {
         });
     }
     withEmpty(ctx) {
-        return this.emptyOk ? this : this.clone(ctx, { emptyOk: true });
+        return this.emptyOk || this.needsNonEmpty ? this :
+            this.clone(ctx, { emptyOk: true });
     }
     withNonEmpty(ctx) {
         return this.needsNonEmpty || '' !== this.peg ? this :
-            this.clone(ctx, { needsNonEmpty: true });
+            this.clone(ctx, { needsNonEmpty: true, emptyOk: false });
     }
     unify(peer, ctx) {
         const p = peer;
         if (true === p.isString && this.peg === p.peg) {
-            const needs = this.needsNonEmpty || p.needsNonEmpty;
-            const ok = this.emptyOk || p.emptyOk;
-            return needs === this.needsNonEmpty && ok === this.emptyOk ? this :
-                needs === p.needsNonEmpty && ok === p.emptyOk ? p :
-                    this.clone(ctx, { needsNonEmpty: needs, emptyOk: ok });
+            // The one that met a plain `string` stands, else one that met `empty()`.
+            return this.needsNonEmpty ||
+                (!p.needsNonEmpty && (this.emptyOk || !p.emptyOk)) ? this : p;
         }
         return super.unify(peer, ctx);
     }
-    // The kind that admits this value: "" needs the waiver.
+    // The kind that admits this value: "" needs the wider one.
     superior() {
         return this.place(new ScalarKindVal_1.ScalarKindVal({
             peg: String, emptyOk: '' === this.peg || this.emptyOk,
         }));
     }
     get refused() {
-        return '' === this.peg && this.needsNonEmpty && !this.emptyOk;
+        return '' === this.peg && this.needsNonEmpty;
     }
     get canon() {
         return (this.refused ? 'string&' : '') + JSON.stringify(this.peg);

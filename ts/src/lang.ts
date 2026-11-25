@@ -990,10 +990,44 @@ help isolate the syntax error.`,
       row: term.site.row, col: term.site.col, src: term.site.src, len: term.site.len,
     } : undefined
 
+  // The terms one written `&` chain holds, through its own steps and
+  // no parenthesis.
+  const chainTerms = (t: any): any[] =>
+    true === t?.isConjunct && true === t.written ? t.peg.flatMap(chainTerms) : [t]
+
+  const plainString = (t: any): boolean =>
+    true === t?.isScalarKind && String === t.peg && true !== t.emptyOk
+
+  // `string & empty()` is a kind of its own, not a meet (decision 3): a
+  // chain that writes both reads them as it, where the first `string` stood.
+  const foldEmpty = (r: Rule, ctx: JsonicContext, chain: any[]): any[] => {
+    const words = (t: any) => plainString(t) || true === t?.folded
+    if (!chain.some((t) => true === t?.isEmptyConstraint || true === t?.folded) ||
+      !chain.some(plainString)) {
+      return chain
+    }
+    const head = chain.find(words)
+    const kind: any = true === head.folded ? head : opsite(
+      new ScalarKindVal({ peg: String, emptyOk: true } as any), r, ctx, atTerm(head))
+    kind.folded = true
+    return chain.filter((t) => t === head || !(words(t) || true === t?.isEmptyConstraint))
+      .map((t) => t === head ? kind : t)
+  }
+
   let opmap: any = {
     'conjunct-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
-      const peg = dropUnfilled(terms)
-      return opsite(new ConjunctVal({ peg }), r, ctx, atTerm(peg[0]))
+      let peg = dropUnfilled(terms)
+      const chain = peg.flatMap(chainTerms)
+      const read = foldEmpty(r, ctx, chain)
+      if (read !== chain) {
+        if (1 === read.length) {
+          return read[0]
+        }
+        peg = read
+      }
+      const out: any = opsite(new ConjunctVal({ peg }), r, ctx, atTerm(peg[0]))
+      out.written = true
+      return out
     },
 
     'disjunct-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
@@ -1099,6 +1133,10 @@ help isolate the syntax error.`,
       }
       // `a:()` — grouping parens with nothing inside.
       if (null == val) return incompleteNil(r, ctx)
+      // A parenthesis ends the chain a `string & empty()` is read in.
+      if ('' === fname && true === val?.isVal) {
+        val.written = val.folded = false
+      }
       // ... and the same for a GROUPING paren, whose value is passed
       // straight through: `(([]%))` yielded a raw array, and addsite went
       // on to write a site onto it, throwing a TypeError that escaped the

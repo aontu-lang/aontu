@@ -108,11 +108,6 @@ class ScalarKindVal extends FeatureVal {
   }
 
 
-  withEmpty(ctx: AontuContext): Val {
-    return this.emptyOk ? this : this.clone(ctx, { emptyOk: true } as any)
-  }
-
-
   unify(peer: Val, ctx: AontuContext): Val {
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'ScalarKind', this, peer)
 
@@ -143,7 +138,7 @@ class ScalarKindVal extends FeatureVal {
     }
     else if (peerIsScalarKind) {
       if (this.peg === peer.peg) {
-        out = !this.emptyOk && true === (peer as any).emptyOk ? peer : this
+        out = this.emptyOk && true !== (peer as any).emptyOk ? peer : this
       }
       else if (kindSubsumes(this.peg, peer.peg)) {
         out = peer

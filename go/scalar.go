@@ -82,19 +82,19 @@ type ScalarVal struct {
 
 	src string
 
-	// `string` means a NON-EMPTY string, and `empty()` waives that. Both
-	// are FLAGS that every meet ORs together, and generation decides, so
-	// the answer does not depend on which of them meets "" first.
+	// `string` means a NON-EMPTY string. Having met one is a flag every
+	// meet keeps and nothing lifts (decision 3), and generation decides,
+	// so the answer does not depend on which term meets "" first.
 	needsNonEmpty bool
 	emptyOk       bool
 }
 
 func (s *ScalarVal) refused() bool {
-	return KindString == s.kind && s.needsNonEmpty && !s.emptyOk && "" == s.peg.(string)
+	return KindString == s.kind && s.needsNonEmpty && "" == s.peg.(string)
 }
 
 func (s *ScalarVal) withEmpty() *ScalarVal {
-	if s.emptyOk || KindString != s.kind {
+	if s.emptyOk || s.needsNonEmpty || KindString != s.kind {
 		return s
 	}
 	c := *s
@@ -108,6 +108,7 @@ func (s *ScalarVal) withNonEmpty() *ScalarVal {
 	}
 	c := *s
 	c.needsNonEmpty = true
+	c.emptyOk = false
 	return &c
 }
 
@@ -276,10 +277,12 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 			if ps.mhide {
 				s.mhide = true
 			}
-			if (ps.needsNonEmpty && !s.needsNonEmpty) || (ps.emptyOk && !s.emptyOk) {
+			needs := s.needsNonEmpty || ps.needsNonEmpty
+			ok := !needs && (s.emptyOk || ps.emptyOk)
+			if needs != s.needsNonEmpty || ok != s.emptyOk {
 				c := *s
-				c.needsNonEmpty = s.needsNonEmpty || ps.needsNonEmpty
-				c.emptyOk = s.emptyOk || ps.emptyOk
+				c.needsNonEmpty = needs
+				c.emptyOk = ok
 				return &c
 			}
 			return s
@@ -300,15 +303,8 @@ type ScalarKindVal struct {
 	kind Kind
 	// `string & empty()`: the string kind that also admits "".
 	emptyOk bool
-}
-
-func (k *ScalarKindVal) withEmpty() *ScalarKindVal {
-	if k.emptyOk {
-		return k
-	}
-	c := *k
-	c.emptyOk = true
-	return &c
+	// folded: the parser read it from a `string` and an `empty()` in the chain it is still reading.
+	folded bool
 }
 
 func newScalarKind(k Kind) *ScalarKindVal {
@@ -356,7 +352,7 @@ func (k *ScalarKindVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	if pk, ok := peer.(*ScalarKindVal); ok {
 		if k.kind == pk.kind {
-			if !k.emptyOk && pk.emptyOk {
+			if k.emptyOk && !pk.emptyOk {
 				return pk
 			}
 			return k

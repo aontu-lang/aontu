@@ -21,7 +21,6 @@ declare class ScalarKindVal extends FeatureVal {
     emptyOk: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
     clone(ctx: AontuContext, spec?: ValSpec): Val;
-    withEmpty(ctx: AontuContext): Val;
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
     superior(): Val;
