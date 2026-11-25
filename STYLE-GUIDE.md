@@ -36,7 +36,7 @@ drift from the other:
 | Gate | Runs | Checks |
 |---|---|---|
 | `make prose` (Vale) | `.github/workflows/docs.yml` | spelling, Google's conventions, and the banned list, at the levels set in `.vale.ini` |
-| `ts/test/docs.test.ts` | `make test` | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, no phase-tracking vocabulary, that every code snippet executes, and that every internal markdown link resolves |
+| `ts/test/docs.test.ts` | `make test`; its style rules and link check also through `ts/test/docs-style.test.ts` in the gate group, so `make quick` and every push run them | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, no phase-tracking vocabulary, that every code snippet executes, and that every internal markdown link resolves |
 | `ts/scripts/vale-counts.cjs` | `make prose` | that every count in `.vale.ini`, and the total below, are what Vale reports |
 
 The gated set is the reader-facing one: the Diátaxis pages, the how-to

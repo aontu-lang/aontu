@@ -22,6 +22,9 @@ const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js')
 // a sampled group (groups.tsv). A DOCS_PAGES run names its own pages.
 export const SHARDS = 3
 const SHARD = Number(process.env.AONTU_DOCS_SHARD ?? 1) - 1
+// docs-style.test.ts sets this to run the style rules and the link
+// check alone, fast enough for the gate group.
+const STYLE = '1' === process.env.AONTU_DOCS_STYLE
 const sharded = (files: string[]) => files.filter((_, i) => SHARD === i % SHARDS)
 // A corpus-wide floor, as this shard's share of it.
 const floor = (n: number) => Math.ceil(n / SHARDS)
@@ -325,7 +328,7 @@ function runStep(file: string, dir: string, cache: string, step: Step):
 
 // ---------------------------------------------------------------------
 
-describe('docs', () => {
+;(STYLE ? describe.skip : describe)('docs', () => {
 
   if (0 === SHARD) {
     test('every-shard-has-its-file', () => {
@@ -908,12 +911,13 @@ function stylePaths(): { file: string, abs: string }[] {
 
 
 // The page suite above is what a shard runs; the corpus-wide checks
-// below run once, in the primary file, so a sampled shard does not
-// repeat them.
-const corpusDescribe = 0 === SHARD ? describe : describe.skip
-const corpusTest = 0 === SHARD ? test : test.skip
+// below run once, in the primary file, and the style rules once, in
+// docs-style.test.ts, so a sampled shard does not repeat them.
+const corpusTest = 0 === SHARD && !STYLE ? test : test.skip
+const styleDescribe = STYLE ? describe : describe.skip
+const styleTest = STYLE ? test : test.skip
 
-corpusDescribe('docs-style', () => {
+styleDescribe('docs-style', () => {
 
   test('the-gated-set-covers-more-than-docs', () => {
     if (narrowed()) {
@@ -1980,7 +1984,7 @@ function markdownFiles(): string[] {
 }
 
 
-corpusTest('every-internal-link-resolves', () => {
+styleTest('every-internal-link-resolves', () => {
   const cache = new Map<string, Set<string> | null>()
   const anchorsOf = (abs: string): Set<string> | null => {
     if (!cache.has(abs)) {

@@ -52,6 +52,9 @@ const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js');
 // a sampled group (groups.tsv). A DOCS_PAGES run names its own pages.
 exports.SHARDS = 3;
 const SHARD = Number(process.env.AONTU_DOCS_SHARD ?? 1) - 1;
+// docs-style.test.ts sets this to run the style rules and the link
+// check alone, fast enough for the gate group.
+const STYLE = '1' === process.env.AONTU_DOCS_STYLE;
 const sharded = (files) => files.filter((_, i) => SHARD === i % exports.SHARDS);
 // A corpus-wide floor, as this shard's share of it.
 const floor = (n) => Math.ceil(n / exports.SHARDS);
@@ -291,7 +294,8 @@ function runStep(file, dir, cache, step) {
     }
 }
 // ---------------------------------------------------------------------
-(0, node_test_1.describe)('docs', () => {
+;
+(STYLE ? node_test_1.describe.skip : node_test_1.describe)('docs', () => {
     if (0 === SHARD) {
         (0, node_test_1.test)('every-shard-has-its-file', () => {
             const files = Fs.readdirSync(__dirname)
@@ -778,11 +782,12 @@ function stylePaths() {
         .map((f) => ({ file: f, abs: Path.join(REPO, f) }));
 }
 // The page suite above is what a shard runs; the corpus-wide checks
-// below run once, in the primary file, so a sampled shard does not
-// repeat them.
-const corpusDescribe = 0 === SHARD ? node_test_1.describe : node_test_1.describe.skip;
-const corpusTest = 0 === SHARD ? node_test_1.test : node_test_1.test.skip;
-corpusDescribe('docs-style', () => {
+// below run once, in the primary file, and the style rules once, in
+// docs-style.test.ts, so a sampled shard does not repeat them.
+const corpusTest = 0 === SHARD && !STYLE ? node_test_1.test : node_test_1.test.skip;
+const styleDescribe = STYLE ? node_test_1.describe : node_test_1.describe.skip;
+const styleTest = STYLE ? node_test_1.test : node_test_1.test.skip;
+styleDescribe('docs-style', () => {
     (0, node_test_1.test)('the-gated-set-covers-more-than-docs', () => {
         if (narrowed()) {
             return;
@@ -1623,7 +1628,7 @@ function markdownFiles() {
         .filter((f) => '' !== f && (!f.startsWith('sketch/') ||
         FROZEN_DIRS.some((d) => f.startsWith(d))));
 }
-corpusTest('every-internal-link-resolves', () => {
+styleTest('every-internal-link-resolves', () => {
     const cache = new Map();
     const anchorsOf = (abs) => {
         if (!cache.has(abs)) {
