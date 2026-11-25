@@ -845,6 +845,7 @@ export function vet(
       bag.spread.cj = argumentForm(bag.spread.cj, ctx)
     }
   }
+  ; (ctx as any)._ownroot = schemaVal
   const pair = new ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx)
   const unified: any = aontu.unify(pair, undefined, ctx)
 

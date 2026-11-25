@@ -19,9 +19,9 @@ import { ScalarKindVal } from './ScalarKindVal'
 class StringVal extends ScalarVal {
   isString = true
 
-  // `string` means a NON-EMPTY string, and `empty()` waives that. Both
-  // are FLAGS that every meet ORs together, and generation decides, so
-  // the answer does not depend on which of them meets "" first.
+  // `string` means a NON-EMPTY string. Having met one is a flag every
+  // meet keeps and nothing lifts (decision 3), and generation decides,
+  // so the answer does not depend on which term meets "" first.
   needsNonEmpty: boolean
   emptyOk: boolean
 
@@ -43,27 +43,26 @@ class StringVal extends ScalarVal {
   }
 
   withEmpty(ctx: AontuContext): Val {
-    return this.emptyOk ? this : this.clone(ctx, { emptyOk: true } as any)
+    return this.emptyOk || this.needsNonEmpty ? this :
+      this.clone(ctx, { emptyOk: true } as any)
   }
 
   withNonEmpty(ctx: AontuContext): Val {
     return this.needsNonEmpty || '' !== this.peg ? this :
-      this.clone(ctx, { needsNonEmpty: true } as any)
+      this.clone(ctx, { needsNonEmpty: true, emptyOk: false } as any)
   }
 
   unify(peer: Val, ctx: AontuContext): Val {
     const p: any = peer
     if (true === p.isString && this.peg === p.peg) {
-      const needs = this.needsNonEmpty || p.needsNonEmpty
-      const ok = this.emptyOk || p.emptyOk
-      return needs === this.needsNonEmpty && ok === this.emptyOk ? this :
-        needs === p.needsNonEmpty && ok === p.emptyOk ? p :
-          this.clone(ctx, { needsNonEmpty: needs, emptyOk: ok } as any)
+      // The one that met a plain `string` stands, else one that met `empty()`.
+      return this.needsNonEmpty ||
+        (!p.needsNonEmpty && (this.emptyOk || !p.emptyOk)) ? this : p
     }
     return super.unify(peer, ctx)
   }
 
-  // The kind that admits this value: "" needs the waiver.
+  // The kind that admits this value: "" needs the wider one.
   superior() {
     return this.place(new ScalarKindVal({
       peg: String, emptyOk: '' === this.peg || this.emptyOk,
@@ -71,7 +70,7 @@ class StringVal extends ScalarVal {
   }
 
   get refused(): boolean {
-    return '' === this.peg && this.needsNonEmpty && !this.emptyOk
+    return '' === this.peg && this.needsNonEmpty
   }
 
   get canon() {

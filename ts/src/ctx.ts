@@ -97,6 +97,8 @@ class AontuContext {
 
   _fixroot: any
 
+  _ownroot: any
+
   _armAt?: Map<string, [Val, Val | undefined, boolean]>
 
   budget: {

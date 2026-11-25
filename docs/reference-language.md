@@ -242,8 +242,8 @@ key (`map: 1`) it is a key, and a reference can name that key
 
 ### The empty string: `empty()`
 
-`string` means a non-empty string. `empty()` admits `""` as well, and
-only unifies with strings:
+`string` means a non-empty string. `string & empty()` admits `""` as
+well, and `empty()` only unifies with strings:
 
 ```aontu
 a: string & x
@@ -258,13 +258,25 @@ c: string & empty() & ""
 `empty_domain`. `empty()` also meets a string constraint
 (`string & re("^a*$") & empty()` admits `""`).
 
-`empty()` waives a requirement rather than adding one, so it is not an
-ordinary meet. The engine carries the two facts as flags on the string
-(it met `string`; it met `empty()`) that every unification combines with OR,
-and decides at generation. The answer is the same whichever order the
-terms meet in, including across statements and through references. One
-consequence is that a refused `""` is not pruned from a disjunction:
-`string & "" | "z"` does not generate, where `"z"` alone would.
+`string & empty()` is a kind of its own and no meet, since a meet admits
+nothing one of its terms refuses. A conjunction that writes `string` and
+`empty()` among its terms, in any order, with no parenthesis between
+them, reads the two as that kind. A `string` that meets anything else
+keeps its non-emptiness: `string` met with `string & empty()` is
+`string`, and an `empty()` in another statement, outside a parenthesised
+group, or behind a name or a path lifts nothing:
+
+```aontu
+a: string & empty()
+a: string & ""
+```
+
+`a` is refused with `string_empty`. The engine carries the
+non-emptiness as a flag on the string that every unification keeps, and
+decides at generation, so the answer is the same whichever order the
+terms meet in. One consequence is that a refused `""` is not pruned from
+a disjunction: `string & "" | "z"` does not generate, where `"z"` alone
+would.
 
 The definition reads `string & empty()` as a term of its own, `anyString` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), which admits every string where `string` refuses `""`: `no_meet_with_string_admits_empty` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean), and `re_not_le_string` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), where the subsumption table overstates `string`.
 
@@ -924,6 +936,8 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 
 In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. That holds where the arm's value is a path: both engines refuse `(*$.a | "a") & 3` beside `a: 1` wherever `a` stands, since the disjunction waits for the arm's value before it meets another term. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: relate({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing, and with `k: 1` on both sides it stands as `x` and `y` gains `z: 1`. A link in an arm of a disjunction sends where the output takes the arm, which [Checked links](#checked-links-relatet) describes. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
+A default that reaches a disjunction as an arm another way stands as that arm too, at its rank and with no parent type, as ruling 89 reads it. A `pref()` call, a name whose body is a default, a path to one, `copy`, `move`, a rider around one, a `match`'s result, and a meet that leaves the default standing all read so. `level: $.defaults.level | "debug"` beside `defaults: level: *"info"` admits `"info"` and `"debug"` and refuses any other string. A star written on such an arm adds to the default's rank, so `*(*1)` is `**1`. What a document writes stays: a path to `*1 | number` brings both arms, `*1 & (1 | 2 | 3)` is `*1 | 2 | 3`, and `*1 & min(2)`, whose default the bound refuses, leaves its parent type an arm like any other. Both engines read an arm that hasn't settled before the disjunction meets another term, so the answer never turns on when the arm settles. In the definition the meet marks a lone preference's parent type, `Val.parentOf` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) and `rideLeft` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean). `Val.loneArms` reads the arms that prefer where every other arm carries the mark, and `Decls.armStands` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads each arm of a disjunction so once the document's selections stand. Rows da0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv), the `vet-arm-*` rows of [`test/spec/vet.tsv`](../test/spec/vet.tsv) and the `arm-*` rows of [`test/spec/pref.tsv`](../test/spec/pref.tsv) hold both engines to it.
+
 `pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. Both engines answer `pref(1 | 2)` an `error`, as they answer `*1 | *2`.
 
 ## Optional keys `?`
@@ -1429,6 +1443,14 @@ Both wait for the model to settle before they answer, for the reason
 wrong bag to take a subset of, and a scrutinee that is still being
 narrowed can match an earlier arm than the one it will end up matching.
 
+**A pattern that waits holds the whole `match`.** A `+` or a `join`
+that takes no operand yet, as `integer + 1` does, settles nothing, and
+a `match` stages every pattern before it selects. So
+`match(1, 1, "yes", integer + 1, "no")` stays incomplete, though its
+first arm alone would answer. A waiting call in a result holds only the
+arm that takes it, and one in a spread's template inside a pattern
+holds nothing.
+
 **A `match` binds no hole.** `match(_, …)` outside a generator's
 template is a hole nothing binds (see
 [The placeholder `_`](#the-placeholder-_)), so the document is an error
@@ -1437,7 +1459,7 @@ accepts a document the arm it selects refuses. Inside a generator's
 template the hole is the source child, the scrutinee is a value by the
 time the match runs, and the form works as documented above.
 
-The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way, in both engines too, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, #922. A scrutinee that generates nothing takes the arm `certainArm` finds, the first whose pattern it sits below as `leDecF` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) decides the order, every arm before it sharing nothing with the scrutinee, and waits where there is no such arm, #938, rows `os0` and `ca0` on. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked, and waits while that member is open.
+The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way, in both engines too, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, #922. A selection whose pattern holds a call that waits reads as the term that waits, `Val.waiting`, by `selectRead` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), #432, rows `wt0` on. A scrutinee that generates nothing takes the arm `certainArm` finds, the first whose pattern it sits below as `leDecF` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) decides the order, every arm before it sharing nothing with the scrutinee, and waits where there is no such arm, #938, rows `os0` and `ca0` on. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked, and waits while that member is open.
 
 ## The placeholder `_`
 
@@ -1928,9 +1950,10 @@ reads as on its own: in `x: *{a: 1, b: .a}` the default is `{a: 1, b:
 1}` and the parent arm is `{a: integer, b: integer}`, so `{a: 2, b: 3}`
 passes and `{a: 2, b: "s"}` doesn't. Both engines read a lone
 preference so. They still lift a path in a template inside the value
-to `any` in the parent arm, which #704 tracks, and `vet` lifts one to a
-place outside the value the same way where the data overrides the
-default, which #702 tracks. The definition reads a lone preference so by
+to `any` in the parent arm, which #704 tracks. A preference waits for a
+path to a place outside its value before a peer meets it, so `y: 1`
+beside `x: *{a: 1, b: $.y}` refuses `{a: 2, b: "s"}` under `vet` as it
+does when evaluated. The definition reads a lone preference so by
 `Decls.nodeChosen`. A disjunction met with another at one place reads as
 one disjunction of the meets of their arms, as the meet makes them: in
 `x: ({b: .a} | null) & ({a: 1} | {a: 2})`, `b` reads `1` in one arm and
@@ -2845,8 +2868,8 @@ Example: `lines: emit($.services, {match:{pin:string}, body:[.pin]})`
 ### `empty() : constraint`
 
 Admit the empty string. `string` means a **non-empty** string, and
-`empty()` waives that; it only unifies with strings. See [The empty
-string](#the-empty-string-empty).
+`string & empty()` every string; it only unifies with strings. See [The
+empty string](#the-empty-string-empty).
 
 Example: `string & empty() & ""`→`""`; `string & ""`→ error
 
@@ -7933,6 +7956,8 @@ It is how the conditionals of JSON Schema cross into aontu: `if`, `then` and
 back.
 
 `when(c, t, e)` holds the datum to the branch its condition picks, an `else` not written reading as `any`: `judge_when_iff` and `when_nil_refuses` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
+
+An argument that holds a call still waiting for an operand, `integer + 1`, makes `must`, `nof` or `when` wait with it. The atom neither admits nor refuses, so `nof(0, integer + 1) & 5` stays incomplete, where a branch that refused `5` would admit it, and `--partial` lets it pass. The count of `nof` holds it the same way. A call in a spread's template inside the argument holds nothing, and an argument that doesn't stand admits nothing, as before. The definition reads such an atom as the term that waits, `Val.waiting` and `waitOr` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), where `Val.stalls` finds the call, and rows `wt0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. `contains`, `rest` and `len` over such a call read another way in both engines, which #977 tracks.
 
 ### Band B: `contains`
 

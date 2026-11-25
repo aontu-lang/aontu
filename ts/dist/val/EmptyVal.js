@@ -6,9 +6,9 @@ const type_1 = require("../type");
 const err_1 = require("../err");
 const FeatureVal_1 = require("./FeatureVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
-// `empty()`: the constraint that admits "" where `string` alone does
-// not. It waives rather than narrows, so it folds first in a conjunct:
-// `"" & string` would otherwise refuse before the waiver arrived.
+// `empty()` standing apart from a `string`: every string. Written beside
+// `string` in one conjunction it is that kind's second word, which the
+// parser reads; met any other way it widens nothing (decision 3).
 class EmptyVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super({ ...spec, peg: [] }, ctx);
@@ -24,7 +24,10 @@ class EmptyVal extends FeatureVal_1.FeatureVal {
         if (true === p.isNil) {
             return p;
         }
-        if ((true === p.isScalarKind && ScalarKindVal_1.String_ === p.peg) || true === p.isString) {
+        if (true === p.isScalarKind && ScalarKindVal_1.String_ === p.peg) {
+            return p;
+        }
+        if (true === p.isString) {
             return p.withEmpty(ctx);
         }
         if (true === p.isConstraint) {

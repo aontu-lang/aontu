@@ -8,6 +8,166 @@ each change affects.
 
 ## Unreleased
 
+### A trial over a call that waits, waits with it
+
+#432, in the definition. A `+` or a `join` that takes no operand yet,
+`integer + 1`, waits: it generates nothing, and `vet` reads the
+document as `incomplete`. Inside a trial the definition read the same
+call as refusing, since its checker refuses every value at a call. So
+`match(1, integer + 1, "yes", "no")` passed over the pattern and took
+its default, and `nof(0, integer + 1)` counted no branch, where both
+engines stage each argument before they try it and wait. The
+definition now reads a trial that tries such a call as the term that
+waits:
+
+- `match(1, integer + 1, "yes", "no")` is `incomplete` against `"no"`,
+  against any other value and against nothing, and `valid` under
+  `--partial`. It was `valid`, or `invalid` against a value the default
+  refuses. One pattern that waits holds the whole `match`:
+  `match(1, 1, "yes", integer + 1, "no")` waits though its first arm
+  alone would answer.
+- `nof(0, integer + 1)`, `must(integer + 1, "m")` and
+  `when(integer + 1, "a", "b")` are `incomplete` against a value. Each
+  was `valid` or `invalid` by what a refusing branch would give. A
+  count of `nof` that waits holds it the same way, and so does a trial
+  inside a trial.
+- A `match` whose patterns hold no call is made, so a call in the
+  result it takes reads where the `match` stood:
+  `match(1, 1, integer + 1, "no")` is `incomplete`, where it was
+  `invalid`.
+- A call in a spread's template inside a pattern or a branch holds
+  nothing, and a pattern or a branch that doesn't stand reads as
+  before: `match(1, add(integer, 1), "yes", "no")` is an `error`.
+
+`Val.stalls` finds the call, `Val.waiting` is the term, and `waitOr`
+and `selectRead` read the trial as it, all in
+`spec/Aontu/Verdict.lean`. No engine changes.
+
+Rows x498 and x499 of `test/spec/def-call.tsv` take the new answer and
+leave `spec/ledger.tsv`, whose bound falls to 37. Rows wt0 to wt95 of
+`test/spec/def-path.tsv` hold both engines to the reading, and both
+answer every one as the definition does. The rows of the entry below
+on a default that reaches a disjunction are da0 to da149, where they
+shared the tag `ar` with the rows of `apply`. `contains`, `rest` and
+`len` over such a call, a branch under `*` and a spread's template read
+another way in both engines and in the definition, which #977 tracks.
+
+### A `string` met with `string & empty()` is `string`
+
+#343, decision 3 of the definition's design note, in both engines.
+**Breaking.** The meet is a greatest lower bound, so a `string` admits
+no more for what it meets, and `string` refuses `""`. Both engines
+carried the non-emptiness and an `empty()` as two flags that every meet
+combined with OR, so one `empty()` anywhere in a conjunction lifted the
+non-emptiness of every `string` in it. `string & empty()` is now a kind
+of its own, as the definition reads it, and `empty()` lifts nothing it
+doesn't stand beside:
+
+- `(string) & (string & empty())` is `string`, in either order, under a
+  key, in a list, in a spread's template and in an arm of a
+  disjunction. It was `string & empty()`.
+  `string & (string & empty()) & ""` is refused with `string_empty`. It
+  was `""`.
+- `(string & empty()) & (string & empty())` is `string & empty()`, as
+  before.
+- A conjunction that writes `string` and `empty()` among its terms, in
+  any order, with no parenthesis between them, reads the two as the
+  kind: `"" & empty() & string` and `string & re("^a*$") & empty() & ""`
+  are `""`, as before.
+- An `empty()` in another statement, outside a parenthesised group, or
+  behind a name or a path lifts nothing. `a: {x: string}` beside
+  `a: {x: ""}` and `a: {x: empty()}` is refused with `string_empty`,
+  and `(string & re("^a*$")) & empty() & ""` is too. Each was `""`.
+- A string constraint follows: `string & re("x") & empty()` met with
+  `string` is `string & re("x")`.
+- `empty()` standing apart from any `string` admits every string, as
+  before: `empty() & ""` is `""`, and the JSON Schema importer's
+  `empty()` for `type: "string"` reads as it did.
+
+Each parser folds the `string` and the `empty()` one written `&` chain
+holds into the kind (`ts/src/lang.ts`, `go/lang.go`). A plain `string`
+kind stands against the wider one, and a string value or residual that
+has met a plain `string` keeps that whatever else it meets. The hint of
+`string_empty` says to write `string & empty()`.
+
+Rows c2005, c2373, c6829, c6845, c7213, c7229, c7565, c7581, c7949 and
+c7965 of `test/spec/def-fragment.tsv` leave `spec/ledger.tsv`, whose
+bound falls to 39. `test/spec/types.tsv` gains 46 rows and
+`test/spec/vet.tsv` 78, and four rows of `types.tsv` that held the old
+answer take the new one. The reference's section on `empty()` and step
+15 of the definition's tutorial follow.
+
+### A lone default reads a path outside it before data meets it
+
+#702, ruling 40, in both engines. `*x` alone is `x | super(x)`, and the
+parent arm, which takes what overrides the default, is the parent type
+of what `x` reads as on its own, before any data. Both engines read it
+so when a document was evaluated. Under `aontu vet` the data met the
+preference before a path to a place outside it was read, and the parent
+arm lifted the path to `any`:
+
+- `y: 1` beside `x: *{a: 1, b: $.y}` is `invalid` against
+  `{"y": 1, "x": {"a": 2, "b": "s"}}`. It was `valid`. `b` reads `1`,
+  so the parent arm asks an integer of it, and `{"a": 2, "b": 3}`
+  stays `valid`.
+- The answer is the same where `y` is written after `x`, and where `y`
+  is itself a path.
+- The parent arm reads the path in the schema's own tree, so data that
+  gives `y` a value doesn't narrow it: `y: integer` beside the same `x`
+  takes `{"y": 2, "x": {"a": 2, "b": 2.5}}`.
+- A path to a member of the default itself, `x: *{a: integer, b: .a}`,
+  reads as before: the data narrows what it reads.
+
+Each engine makes a lone preference wait for a path its value can't
+read on its own before a peer meets it, and under `vet` reads the
+default on its own in the schema's own tree, which `vet` already
+unifies first.
+
+Rows lp63 to lp65 and lpl63 to lpl65 of `test/spec/def-path.tsv` leave
+`spec/ledger.tsv`, whose bound falls to 49. `test/spec/vet.tsv` gains
+54 rows.
+
+### A default that reaches a disjunction as an arm stands as that arm
+
+#954, ruling 89, in the definition and both engines. An arm `*x`
+written in a disjunction is the arm `x` of rank one, with no parent
+type, so `*1 | "a"` refuses `3`. A default that got there another way
+read differently by the moment it settled: `pref(1) | "a"` refused `3`
+in both engines, and `pref($.d) | "a"` beside `d: 1`, or `$.d | "a"`
+beside `d: *1`, admitted it once data met the disjunction first. The
+definition admitted `3` for a `pref()` call and a path alike. A
+preference that stands as an arm is now that arm at its rank, however
+it got there and whenever it settles:
+
+- `level: $.defaults.level | "debug"` beside `defaults: level: *"info"`
+  is `invalid` under `aontu vet` against `{"level": "other"}`. It was
+  `valid`. It stays `valid` against `"debug"` and against nothing, where
+  `level` is `"info"`.
+- `d: 1` beside `x: pref($.d) | "a"`, and `d: *1` beside
+  `x: copy($.d) | "a"`, `x: move($.d) | "a"`, `x: meta($.d, {}) | "a"`,
+  `x: $.d & number | "a"` or `x: match(1, 1, $.d) | "a"`, are `invalid`
+  against `{"x": 3}`. Each was `valid`.
+- `x: ($.d | "a") & 3` beside `d: $.e` and `e: *1` is `empty`. It was
+  `{"x": 3}`, and already `empty` where `d: *1` stood in one step.
+- A star written on such an arm adds to the default's rank: `*(*1)` is
+  `**1` in the definition too, which read it as a rank over the whole
+  preference.
+- What a document writes stays. `d: *1 | number` beside `x: $.d | "a"`
+  admits `3`, `*1 & (1 | 2 | 3)` is `*1 | 2 | 3`, `super($.d)` is the
+  parent type, and `*1 & min(2)`, whose default the bound refuses,
+  leaves its parent type an arm like any other.
+
+Each engine reads an arm that hasn't settled, a path, a call or a meet,
+before the disjunction meets a term that isn't `top`, holding that term
+where a path to the arm's own place reads it. The definition's meet
+marks a lone preference's parent type (`Val.parentOf`, `rideLeft`),
+which admits what it admitted, and `Decls.armStands` reads each arm of
+a disjunction by its normal form (`Val.loneArms`).
+
+`test/spec/def-path.tsv` gains rows da0 to da149 and as0 to as5,
+`test/spec/vet.tsv` 165 rows and `test/spec/pref.tsv` 40. No other
+generated row changes.
+
 ### `keyed(p, t, e?)`: a short form for a key pattern
 
 Task KP1 of the lang refinement plan, on its ruling 18, in both

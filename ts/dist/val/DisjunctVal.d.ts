@@ -12,10 +12,12 @@ declare class DisjunctVal extends JunctionVal {
     }, ctx?: AontuContext, _sites?: Site[]);
     append(peer: Val): DisjunctVal;
     unify(peer: Val, ctx: AontuContext): Val;
+    readArms(peer: Val, ctx: AontuContext): boolean;
     rankPrefs(ctx: AontuContext): Val | undefined;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     getJunctionSymbol(): string;
     gen(ctx: AontuContext): any;
 }
+declare function unread(v: any): boolean;
 declare function meetRanked(ctx: AontuContext, a: Val, b: Val): Val;
-export { DisjunctVal, meetRanked, };
+export { DisjunctVal, meetRanked, unread, };

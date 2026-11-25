@@ -57,6 +57,8 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isScalarKind = true;
+        // The parser read it from a `string` and an `empty()` in the chain it is still reading.
+        this.folded = false;
         if (null == this.peg) {
             throw new err_1.AontuError('ScalarKindVal spec.peg undefined');
         }
@@ -65,9 +67,6 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
     }
     clone(ctx, spec) {
         return super.clone(ctx, { emptyOk: this.emptyOk, ...(spec ?? {}) });
-    }
-    withEmpty(ctx) {
-        return this.emptyOk ? this : this.clone(ctx, { emptyOk: true });
     }
     unify(peer, ctx) {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'ScalarKind', this, peer);
@@ -95,7 +94,7 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
         }
         else if (peerIsScalarKind) {
             if (this.peg === peer.peg) {
-                out = !this.emptyOk && true === peer.emptyOk ? peer : this;
+                out = this.emptyOk && true !== peer.emptyOk ? peer : this;
             }
             else if (kindSubsumes(this.peg, peer.peg)) {
                 out = peer;

@@ -52,6 +52,7 @@ inductive Rider where
   | seals                                   -- a bare `close()`, its place sealed once its terms have met
   | move (n : String)                       -- the value `move` makes of the path named `n` (`pathName`)
   | void                                    -- around `nil`, the `nil` a document writes, which forbids (`Val.void`)
+  | parent                                  -- around `super(x)` in the `x | super(x)` a lone `*x` is (`Val.parentOf`)
   deriving DecidableEq
 
 /-- A rider's record: the members of a map of data, as both ports take
@@ -135,6 +136,22 @@ def Val.isVoid : Val → Bool
   | .ride _ v _ => v.isVoid
   | .link v _ => v.isVoid
   | _ => false
+
+/-- A lone preference's parent type, marked. `*x` alone is
+`x | super(x)`, and the mark tells that second arm from one a document
+writes: it admits what it admitted, and a disjunction that takes the
+preference as an arm leaves it out (ruling 89). -/
+abbrev Val.parentOf (t : Val) : Val := .ride .parent t []
+
+/-- Whether a term is a lone preference's parent type (`Val.parentOf`). -/
+def Val.isParent : Val → Bool
+  | .ride .parent _ _ => true
+  | _ => false
+
+/-- A term with the mark of a parent type read through (`Val.parentOf`). -/
+def Val.unparent : Val → Val
+  | .ride .parent v _ => v.unparent
+  | v => v
 
 /-- A cover of `rest`: its `if`, tried on the whole value, its `keys`,
 tried on a member's key, and its `members`, tried on a member, each
@@ -414,7 +431,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .ride .opened v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .void v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _
-  | .ride .lifts v _ | .ride .seals v _ => by
+  | .ride .lifts v _ | .ride .seals v _ | .ride .parent v _ => by
     simp only [Val.super]; exact Val.keyed_super v
   | .link v _ => by simp only [Val.super]; exact Val.keyed_super v
   | .pref _ x => by simp only [Val.super]; exact Val.keyed_super x

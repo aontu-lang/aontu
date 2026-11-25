@@ -44,6 +44,8 @@ class ConjunctVal extends JunctionVal {
   isGenable = true
   cjo = 40000
   waits = false
+  // One step of an `&` chain as the parser read it, no parenthesis around it yet.
+  written = false
 
   constructor(
     spec: ValSpec,

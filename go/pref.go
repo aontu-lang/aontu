@@ -52,16 +52,31 @@ func (p *PrefVal) lone() Val {
 	return prefInnerPeg(p)
 }
 
-// Ruling 40: the parent arm lifts the default as read on its own.
-func (p *PrefVal) parentArm(ctx *Ctx) Val {
+// own is the default read on its own, before any data: in the schema's own tree under vet (ruling 40).
+func (p *PrefVal) own(ctx *Ctx) Val {
 	alone := p.lone()
-	own := ctx.holdArm(p.path, alone, nil, true, func() Val {
+	root := ctx.root
+	if nil != ctx.ownroot {
+		ctx.root = ctx.ownroot
+	}
+	defer func() { ctx.root = root }()
+	return ctx.holdArm(p.path, alone, nil, true, func() Val {
 		return trialUnify(ctx, clonePath(alone, cp(p.path)), top())
 	})
+}
+
+// Ruling 40: the parent arm lifts the default as read on its own.
+func (p *PrefVal) parentArm(ctx *Ctx) Val {
+	own := p.own(ctx)
 	if nil == own {
 		return clonePath(p.superpeg, cp(p.path))
 	}
 	return unite(ctx, superOf(cp(p.path), own), clonePath(p.superpeg, cp(p.path)))
+}
+
+func (p *PrefVal) waitsForPath(ctx *Ctx) bool {
+	own := p.own(ctx)
+	return nil != own && unread(own)
 }
 
 // A preference met with another of its rank meets their override
@@ -220,6 +235,13 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 
 			inner := prefInnerPeg(p)
+			// A path the value can't read on its own yet is read before a peer meets the preference.
+			if unread(inner) && p.waitsForPath(ctx) {
+				cj := newConjunct([]Val{p, peer})
+				cj.path = cp(p.path)
+				cj.site.sp, cj.site.spu, cj.site.url = p.site.sp, p.site.spu, p.site.url
+				return cj
+			}
 			met := ctx.holdArm(p.path, inner, peer, false, func() Val {
 				return trialUnify(ctx, clonePath(inner, cp(p.path)), peer)
 			})

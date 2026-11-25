@@ -505,7 +505,8 @@ type ConstraintVal struct {
 	// so emptiness carries the news instead.
 	clash   bool
 	invalid string // why-code when the atom's arguments were unusable
-	// nonEmpty met `string`, which refuses ""; emptyOk met `empty()`.
+	// nonEmpty met a string kind; emptyOk met `empty()` or
+	// `string & empty()`, and no plain `string`.
 	nonEmpty bool
 	emptyOk  bool
 	// pathKind met `path`, which shares string's domain but not its kind.
@@ -1045,7 +1046,7 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	if refused || (c.nonEmpty && KindPath == peer.kind) || (c.pathKind && KindPath != peer.kind) {
 		return c.fail(ctx, peer, by)
 	}
-	if c.nonEmpty {
+	if c.plainString() {
 		peer = peer.withNonEmpty()
 	}
 	if c.emptyOk {
@@ -1378,7 +1379,8 @@ func (c *ConstraintVal) meetKind(peer *ScalarKindVal, ctx *Ctx) Val {
 			d = "string"
 		}
 		nonEmpty := c.nonEmpty || KindString == peer.kind
-		emptyOk := c.emptyOk || peer.emptyOk
+		plain := c.plainString() || (KindString == peer.kind && !peer.emptyOk)
+		emptyOk := !plain && (c.emptyOk || peer.emptyOk)
 		if d == c.domain && nonEmpty == c.nonEmpty && emptyOk == c.emptyOk {
 			return c
 		}
@@ -1464,7 +1466,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.contains = mergeContains(append(append([]constraintContains{}, c.contains...), peer.contains...))
 	merged.rests = mergeRests(append(append([]constraintRest{}, c.rests...), peer.rests...))
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
-	merged.emptyOk = c.emptyOk || peer.emptyOk
+	merged.emptyOk = !c.plainString() && !peer.plainString() && (c.emptyOk || peer.emptyOk)
 	merged.pathKind = c.pathKind || peer.pathKind
 	merged.sites = map[any]site{}
 	for _, side := range []*ConstraintVal{peer, c} {
@@ -1476,12 +1478,19 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	return c.finish(merged, ctx, peer)
 }
 
-// allowEmpty is the meet with `empty()`.
+// plainString: it met a `string` that no `empty()` stood beside, which
+// refuses "".
+func (c *ConstraintVal) plainString() bool {
+	return c.nonEmpty && !c.emptyOk
+}
+
+// allowEmpty is the meet with `empty()`: a string residual, which admits
+// "" unless it has met a plain `string`.
 func (c *ConstraintVal) allowEmpty(ctx *Ctx, peer Val) Val {
 	if "number" == c.domain || KindTop != c.kind || c.pathKind {
 		return makeNilErr(ctx, "empty_domain", peer, c)
 	}
-	if c.emptyOk && "string" == c.domain {
+	if (c.emptyOk || c.nonEmpty) && "string" == c.domain {
 		return c
 	}
 	merged := c.cloneState()

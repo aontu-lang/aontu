@@ -24,6 +24,8 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         this.isGenable = true;
         this.cjo = 40000;
         this.waits = false;
+        // One step of an `&` chain as the parser read it, no parenthesis around it yet.
+        this.written = false;
         this.mark.type = !!spec.mark?.type;
         this.mark.hide = !!spec.mark?.hide;
         this.peg = (Array.isArray(this.peg) ? this.peg : [])

@@ -19,6 +19,7 @@ type Ctx struct {
 	trial     bool
 	matchRead bool
 	fixroot   Val
+	ownroot   Val
 	settle    bool
 	vars      map[string]Val // user-provided variables, resolved by $name
 	collect   bool

@@ -760,3 +760,321 @@ vet-template-no-clash-a-generator-over-a-hole	verdict	x: {&: each([1], _)}	{}	{"
 vet-template-no-clash-a-generator-over-a-hole-with-no-fill	verdict	x: {&: each([1], _)}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 vet-template-no-clash-a-generator-over-a-hole-under-partial	verdict	x: {&: each([1], _)}	{}	{"verdict":"valid","opts":{"partial":true}}
 vet-template-no-clash-a-generator-over-a-hole-at-a-member	verdict	x: {&: each([1], _)}	{"x": {"k": [1]}}	{"verdict":"valid"}
+
+# A DEFAULT THAT REACHES A DISJUNCTION AS AN ARM (#954, ruling 89). A default
+# standing as an arm is the arm of its rank, with no parent type, however
+# it got there: a pref() call, a name, a path, a copy, a move, a rider, a
+# meet with a kind or a match's result. Each engine reads an arm that
+# isn't read yet before the disjunction meets the data, so the answer is
+# the same whenever the arm settles. What a document writes stays: a
+# written parent type, a disjunction the default met, and the parent type
+# of a default a meet refused. Rows ar0 on of def-path.tsv are the
+# generated ones, and each answer here is the definition's too.
+vet-arm-the-rulings-level-against-another-string	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{"level": "other"}	{"verdict":"invalid"}
+vet-arm-the-rulings-level-against-another-string-with-no-fill	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{"level": "other"}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-the-rulings-level-against-another-string-under-partial	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{"level": "other"}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-the-rulings-level-against-its-other-arm	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{"level": "debug"}	{"verdict":"valid"}
+vet-arm-the-rulings-level-against-its-other-arm-with-no-fill	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{"level": "debug"}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-the-rulings-level-against-its-other-arm-under-partial	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{"level": "debug"}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-the-rulings-level-against-nothing	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{}	{"verdict":"valid"}
+vet-arm-the-rulings-level-against-nothing-with-no-fill	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-the-rulings-level-against-nothing-under-partial	verdict	level: $.defaults.level | "debug"\ndefaults: level: *"info"	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-pref-call-against-its-parent-type	verdict	x: pref(1) | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-pref-call-against-its-parent-type-with-no-fill	verdict	x: pref(1) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-pref-call-against-its-parent-type-under-partial	verdict	x: pref(1) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-pref-call-against-its-own-value	verdict	x: pref(1) | "a"	{"x": 1}	{"verdict":"valid"}
+vet-arm-a-pref-call-against-its-own-value-with-no-fill	verdict	x: pref(1) | "a"	{"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-a-pref-call-against-its-own-value-under-partial	verdict	x: pref(1) | "a"	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-pref-call-against-nothing	verdict	x: pref(1) | "a"	{}	{"verdict":"valid"}
+vet-arm-a-pref-call-against-nothing-with-no-fill	verdict	x: pref(1) | "a"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-pref-call-against-nothing-under-partial	verdict	x: pref(1) | "a"	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-pref-over-a-path-against-its-parent-type	verdict	d: 1\nx: pref($.d) | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-pref-over-a-path-against-its-parent-type-with-no-fill	verdict	d: 1\nx: pref($.d) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-pref-over-a-path-against-its-parent-type-under-partial	verdict	d: 1\nx: pref($.d) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-pref-over-a-path-against-its-own-value	verdict	d: 1\nx: pref($.d) | "a"	{"x": 1}	{"verdict":"valid"}
+vet-arm-a-pref-over-a-path-against-its-own-value-with-no-fill	verdict	d: 1\nx: pref($.d) | "a"	{"x": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-pref-over-a-path-against-its-own-value-under-partial	verdict	d: 1\nx: pref($.d) | "a"	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-pref-over-a-path-the-data-settles-agreeing	verdict	d: number\nx: pref($.d) | "a"	{"x": 3, "d": 3}	{"verdict":"valid"}
+vet-arm-a-pref-over-a-path-the-data-settles-agreeing-with-no-fill	verdict	d: number\nx: pref($.d) | "a"	{"x": 3, "d": 3}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-a-pref-over-a-path-the-data-settles-agreeing-under-partial	verdict	d: number\nx: pref($.d) | "a"	{"x": 3, "d": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-pref-over-a-path-the-data-settles-differing	verdict	d: number\nx: pref($.d) | "a"	{"x": 3, "d": 4}	{"verdict":"invalid"}
+vet-arm-a-pref-over-a-path-the-data-settles-differing-with-no-fill	verdict	d: number\nx: pref($.d) | "a"	{"x": 3, "d": 4}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-pref-over-a-path-the-data-settles-differing-under-partial	verdict	d: number\nx: pref($.d) | "a"	{"x": 3, "d": 4}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-pref-over-a-path-nothing-settles	verdict	d: number\nx: pref($.d) | "a"	{"x": 3}	{"verdict":"incomplete"}
+vet-arm-a-pref-over-a-path-nothing-settles-with-no-fill	verdict	d: number\nx: pref($.d) | "a"	{"x": 3}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-pref-over-a-path-nothing-settles-under-partial	verdict	d: number\nx: pref($.d) | "a"	{"x": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-name-against-its-parent-type	verdict	%T = *1\nx: %T | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-name-against-its-parent-type-with-no-fill	verdict	%T = *1\nx: %T | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-name-against-its-parent-type-under-partial	verdict	%T = *1\nx: %T | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-path-against-its-parent-type	verdict	d: *1\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-path-against-its-parent-type-with-no-fill	verdict	d: *1\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-path-against-its-parent-type-under-partial	verdict	d: *1\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-path-against-its-own-value	verdict	d: *1\nx: $.d | "a"	{"x": 1}	{"verdict":"valid"}
+vet-arm-a-path-against-its-own-value-with-no-fill	verdict	d: *1\nx: $.d | "a"	{"x": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-path-against-its-own-value-under-partial	verdict	d: *1\nx: $.d | "a"	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-path-against-the-other-arm	verdict	d: *1\nx: $.d | "a"	{"x": "a"}	{"verdict":"valid"}
+vet-arm-a-path-against-the-other-arm-with-no-fill	verdict	d: *1\nx: $.d | "a"	{"x": "a"}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-path-against-the-other-arm-under-partial	verdict	d: *1\nx: $.d | "a"	{"x": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-path-against-nothing	verdict	d: *1\nx: $.d | "a"	{}	{"verdict":"valid"}
+vet-arm-a-path-against-nothing-with-no-fill	verdict	d: *1\nx: $.d | "a"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-path-against-nothing-under-partial	verdict	d: *1\nx: $.d | "a"	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-path-the-data-gives-a-value-agreeing	verdict	d: *1\nx: $.d | "a"	{"d": 5, "x": 5}	{"verdict":"valid"}
+vet-arm-a-path-the-data-gives-a-value-agreeing-with-no-fill	verdict	d: *1\nx: $.d | "a"	{"d": 5, "x": 5}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-a-path-the-data-gives-a-value-agreeing-under-partial	verdict	d: *1\nx: $.d | "a"	{"d": 5, "x": 5}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-path-the-data-gives-a-value-differing	verdict	d: *1\nx: $.d | "a"	{"d": 5, "x": 1}	{"verdict":"invalid"}
+vet-arm-a-path-the-data-gives-a-value-differing-with-no-fill	verdict	d: *1\nx: $.d | "a"	{"d": 5, "x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-path-the-data-gives-a-value-differing-under-partial	verdict	d: *1\nx: $.d | "a"	{"d": 5, "x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-path-through-a-path-against-its-parent-type	verdict	x: $.d | "a"\nd: $.e\ne: *1	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-path-through-a-path-against-its-parent-type-with-no-fill	verdict	x: $.d | "a"\nd: $.e\ne: *1	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-path-through-a-path-against-its-parent-type-under-partial	verdict	x: $.d | "a"\nd: $.e\ne: *1	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-path-through-a-path-against-its-own-value	verdict	x: $.d | "a"\nd: $.e\ne: *1	{"x": 1}	{"verdict":"valid"}
+vet-arm-a-path-through-a-path-against-its-own-value-with-no-fill	verdict	x: $.d | "a"\nd: $.e\ne: *1	{"x": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-path-through-a-path-against-its-own-value-under-partial	verdict	x: $.d | "a"\nd: $.e\ne: *1	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-copy-against-its-parent-type	verdict	d: *1\nx: copy($.d) | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-copy-against-its-parent-type-with-no-fill	verdict	d: *1\nx: copy($.d) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-copy-against-its-parent-type-under-partial	verdict	d: *1\nx: copy($.d) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-move-against-its-parent-type	verdict	d: *1\nx: move($.d) | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-move-against-its-parent-type-with-no-fill	verdict	d: *1\nx: move($.d) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-move-against-its-parent-type-under-partial	verdict	d: *1\nx: move($.d) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-rider-against-its-parent-type	verdict	d: *1\nx: meta($.d, {}) | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-rider-against-its-parent-type-with-no-fill	verdict	d: *1\nx: meta($.d, {}) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-rider-against-its-parent-type-under-partial	verdict	d: *1\nx: meta($.d, {}) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-meet-with-the-kind-against-its-parent-type	verdict	d: *1\nx: $.d & number | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-meet-with-the-kind-against-its-parent-type-with-no-fill	verdict	d: *1\nx: $.d & number | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-meet-with-the-kind-against-its-parent-type-under-partial	verdict	d: *1\nx: $.d & number | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-matchs-result-against-its-parent-type	verdict	k: number\nx: match($.k, number, pref(1), string, "s") | "a"	{"x": 3, "k": 2}	{"verdict":"invalid"}
+vet-arm-a-matchs-result-against-its-parent-type-with-no-fill	verdict	k: number\nx: match($.k, number, pref(1), string, "s") | "a"	{"x": 3, "k": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-matchs-result-against-its-parent-type-under-partial	verdict	k: number\nx: match($.k, number, pref(1), string, "s") | "a"	{"x": 3, "k": 2}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-matchs-result-against-nothing	verdict	k: number\nx: match($.k, number, pref(1), string, "s") | "a"	{"k": 2}	{"verdict":"valid"}
+vet-arm-a-matchs-result-against-nothing-with-no-fill	verdict	k: number\nx: match($.k, number, pref(1), string, "s") | "a"	{"k": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-matchs-result-against-nothing-under-partial	verdict	k: number\nx: match($.k, number, pref(1), string, "s") | "a"	{"k": 2}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-matchs-other-result	verdict	k: number | string\nx: match($.k, number, pref(1), string, "s") | "a"	{"x": "s", "k": "q"}	{"verdict":"valid"}
+vet-arm-a-matchs-other-result-with-no-fill	verdict	k: number | string\nx: match($.k, number, pref(1), string, "s") | "a"	{"x": "s", "k": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-a-matchs-other-result-under-partial	verdict	k: number | string\nx: match($.k, number, pref(1), string, "s") | "a"	{"x": "s", "k": "q"}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-in-a-list	verdict	x: [pref(1) | "a"]	{"x": [3]}	{"verdict":"invalid"}
+vet-arm-in-a-list-with-no-fill	verdict	x: [pref(1) | "a"]	{"x": [3]}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-in-a-list-under-partial	verdict	x: [pref(1) | "a"]	{"x": [3]}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-in-a-lists-template	verdict	x: [&: pref(1) | "a"]	{"x": [3]}	{"verdict":"invalid"}
+vet-arm-in-a-lists-template-with-no-fill	verdict	x: [&: pref(1) | "a"]	{"x": [3]}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-in-a-lists-template-under-partial	verdict	x: [&: pref(1) | "a"]	{"x": [3]}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-in-a-lists-template-against-both-arms	verdict	x: [&: pref(1) | "a"]	{"x": [1, "a"]}	{"verdict":"valid"}
+vet-arm-in-a-lists-template-against-both-arms-with-no-fill	verdict	x: [&: pref(1) | "a"]	{"x": [1, "a"]}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-in-a-lists-template-against-both-arms-under-partial	verdict	x: [&: pref(1) | "a"]	{"x": [1, "a"]}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-over-a-templates-key-against-another-string	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "q"}}	{"verdict":"invalid"}
+vet-arm-over-a-templates-key-against-another-string-with-no-fill	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "q"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-over-a-templates-key-against-another-string-under-partial	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "q"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-over-a-templates-key-against-the-key	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "b"}}	{"verdict":"valid"}
+vet-arm-over-a-templates-key-against-the-key-with-no-fill	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "b"}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-over-a-templates-key-against-the-key-under-partial	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "b"}}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-over-a-templates-key-against-the-other-arm	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "a"}}	{"verdict":"valid"}
+vet-arm-over-a-templates-key-against-the-other-arm-with-no-fill	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "a"}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-over-a-templates-key-against-the-other-arm-under-partial	verdict	x: {&: pref(key(0)) | "a"}	{"x": {"b": "a"}}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-map-default-against-another-map	verdict	d: *{a: 1}\nx: $.d | "a"	{"x": {"a": 2}}	{"verdict":"invalid"}
+vet-arm-a-map-default-against-another-map-with-no-fill	verdict	d: *{a: 1}\nx: $.d | "a"	{"x": {"a": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-map-default-against-another-map-under-partial	verdict	d: *{a: 1}\nx: $.d | "a"	{"x": {"a": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-map-default-against-its-own-value	verdict	d: *{a: 1}\nx: $.d | "a"	{"x": {"a": 1}}	{"verdict":"valid"}
+vet-arm-a-map-default-against-its-own-value-with-no-fill	verdict	d: *{a: 1}\nx: $.d | "a"	{"x": {"a": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-map-default-against-its-own-value-under-partial	verdict	d: *{a: 1}\nx: $.d | "a"	{"x": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-map-default-against-nothing	verdict	d: *{a: 1}\nx: $.d | "a"	{}	{"verdict":"valid"}
+vet-arm-a-map-default-against-nothing-with-no-fill	verdict	d: *{a: 1}\nx: $.d | "a"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-map-default-against-nothing-under-partial	verdict	d: *{a: 1}\nx: $.d | "a"	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-default-inside-a-map-keeps-its-parent-type	verdict	d: {a: *1}\nx: $.d | "a"	{"x": {"a": 2}}	{"verdict":"valid"}
+vet-arm-a-default-inside-a-map-keeps-its-parent-type-with-no-fill	verdict	d: {a: *1}\nx: $.d | "a"	{"x": {"a": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-default-inside-a-map-keeps-its-parent-type-under-partial	verdict	d: {a: *1}\nx: $.d | "a"	{"x": {"a": 2}}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-parenthesised-default	verdict	x: (*1) | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-parenthesised-default-with-no-fill	verdict	x: (*1) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-parenthesised-default-under-partial	verdict	x: (*1) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-starred-default	verdict	x: *(*1) | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-starred-default-with-no-fill	verdict	x: *(*1) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-starred-default-under-partial	verdict	x: *(*1) | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-supers-result-stays-the-parent-type	verdict	d: *1\nx: super($.d) | "a"	{"x": 3}	{"verdict":"valid"}
+vet-arm-supers-result-stays-the-parent-type-with-no-fill	verdict	d: *1\nx: super($.d) | "a"	{"x": 3}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-supers-result-stays-the-parent-type-under-partial	verdict	d: *1\nx: super($.d) | "a"	{"x": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-written-parent-type-stays	verdict	d: *1 | number\nx: $.d | "a"	{"x": 3}	{"verdict":"valid"}
+vet-arm-a-written-parent-type-stays-with-no-fill	verdict	d: *1 | number\nx: $.d | "a"	{"x": 3}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-written-parent-type-stays-under-partial	verdict	d: *1 | number\nx: $.d | "a"	{"x": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-disjunction-the-default-met-stays	verdict	d: *1 & (1 | 2 | 3)\nx: $.d | "a"	{"x": 2}	{"verdict":"valid"}
+vet-arm-a-disjunction-the-default-met-stays-with-no-fill	verdict	d: *1 & (1 | 2 | 3)\nx: $.d | "a"	{"x": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-disjunction-the-default-met-stays-under-partial	verdict	d: *1 & (1 | 2 | 3)\nx: $.d | "a"	{"x": 2}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-disjunction-the-default-met-bounds	verdict	d: *1 & (1 | 2 | 3)\nx: $.d | "a"	{"x": 4}	{"verdict":"invalid"}
+vet-arm-a-disjunction-the-default-met-bounds-with-no-fill	verdict	d: *1 & (1 | 2 | 3)\nx: $.d | "a"	{"x": 4}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-disjunction-the-default-met-bounds-under-partial	verdict	d: *1 & (1 | 2 | 3)\nx: $.d | "a"	{"x": 4}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-disjunction-of-kinds-the-default-met-stays	verdict	d: *1 & (integer | string)\nx: $.d | "a"	{"x": 2}	{"verdict":"valid"}
+vet-arm-a-disjunction-of-kinds-the-default-met-stays-with-no-fill	verdict	d: *1 & (integer | string)\nx: $.d | "a"	{"x": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-disjunction-of-kinds-the-default-met-stays-under-partial	verdict	d: *1 & (integer | string)\nx: $.d | "a"	{"x": 2}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-default-a-meet-refused-is-its-parent-type	verdict	x: (*1 & min(2)) | "a"	{"x": 7}	{"verdict":"valid"}
+vet-arm-a-default-a-meet-refused-is-its-parent-type-with-no-fill	verdict	x: (*1 & min(2)) | "a"	{"x": 7}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-a-default-a-meet-refused-is-its-parent-type-under-partial	verdict	x: (*1 & min(2)) | "a"	{"x": 7}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-default-a-meet-refused-has-no-default	verdict	x: (*1 & min(2)) | "a"	{"x": 1}	{"verdict":"invalid"}
+vet-arm-a-default-a-meet-refused-has-no-default-with-no-fill	verdict	x: (*1 & min(2)) | "a"	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-default-a-meet-refused-has-no-default-under-partial	verdict	x: (*1 & min(2)) | "a"	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-default-a-kind-narrowed	verdict	d: *1 & integer\nx: $.d | "a"	{"x": 2}	{"verdict":"invalid"}
+vet-arm-a-default-a-kind-narrowed-with-no-fill	verdict	d: *1 & integer\nx: $.d | "a"	{"x": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-default-a-kind-narrowed-under-partial	verdict	d: *1 & integer\nx: $.d | "a"	{"x": 2}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-default-met-with-its-twin	verdict	d: *1 & *1\nx: $.d | "a"	{"x": 2}	{"verdict":"invalid"}
+vet-arm-a-default-met-with-its-twin-with-no-fill	verdict	d: *1 & *1\nx: $.d | "a"	{"x": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-default-met-with-its-twin-under-partial	verdict	d: *1 & *1\nx: $.d | "a"	{"x": 2}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-two-defaults-of-one-rank-clash	verdict	d: *1\nx: $.d | *2	{}	{"verdict":"error"}
+vet-arm-two-defaults-of-one-rank-clash-with-no-fill	verdict	d: *1\nx: $.d | *2	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-arm-two-defaults-of-one-rank-clash-under-partial	verdict	d: *1\nx: $.d | *2	{}	{"verdict":"error","opts":{"partial":true}}
+vet-arm-two-defaults-of-two-ranks	verdict	d: *1\ne: **2\nx: $.d | $.e	{}	{"verdict":"valid"}
+vet-arm-two-defaults-of-two-ranks-with-no-fill	verdict	d: *1\ne: **2\nx: $.d | $.e	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-two-defaults-of-two-ranks-under-partial	verdict	d: *1\ne: **2\nx: $.d | $.e	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-two-defaults-of-two-ranks-against-the-weaker	verdict	d: *1\ne: **2\nx: $.d | $.e	{"x": 2}	{"verdict":"valid"}
+vet-arm-two-defaults-of-two-ranks-against-the-weaker-with-no-fill	verdict	d: *1\ne: **2\nx: $.d | $.e	{"x": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-two-defaults-of-two-ranks-against-the-weaker-under-partial	verdict	d: *1\ne: **2\nx: $.d | $.e	{"x": 2}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-two-defaults-of-two-ranks-against-neither	verdict	d: *1\ne: **2\nx: $.d | $.e	{"x": 3}	{"verdict":"invalid"}
+vet-arm-two-defaults-of-two-ranks-against-neither-with-no-fill	verdict	d: *1\ne: **2\nx: $.d | $.e	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-two-defaults-of-two-ranks-against-neither-under-partial	verdict	d: *1\ne: **2\nx: $.d | $.e	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+vet-arm-a-path-to-nothing-drops-its-arm	verdict	x: $.nope | "a"	{"x": "a"}	{"verdict":"valid"}
+vet-arm-a-path-to-nothing-drops-its-arm-with-no-fill	verdict	x: $.nope | "a"	{"x": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-arm-a-path-to-nothing-drops-its-arm-under-partial	verdict	x: $.nope | "a"	{"x": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-path-to-a-disjunction-brings-its-arms	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 2}	{"verdict":"incomplete"}
+vet-arm-a-path-to-a-disjunction-brings-its-arms-with-no-fill	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-arm-a-path-to-a-disjunction-brings-its-arms-under-partial	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 2}	{"verdict":"valid","opts":{"partial":true}}
+vet-arm-a-path-to-a-disjunction-bounds	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid"}
+vet-arm-a-path-to-a-disjunction-bounds-with-no-fill	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-arm-a-path-to-a-disjunction-bounds-under-partial	verdict	d: 1 | 2\nx: $.d | "a"	{"x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+
+# A LONE DEFAULT OVER A PATH TO A PLACE OUTSIDE IT (#702, ruling 40). The
+# parent arm, which takes what overrides the default, is the parent type
+# of what the default reads as on its own, before any data. A preference
+# waits for a path its value can't read on its own before a peer meets
+# it, and reads the path in the schema's own tree, so the answer is the
+# same in whatever order the places are written and whatever the data
+# gives the place the path names. Rows lp63 to lp65 of def-path.tsv are
+# the generated ones, and each answer here is the definition's too.
+vet-lone-a-path-outside-against-another-kind	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-against-another-kind-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-another-kind-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-against-its-parent-type	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-against-its-parent-type-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-its-parent-type-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-against-its-own-value	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 1, "b": 1}}	{"verdict":"valid"}
+vet-lone-a-path-outside-against-its-own-value-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-its-own-value-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1, "x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-against-nothing	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1}	{"verdict":"valid"}
+vet-lone-a-path-outside-against-nothing-with-no-fill	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-a-path-outside-against-nothing-under-partial	verdict	y: 1\nx: *{a: 1, b: $.y}	{"y": 1}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-written-after	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-written-after-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-written-after-under-partial	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-written-after-against-its-parent-type	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-written-after-against-its-parent-type-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-written-after-against-its-parent-type-under-partial	verdict	x: *{a: 1, b: $.y}\ny: 1	{"y": 1, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-through-a-path	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-through-a-path-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-through-a-path-under-partial	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-through-a-path-against-its-parent-type	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-through-a-path-against-its-parent-type-with-no-fill	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": 3}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-a-path-outside-through-a-path-against-its-parent-type-under-partial	verdict	x: *{a: 1, b: $.y}\ny: $.z\nz: 1	{"x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-the-data-settles	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"valid"}
+vet-lone-a-path-outside-the-data-settles-with-no-fill	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-the-data-settles-under-partial	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-the-data-settles-against-its-parent-type	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 3}}	{"verdict":"valid"}
+vet-lone-a-path-outside-the-data-settles-against-its-parent-type-with-no-fill	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-the-data-settles-against-its-parent-type-under-partial	verdict	y: number\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-scalar-over-a-path-against-another-kind	verdict	y: 1\nx: *$.y	{"y": 1, "x": "s"}	{"verdict":"invalid"}
+vet-lone-a-scalar-over-a-path-against-another-kind-with-no-fill	verdict	y: 1\nx: *$.y	{"y": 1, "x": "s"}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-scalar-over-a-path-against-another-kind-under-partial	verdict	y: 1\nx: *$.y	{"y": 1, "x": "s"}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-scalar-over-a-path-against-its-parent-type	verdict	y: 1\nx: *$.y	{"y": 1, "x": 3}	{"verdict":"valid"}
+vet-lone-a-scalar-over-a-path-against-its-parent-type-with-no-fill	verdict	y: 1\nx: *$.y	{"y": 1, "x": 3}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-scalar-over-a-path-against-its-parent-type-under-partial	verdict	y: 1\nx: *$.y	{"y": 1, "x": 3}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-list-over-a-path-against-another-kind	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": ["s"]}	{"verdict":"invalid"}
+vet-lone-a-list-over-a-path-against-another-kind-with-no-fill	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": ["s"]}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-list-over-a-path-against-another-kind-under-partial	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": ["s"]}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-list-over-a-path-against-its-parent-type	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": [2]}	{"verdict":"valid"}
+vet-lone-a-list-over-a-path-against-its-parent-type-with-no-fill	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": [2]}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-list-over-a-path-against-its-parent-type-under-partial	verdict	y: 1\nx: *[$.y]	{"y": 1, "x": [2]}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-to-its-own-member-reads-the-data	verdict	x: *{a: integer, b: .a}	{"x": {"a": 5}}	{"verdict":"valid"}
+vet-lone-a-path-to-its-own-member-reads-the-data-with-no-fill	verdict	x: *{a: integer, b: .a}	{"x": {"a": 5}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-a-path-to-its-own-member-reads-the-data-under-partial	verdict	x: *{a: integer, b: .a}	{"x": {"a": 5}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-to-its-own-member-against-another-kind	verdict	x: *{a: 1, b: .a}	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-to-its-own-member-against-another-kind-with-no-fill	verdict	x: *{a: 1, b: .a}	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-to-its-own-member-against-another-kind-under-partial	verdict	x: *{a: 1, b: .a}	{"x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-a-path-outside-reads-the-schema-not-the-data	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 2.5}}	{"verdict":"valid"}
+vet-lone-a-path-outside-reads-the-schema-not-the-data-with-no-fill	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 2.5}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-a-path-outside-reads-the-schema-not-the-data-under-partial	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": 2.5}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-a-path-outside-reads-the-schema-against-another-kind	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
+vet-lone-a-path-outside-reads-the-schema-against-another-kind-with-no-fill	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-a-path-outside-reads-the-schema-against-another-kind-under-partial	verdict	y: integer\nx: *{a: 1, b: $.y}	{"y": 2, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+# `string` MET WITH `string & empty()` IS `string` (#343): each row is the
+# definition's answer too, where it reads `string & empty()` as `anyString`.
+vet-string-meets-string-with-empty-against-the-empty-string	verdict	v: (string) & (string & empty())	{"v": ""}	{"verdict":"invalid"}
+vet-string-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-meets-string-against-a-string	verdict	v: (string & empty()) & (string)	{"v": "a"}	{"verdict":"valid"}
+vet-string-with-empty-meets-string-against-a-string-with-no-fill	verdict	v: (string & empty()) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-meets-string-against-a-string-under-partial	verdict	v: (string & empty()) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-with-empty-meets-itself-against-the-empty-string	verdict	v: (string & empty()) & (string & empty())	{"v": ""}	{"verdict":"valid"}
+vet-string-with-empty-meets-itself-against-the-empty-string-with-no-fill	verdict	v: (string & empty()) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-meets-itself-against-the-empty-string-under-partial	verdict	v: (string & empty()) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-bounded-string-with-empty-meets-string-against-the-empty-string	verdict	v: (string & empty() & max("b")) & (string)	{"v": ""}	{"verdict":"invalid"}
+vet-bounded-string-with-empty-meets-string-against-the-empty-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-bounded-string-with-empty-meets-string-against-the-empty-string-under-partial	verdict	v: (string & empty() & max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-bounded-string-with-empty-meets-string-against-a-string	verdict	v: (string & empty() & max("b")) & (string)	{"v": "a"}	{"verdict":"valid"}
+vet-bounded-string-with-empty-meets-string-against-a-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-bounded-string-with-empty-meets-string-against-a-string-under-partial	verdict	v: (string & empty() & max("b")) & (string)	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-meets-bounded-string-with-empty-against-the-empty-string	verdict	v: (string) & (string & empty() & max("b"))	{"v": ""}	{"verdict":"invalid"}
+vet-string-meets-bounded-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string) & (string & empty() & max("b"))	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-meets-bounded-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string) & (string & empty() & max("b"))	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-a-bound-meets-string-against-the-empty-string	verdict	v: (max("b")) & (string)	{"v": ""}	{"verdict":"invalid"}
+vet-a-bound-meets-string-against-the-empty-string-with-no-fill	verdict	v: (max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-a-bound-meets-string-against-the-empty-string-under-partial	verdict	v: (max("b")) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-a-bound-meets-string-with-empty-against-the-empty-string	verdict	v: (max("b")) & (string & empty())	{"v": ""}	{"verdict":"valid"}
+vet-a-bound-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (max("b")) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-a-bound-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (max("b")) & (string & empty())	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-a-bound-alone-against-the-empty-string	verdict	v: max("b")	{"v": ""}	{"verdict":"valid"}
+vet-a-bound-alone-against-the-empty-string-with-no-fill	verdict	v: max("b")	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-a-bound-alone-against-the-empty-string-under-partial	verdict	v: max("b")	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-two-bounded-strings-with-empty-against-the-empty-string	verdict	v: (string & empty() & max("b")) & (string & empty() & max("c"))	{"v": ""}	{"verdict":"valid"}
+vet-two-bounded-strings-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string & empty() & max("c"))	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-two-bounded-strings-with-empty-against-the-empty-string-under-partial	verdict	v: (string & empty() & max("b")) & (string & empty() & max("c"))	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-bounded-string-with-empty-meets-bounded-string-against-the-empty-string	verdict	v: (string & empty() & max("b")) & (string & max("c"))	{"v": ""}	{"verdict":"invalid"}
+vet-bounded-string-with-empty-meets-bounded-string-against-the-empty-string-with-no-fill	verdict	v: (string & empty() & max("b")) & (string & max("c"))	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-bounded-string-with-empty-meets-bounded-string-against-the-empty-string-under-partial	verdict	v: (string & empty() & max("b")) & (string & max("c"))	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-bounded-string-meets-string-with-empty-against-the-empty-string	verdict	v: (string & max("b")) & (string & empty())	{"v": ""}	{"verdict":"invalid"}
+vet-bounded-string-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string & max("b")) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-bounded-string-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string & max("b")) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-bounded-string-meets-string-with-empty-against-a-string	verdict	v: (string & max("b")) & (string & empty())	{"v": "a"}	{"verdict":"valid"}
+vet-bounded-string-meets-string-with-empty-against-a-string-with-no-fill	verdict	v: (string & max("b")) & (string & empty())	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+vet-bounded-string-meets-string-with-empty-against-a-string-under-partial	verdict	v: (string & max("b")) & (string & empty())	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-in-an-arm-meets-string-with-empty-against-the-empty-string	verdict	v: (string | 1) & (string & empty())	{"v": ""}	{"verdict":"invalid"}
+vet-string-in-an-arm-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: (string | 1) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-in-an-arm-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: (string | 1) & (string & empty())	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-in-an-arm-meets-string-against-the-empty-string	verdict	v: (string & empty() | 1) & (string)	{"v": ""}	{"verdict":"invalid"}
+vet-string-with-empty-in-an-arm-meets-string-against-the-empty-string-with-no-fill	verdict	v: (string & empty() | 1) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-with-empty-in-an-arm-meets-string-against-the-empty-string-under-partial	verdict	v: (string & empty() | 1) & (string)	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-a-meet-in-an-arm-against-the-empty-string	verdict	v: (string) & (string & empty()) | 1	{"v": ""}	{"verdict":"invalid"}
+vet-a-meet-in-an-arm-against-the-empty-string-with-no-fill	verdict	v: (string) & (string & empty()) | 1	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-a-meet-in-an-arm-against-the-empty-string-under-partial	verdict	v: (string) & (string & empty()) | 1	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-in-a-list-meets-string-with-empty-against-the-empty-string	verdict	v: ([string & empty()]) & ([string])	{"v": [""]}	{"verdict":"invalid"}
+vet-string-in-a-list-meets-string-with-empty-against-the-empty-string-with-no-fill	verdict	v: ([string & empty()]) & ([string])	{"v": [""]}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-in-a-list-meets-string-with-empty-against-the-empty-string-under-partial	verdict	v: ([string & empty()]) & ([string])	{"v": [""]}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-in-two-lists-against-the-empty-string	verdict	v: ([string & empty()]) & ([string & empty()])	{"v": [""]}	{"verdict":"valid"}
+vet-string-with-empty-in-two-lists-against-the-empty-string-with-no-fill	verdict	v: ([string & empty()]) & ([string & empty()])	{"v": [""]}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-in-two-lists-against-the-empty-string-under-partial	verdict	v: ([string & empty()]) & ([string & empty()])	{"v": [""]}	{"verdict":"valid","opts":{"partial":true}}
+vet-empty-in-another-statement-against-the-empty-string	verdict	v: string\nv: empty()	{"v": ""}	{"verdict":"invalid"}
+vet-empty-in-another-statement-against-the-empty-string-with-no-fill	verdict	v: string\nv: empty()	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-empty-in-another-statement-against-the-empty-string-under-partial	verdict	v: string\nv: empty()	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-empty-outside-a-group-against-the-empty-string	verdict	v: (string & max("b")) & empty()	{"v": ""}	{"verdict":"invalid"}
+vet-empty-outside-a-group-against-the-empty-string-with-no-fill	verdict	v: (string & max("b")) & empty()	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-empty-outside-a-group-against-the-empty-string-under-partial	verdict	v: (string & max("b")) & empty()	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-empty-through-a-name-against-the-empty-string	verdict	%E = empty()\nv: string & %E	{"v": ""}	{"verdict":"invalid"}
+vet-empty-through-a-name-against-the-empty-string-with-no-fill	verdict	%E = empty()\nv: string & %E	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-empty-through-a-name-against-the-empty-string-under-partial	verdict	%E = empty()\nv: string & %E	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-through-a-name-meets-string-against-the-empty-string	verdict	%T = string & empty()\nv: %T & string	{"v": ""}	{"verdict":"invalid"}
+vet-string-with-empty-through-a-name-meets-string-against-the-empty-string-with-no-fill	verdict	%T = string & empty()\nv: %T & string	{"v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-name-meets-string-against-the-empty-string-under-partial	verdict	%T = string & empty()\nv: %T & string	{"v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-through-a-name-against-the-empty-string	verdict	%T = string & empty()\nv: %T	{"v": ""}	{"verdict":"valid"}
+vet-string-with-empty-through-a-name-against-the-empty-string-with-no-fill	verdict	%T = string & empty()\nv: %T	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-name-against-the-empty-string-under-partial	verdict	%T = string & empty()\nv: %T	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-with-empty-through-a-path-meets-string-against-the-empty-string	verdict	s: string & empty()\nv: $.s & string	{"s": "", "v": ""}	{"verdict":"invalid"}
+vet-string-with-empty-through-a-path-meets-string-against-the-empty-string-with-no-fill	verdict	s: string & empty()\nv: $.s & string	{"s": "", "v": ""}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-path-meets-string-against-the-empty-string-under-partial	verdict	s: string & empty()\nv: $.s & string	{"s": "", "v": ""}	{"verdict":"invalid","opts":{"partial":true}}
+vet-string-with-empty-through-a-path-against-the-empty-string	verdict	s: string & empty()\nv: $.s	{"s": "", "v": ""}	{"verdict":"valid"}
+vet-string-with-empty-through-a-path-against-the-empty-string-with-no-fill	verdict	s: string & empty()\nv: $.s	{"s": "", "v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-through-a-path-against-the-empty-string-under-partial	verdict	s: string & empty()\nv: $.s	{"s": "", "v": ""}	{"verdict":"valid","opts":{"partial":true}}
+vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid"}
+vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string-with-no-fill	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
+vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string-under-partial	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}

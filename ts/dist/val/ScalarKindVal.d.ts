@@ -19,9 +19,9 @@ type ScalarConstructor = StringConstructor | NumberConstructor | BooleanConstruc
 declare class ScalarKindVal extends FeatureVal {
     isScalarKind: boolean;
     emptyOk: boolean;
+    folded: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
     clone(ctx: AontuContext, spec?: ValSpec): Val;
-    withEmpty(ctx: AontuContext): Val;
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
     superior(): Val;
