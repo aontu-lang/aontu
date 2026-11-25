@@ -82,7 +82,7 @@ func hostValues(hostVars map[string]HostVar, texts map[string]string) (
 	for name, b := range hostVars {
 		url, src := hostSite(name, b)
 		all[url] = src
-		vars[name], _ = (&Aontu{Trust: &TrustOptions{IncludeNone: true}}).Unify(src)
+		vars[name], _ = (&Aontu{Trust: &TrustOptions{IncludeNone: true}, File: url}).Unify(src)
 		stampURL(vars[name], url)
 	}
 	return vars, all
@@ -90,13 +90,14 @@ func hostValues(hostVars map[string]HostVar, texts map[string]string) (
 
 // hostSite is the url a binding's value is sited at, and its source.
 func hostSite(name string, b HostVar) (string, string) {
+	src, at := b.Value, "--var"
 	if b.Text {
-		return "--var-text " + name, newString(b.Value).Canon()
+		src, at = newString(b.Value).Canon(), "--var-text"
 	}
 	if "" != b.From {
-		return b.From + " " + name, b.Value
+		at = b.From
 	}
-	return "--var " + name, b.Value
+	return at + " " + name, src
 }
 
 func hostVals(hostVars map[string]HostVar) map[string]Val {

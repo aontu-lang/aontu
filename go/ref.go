@@ -995,7 +995,7 @@ func MemberCanons(v Val) (keys []string, canons []string, ok bool) {
 }
 
 // HoldsReference reports whether a value still reads a path or a
-// variable: the CLI refuses a binding that does.
+// variable: a binding that does is refused.
 func HoldsReference(root Val) bool {
 	holds := false
 	eachPart(root, func(v Val) {
@@ -1159,6 +1159,10 @@ func (vv *VarVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	if ctx.vars != nil {
 		if found, ok := ctx.vars[name]; ok {
+			// A variable is a value: one that reads a path has no place to read it from.
+			if HoldsReference(found) {
+				return makeNilErr(ctx, "invalid_var_kind", vv, peer)
+			}
 			// Unify the resolved value with the peer so a constraint
 			// unified against the var (e.g. a spread clone) applies to
 			// its value rather than being silently dropped.

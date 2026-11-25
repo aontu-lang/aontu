@@ -1245,11 +1245,14 @@ func TestErrCodesRegistry(t *testing.T) {
 func specVars() map[string]Val {
 	obj := newMap()
 	obj.set("x", newInteger(1))
+	pathed, _ := New().parseEntry(".k")
 	return map[string]Val{
-		"foo":  newInteger(11),
-		"bar":  newString("hello"),
-		"flag": newBoolean(true),
-		"obj":  obj,
+		// A path: a binding that still reads one is refused where it is read.
+		"pathed": pathed,
+		"foo":    newInteger(11),
+		"bar":    newString("hello"),
+		"flag":   newBoolean(true),
+		"obj":    obj,
 		// 2^60: an integer-kind value above TypeScript's safe-integer
 		// range, where its exact digits and JavaScript's shortest
 		// round-tripping form differ. Every other binding renders

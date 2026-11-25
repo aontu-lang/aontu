@@ -1072,7 +1072,9 @@ and #327 and #391 are settled with it; the rows are in
 `test/spec/site.tsv`. Nothing in the parser library changed. Go reads
 a prefix operator's place back from its operand's, since the pinned
 library gives an evaluator no token for the operator. The library has
-one from 0.6, so Go takes the token when the pins rise.
+one from 0.6, so Go takes the token when the pins rise. The
+difference is registered in
+[DIVERGENCE.md](../DIVERGENCE.md#structural-divergences).
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
@@ -1468,9 +1470,14 @@ were made in the building:
   refused. A template, a folder or a document that doesn't parse can't
   say what it reads, so a run with one refuses no binding as unread.
 - **A binding is a value.** One whose source still reads a path or a
-  variable once evaluated alone is refused: the ports read `$.k` bound
-  through a variable differently, and a binding that points into the
-  document has no meaning the rulings give it.
+  variable once evaluated alone is refused, since a binding that
+  points into the document has no meaning the rulings give it. The
+  commands refuse it as a usage error. The engines' own option,
+  `hostVars` and `HostVars`, let it through until 2026-11-25, and the
+  ports then read `$.k` bound through a variable differently, which
+  was recorded here and nowhere that ADR-001 asks. Both engines now
+  refuse it where the document reads it, as `invalid_var_kind`, with
+  rows in `test/spec/var.tsv`.
 - **The REPL refuses the options** until HV3 gives it bindings of its
   own, and `fmt` refuses them with the package verbs, since it
   evaluates nothing.
@@ -2167,6 +2174,65 @@ Each was raised by an issue, and each ruling unblocks the issues named.
       [#755](https://github.com/aontu-lang/aontu/issues/755),
       [#658](https://github.com/aontu-lang/aontu/issues/658) and
       [#320](https://github.com/aontu-lang/aontu/issues/320).
+
+## Where the plan meets the decision records
+
+On 2026-11-24 the owner asked that every decision record be confirmed
+as followed. What this plan has built, and the plan itself, were read
+against all 81 records of [ADR.md](../ADR.md). The built work broke
+two. ADR-080 was broken in KP1 and corrected before it merged, as
+[part 4](#part-4-a-short-form-for-a-key-pattern) says. ADR-001 was
+broken in three places of merged work, corrected on 2026-11-25 and
+listed first below. The plan also proposes things that a record
+forbids or constrains as the record stands. Each is listed so that its
+task lands with the record named, or waits on a ruling. None of those
+is built.
+
+### Corrected in merged work: ADR-001
+
+| What | Was | Now |
+|---|---|---|
+| A host value that reads a path, bound through `hostVars` or `HostVars` | TypeScript read `.k` from the top and Go from where the name was read. Only the commands refused it | both engines refuse it where it is read, as `invalid_var_kind`, with rows in `test/spec/var.tsv` and a twin test in each port |
+| The frame of a binding that has both a source option and `text` | `--vars f n` in TypeScript and `--var-text n` in Go | the option that bound it, in both |
+| The frame of an error in a binding's own source | the binding's option in TypeScript and no file in Go | the binding's option, in both |
+| Go reading a prefix operator's place back from its operand | recorded in part 3 here and in a comment | registered in [DIVERGENCE.md](../DIVERGENCE.md#structural-divergences) |
+
+### Needs a ruling
+
+| Record | Task | The conflict |
+|---|---|---|
+| ADR-080, decision 2 | LV2 of [part 9](#part-9-language-versions) | An older file is read through a table of translations, and canon and the hash are taken after it. Canon then writes a form the file never wrote, which ADR-080 forbids of a builtin. Either canon is taken before the translation, or the ADR says a translation between versions is no rewriting in its sense. |
+
+### A record changes with the task
+
+| Record | Task | What changes |
+|---|---|---|
+| ADR-014, ADR-015, ADR-016 | RP1 to RP3 | `$` becomes the root of its own file and `$$` the global root, and a captured path written in an included file generates the address of its node in the output. ADR-014 reads `$` from the document root, and ADR-015 has a path keep its spelling and generate that. |
+| ADR-029 | RP4 | A bundled model could be included under a key. The ADR lands everything an `aontu:` model defines under the one root key `aontu`. |
+| ADR-034 | ruling 40 | `maybe(v, fallback)` gives `maybe` a second argument. The ADR declares `maybe(v) : any` and sets a `default(v, d)` aside. |
+| ADR-033 | ST3 | `semver` becomes a scalar type made by a call. The ADR has `Semver` use the pair and stay a list. |
+| ADR-012 | ruling D of [IO-FORMATS.0.md](IO-FORMATS.0.md) | CSV is read through an include. The ADR keeps `.csv` out because the two ports' CSV readers disagree, so the task shows that they agree first. |
+| ADR-038 | ruling B of IO-FORMATS.0.md | An output flag is a second way to write a value. The ADR asks to be superseded and not amended by a row. |
+| ADR-039, part 7 | BT3, and ruling D of IO-FORMATS.0.md | New extensions reach a package. The archive allowlist admits exactly the files it names. |
+
+### To be said when the task is written
+
+| Record | Task | What the task says |
+|---|---|---|
+| ADR-003 | BT1, ST2 to ST5 | That aontu and not the host computes an instant, a canonical spelling and base64, with the input rewritten first. |
+| ADR-005, rule 2 | C5 | How `outer(up?)` reads an enclosing generator without a fill walk crossing into a template from outside. |
+| ADR-006, rule 2 | ruling 46 | How a generator over its own bag reads a source that hasn't finished resolving. |
+| ADR-010 | LV1 | That the alias name `aontu` gains a meaning of the engine's. An alias name is no key of the tree. |
+| ADR-052, item 5 | LV1 | That `%aontu = { version }` stays a declaration, outside the hash form. |
+| ADR-044 | CG5 | That the site's page is drawn from the guide and restates no behaviour of the engine. |
+
+Two things already on `main` strain a record, and this plan made
+neither. A disjunction's arm order changes its canon and its hash,
+where ADR-081 names the arms of `|`. A `move()` is written as
+`pref(…)` in the canon rows `move-chain-canon` and
+`move-chain-reorder-canon`, which also differ by member order. The
+guard on canon rows, `canon-writes-no-call-the-source-lacks`, lists
+the second as it stands.
 
 ## The order across parts
 

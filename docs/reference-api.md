@@ -4110,7 +4110,10 @@ binds them for every context an instance makes without vars of its own,
 which is how the CLI's `--var` and `--var-text` reach every verb:
 `new Aontu({ hostVars: { n: { value: '3' }, sha: { value: '0123', text: true } } })`.
 Each binding is aontu source, or with `text` the text as it stands, and
-each context makes its own values of them. Otherwise, build value
+each context makes its own values of them. A binding is a value: one
+whose source still reads a path or a variable is refused where the
+document reads it, as `invalid_var_kind`, and an error in a binding's
+own source is sited at the option that bound it. Otherwise, build value
 objects with the exported `Val` constructors:
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
@@ -4418,7 +4421,8 @@ equivalence is pinned by the test suite both implementations run.
 field of `Aontu`, `VetOptions`, `SubsumeOptions` and `PatchOptions`
 binds `$name` for every evaluation given no vars of its own, as
 TypeScript's `hostVars` does: a `map[string]HostVar`, each one aontu
-source in `Value`, or with `Text` the text as it stands. Otherwise,
+source in `Value`, or with `Text` the text as it stands, and refused
+alike where its source still reads a path or a variable. Otherwise,
 build the values with the exported constructors:
 
 | Constructor | Returns |

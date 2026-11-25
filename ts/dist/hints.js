@@ -527,7 +527,7 @@ const hints = {
     'no_first_arg': 'Missing first argument. The function requires a first argument but none was provided.',
     // Variable errors
     'unknown_var': 'Unknown variable reference. The variable has not been defined.',
-    'invalid_var_kind': 'Invalid variable kind. The variable type does not match the expected kind.',
+    'invalid_var_kind': 'Invalid variable kind. The variable type does not match the expected kind.\nA variable is a value: one that still reads a path or another variable\nhas no place to read it from, and is refused where it is read.',
     // Path and reference errors
     path_cycle: 'Path cycle detected. The path contains a circular reference.',
     'ref': 'Reference resolution failed. Unable to resolve the reference to a value.',

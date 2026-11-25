@@ -371,5 +371,30 @@ const V = 'env: $env\nreplicas: integer & $n\n';
         // A module evaluates with no host.
         Assert.throws(() => new aontu_1.Aontu().generate('a: $n\n'), /unknown_var/);
     });
+    // TestHostVarsReadNoPathAndAreFramedAtTheirOption in go/hostvars_test.go
+    // holds the same cases to the same answers.
+    (0, node_test_1.test)('a-binding-reads-no-path-and-is-framed-at-its-option', () => {
+        const answer = (hostVars, src) => {
+            try {
+                return JSON.stringify(new aontu_1.Aontu({ hostVars }).generate(src));
+            }
+            catch (err) {
+                const lines = String(err.message).replace(/\x1b\[[0-9;]*m/g, '').split('\n')
+                    .map((l) => l.trim());
+                return [lines[0], lines.find((l) => l.startsWith('-->'))].join(' | ');
+            }
+        };
+        const doc = 'k: 1\nb: { k: 2, a: $n }';
+        const refused = '[aontu/invalid_var_kind]: Cannot unify values at path $.b.a | --> <no-file>:2:15';
+        Assert.equal(answer({ n: { value: '.k' } }, doc), refused);
+        Assert.equal(answer({ n: { value: '$.k' } }, doc), refused);
+        Assert.equal(answer({ n: { value: '{x: $.k}' } }, 'k: 1\nb: $n'), '[aontu/no_path]: Cannot resolve value at path $.x | --> --var n:1:5');
+        Assert.equal(answer({ n: { value: '$m' }, m: { value: '1' } }, 'b: $n'), '[aontu/unknown_var]: Cannot unify values at path $ | --> --var n:1:1');
+        Assert.equal(answer({ n: { value: '{x: 1}' } }, 'b: $n'), '{"b":{"x":1}}');
+        const clash = '[aontu/scalar_kind]: Cannot unify values at path $.a | --> ';
+        Assert.equal(answer({ n: { value: 'x', text: true, from: '--vars f' } }, 'a: $n & 1'), clash + '--vars f n:1:1');
+        Assert.equal(answer({ n: { value: 'x', text: true } }, 'a: $n & 1'), clash + '--var-text n:1:1');
+        Assert.equal(answer({ n: { value: '"x"', from: '--vars f' } }, 'a: $n & 1'), clash + '--vars f n:1:1');
+    });
 });
 //# sourceMappingURL=hostvars.test.js.map

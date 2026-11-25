@@ -14,6 +14,7 @@ const numkind_1 = require("./numkind");
 const utility_1 = require("../utility");
 const unify_1 = require("../unify");
 const top_1 = require("./top");
+const walk_1 = require("../walk");
 class VarVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -70,7 +71,9 @@ class VarVal extends FeatureVal_1.FeatureVal {
                         new NumberVal_1.NumberVal({ peg: found });
                 }
                 else if ('object' === ft && found.isVal) {
-                    out = found;
+                    // A variable is a value: one that reads a path has no place to read it from.
+                    out = (0, walk_1.holdsReference)(found) ?
+                        (0, err_1.makeNilErr)(ctx, 'invalid_var_kind', this, peer) : found;
                 }
                 else {
                     out = (0, err_1.makeNilErr)(ctx, 'invalid_var_kind', this, peer);

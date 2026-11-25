@@ -130,3 +130,30 @@ export function parseNilIn(v: any): any {
   }
   return first
 }
+
+
+export function eachPart(root: any, visit: (v: any) => void): void {
+  const seen = new Set<any>()
+  const stack: any[] = [root]
+  while (0 < stack.length) {
+    const v = stack.pop()
+    if (true !== v?.isVal || seen.has(v)) {
+      continue
+    }
+    seen.add(v)
+    visit(v)
+    const peg: any = v.peg
+    const kids: any[] = Array.isArray(peg) ? peg : true === peg?.isVal ? [peg] :
+      null != peg && 'object' === typeof peg ? Object.values(peg) : []
+    kids.forEach((kid: any) => stack.push(kid))
+    stack.push(v.spread?.cj)
+  }
+}
+
+
+// Whether a value still reads a path or a variable.
+export function holdsReference(root: any): boolean {
+  let holds = false
+  eachPart(root, (v: any) => { holds = holds || true === v.isRef || true === v.isVar })
+  return holds
+}

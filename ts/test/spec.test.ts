@@ -944,5 +944,7 @@ function makeVarsCtx(a0: Aontu): any {
   ctx.vars.PARENT = new StringVal({ peg: 'q' })
   // A kind: a binding is any value the program builds.
   ctx.vars.kint = new ScalarKindVal({ peg: Integer })
+  // A path: a binding that still reads one is refused where it is read.
+  ctx.vars.pathed = new Aontu().parse('.k') as any
   return ctx
 }
