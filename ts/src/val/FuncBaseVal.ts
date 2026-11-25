@@ -293,7 +293,7 @@ class FuncBaseVal extends FeatureVal {
               newtype = newtype || newarg.mark.type
               newhide = newhide || newarg.mark.hide
             }
-            pegdone &&= newarg.done
+            pegdone &&= this.argReady(newarg)
             newpeg.push(newarg)
           }
         }
@@ -408,6 +408,11 @@ class FuncBaseVal extends FeatureVal {
 
   prepare(_ctx: AontuContext, args: Val[]): Val[] | null {
     return args
+  }
+
+
+  argReady(arg: Val): boolean {
+    return arg.done
   }
 
 

@@ -8,6 +8,41 @@ each change affects.
 
 ## Unreleased
 
+### A link's template reads its relative paths at the link's target
+
+#661 in both engines, ruling 50. `relate(t)` sends its template `t`
+into the node the link names. Each engine read a relative path in `t`
+where the document writes the link, inside the template, where the path
+names nothing. So the template never finished, the link was never
+made, and the member stayed unresolved:
+
+- `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}` failed with
+  `mapval_no_gen` at `$.x.n`, and `vet` answered `incomplete`. It is
+  now `{"x": {"m": {"k": 2, "v": 2}, "n": ".m"}}`.
+- A template that reads its own member, `relate({a: 1, b: .a})`, failed
+  the same way, and so did a link the template carries when its own
+  template reads a path.
+
+Each engine now leaves a relative path that stays inside the template
+unread where the link is written, and reads it at the target once the
+template has landed there. A call over such a path waits with it. A
+path that names no member of the target's is the schema's error, as a
+path to nothing is anywhere.
+
+A path that climbs past the template, `..k` in `relate({v: ..k})`,
+reads where the link is written, as before. The definition reads it
+from the target, which differs only where the target isn't the link's
+sibling, and #1001 asks which holds.
+
+- `ts/src/val/RefVal.ts`, `ts/src/val/RelateFuncVal.ts`,
+  `ts/src/val/FuncBaseVal.ts` and `ts/src/unify.ts`; `go/ref.go`,
+  `go/func.go` and `go/unify.go`.
+- Rows ll0, ll9, ll15 and ll18 to ll20 of `test/spec/def-path.tsv`
+  leave `spec/ledger.tsv`, whose bound falls from 22 to 16, and #661
+  closes.
+- `test/spec/def-path.tsv` gains rows lr0 to lr41, 14 cases the
+  definition proves, each in three modes.
+
 ### A bare `close()` or `open()` beside a path acts on the path's copy
 
 #726 in both engines, the last of its ledger rows. A bare `close()`

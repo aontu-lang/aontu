@@ -21,6 +21,7 @@ declare class FuncBaseVal extends FeatureVal {
     funcname(): string;
     rides(): boolean;
     prepare(_ctx: AontuContext, args: Val[]): Val[] | null;
+    argReady(arg: Val): boolean;
     resolve(ctx: AontuContext, _args: Val[]): Val;
     deferResolve(_ctx: AontuContext, _args?: Val[]): boolean;
 }

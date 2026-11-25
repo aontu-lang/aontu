@@ -2643,6 +2643,22 @@ until the phase that encodes it lands.
    path to the target's member names nothing there and waits, and a
    link the template carries, its address relative, can't resolve. No
    other row moved.
+   **Built in both ports 2026-11-25** (#661): a relative path that
+   stays inside a `relate()`'s template is marked as it's written
+   (`lands`), waits there, and is read at the target once the link's
+   flow lands the template, its paths set from the target; the call
+   resolves once its template waits for nothing but such paths, and a
+   call over one waits with it. Rows ll0, ll9, ll15 and ll18 to ll20
+   leave the ledger, its bound 16, and rows lr0 on, 42 in all, hold 14
+   more cases that both ports answer as the definition does. A path
+   that climbs past the template both ports still read where the link
+   is written, where the definition counts the extra steps from the
+   target (`climb`); the two agree for a sibling target, as in every
+   row, and differ elsewhere, where row `routes-k20` of
+   `test/spec/comprehension.tsv` relies on the ports' reading. #1001
+   asks for the ruling. A template that is itself a relative path,
+   `relate(.t)`, is an `error` here and a link in both ports, noted
+   there too.
 
 51. **A `filter`'s child that generates nothing.** Raised 2026-11-07 by
    #674: `filter({x: integer}, any)`. Both ports keep a child that

@@ -39,6 +39,7 @@ import { trialUnify } from './FuncBaseVal'
 import { VarVal } from './VarVal'
 import { FeatureVal } from './FeatureVal'
 import { repathInstance } from './Val'
+import { walkVals } from '../walk'
 import { integerDigits } from './numkind'
 import { BigIntegerVal } from './BigIntegerVal'
 import { BigDecimalVal } from './BigDecimalVal'
@@ -256,6 +257,50 @@ function member(v: any, part: any): any {
 }
 
 
+// A link's template reads the relative paths that stay inside it where it lands, at the link's
+// target (ruling 50); one that climbs past the template reads where the link is written.
+function landPaths(tmpl: Val, base: string[]): void {
+  walkVals(tmpl, (t: any) => {
+    if (true === t.isRef && !t.absolute) {
+      let climbs = 0
+      while ('.' === t.peg[climbs]) {
+        climbs++
+      }
+      t.lands = t.lands || climbs < t.path.length - base.length
+    }
+    return true
+  }, new Set())
+}
+
+
+// Whether a template waits for nothing but the paths it reads where it lands.
+function landsOnly(tmpl: Val): boolean {
+  let lands = false
+  let other = false
+  walkVals(tmpl, (t: any) => {
+    lands = lands || (true === t.isRef && t.lands)
+    other = other || (true === t.isRef && !t.lands) ||
+      (true === t.isFunc && 0 === t.peg.length && !t.done)
+    return !other
+  }, new Set())
+  return lands && !other
+}
+
+
+// The template as it lands: each such path read at the target.
+function landedAt(ctx: AontuContext, tmpl: Val, to: string[]): Val {
+  const out = tmpl.clone(ctx, { dup: true })
+  if (landsOnly(tmpl)) {
+    repathInstance(out, to)
+  }
+  walkVals(out, (t: any) => {
+    t.lands = false
+    return true
+  }, new Set())
+  return out
+}
+
+
 import { ALIAS_NAME_RE, aliasBareName } from '../aliasname'
 import { unionVia } from '../rider'
 import { undeclared } from './IdentFuncVal'
@@ -274,6 +319,9 @@ class RefVal extends FeatureVal {
   expansion: Val | undefined = undefined
 
   rxc: number = 0
+
+  // A relative path in a link's template, which reads where the template lands (ruling 50).
+  lands: boolean = false
   prefix: boolean = false
   copyFound: boolean = false
 
@@ -379,7 +427,7 @@ class RefVal extends FeatureVal {
 
     if (this.id !== peer.id) {
 
-      let found: Val | undefined = this.find(ctx)
+      let found: Val | undefined = this.lands ? undefined : this.find(ctx)
 
       // `?? this` makes resolved non-nullish, so an unresolved reference
       // takes the RefVal arm below rather than a separate null arm.
@@ -866,6 +914,7 @@ class RefVal extends FeatureVal {
     // where the level it came from left off.
     out.rxc = this.rxc
     out.copyFound = this.copyFound
+    out.lands = this.lands
     return out
   }
 
@@ -940,11 +989,14 @@ class RefVal extends FeatureVal {
     ].filter(p => '' != p).join(',')
   }
 
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 11 */
 
 
 export {
   dropPendingMarkWrappers,
+  landPaths,
+  landedAt,
+  landsOnly,
   member,
   pendingMarkWrapper,
   RefVal,

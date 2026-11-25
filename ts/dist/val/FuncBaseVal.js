@@ -210,7 +210,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                             newtype = newtype || newarg.mark.type;
                             newhide = newhide || newarg.mark.hide;
                         }
-                        pegdone &&= newarg.done;
+                        pegdone &&= this.argReady(newarg);
                         newpeg.push(newarg);
                     }
                 }
@@ -304,6 +304,9 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     }
     prepare(_ctx, args) {
         return args;
+    }
+    argReady(arg) {
+        return arg.done;
     }
     resolve(ctx, _args) {
         return (0, err_1.makeNilErr)(ctx, 'func:' + this.funcname(), this, undefined, 'resolve');

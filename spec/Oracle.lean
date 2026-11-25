@@ -3802,6 +3802,49 @@ theorem linkLand_verdict_exact : ∀ c ∈ linkLandCases, ∀ (m : Mode) (v : Ve
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (linkLandCases_checkable c hc).1 (linkLandCases_checkable c hc).2 v
 
+/-- More of ruling 50, a link's template read where it lands: a target
+that isn't the link's sibling, read by a path inside the template and
+for a member of its own; a path deeper in the template, to the target's
+member and one step past the template; a call over such a path; a path
+to a member the target doesn't declare, which the data can't supply;
+and two links into one target, the second reading what the first
+sends. -/
+def linkReadCases : List (Decls × Val × Data) :=
+  let rf (t : Val) (up : ℕ) (ks : List String) : Val := .meet (.call .relate [t]) (.addr ⟨up, ks⟩)
+  let ab : Val := m [("a", int 1), ("b", rel 1 ["a"])]
+  let vk : Val := m [("v", rel 1 ["k"])]
+  let far : Val := m [("x", m [("n", rf ab 0 ["out"])]), ("out", m [])]
+  let fark : Val := m [("x", m [("n", rf vk 0 ["out"])]), ("out", m [("k", int 2)])]
+  let deep : Val := m [("x", m [("m", m [("k", int 2)]), ("n", rf (m [("a", m [("b", rel 2 ["k"])])]) 1 ["m"])])]
+  let past : Val :=
+    m [("x", m [("k", int 4), ("m", m [("k", int 2)]), ("n", rf (m [("a", m [("b", rel 3 ["k"])])]) 1 ["m"])])]
+  let call : Val := m [("x", m [("m", m [("s", str "a")]), ("n", rf (m [("v", .call .upper [rel 1 ["s"]])]) 1 ["m"])])]
+  let none : Val := m [("x", m [("m", m []), ("n", rf vk 1 ["m"])])]
+  let two : Val :=
+    m [("x", m [("m", m [("k", int 2)]), ("n", rf vk 1 ["m"]), ("o", rf (m [("w", rel 1 ["v"])]) 1 ["m"])])]
+  let xm (d : Data) : Data := .map [("x", .map [("m", d)])]
+  [([], far, .map [("out", .map [("a", j 1), ("b", j 1)])]),
+    ([], far, .map [("out", .map [("a", j 1), ("b", j 2)])]),
+    ([], fark, .map [("out", .map [("k", j 2), ("v", j 2)])]),
+    ([], fark, .map [("out", .map [("k", j 2), ("v", j 3)])]),
+    ([], deep, .map []),
+    ([], deep, xm (.map [("a", .map [("b", j 3)])])),
+    ([], past, xm (.map [("a", .map [("b", j 4)])])),
+    ([], call, xm (.map [("v", .str "A")])),
+    ([], call, xm (.map [("v", .str "a")])),
+    ([], none, xm (.map [("k", j 2), ("v", j 2)])),
+    ([], none, xm (.map [("v", j 3)])),
+    ([], none, .map []),
+    ([], two, .map []),
+    ([], two, xm (.map [("w", j 3)]))]
+
+theorem linkReadCases_checkable : ∀ c ∈ linkReadCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem linkRead_verdict_exact : ∀ c ∈ linkReadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (linkReadCases_checkable c hc).1 (linkReadCases_checkable c hc).2 v
+
 /-- Ruling 26 for a recursion: a use of a recursive name whose body reads
 its own place reads as a copy of the body placed where the use stands,
 at each level the data or the schema reaches. A sibling path read at
@@ -9429,6 +9472,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A link's template read where it lands, at the link's target (ruling 50),"
     IO.println "# follows in rows ll0 on."
     pathRows "ll" linkLandCases
+    IO.println "# More of a link's template read where it lands follows in rows lr0 on: a"
+    IO.println "# target that isn't the link's sibling, a path deeper in the template, a call"
+    IO.println "# over such a path, a member the target doesn't declare, and two links into"
+    IO.println "# one target."
+    pathRows "lr" linkReadCases
     IO.println "# A use of a recursive name whose body reads its own place reads as a copy"
     IO.println "# of the body placed where it stands, at each level the data or the schema"
     IO.println "# reaches (ruling 26), in rows rr0 on."
