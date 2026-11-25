@@ -213,6 +213,23 @@ signature table declares, `rep takes exactly three arguments` among
 them, and a test in each port refuses a declared interval that has no
 wording.
 
+### Many sibling statements at one map are not a cycle
+
+TypeScript only: Go already answered these documents. A map written as
+one-line statements, `a: w: k0: {}`, `a: w: k1: {}` and so on, whose
+members stay unsettled through a pass (here a spread's `key()`, which
+settles on a later pass) was refused with `unify_cycle`, "Circular
+reference detected", from 502 member statements, at a member that holds no
+reference. Each statement is one term of the meet at `a`, and folding a
+term meets every member already there with `any` again. The pass memo
+answers those meets without work, but the revisit bound of 999 counted
+each one, so the first member reached it after about 500 terms. A meet
+the memo answers is no longer counted. The same members written as one
+nested map were never affected.
+
+`test/spec/budget.tsv` gains `budget-wide-unsettled-siblings-legal`:
+600 such statements, which both engines unify to the same output.
+
 ### A spread's template that holds a default clash is the schema's error
 
 #957, ruling 90, in the definition and both engines. `x: *1 | *2` is

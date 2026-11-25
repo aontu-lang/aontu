@@ -204,6 +204,10 @@ function rereadOn(ctx: AontuContext, out: any, a: any, b: any): any {
 }
 
 
+const metTopThisPass = (ctx: AontuContext, v: any): boolean =>
+  undefined !== ctx.cc && v._tcc === ctx.cc && v._tpi === ctx.pathidx
+
+
 const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
   const out = meet(ctx, a, b, whence)
   return undefined === a?.reread && undefined === b?.reread ? out : rereadOn(ctx, out, a, b)
@@ -259,9 +263,13 @@ const meet = (ctx: AontuContext, a: any, b: any, whence: string) => {
   let out = a
   let why = 'u'
 
+  // A meet the pass memo answers does no work, so it is not a revisit.
+  const memoised = null != a && (null == b || true === b.isTop) && !a.done
+    && metTopThisPass(ctx, a)
+
   // Cycle-detection key. Use numeric path index for speed; fall back to
   // full string key when debug is enabled so the saw value is human-readable.
-  const saw = ctx.opts.debug
+  const saw = memoised ? undefined : ctx.opts.debug
     ? (a ? a.id + (a.done ? '' : '*') : '') + '~' +
       (b ? b.id + (b.done ? '' : '*') : '') + '@' + ctx.pathstr
     : (a ? a.id + (a.done ? 'd' : '') : 0) + '~' +
@@ -269,7 +277,7 @@ const meet = (ctx: AontuContext, a: any, b: any, whence: string) => {
 
   // NOTE: if this error occurs "unreasonably", attemp to avoid unnecesary unification
   // See for example PrefVal peg.id equality inspection.
-  const sawCount = ctx.seen[saw] ?? 0
+  const sawCount = undefined === saw ? 0 : ctx.seen[saw] ?? 0
   if (ctx.budget.depth <= ctx._depth.n) {
     out = makeNilErr(ctx, 'unify_cycle', a, b)
   }
@@ -277,7 +285,9 @@ const meet = (ctx: AontuContext, a: any, b: any, whence: string) => {
     out = makeNilErr(ctx, 'unify_cycle', a, b)
   }
   else {
-    ctx.seen[saw] = sawCount + 1
+    if (undefined !== saw) {
+      ctx.seen[saw] = sawCount + 1
+    }
     ctx._depth.n++
 
     try {
@@ -347,8 +357,7 @@ const meet = (ctx: AontuContext, a: any, b: any, whence: string) => {
       }
 
       if (!out.done && !unified) {
-        if (undefined !== ctx.cc
-          && (out as any)._tcc === ctx.cc && (out as any)._tpi === ctx.pathidx) {
+        if (metTopThisPass(ctx, out)) {
           why += 't'
         }
         else {
