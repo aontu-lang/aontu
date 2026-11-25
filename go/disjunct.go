@@ -107,7 +107,9 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		ctx.trial = true
 		ctx.slot = slot
 		r := ctx.holdArm(d.path, prefInnerPeg(m), member, false, func() Val { return unite(ctx, m, member) })
-		failed := len(ctx.err) > 0 || r.Nil() || holdsUnmetNil(r)
+		// An arm's path into its own place that names nothing fails the arm, once all has settled.
+		failed := len(ctx.err) > 0 || r.Nil() || holdsUnmetNil(r) ||
+			(ctx.settle && nil != strayIn(r, d.path))
 		ctx.err = saved
 		ctx.trial = savedTrial
 		if failed {

@@ -93,7 +93,9 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 ctx.err = trialErr;
                 oval[vI] = (0, unify_1.unite)((te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx)
                     .holdArm(this.path, (0, PrefVal_1.prefInnerPeg)(v), member), v, member, 'dj-peer');
-                if (0 < trialErr.length || holdsUnmetNil(oval[vI])) {
+                // An arm's path into its own place that names nothing fails the arm, once all has settled.
+                if (0 < trialErr.length || holdsUnmetNil(oval[vI]) ||
+                    (true === ctx.settle && undefined !== (0, PrefVal_1.strayIn)(oval[vI], this.path))) {
                     oval[vI] = NilVal_1.TRIAL_NIL;
                 }
                 else if (v instanceof PrefVal_1.PrefVal && !peer.isTop) {
