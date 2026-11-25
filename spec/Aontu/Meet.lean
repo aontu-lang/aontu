@@ -898,11 +898,50 @@ theorem admits_flattenArms {arms : List (ℕ × Val)} {j : Data} :
     obtain ⟨r', a', hmem, ha'⟩ := (admits_flattenArm (p := (r, a))).mpr ha
     exact ⟨r', a', List.mem_flatMap.mpr ⟨(r, a), hm, hmem⟩, ha'⟩
 
+theorem admits_unparent : ∀ (v : Val) (j : Data), Admits env root v.unparent j ↔ Admits env root v j
+  | .ride .parent v _, j => by
+    rw [Val.unparent, admits_unparent v j]
+    exact judge_ride_iff.symm
+  | .ride .metadata _ _, _ | .ride .deprecate _ _, _ | .ride .ident _ _, _ | .ride .type _ _, _
+  | .ride .hide _ _, _ | .ride .opened _ _, _ | .ride .lifts _ _, _ | .ride .seals _ _, _
+  | .ride (.move _) _ _, _ | .ride .void _ _, _ => Iff.rfl
+  | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _ | .anyString, _
+  | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .lit _, _ | .min _, _ | .max _, _
+  | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _ | .re _, _
+  | .format _, _ | .grammar _, _ | .any, _ | .nil, _ | .absent, _ | .nothing, _ | .map _ _ _, _
+  | .list _ _ _, _ | .or _, _ | .pref _ _, _ | .meet _ _, _ | .alias _, _ | .path _, _ | .addr _, _
+  | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _
+  | .filter _ _, _ | .link _ _, _ | .key, _ | .keyUp _, _ | .hole, _ | .call _ _, _ => Iff.rfl
+
+/-- The live arms of a disjunction with a parent type's mark read
+through (`Val.unparent`) where none of them prefers: beside no
+preference any longer, as in `*1 & 3`, a parent type stands as any arm
+does. -/
+def unparentArms (live : List (ℕ × Val)) : List (ℕ × Val) :=
+  if live.any (fun p => p.1 != 0) then live else live.map fun p => (p.1, p.2.unparent)
+
+theorem admits_unparentArms {live : List (ℕ × Val)} {j : Data} :
+    Admits env root (.or (unparentArms live)) j ↔ Admits env root (.or live) j := by
+  unfold unparentArms
+  split
+  · exact Iff.rfl
+  · rw [admits_or_iff, admits_or_iff]
+    constructor
+    · rintro ⟨r, a, hm, ha⟩
+      obtain ⟨p, hp, he⟩ := List.mem_map.mp hm
+      simp only [Prod.mk.injEq] at he
+      obtain ⟨rfl, rfl⟩ := he
+      exact ⟨p.1, p.2, hp, (admits_unparent p.2 j).mp ha⟩
+    · rintro ⟨r, a, hm, ha⟩
+      exact ⟨r, a.unparent, List.mem_map.mpr ⟨(r, a), hm, rfl⟩, (admits_unparent a j).mpr ha⟩
+
 /-- A disjunction of the live arms, each arm of rank `0` that is a
-disjunction opened into its own, or `nil` where no arm is live. -/
+disjunction opened into its own, with a parent type no preference
+stands beside read as any arm (`unparentArms`), or `nil` where no arm is
+live. -/
 def mkOr (arms : List (ℕ × Val)) : Val :=
   let live := (arms.flatMap flattenArm).filter fun p => !p.2.dead
-  if live.isEmpty then .nil else .or live
+  if live.isEmpty then .nil else .or (unparentArms live)
 
 theorem admits_mkOr (arms : List (ℕ × Val)) (j : Data) :
     Admits env root (mkOr arms) j ↔ ∃ r a, (r, a) ∈ arms ∧ Admits env root a j := by
@@ -922,7 +961,7 @@ theorem admits_mkOr (arms : List (ℕ × Val)) (j : Data) :
           List.mem_filter.mpr ⟨hm', by simp [hd]⟩
         rw [h] at hmem
         exact nomatch hmem
-  · rw [if_neg h, admits_or_iff]
+  · rw [if_neg h, admits_unparentArms, admits_or_iff]
     constructor
     · rintro ⟨r, a, hm, ha⟩
       exact admits_flattenArms.mp ⟨r, a, (List.mem_filter.mp hm).1, ha⟩
@@ -1947,7 +1986,7 @@ theorem admits_or_right {m : Val → Val → Val}
 theorem admits_pref_left {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (r : ℕ) (x b : Val) (j : Data) :
-    Admits env root (mkOrF m [(r, m x b), (0, m x.super b)]) j ↔
+    Admits env root (mkOrF m [(r, m x b), (0, m x.super.parentOf b)]) j ↔
       Admits env root (.pref r x) j ∧ Admits env root b j := by
   rw [admits_mkOrF hm, admits_pref_iff]
   simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
@@ -1955,15 +1994,15 @@ theorem admits_pref_left {m : Val → Val → Val}
   · rintro ⟨r', a, h, ha⟩
     rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
     · rw [hm] at ha; exact ⟨.inl ha.1, ha.2⟩
-    · rw [hm] at ha; exact ⟨.inr ha.1, ha.2⟩
+    · rw [hm] at ha; exact ⟨.inr (judge_ride_iff.mp ha.1), ha.2⟩
   · rintro ⟨hx | hx, hb⟩
     · exact ⟨r, m x b, .inl ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨hx, hb⟩⟩
-    · exact ⟨0, m x.super b, .inr ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨hx, hb⟩⟩
+    · exact ⟨0, m x.super.parentOf b, .inr ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨.ride hx, hb⟩⟩
 
 theorem admits_pref_right {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (a : Val) (r : ℕ) (y : Val) (j : Data) :
-    Admits env root (mkOrF m [(r, m a y), (0, m a y.super)]) j ↔
+    Admits env root (mkOrF m [(r, m a y), (0, m a y.super.parentOf)]) j ↔
       Admits env root a j ∧ Admits env root (.pref r y) j := by
   rw [admits_mkOrF hm, admits_pref_iff]
   simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
@@ -1971,10 +2010,10 @@ theorem admits_pref_right {m : Val → Val → Val}
   · rintro ⟨r', b, h, hb⟩
     rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
     · rw [hm] at hb; exact ⟨hb.1, .inl hb.2⟩
-    · rw [hm] at hb; exact ⟨hb.1, .inr hb.2⟩
+    · rw [hm] at hb; exact ⟨hb.1, .inr (judge_ride_iff.mp hb.2)⟩
   · rintro ⟨ha, hy | hy⟩
     · exact ⟨r, m a y, .inl ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
-    · exact ⟨0, m a y.super, .inr ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
+    · exact ⟨0, m a y.super.parentOf, .inr ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, .ride hy⟩⟩
 
 /-- The rank a term leads with: a lone preference's, or the one the rank
 rule picks among a disjunction's arms; none for any other term. -/
@@ -1990,11 +2029,11 @@ def Val.isNode : Val → Bool
   | _ => false
 
 /-- The arms a term stands for: a disjunction's own, a lone preference
-`*x` as `x | super(x)`, and any other term as its one arm, of rank
-`0`. -/
+`*x` as `x | super(x)`, its parent type marked (`Val.parentOf`), and any
+other term as its one arm, of rank `0`. -/
 def Val.armsOf : Val → List (ℕ × Val)
   | .or arms => arms
-  | .pref r x => [(r, x), (0, x.super)]
+  | .pref r x => [(r, x), (0, x.super.parentOf)]
   | v => [(0, v)]
 
 /-- The arms of `v` at the rank `r` (`Val.armsOf`). -/
@@ -2026,7 +2065,7 @@ outermost: each of its arms met with `a`, keeping its rank, `b` alone as
 def nodeRight (rec : Val → Val → Val) (a b : Val) : Val :=
   match b with
   | .or arms => mkOrF rec (arms.map fun p => (p.1, rec a p.2))
-  | .pref r y => mkOrF rec [(r, rec a y), (0, rec a y.super)]
+  | .pref r y => mkOrF rec [(r, rec a y), (0, rec a y.super.parentOf)]
   | b => .meet a b
 
 /-- A disjunction or a lone preference `a` met with a term, `a`
@@ -2035,7 +2074,7 @@ outermost where `a` is neither. -/
 def nodeLeft (rec : Val → Val → Val) (a b : Val) : Val :=
   match a with
   | .or arms => mkOrF rec (arms.map fun p => (p.1, rec p.2 b))
-  | .pref r x => mkOrF rec [(r, rec x b), (0, rec x.super b)]
+  | .pref r x => mkOrF rec [(r, rec x b), (0, rec x.super.parentOf b)]
   | a => nodeRight rec a b
 
 /-- The arms the meet of two terms that lead with the rank `r` makes
@@ -2052,6 +2091,22 @@ in anything. -/
 def tieLive (rec : Val → Val → Val) (r : ℕ) (a b : Val) : Bool :=
   (armsAtRank r a).any fun p => (armsAtRank r b).any fun q => !(rec p.2 q.2).dead
 
+/-- A disjunction with each arm that prefers nothing marked a parent
+type (`Val.parentOf`); any other term as it is. -/
+def Val.parents : Val → Val
+  | .or arms => .or (arms.map fun p => if p.1 == 0 then (p.1, p.2.unparent.parentOf) else p)
+  | v => v
+
+/-- What two terms that lead with one rank `r` meet in below their
+defaults: the other arms of the two met with each other. Where each
+side's are parent types alone, as two lone preferences' are, what they
+meet in is the parent type of the preference the two make, and keeps
+the mark (`Val.parents`). -/
+def tieRest (rec : Val → Val → Val) (r : ℕ) (a b : Val) : Val :=
+  if (armsOffRank r a).all (·.2.isParent) && (armsOffRank r b).all (·.2.isParent) then
+    (rec (.or (armsOffRank r a)) (.or (armsOffRank r b))).parents
+  else rec (.or (armsOffRank r a)) (.or (armsOffRank r b))
+
 /-- Two terms that lead with one rank `r`, met (decision 43). Where a
 default of each meets one of the other's, the arms `tieArms` makes, the
 defaults' meets ahead of the arms that keep one side's default alone,
@@ -2062,10 +2117,9 @@ with each other, at the ranks that meet gives them. An arm that was not
 a default stays one, whichever side it is written on. -/
 def nodeTie (rec : Val → Val → Val) (r : ℕ) (a b : Val) : Val :=
   if tieLive rec r a b then
-    mkOrF rec [(r, mkOrF rec (tieArms rec r (r + 1) a b)),
-      (0, rec (.or (armsOffRank r a)) (.or (armsOffRank r b)))]
+    mkOrF rec [(r, mkOrF rec (tieArms rec r (r + 1) a b)), (0, tieRest rec r a b)]
   else
-    mkOrF rec (tieArms rec r r a b ++ [(0, rec (.or (armsOffRank r a)) (.or (armsOffRank r b)))])
+    mkOrF rec (tieArms rec r r a b ++ [(0, tieRest rec r a b)])
 
 /-- Two terms met as `meetNodes` meets them once each disjunction's arms
 are read (`nodeNorm`): the one that leads with the stronger rank
@@ -2129,11 +2183,11 @@ theorem admits_armsOf (v : Val) (j : Data) :
     constructor
     · rintro (h | h)
       · exact ⟨r, x, .inl ⟨rfl, rfl⟩, h⟩
-      · exact ⟨0, x.super, .inr ⟨rfl, rfl⟩, h⟩
+      · exact ⟨0, x.super.parentOf, .inr ⟨rfl, rfl⟩, .ride h⟩
     · rintro ⟨r', a, h, ha⟩
       rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
       · exact .inl ha
-      · exact .inr ha
+      · exact .inr (judge_ride_iff.mp ha)
   | _ => exact (hsing (0, _)).symm
 
 theorem admits_armsSplit (v : Val) (r : ℕ) (j : Data) :
@@ -2276,6 +2330,37 @@ theorem admits_tieArms {m : Val → Val → Val}
   unfold tieArms
   rw [admits_exists_append, admits_exists_append, admits_pairs hm, admits_groupsL hm, admits_groupsR hm]
 
+theorem admits_parents (v : Val) (j : Data) : Admits env root v.parents j ↔ Admits env root v j := by
+  cases v with
+  | or arms =>
+    simp only [Val.parents]
+    rw [admits_or_iff, admits_or_iff]
+    constructor
+    · rintro ⟨r, a, hm, ha⟩
+      obtain ⟨p, hp, he⟩ := List.mem_map.mp hm
+      split at he
+      · simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact ⟨p.1, p.2, hp, (admits_unparent p.2 j).mp (judge_ride_iff.mp ha)⟩
+      · subst he
+        exact ⟨r, a, hp, ha⟩
+    · rintro ⟨r, a, hm, ha⟩
+      by_cases h0 : (r == 0) = true
+      · exact ⟨r, a.unparent.parentOf, List.mem_map.mpr ⟨(r, a), hm, by simp [h0]⟩,
+          .ride ((admits_unparent a j).mpr ha)⟩
+      · exact ⟨r, a, List.mem_map.mpr ⟨(r, a), hm, by simp [h0]⟩, ha⟩
+  | _ => exact Iff.rfl
+
+theorem admits_tieRest {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (r : ℕ) (a b : Val) (j : Data) :
+    Admits env root (tieRest m r a b) j ↔
+      Admits env root (.or (armsOffRank r a)) j ∧ Admits env root (.or (armsOffRank r b)) j := by
+  unfold tieRest
+  split
+  · rw [admits_parents, hm]
+  · rw [hm]
+
 theorem admits_nodeTie {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (r : ℕ) (a b : Val) (j : Data) :
@@ -2283,11 +2368,11 @@ theorem admits_nodeTie {m : Val → Val → Val}
   rw [admits_armsSplit a r j, admits_armsSplit b r j]
   unfold nodeTie
   split
-  · rw [admits_mkOrF hm, admits_exists_two, admits_mkOrF hm, admits_tieArms hm, hm, admits_or_iff,
-      admits_or_iff]
+  · rw [admits_mkOrF hm, admits_exists_two, admits_mkOrF hm, admits_tieArms hm, admits_tieRest hm,
+      admits_or_iff, admits_or_iff]
     exact or_and_split
-  · rw [admits_mkOrF hm, admits_exists_append, admits_tieArms hm, admits_exists_one, hm, admits_or_iff,
-      admits_or_iff]
+  · rw [admits_mkOrF hm, admits_exists_append, admits_tieArms hm, admits_exists_one, admits_tieRest hm,
+      admits_or_iff, admits_or_iff]
     exact or_and_split
 
 theorem admits_nodeNorm {m : Val → Val → Val}
@@ -2326,6 +2411,27 @@ theorem admits_meetNodes {m : Val → Val → Val}
   unfold meetNodes
   rw [admits_meetNodesN hm, admits_nodeNorm hm, admits_nodeNorm hm]
 
+/-- Whether a term is a disjunction or a lone preference under the
+riders and links around it. -/
+def Val.holdsNode : Val → Bool
+  | .ride _ v _ => v.holdsNode
+  | .link v _ => v.holdsNode
+  | v => v.isNode
+
+/-- A rider's value met with a term on its right: the rider carries the
+meet of its own value, as an annotation rides what its value becomes.
+The mark of a parent type (`Val.parentOf`) stays on what the type
+narrows to, but gives way to a disjunction or a preference, whose arms
+the document wrote: `*1 & (1 | 2)` is `*1 | 2`, where `*1 & integer`
+is still `*1` alone. -/
+def rideLeft (rec : Val → Val → Val) (k : Rider) (v : Val) (r : Record) (b : Val) : Val :=
+  if k == .parent && b.holdsNode then rec v b else .ride k (rec v b) r
+
+/-- A term met with a rider's value on its right, as `rideLeft` meets
+them the other way about. -/
+def rideRight (rec : Val → Val → Val) (a : Val) (k : Rider) (v : Val) (r : Record) : Val :=
+  if k == .parent && a.holdsNode then rec a v else .ride k (rec a v) r
+
 /-- A rider met with a value carries the meet of its own: the record
 rides the result. -/
 theorem admits_ride_left {m : Val → Val → Val}
@@ -2351,6 +2457,26 @@ theorem admits_ride_right {m : Val → Val → Val}
   · rintro ⟨ha, h⟩
     cases h with
     | ride h => exact .ride ((hm a v j).mpr ⟨ha, h⟩)
+
+theorem admits_rideLeft {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (k : Rider) (v : Val) (r : Record) (b : Val) (j : Data) :
+    Admits env root (rideLeft m k v r b) j ↔ Admits env root (.ride k v r) j ∧ Admits env root b j := by
+  unfold rideLeft
+  split
+  · rw [hm]
+    exact ⟨fun ⟨hv, hb⟩ => ⟨.ride hv, hb⟩, fun ⟨hv, hb⟩ => ⟨judge_ride_iff.mp hv, hb⟩⟩
+  · exact admits_ride_left hm ..
+
+theorem admits_rideRight {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a : Val) (k : Rider) (v : Val) (r : Record) (j : Data) :
+    Admits env root (rideRight m a k v r) j ↔ Admits env root a j ∧ Admits env root (.ride k v r) j := by
+  unfold rideRight
+  split
+  · rw [hm]
+    exact ⟨fun ⟨ha, hv⟩ => ⟨ha, .ride hv⟩, fun ⟨ha, hv⟩ => ⟨ha, judge_ride_iff.mp hv⟩⟩
+  · exact admits_ride_right hm ..
 
 /-- A link met with a value carries the meet of its own: the template
 rides the result. -/
@@ -2660,8 +2786,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .nothing => nothingOr a
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
-  | .ride k v r, b => .ride k (rec v b) r
-  | a, .ride k v r => .ride k (rec a v) r
+  | .ride k v r, b => rideLeft rec k v r b
+  | a, .ride k v r => rideRight rec a k v r
   | .link v t, b => .link (rec v b) t
   | a, .link v t => .link (rec a v) t
   | .or arms, b => meetNodes rec (.or arms) b
@@ -2725,8 +2851,8 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_list_any hr ..
     | exact admits_meetNodes hr ..
     | exact admits_meetRight hr ..
-    | exact admits_ride_left hr ..
-    | exact admits_ride_right hr ..
+    | exact admits_rideLeft hr ..
+    | exact admits_rideRight hr ..
     | exact admits_link_left hr ..
     | exact admits_link_right hr ..
     | (simp only [hr, admits_meet_iff, and_assoc, iff_self]; done)

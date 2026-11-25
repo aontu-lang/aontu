@@ -3696,6 +3696,109 @@ theorem templateClash_verdict_exact : ∀ c ∈ templateClashCases, ∀ (m : Mod
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (templateClashCases_checkable c hc).1 (templateClashCases_checkable c hc).2 v
 
+/-- A default that reaches a disjunction as an arm stands as the arm it
+is, of its rank with no parent type, whichever way it got there (ruling
+89): the ruling's own `level: $.defaults.level | "debug"` against a
+string neither arm names, against `"debug"` and against nothing; a
+`pref()` call, a name whose body is a default, and a path to one, each
+against a value only the parent type would admit; a path that settles
+late, through a second path, and one the data gives a value; a `pref()`
+over a path, against data that agrees with what it reads and data that
+doesn't; `copy`, `move`, a rider, a meet with the parent type and a
+`match`'s result around the default, the `match` over a scrutinee the
+data settles standing in a list of its own, which the definition reads
+without the checker (`armStandsSelectCases`); a default in a list, in a spread's
+template over its member's key, and one that is a map. A star on such
+an arm adds to the default's own rank. What stays wider stands beside
+them: `super()` of the default, a parent type the document writes, a
+disjunction the place's default met, and a default a meet refused,
+whose parent type is then an arm like any other; a default the place
+narrowed with a kind, or met with its twin, is still the default
+alone. Two defaults of one rank that reach one disjunction clash or
+agree as written ones do. -/
+def armStandsCases : List (Decls × Val × Data) :=
+  let one : Val := .pref 1 (int 1)
+  let pd : Val := p ["d"]
+  let o (vs : List Val) : Val := .or (vs.map fun v => (0, v))
+  let xa (f : Val) : Val := o [f, str "a"]
+  let dx (v : Data) : Data := .map [("x", v)]
+  let doc (d f : Val) : Val := m [("d", d), ("x", xa f)]
+  let level : Val := m [("level", o [p ["defaults", "level"], str "debug"]),
+    ("defaults", m [("level", .pref 1 (str "info"))])]
+  [([], level, .map [("level", js "other")]),
+    ([], level, .map [("level", js "debug")]),
+    ([], level, .map []),
+    ([], x (xa (c .pref [int 1])), dx (j 3)),
+    ([], x (xa (c .pref [int 1])), dx (j 1)),
+    ([], x (xa (c .pref [int 1])), .map []),
+    ([("T", one)], x (xa (.alias "T")), dx (j 3)),
+    ([], doc one pd, dx (j 3)),
+    ([], doc one pd, dx (j 1)),
+    ([], doc one pd, dx (js "a")),
+    ([], doc one pd, .map []),
+    ([], m [("x", xa pd), ("d", p ["e"]), ("e", one)], dx (j 3)),
+    ([], doc one pd, .map [("d", j 5), ("x", j 5)]),
+    ([], doc one pd, .map [("d", j 5), ("x", j 1)]),
+    ([], doc (int 1) (c .pref [pd]), dx (j 3)),
+    ([], doc .number (c .pref [pd]), dx (j 3)),
+    ([], doc .number (c .pref [pd]), .map [("x", j 3), ("d", j 3)]),
+    ([], doc .number (c .pref [pd]), .map [("x", j 3), ("d", j 4)]),
+    ([], doc one (c .copy [pd]), dx (j 3)),
+    ([], doc one (c .move [pd]), dx (j 3)),
+    ([], doc one (.ride .metadata pd []), dx (j 3)),
+    ([], doc one (.meet pd .number), dx (j 3)),
+    ([], doc one (.select (int 1) [(int 1, pd)] none), dx (j 3)),
+    ([], x (lst [xa (c .pref [int 1])]), dx (.list [j 3])),
+    ([], x (.list [] (some (xa (c .pref [int 1]))) false), dx (.list [j 3])),
+    ([], x (.list [] (some (xa (c .pref [int 1]))) false), dx (.list [j 1, js "a"])),
+    ([], x (tmpl (xa (c .pref [k 0]))), dx (.map [("b", js "q")])),
+    ([], x (tmpl (xa (c .pref [k 0]))), dx (.map [("b", js "b")])),
+    ([], x (tmpl (xa (c .pref [k 0]))), dx (.map [("b", js "a")])),
+    ([], doc (.pref 1 (m [("a", int 1)])) pd, dx (.map [("a", j 2)])),
+    ([], doc (.pref 1 (m [("a", int 1)])) pd, dx (.map [("a", j 1)])),
+    ([], doc (.pref 1 (m [("a", int 1)])) pd, .map []),
+    ([], doc (m [("a", one)]) pd, dx (.map [("a", j 2)])),
+    ([], x (.or [(1, one), (0, str "a")]), dx (j 3)),
+    ([], x (.or [(0, one), (0, str "a")]), dx (j 3)),
+    ([], x (.or [(1, one), (1, int 2)]), .map []),
+    ([], doc one (c .super [pd]), dx (j 3)),
+    ([], doc (.or [(1, int 1), (0, .number)]) pd, dx (j 3)),
+    ([], doc (.meet one (o [int 1, int 2, int 3])) pd, dx (j 2)),
+    ([], doc (.meet one (o [int 1, int 2, int 3])) pd, dx (j 4)),
+    ([], doc (.meet one (o [.integer, .string])) pd, dx (j 2)),
+    ([], x (xa (.meet one (.min (nb 2)))), dx (j 7)),
+    ([], x (xa (.meet one (.min (nb 2)))), dx (j 1)),
+    ([], doc (.meet one .integer) pd, dx (j 2)),
+    ([], doc (.meet one one) pd, dx (j 2)),
+    ([], m [("d", one), ("x", .or [(0, pd), (1, int 2)])], .map []),
+    ([], m [("d", one), ("x", .or [(0, pd), (1, int 1)])], .map []),
+    ([], m [("d", one), ("e", .pref 2 (int 2)), ("x", o [pd, p ["e"]])], .map []),
+    ([], m [("d", one), ("e", .pref 2 (int 2)), ("x", o [pd, p ["e"]])], dx (j 2)),
+    ([], m [("d", one), ("e", .pref 2 (int 2)), ("x", o [pd, p ["e"]])], dx (j 3))]
+
+theorem armStandsCases_checkable : ∀ c ∈ armStandsCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem armStands_verdict_exact : ∀ c ∈ armStandsCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (armStandsCases_checkable c hc).1 (armStandsCases_checkable c hc).2 v
+
+/-- A `match`'s result that is a default, standing as an arm (ruling
+89): `match($.k, number, pref(1), string, "s") | "a"` against a value
+only the default's parent type would admit, and against nothing. -/
+def armStandsSelectCases : List (Decls × Val × Data) :=
+  let sel : Val := m [("k", .number), ("x", .or [(0, .select (p ["k"])
+    [(.number, c .pref [int 1]), (.string, str "s")] none), (0, str "a")])]
+  [([], sel, .map [("x", j 3), ("k", j 2)]),
+    ([], sel, .map [("k", j 2)])]
+
+theorem armStandsSelectCases_reads : ∀ c ∈ armStandsSelectCases, c.1.readsPD c.2.1 c.2.2 = true := by
+  decide +kernel
+
+theorem armStandsSelect_verdict_exact : ∀ c ∈ armStandsSelectCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_readsD (armStandsSelectCases_reads c hc) v
+
 /-- A `match` whose scrutinee, and a `must` whose condition, reads the
 place the term stands at, which reads what the rest of the document
 holds there, without the term (`Val.dropSelf`): the rule of #818,
@@ -8949,6 +9052,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# the schema's error where it is written, whatever the data (ruling 90), in rows"
     IO.println "# tc0 on."
     pathRows "tc" templateClashCases
+    IO.println "# A default that reaches a disjunction as an arm, by a call, a name, a path or a"
+    IO.println "# meet, stands as the arm it is, of its rank with no parent type (ruling 89), in"
+    IO.println "# rows ar0 on, and a match's result that is one in rows as0 on."
+    pathRows "ar" armStandsCases
+    pathRows "as" armStandsSelectCases
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases
