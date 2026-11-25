@@ -68,14 +68,17 @@ make test       # test-ts  + test-go       make prose    # the Vale gate
 make comments   # the code-comment gate    make hooks    # install .githooks
 ```
 
+`make comments` is `node admin/scripts/comment-gate.cjs`; `make prose`
+is `vale --minAlertLevel=error $(node ts/scripts/gated-docs.cjs)` and
+`node ts/scripts/vale-counts.cjs`.
+
 Per language: `cd ts && npm install && npm run build && npm test`;
 `cd go && go build ./... && go vet ./... && go test ./...`.
 
 `ts/dist` and `ts/dist-test` are **committed**, so rebuild after changing
-`ts/src` or `ts/test`. One consequence: a static analyser sees the
-compiled JS as well as the source and reports every `ts/src` finding
-twice — for DeepScan this is excluded in its dashboard settings
-(`/ts/dist`, `/ts/dist-test`), which no pull request can set.
+`ts/src` or `ts/test`. A static analyser therefore reports every
+`ts/src` finding twice; DeepScan excludes `/ts/dist` and `/ts/dist-test`
+in its dashboard settings, which no pull request can set.
 
 `ts/src/tsconfig.json` carries `noUnusedLocals`, `noUnusedParameters`,
 `noImplicitReturns` and `noFallthroughCasesInSwitch`, so an unused import
@@ -89,9 +92,8 @@ few minutes at most**: `make test`, `make cov` and the use cases belong
 to the daily CI, never run locally ([DEV-PROCESS.md](DEV-PROCESS.md#testing)).
 
 `make hooks` points git at [`.githooks/`](.githooks), whose `pre-push`
-runs the comment gate. It is a convenience, not the enforcement: the gate
-that decides is `ts/test/comments.test.ts`, inside `npm test` and so
-inside CI on every push.
+runs the comment gate. CI's gate group enforces it and the style rules
+through `ts/test/comments.test.ts` and `ts/test/docs-style.test.ts`.
 
 Two failures are found in CI rather than locally: a generated copy or
 `ts/dist` not rebuilt (the happy path refuses a tree `make build-ts`
