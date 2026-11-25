@@ -18,6 +18,6 @@ declare class DisjunctVal extends JunctionVal {
     getJunctionSymbol(): string;
     gen(ctx: AontuContext): any;
 }
-declare function unread(v: any): boolean;
+declare function unread(v: any, which?: (ref: any) => boolean): boolean;
 declare function meetRanked(ctx: AontuContext, a: Val, b: Val): Val;
 export { DisjunctVal, meetRanked, unread, };

@@ -76,9 +76,13 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         return undefined === own ? this.superpeg.clone(ctx) :
             (0, unify_1.unite)(ctx, (0, SuperFuncVal_1.superOf)(ctx, own), this.superpeg.clone(ctx), 'pref/lift');
     }
+    // Only a path to a place outside the default: one into it, a peer alone can answer.
     waitsForPath(ctx) {
         const own = this.own(ctx);
-        return undefined !== own && (0, DisjunctVal_1.unread)(own);
+        return undefined !== own && (0, DisjunctVal_1.unread)(own, (ref) => {
+            const to = [].concat(ref.plainRefPath());
+            return !this.path.every((p, i) => p === to[i]);
+        });
     }
     // Unchanged on both counts is the SAME preference, returned as
     // itself: minting a new one every pass would keep the fixpoint

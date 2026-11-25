@@ -1078,3 +1078,30 @@ vet-string-with-empty-through-a-path-against-the-empty-string-under-partial	verd
 vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid"}
 vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string-with-no-fill	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid","opts":{"noFill":true}}
 vet-string-with-empty-and-a-string-in-one-conjunction-against-the-empty-string-under-partial	verdict	v: string & empty() & string	{"v": ""}	{"verdict":"valid","opts":{"partial":true}}
+# A lone default whose path a term met beside it answers (#702): the default
+# waits only for a path to a place outside it, so the peer answers the path, and
+# each row is the definition's answer too.
+vet-lone-peer-answers-the-defaults-path	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{}	{"verdict":"valid"}
+vet-lone-peer-answers-the-defaults-path-with-no-fill	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-peer-answers-the-defaults-path-under-partial	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-peer-answers-the-defaults-path-against-an-override	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 5, "b": 2, "c": 2}}	{"verdict":"valid"}
+vet-lone-peer-answers-the-defaults-path-against-an-override-with-no-fill	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 5, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-peer-answers-the-defaults-path-against-an-override-under-partial	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 5, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-peer-answers-the-defaults-path-against-another-value	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 5, "b": 3, "c": 2}}	{"verdict":"valid"}
+vet-lone-peer-answers-the-defaults-path-against-another-value-with-no-fill	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 5, "b": 3, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-peer-answers-the-defaults-path-against-another-value-under-partial	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 5, "b": 3, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-peer-answers-the-defaults-path-against-the-default	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid"}
+vet-lone-peer-answers-the-defaults-path-against-the-default-with-no-fill	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-peer-answers-the-defaults-path-against-the-default-under-partial	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-peer-refuses-what-it-refuses-alone	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"c": 3}}	{"verdict":"invalid"}
+vet-lone-peer-refuses-what-it-refuses-alone-with-no-fill	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"c": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-peer-refuses-what-it-refuses-alone-under-partial	verdict	x: (*{a: 1, b: .c}) & {c: 2}	{"x": {"c": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-peer-written-first-answers-the-defaults-path	verdict	x: {c: 2} & (*{a: 1, b: .c})	{}	{"verdict":"valid"}
+vet-lone-peer-written-first-answers-the-defaults-path-with-no-fill	verdict	x: {c: 2} & (*{a: 1, b: .c})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-peer-written-first-answers-the-defaults-path-under-partial	verdict	x: {c: 2} & (*{a: 1, b: .c})	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-peer-beside-a-path-to-a-place-outside	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1}	{"verdict":"valid"}
+vet-lone-peer-beside-a-path-to-a-place-outside-with-no-fill	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-peer-beside-a-path-to-a-place-outside-under-partial	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-peer-beside-a-path-to-a-place-outside-against-another-kind	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1, "x": {"a": 2, "b": "s", "c": 2}}	{"verdict":"invalid"}
+vet-lone-peer-beside-a-path-to-a-place-outside-against-another-kind-with-no-fill	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1, "x": {"a": 2, "b": "s", "c": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-peer-beside-a-path-to-a-place-outside-against-another-kind-under-partial	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1, "x": {"a": 2, "b": "s", "c": 2}}	{"verdict":"invalid","opts":{"partial":true}}

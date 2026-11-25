@@ -125,9 +125,13 @@ class PrefVal extends FeatureVal {
   }
 
 
+  // Only a path to a place outside the default: one into it, a peer alone can answer.
   private waitsForPath(ctx: AontuContext): boolean {
     const own = this.own(ctx)
-    return undefined !== own && unread(own)
+    return undefined !== own && unread(own, (ref: any) => {
+      const to = ([] as any[]).concat(ref.plainRefPath())
+      return !this.path.every((p, i) => p === to[i])
+    })
   }
 
 

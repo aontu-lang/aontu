@@ -293,9 +293,10 @@ function flatArms(v) {
 function pends(v) {
     return true !== v.done && (true === v.isRef || true === v.isFunc || true === v.isConjunct);
 }
-function unread(v) {
+function unread(v, which) {
     const kids = true === v.isBag || true === v.isJunction || true === v.isFunc || true === v.isOp;
-    return true === v.isRef || kids && Object.values(v.peg).some(unread);
+    return true === v.isRef ? undefined === which || which(v) :
+        kids && Object.values(v.peg).some((k) => unread(k, which));
 }
 function dedupArms(ctx, oval, ranked) {
     // Dedup: duplicate Vals in the disjunct are replaced with the

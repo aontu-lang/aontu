@@ -1953,7 +1953,9 @@ preference so. They still lift a path in a template inside the value
 to `any` in the parent arm, which #704 tracks. A preference waits for a
 path to a place outside its value before a peer meets it, so `y: 1`
 beside `x: *{a: 1, b: $.y}` refuses `{a: 2, b: "s"}` under `vet` as it
-does when evaluated. The definition reads a lone preference so by
+does when evaluated. A path into its own place that only a term beside
+it answers reads there, so `x: (*{a: 1, b: .c}) & {c: 2}` is
+`{a: 1, b: 2, c: 2}`. The definition reads a lone preference so by
 `Decls.nodeChosen`. A disjunction met with another at one place reads as
 one disjunction of the meets of their arms, as the meet makes them: in
 `x: ({b: .a} | null) & ({a: 1} | {a: 2})`, `b` reads `1` in one arm and

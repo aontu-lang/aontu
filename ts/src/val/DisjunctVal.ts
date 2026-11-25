@@ -381,9 +381,10 @@ function pends(v: any): boolean {
 }
 
 
-function unread(v: any): boolean {
+function unread(v: any, which?: (ref: any) => boolean): boolean {
   const kids = true === v.isBag || true === v.isJunction || true === v.isFunc || true === v.isOp
-  return true === v.isRef || kids && Object.values(v.peg).some(unread)
+  return true === v.isRef ? undefined === which || which(v) :
+    kids && Object.values(v.peg).some((k) => unread(k, which))
 }
 
 
