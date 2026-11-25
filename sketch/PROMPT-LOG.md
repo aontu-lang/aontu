@@ -2108,3 +2108,9 @@ Merge and continue
 ```text
 Merge; confirm you are following all adrs in particular canon forms match builtins used (even if there are internal "rewrites" that reuse other builtins). Report on overall progress then continue work
 ```
+
+## 2026-11-25 13:47:02 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+merge; report on status
+```
