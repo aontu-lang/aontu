@@ -1443,6 +1443,14 @@ Both wait for the model to settle before they answer, for the reason
 wrong bag to take a subset of, and a scrutinee that is still being
 narrowed can match an earlier arm than the one it will end up matching.
 
+**A pattern that waits holds the whole `match`.** A `+` or a `join`
+that takes no operand yet, as `integer + 1` does, settles nothing, and
+a `match` stages every pattern before it selects. So
+`match(1, 1, "yes", integer + 1, "no")` stays incomplete, though its
+first arm alone would answer. A waiting call in a result holds only the
+arm that takes it, and one in a spread's template inside a pattern
+holds nothing.
+
 **A `match` binds no hole.** `match(_, …)` outside a generator's
 template is a hole nothing binds (see
 [The placeholder `_`](#the-placeholder-_)), so the document is an error
@@ -1451,7 +1459,7 @@ accepts a document the arm it selects refuses. Inside a generator's
 template the hole is the source child, the scrutinee is a value by the
 time the match runs, and the form works as documented above.
 
-The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way, in both engines too, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, #922. A scrutinee that generates nothing takes the arm `certainArm` finds, the first whose pattern it sits below as `leDecF` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) decides the order, every arm before it sharing nothing with the scrutinee, and waits where there is no such arm, #938, rows `os0` and `ca0` on. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked, and waits while that member is open.
+The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`. A `match` whose scrutinee reads the place it stands at, as `order: match($.order.status, "shipped", {trackingNo: string}, {})` does, reads in the definition what the rest of the document holds there, without its own arms, by `Val.dropSelf` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so the record's own `status` picks the arm. Where the rest of the document leaves the scrutinee open, `number` beside the `match`, the `match` waits for the data. Both engines read it the same way, as #818 asked, and rows `sr0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold it. A pattern that reads the match's own place reads the field the same way, in both engines too, #919. The definition selects by what the scrutinee outputs, as `outputD` reads it, #922. A selection whose pattern holds a call that waits reads as the term that waits, `Val.waiting`, by `selectRead` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), #432, rows `wt0` on. A scrutinee that generates nothing takes the arm `certainArm` finds, the first whose pattern it sits below as `leDecF` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) decides the order, every arm before it sharing nothing with the scrutinee, and waits where there is no such arm, #938, rows `os0` and `ca0` on. A path copies its target without its marks, so a scrutinee read through one holds such a member unmarked, and waits while that member is open.
 
 ## The placeholder `_`
 
@@ -7948,6 +7956,8 @@ It is how the conditionals of JSON Schema cross into aontu: `if`, `then` and
 back.
 
 `when(c, t, e)` holds the datum to the branch its condition picks, an `else` not written reading as `any`: `judge_when_iff` and `when_nil_refuses` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
+
+An argument that holds a call still waiting for an operand, `integer + 1`, makes `must`, `nof` or `when` wait with it. The atom neither admits nor refuses, so `nof(0, integer + 1) & 5` stays incomplete, where a branch that refused `5` would admit it, and `--partial` lets it pass. The count of `nof` holds it the same way. A call in a spread's template inside the argument holds nothing, and an argument that doesn't stand admits nothing, as before. The definition reads such an atom as the term that waits, `Val.waiting` and `waitOr` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), where `Val.stalls` finds the call, and rows `wt0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. `contains`, `rest` and `len` over such a call read another way in both engines, which #977 tracks.
 
 ### Band B: `contains`
 

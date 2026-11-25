@@ -6517,7 +6517,11 @@ dead, written `nil` or not. So such a trial is an error where it stands, an arm 
 and a spread holding it refuses each member it's tried on. An argument a
 trial tries against a value instead, a branch of `nof`, `when`'s three
 and the conditions of `contains` and `filter`, admits nothing where it
-holds a conflict anywhere (`Decls.tried`), as one at its top does. -/
+holds a conflict anywhere (`Decls.tried`), as one at its top does. A
+`match` whose scrutinee generates a value reads as `selectRead` reads
+it, and a `nof`, a `must` and a `when` as `waitOr` does: one that tries
+a call that waits is the term that waits (`Val.waiting`), so that it
+neither admits nor refuses (#432). -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -6525,9 +6529,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let d' := resolveSpread ds b here d
     if ds.clashes s' then .nil else
     match outputD ds s' with
-    | some x =>
-      if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
-      else (selectArm ds x arms' d').rideMoves s'.moves
+    | some x => selectRead ds here x s' arms' d'
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
       else if s'.unbound || unboundPats arms' || callPairs arms' || here.isNone && keyPairs arms'
@@ -6679,15 +6681,23 @@ def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds)
 ```lean
   | .nof n cs =>
     if ds.clashes (resolveD ds b here n) then .nil
-    else .nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here))
-  | .must c m => if ds.clashes (resolveD ds b here c) then .nil else .must (resolveD ds b here c) m
+    else waitOr here (resolveD ds b here n :: (resolveItems ds b here cs).map (ds.tried here))
+      (.nof (resolveD ds b here n) ((resolveItems ds b here cs).map (ds.tried here)))
+  | .must c m =>
+    if ds.clashes (resolveD ds b here c) then .nil
+    else waitOr here [resolveD ds b here c] (.must (resolveD ds b here c) m)
   | .when c t e =>
-    .when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
-      ((resolveSpread ds b here e).map (ds.tried here))
+    waitOr here (ds.tried here (resolveD ds b here c) :: ds.tried here (resolveD ds b here t) ::
+        ((resolveSpread ds b here e).map (ds.tried here)).toList)
+      (.when (ds.tried here (resolveD ds b here c)) (ds.tried here (resolveD ds b here t))
+        ((resolveSpread ds b here e).map (ds.tried here)))
   | .contains c n =>
     if ds.clashes (resolveD ds b here n) then .nil
     else .contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n)
 ```
+
+`waitOr` holds a `nof`, a `must` or a `when` whose argument still waits
+for an operand, which the section on `+` below covers.
 
 Below the top of `must`'s condition a written `nil` stands as it does
 anywhere, so `must({b?: nil}, "m")` admits `{"x": 1}` and refuses
@@ -7759,12 +7769,80 @@ def Val.callAt : Val → Bool
 A sum no leaf holds, `9007199254740992 + 1`, is `nil`, so `vet` reads
 it as an error, as it reads `add(9007199254740992, 1)`.
 
-Inside a trial the definition doesn't wait yet. A `match` whose pattern
-is a waiting `+` passes over the pattern, since `Judge` refuses every
-value at a call, where both engines wait on the pattern, which #432
-tracks. A pattern that holds a call keeps the `match` unmade, so
+A trial that tries a call that waits has to wait with it. `Judge`
+refuses every value at a call, so a `match` would pass over a waiting
+`+` in a pattern and take a later arm, and a `nof` would count the
+branch as one that refuses. Both engines stage each argument before
+they try it, and answer `incomplete`. So the reading makes such a trial
+the term that waits, a `+` that takes neither operand:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.waiting : Val := .call .plus [.any, .any]
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def waitOr (here : Option (List Step)) (args : List Val) (t : Val) : Val :=
+  if here.isNone && keyItems args then t else if stallsItems args then .waiting else t
+```
+
+`resolveD` hands `waitOr` the arguments a `nof`, a `must` or a `when`
+tries. `Val.stalls` finds a `+`, a `join` or a `pref` the reading left
+as written in any of them: in a member, an element, an arm or a meet,
+though not in a spread's template, which nothing has read against a
+member yet. A `match` whose scrutinee has a value reads the same way:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def selectRead (ds : Decls) (here : Option (List Step)) (x : Data) (s : Val)
+    (arms : List (Val × Val)) (d : Option Val) : Val :=
+  if here.isNone && keyPairs arms then .select s arms d
+  else if callPats arms then
+    if illPats arms || !stallsItems (arms.map (·.1)) then .select s arms d
+    else Val.waiting.rideMoves s.moves
+  else (selectArm ds x arms d).rideMoves s.moves
+```
+
+One pattern that waits holds the whole `match`, whichever arm the value
+would take. Write `wait.aontu`:
+
+<!-- test: scenario wait -->
+<!-- test: file wait.aontu -->
+```aontu
+v: match(1, 1, "yes", integer + 1, "no")
+```
+
+and `wait-data.aontu`:
+
+<!-- test: file wait-data.aontu -->
+```aontu
+v: "yes"
+```
+
+Now vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet wait.aontu wait-data.aontu
+verdict: incomplete
+
+$.v: mapval_no_gen [incomplete]
+  [aontu/mapval_no_gen]: Cannot resolve value at path $.v
+  schema: wait.aontu:1:4 ("yes"&match(1,1,"yes",integer+1,"no"))
+$ echo $?
+3
+```
+
+The first arm alone would answer `"yes"`. The second pattern still
+waits, so neither engine selects. A pattern that holds a call the
+reading couldn't make keeps the `match` as written, so
 `match(1, add(integer, 1), "yes", "no")` is an error, as both engines
-answer.
+answer. Rows `wt0` on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to these readings, and the two rows that held the old one have left the
+ledger. `contains`, `rest` and `len` over such a call read another way
+in both engines, which #977 tracks.
 
 `join` folds a bag into one string with the texts `+` writes, the
 separator between them, `""` where there's none, so

@@ -8,6 +8,50 @@ each change affects.
 
 ## Unreleased
 
+### A trial over a call that waits, waits with it
+
+#432, in the definition. A `+` or a `join` that takes no operand yet,
+`integer + 1`, waits: it generates nothing, and `vet` reads the
+document as `incomplete`. Inside a trial the definition read the same
+call as refusing, since its checker refuses every value at a call. So
+`match(1, integer + 1, "yes", "no")` passed over the pattern and took
+its default, and `nof(0, integer + 1)` counted no branch, where both
+engines stage each argument before they try it and wait. The
+definition now reads a trial that tries such a call as the term that
+waits:
+
+- `match(1, integer + 1, "yes", "no")` is `incomplete` against `"no"`,
+  against any other value and against nothing, and `valid` under
+  `--partial`. It was `valid`, or `invalid` against a value the default
+  refuses. One pattern that waits holds the whole `match`:
+  `match(1, 1, "yes", integer + 1, "no")` waits though its first arm
+  alone would answer.
+- `nof(0, integer + 1)`, `must(integer + 1, "m")` and
+  `when(integer + 1, "a", "b")` are `incomplete` against a value. Each
+  was `valid` or `invalid` by what a refusing branch would give. A
+  count of `nof` that waits holds it the same way, and so does a trial
+  inside a trial.
+- A `match` whose patterns hold no call is made, so a call in the
+  result it takes reads where the `match` stood:
+  `match(1, 1, integer + 1, "no")` is `incomplete`, where it was
+  `invalid`.
+- A call in a spread's template inside a pattern or a branch holds
+  nothing, and a pattern or a branch that doesn't stand reads as
+  before: `match(1, add(integer, 1), "yes", "no")` is an `error`.
+
+`Val.stalls` finds the call, `Val.waiting` is the term, and `waitOr`
+and `selectRead` read the trial as it, all in
+`spec/Aontu/Verdict.lean`. No engine changes.
+
+Rows x498 and x499 of `test/spec/def-call.tsv` take the new answer and
+leave `spec/ledger.tsv`, whose bound falls to 37. Rows wt0 to wt95 of
+`test/spec/def-path.tsv` hold both engines to the reading, and both
+answer every one as the definition does. The rows of the entry below
+on a default that reaches a disjunction are da0 to da149, where they
+shared the tag `ar` with the rows of `apply`. `contains`, `rest` and
+`len` over such a call, a branch under `*` and a spread's template read
+another way in both engines and in the definition, which #977 tracks.
+
 ### A `string` met with `string & empty()` is `string`
 
 #343, decision 3 of the definition's design note, in both engines.

@@ -2254,7 +2254,11 @@ dead, written `nil` or not. So such a trial is an error where it stands, an arm 
 and a spread holding it refuses each member it's tried on. An argument a
 trial tries against a value instead, a branch of `nof`, `when`'s three
 and the conditions of `contains` and `filter`, admits nothing where it
-holds a conflict anywhere (`Decls.tried`), as one at its top does. -/
+holds a conflict anywhere (`Decls.tried`), as one at its top does. A
+`match` whose scrutinee generates a value reads as `selectRead` reads
+it, and a `nof`, a `must` and a `when` as `waitOr` does: one that tries
+a call that waits is the term that waits (`Val.waiting`), so that it
+neither admits nor refuses (#432). -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
