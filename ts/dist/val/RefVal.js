@@ -681,7 +681,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
     // plain strings; undefined when the ref has variable segments (no
     // cycle proof is attempted for those). Mirrors find's refpath
     // computation for the plain case, including the `.` prefix reduction.
-    plainRefPath() {
+    plainRefPath(at) {
         const parts = [];
         for (const p of this.peg) {
             if ('string' !== typeof p) {
@@ -690,7 +690,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
             parts.push(p);
         }
         const refpath = this.absolute ? parts :
-            this.path.slice(0, -1).concat(parts);
+            (at ?? this.path).slice(0, -1).concat(parts);
         const reduced = [];
         for (const p of refpath) {
             if ('.' === p) {

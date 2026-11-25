@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### A path that names nothing under a check inside a lone default is the schema's error
+
+#981, in both engines. The change for #700 reads a lone default's own
+stray path once the schema has settled. It didn't reach a path a check
+holds: `x: *{a: 1, b: when(.d, 1, 2)}` stayed `incomplete` under
+`vet`, and `mapval_no_gen` when evaluated, where the same member
+outside a default is `no_path`. The walk now enters a check's pending
+arguments and reads each at the check's own place:
+
+- `when`, `nof`, `must`, `len`, `contains` and `rest` over such a path
+  are `no_path`, whichever argument holds it: the condition, a result,
+  a branch or a count.
+- A bound over one is too: `min(.d)` and `neq(1, .d)`.
+
+`test/spec/pref.tsv` gains 14 rows and `test/spec/vet.tsv` 30, each
+answer the definition's too. `maybe(.d)` inside a lone default still
+waits, where the definition reads `b` as absent, which #981 keeps.
+
 ### A path that names nothing inside a lone default is the schema's error
 
 #700, in both engines. **Breaking** for a document that relied on the

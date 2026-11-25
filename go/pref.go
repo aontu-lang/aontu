@@ -121,6 +121,10 @@ func strayRef(v Val, which func(*RefVal) bool) *RefVal {
 		if "maybe" != n.name {
 			kids = n.peg
 		}
+	case *ConstraintVal:
+		if nil != n.pending {
+			kids = n.pending.args
+		}
 	}
 	for _, kid := range kids {
 		if r := strayRef(kid, which); nil != r {
