@@ -270,8 +270,10 @@ pref-lone-defaults-meet	gen	x: (*{a: 1, b: .c}) & (*{c: 2})	{"x":{"a":1,"b":2,"c
 pref-lone-defaults-meet-canon	canon	x: (*{a: 1, b: .c}) & (*{c: 2})	{"x":*{"a":1,"b":2,"c":2}}
 pref-lone-defaults-meet-three	gen	x: ((*{a: .c}) & (*{b: 1})) & (*{c: 2})	{"x":{"a":2,"b":1,"c":2}}
 pref-lone-defaults-meet-each-way	gen	x: (*{a: 1, b: .c}) & (*{c: .a})	{"x":{"a":1,"b":1,"c":1}}
-# A path in an arm into a choice the arm holds waits for the choice.
-pref-path-into-an-inner-choice	errc	x: ({a: ({c: 1, d: .c}) | null, e: .a.d}) | null	disjunct_no_gen
+# A path in an arm into a choice the arm holds waits for the choice, and
+# names nothing while the choice keeps two arms: once the schema has settled
+# the arm fails, as the definition reads it (#982).
+pref-path-into-an-inner-choice	gens	x: ({a: ({c: 1, d: .c}) | null, e: .a.d}) | null	{"x":null}
 # A preferred arm keeps the records on its preference through a ranked meet.
 pref-arm-keeps-its-meta	canon	x: (meta(*1, {title: "t"}) | 2) & (integer | **3)	{"x":meta(*1,{"title":"t"})|2}
 pref-arm-keeps-its-deprecation	canon	x: (deprecate(*1, {msg: "old"}) | 2) & (integer | **3)	{"x":deprecate(*1,{"msg":"old"})|2}
@@ -442,3 +444,10 @@ lone-stray-path-under-rest	errc	x: *{a: 1, b: rest(.d)}	no_path
 lone-stray-path-under-a-bound	errc	x: *{a: 1, b: min(.d)}	no_path
 lone-stray-path-under-neq	errc	x: *{a: 1, b: neq(.d)}	no_path
 lone-stray-path-under-a-later-neq-value	errc	x: *{a: 1, b: neq(1, .d)}	no_path
+# A default in a list reads its paths the same (#988): a list position is a
+# number in one path and its digits in another, and names one place.
+lone-peer-answers-the-defaults-path-in-a-list	gens	x: [(*{a: 1, b: .c}) & {c: 2}]	{"x":[{"a":1,"b":2,"c":2}]}
+lone-peer-answers-the-defaults-path-in-a-nested-list	gens	x: {l: [*{a: 1, b: .c}]}\nx: {l: [{c: 2}]}	{"x":{"l":[{"a":1,"b":2,"c":2}]}}
+lone-peer-in-a-list-beside-a-path-to-a-place-outside	gens	y: 1\nx: [(*{a: 1, b: $.y}) & {c: 2}]	{"x":[{"a":1,"b":1,"c":2}],"y":1}
+lone-stray-path-in-a-list-element	errc	x: [*{a: 1, b: .d}]	no_path
+lone-stray-path-as-an-arm-in-a-list-element	gens	x: [*{a: 1, b: .d} | "z"]	{"x":["z"]}

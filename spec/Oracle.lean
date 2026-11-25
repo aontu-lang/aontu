@@ -2648,6 +2648,71 @@ theorem stray_path_verdict_exact : ∀ c ∈ strayPathCases, ∀ (m : Mode) (v :
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (strayPathCases_checkable c hc).1 (strayPathCases_checkable c hc).2 v
 
+/-- The same path under a check inside a lone preference (#981), an
+error whichever argument holds it: the condition of a `when`, its
+result and its alternative; a branch of `nof`, a later one, and its
+count; the condition of `must`; `len`; `contains` and its count; `rest`;
+and a bound, `min` and `neq`, the path alone and after another value. -/
+def strayCheckCases : List (Decls × Val × Data) :=
+  let d : Val := rel 1 ["d"]
+  let x (b : Val) : Val := m [("x", .pref 1 (m [("a", int 1), ("b", b)]))]
+  [([], x (.when d (int 1) (some (int 2))), dm []),
+    ([], x (.when (.lit (.bool true)) d (some (int 2))), dm []),
+    ([], x (.when (.lit (.bool false)) (int 1) (some d)), dm []),
+    ([], x (.nof (int 1) [d]), dm []),
+    ([], x (.nof (int 1) [int 2, d]), dm []),
+    ([], x (.nof d [int 1]), dm []),
+    ([], x (.must d "m"), dm []),
+    ([], x (.len d), dm []),
+    ([], x (.contains d (.min (.num (.integer (.of 1))))), dm []),
+    ([], x (.contains (int 1) d), dm []),
+    ([], x (.rest d []), dm []),
+    ([], x (c (.bnd .min) [d]), dm []),
+    ([], x (c (.bnd .neq) [d]), dm []),
+    ([], x (c (.bnd .neq) [int 1, d]), dm [])]
+
+theorem strayCheckCases_checkable : ∀ c ∈ strayCheckCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem stray_check_verdict_exact : ∀ c ∈ strayCheckCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (strayCheckCases_checkable c hc).1 (strayCheckCases_checkable c hc).2 v
+
+/-- An arm whose path leads into its own place and names nothing there
+(#982). The arm fails alone where nothing supplies the member, so the
+arm beside it stands: against nothing, against a value that arm takes,
+and against a map the first arm would take but for its path. Data that
+supplies the member lets the arm read it, and so does a map the
+disjunction meets. Two arms that each hold such a path leave the schema
+no arm, an error whatever the data. An optional member that holds the
+disjunction may be absent, and the same arm one level down fails the
+same way. -/
+def strayArmCases : List (Decls × Val × Data) :=
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (d : Data) : Data := dm [("x", d)]
+  let lost := m [("a", int 1), ("b", rel 1 ["d"])]
+  let arms : Val := .or [(0, lost), (0, str "z")]
+  let two : Val := .or [(0, lost), (0, m [("c", rel 1 ["q"])])]
+  let full : Data := dx (dm [("a", j 1), ("b", j 5), ("d", j 5)])
+  [([], x arms, dm []),
+    ([], x arms, dx (.str "z")),
+    ([], x arms, dx (dm [("a", j 1)])),
+    ([], x arms, full),
+    ([], x (.meet arms (m [("d", int 5)])), dm []),
+    ([], x (.meet arms (m [("d", int 5)])), full),
+    ([], x two, dm []),
+    ([], x two, full),
+    ([], x two, dx (j 3)),
+    ([], .map [("x", true, arms)] none false, dm []),
+    ([], x (m [("a", .or [(0, m [("c", rel 1 ["q"])]), (0, int 1)])]), dm [])]
+
+theorem strayArmCases_checkable : ∀ c ∈ strayArmCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem stray_arm_verdict_exact : ∀ c ∈ strayArmCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (strayArmCases_checkable c hc).1 (strayArmCases_checkable c hc).2 v
+
 theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
 
@@ -9278,6 +9343,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# member, under a rider, in a call, as a declaration's body and as a spread's"
     IO.println "# template, which is no error until a member reads it."
     pathRows "sy" strayPathCases
+    IO.println "# The same path under a check inside a lone preference is an error whichever"
+    IO.println "# argument holds it, in rows sc0 on. An arm whose path leads into its own place"
+    IO.println "# and names nothing there fails alone where nothing supplies the member, and two"
+    IO.println "# such arms leave the schema none, in rows sa0 on."
+    pathRows "sc" strayCheckCases
+    pathRows "sa" strayArmCases
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases

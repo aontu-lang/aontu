@@ -10375,9 +10375,12 @@ nothing either, `x: *{a: *{c: 1}, b: .a.c}`, since no path reads a
 member of a lone preference. A term met beside the preference can still
 supply the member: `x: *{a: 1, b: .d} & {d: 5}` reads `b` as `5`. As an
 arm of a written disjunction the preference fails alone, so
-`x: *{a: 1, b: .d} | "z"` is `"z"`. Both engines answer each of these
-as the definition does, once the schema has settled and nothing more
-can supply the member. Rows from sy0 on hold them.
+`x: *{a: 1, b: .d} | "z"` is `"z"`. A plain arm does the same:
+`x: {a: 1, b: .d} | "z"` is `"z"`, and two arms that each hold such a
+path leave the schema none, an `error`. Both engines answer each of
+these as the definition does, once the schema has settled and nothing
+more can supply the member. Rows from sy0 on hold the preferences, and
+rows from sa0 on the arms.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
