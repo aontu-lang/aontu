@@ -3396,7 +3396,7 @@ until the phase that encodes it lands.
    settled, a path, a call or a meet, before the disjunction meets a
    term that isn't `top`, with that term held where a path to the
    arm's own place reads it, and waits where the arm still can't be
-   read. Rows ar0 to ar149 and as0 to as5 of
+   read. Rows da0 to da149 and as0 to as5 of
    `test/spec/def-path.tsv`, 165 rows of `test/spec/vet.tsv` and 40 of
    `test/spec/pref.tsv`; no other generated row changed. A star over a `pref()` call or a path,
    `*pref(1) | *2`, loses its arm in both ports, which differ from each

@@ -120,7 +120,7 @@ marks a lone preference's parent type (`Val.parentOf`, `rideLeft`),
 which admits what it admitted, and `Decls.armStands` reads each arm of
 a disjunction by its normal form (`Val.loneArms`).
 
-`test/spec/def-path.tsv` gains rows ar0 to ar149 and as0 to as5,
+`test/spec/def-path.tsv` gains rows da0 to da149 and as0 to as5,
 `test/spec/vet.tsv` 165 rows and `test/spec/pref.tsv` 40. No other
 generated row changes.
 
