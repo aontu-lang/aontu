@@ -2199,7 +2199,7 @@ ensure all repos in current folder aontu-lang are git pulled to latest main, and
 ## 2026-11-25 18:34:45 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
 
 ```text
-are we set up for [redacted: session set-up] tracking? re-examine sigstore - what is the purpose there?
+[redacted: session set-up]; re-examine sigstore - what is the purpose there?
 ```
 
 ## 2026-11-25 18:44:34 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
