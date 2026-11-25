@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 71 built-in functions and no user-defined ones. The name set
+aontu has 73 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -61,11 +61,9 @@ $ echo $?
 1
 ```
 
-The wording in that message is rendered from the interval and collapses
-cases, so it is not itself the interval: `rep` takes three arguments and
-prints `rep takes exactly one argument`, `project` takes none to two and
-prints `project takes no arguments or one`, and `match`'s floor of three
-is invisible in `match takes one or more arguments`. The bound is the
+The message words the interval: `rep takes exactly three arguments`,
+`project takes at most two arguments`, `keyed takes two or three
+arguments`, and `match takes three or more arguments`. The bound is the
 arity column of [the call surface](#the-call-surface). The count is of
 written terms, so a list literal counts as one: `add([1 2])` misses
 `add`'s interval of two, while `neq([1 2])` meets `neq`'s minimum of one
@@ -249,17 +247,18 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 60 of the 71 names, and 50 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 52 of the 71 use no
-mode but `value`, and 19 carry at least one slot in another mode.
+in 62 of the 73 names, and 50 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 52 of the 73 use no
+mode but `value`, and 21 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
 
-- `template`, four slots: `each`'s, `emit`'s, and `pack`'s second
-  argument, and `relate`'s only argument. `pack`, `each`, and
+- `template`, five slots: `apply`'s, `each`'s, `emit`'s, and `pack`'s
+  second argument, and `relate`'s only argument. `pack`, `each`, and
   `emit` instantiate the template per destination rather than driving
-  it; `relate` drives it at the call site.
+  it, and `apply` instantiates it once, for its value; `relate` drives
+  it at the call site.
   [Generating children: `pack` and
   `each`](reference-language.md#generating-children-pack-and-each),
   [Transforming: `emit`](reference-language.md#transforming-emit),
@@ -278,8 +277,8 @@ with the slot, and where the semantics are specified:
   [Ordering: `sort`](reference-language.md#ordering-sort),
   [`unique` semantics](reference-language.md#unique-semantics), and
   [Declared relations](reference-language.md#declared-relations).
-- `trial`, ten slots: `must`'s check, `filter`'s condition, the odd
-  members of `match`'s rest group, `nof`'s rest group of trial
+- `trial`, eleven slots: `must`'s check, `filter`'s condition, `keyed`'s
+  pattern, the odd members of `match`'s rest group, `nof`'s rest group of trial
   schemas, all three of `when`'s, `contains`'s first, and both of
   `rest`'s, its schema and its rest group of covers. The argument
   is unified against a
@@ -372,6 +371,7 @@ documentation page and fails on a difference of one space.
 | `inverse(projector k: string) : constraint` | `1` | `projector` | `constraint` |
 | `join(d: map\|list, sep?: string) : string` | `1..2` | `value` | `string` |
 | `key(up?: integer\|biginteger) : string` | `0..1` | `value` | `string` |
+| `keyed(trial p: any, t: any, e?: any) : any` | `2..3` | `value`, `trial` | `any` |
 | `least(d: map\|list) : number` | `1` | `value` | `number` |
 | `len(n: number\|constraint) : constraint` | `1` | `value` | `constraint` |
 | `line(spec: string\|map) : map` | `1` | `value` | `map` |
@@ -417,13 +417,15 @@ documentation page and fails on a difference of one space.
 
 A result word of `constraint` marks a residual whose meet depends on the
 peer it lands beside. `any` is the result word where the declaration
-cannot name the result: ten wrappers that answer whatever they were
-given, plus `pick`, which answers a projection out of every child, and
-`match`, which answers one of its pattern results.
+cannot name the result: twelve wrappers that answer whatever they were
+given, plus `pick`, which answers a projection out of every child,
+`apply`, which answers what its template makes of a value, `match`,
+which answers one of its pattern results, and `keyed`, which answers its
+schema or its default.
 
 ## Slices
 
-The same 71 names, cut by result word, by rest slot, and by optional
+The same 73 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -432,7 +434,7 @@ The eleven result words, and the names under each:
 | result | count | names |
 |---|---|---|
 | `annotation` | 1 | `gen` |
-| `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `ident`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
+| `any` | 16 | `apply`, `close`, `copy`, `deprecate`, `hide`, `ident`, `keyed`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
 | `constraint` | 19 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `mulof`, `must`, `neq`, `nof`, `re`, `relate`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
@@ -482,7 +484,7 @@ specified at [Selecting: `filter` and
 [Band B: `rest`](reference-language.md#band-b-rest), and `meta` at
 [Annotations: `meta`](reference-language.md#annotations-meta).
 
-Twenty-seven names have at least one optional slot. `must` is the one
+Twenty-eight names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message
 `text`. `match` is the one name whose rest group pairs a `trial` member
 with a `value` one.

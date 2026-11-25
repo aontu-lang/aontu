@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MatchFuncVal = void 0;
+exports.KeyedFuncVal = exports.MatchFuncVal = void 0;
 exports.effectiveScrutinee = effectiveScrutinee;
 const err_1 = require("../err");
 const top_1 = require("./top");
@@ -49,6 +49,9 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
         this.staged = true;
     }
     funcname() {
+        return 'match';
+    }
+    callname() {
         return 'match';
     }
     prepare(_ctx, _args) {
@@ -120,6 +123,17 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
             tried: tried.join(' '),
         });
     }
-} /* node:coverage ignore next 6 */
+}
 exports.MatchFuncVal = MatchFuncVal;
+// keyed() IS CARRIED OUT BY ITS MATCH AND WRITTEN UNDER ITS OWN NAME (ADR-080).
+class KeyedFuncVal extends MatchFuncVal {
+    callname() {
+        return 'keyed';
+    }
+    get canon() {
+        const [, p, t, e] = this.peg;
+        return 'keyed(' + p.canon + ',' + t.canon + (true === e.isTop ? '' : ',' + e.canon) + ')';
+    }
+} /* node:coverage ignore next 7 */
+exports.KeyedFuncVal = KeyedFuncVal;
 //# sourceMappingURL=MatchFuncVal.js.map

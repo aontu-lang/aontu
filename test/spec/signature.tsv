@@ -60,6 +60,7 @@ each(d: map|list, template t: any) : list
 apply(v: any, template f: any) : any
 filter(d: map|list, trial c: any) : map|list
 match(s: any, ...pr: (trial any, any), dflt?: any) : any
+keyed(trial p: any, t: any, e?: any) : any
 add(a: number, b: number) : number
 sub(a: number, b: number) : number
 mul(a: number, b: number) : number

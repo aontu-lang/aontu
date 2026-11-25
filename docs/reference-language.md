@@ -2946,6 +2946,14 @@ Example: at `a:b:c`: `key()`→`"b"`, `key(0)`→`"c"`, `key(2)`→`"a"`, `key(2
 
 The definition reads `key(n)` by `keyUpAt` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), at the position `resolveD` carries.
 
+### `keyed(trial p: any, t: any, e?: any) : any`
+
+A short form of the guarded spread: `keyed(p, t, e)` means `match(key(0), p, t, e)`, and `e` is `any` where it is left out. As a spread it holds each member whose key `p` admits to `t`, and every other member to `e`. The canonical form and the hash write the call as `keyed`, with `e` left out where it is `any`, so `keyed(p, t)` and the `match` it means are two canonical forms with two hashes, and `subsume` answers `undecided` for one against the other, since it compares a spread that reads its key by its text. A seal is unchanged: a closed map still refuses a key that only the pattern admits. See [filter and match](#selecting-filter-and-match).
+
+Example: `{ &: keyed(re("^env_"), string), env_name: prod }` holds `env_name` to `string`; with `nil` as `e` the map takes no other key
+
+The definition gives its meaning by `Val.keyedCall` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean).
+
 ### `least(d: map|list) : number`
 
 Return the least numeric member, preserving its kind. An empty collection is refused. See [aggregates](#aggregating-sum-least-greatest).

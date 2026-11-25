@@ -77,6 +77,11 @@ class MatchFuncVal extends FuncBaseVal {
   }
 
 
+  callname() {
+    return 'match'
+  }
+
+
   prepare(_ctx: AontuContext, _args: Val[]) {
     return null
   }
@@ -162,10 +167,25 @@ class MatchFuncVal extends FuncBaseVal {
     })
   }
 
-} /* node:coverage ignore next 6 */
+}
+
+
+// keyed() IS CARRIED OUT BY ITS MATCH AND WRITTEN UNDER ITS OWN NAME (ADR-080).
+class KeyedFuncVal extends MatchFuncVal {
+  callname() {
+    return 'keyed'
+  }
+
+
+  get canon() {
+    const [, p, t, e] = this.peg
+    return 'keyed(' + p.canon + ',' + t.canon + (true === e.isTop ? '' : ',' + e.canon) + ')'
+  }
+} /* node:coverage ignore next 7 */
 
 
 
 export {
   MatchFuncVal,
+  KeyedFuncVal,
 }

@@ -1173,19 +1173,28 @@ Both refuse `other: 1` there, CUE as `field not allowed` and aontu as
 
 ### The short form
 
-aontu, proposed:
+aontu, as KP1 built it:
 
 ```aontu
 short: { &: keyed(re("^env_"), string), env_name: prod }
 only: { &: keyed(re("^env_"), string, nil), env_name: prod }
 ```
 
-`keyed(p, t, e?)` is `match(key(0), p, t, e)`, with `any` where `e` is
-left out. It is rewritten as it is read, so canon, the text of a
-refusal and the JSON Schema exporter all write the guarded spread, and
-the two spellings have one canonical form. That is L2's condition, and
-it is how the short form avoids the cost ADR-008 names for a second
-spelling. Today each line is `unknown_function` in both engines.
+`keyed(p, t, e?)` means `match(key(0), p, t, e)`, with `any` where `e`
+is left out, and each engine carries it out by that match. Canon, the
+hash form, the text of a refusal and a loss report write `keyed` under
+its own name, since
+[ADR-080](../ADR.md#adr-080--canon-writes-a-builtin-under-its-own-name)
+has canon never write one builtin as another: what an engine builds to
+carry out a call has no text of its own. So the two spellings are two
+canonical forms with two hashes. L2 asked that they share one, and
+that condition can't stand beside ADR-080. Each line was
+`unknown_function` in both engines until KP1 built it.
+
+This section first had the call rewritten as it is read, so that canon
+wrote the guarded spread, and KP1 was first built so. The owner
+pointed to ADR-080 on 2026-11-24, before that change merged, and KP1
+was corrected in the same change.
 
 The other spelling proposed was N3's, a pattern in the key, which
 ruling 18 did not take:
@@ -1208,6 +1217,25 @@ of the four published grammars and of both parsers.
 KP1 delivers what
 [a built-in task delivers](#what-a-built-in-task-delivers), and
 records in G1 that N3 is taken up.
+
+Progress on 2026-11-24. KP1 is built in both engines. Each engine
+carries the call out by the `match` on `key(0)` it means, and writes
+it as `keyed` wherever a reader sees it: canon, the hash form, a
+refusal, `model why`, a hover and the exporter's loss report. The
+exporter writes `patternProperties` for it. The count is `keyed`'s
+own, two or three, and a refusal for it names `keyed`. The formatter
+keeps the spelling the author wrote, and both language servers list
+the name. The rows are the 54 of `test/spec/keyed.tsv`. In the
+definition `Val.keyedCall` is its meaning, and rows yk0 on of
+`test/spec/def-trial.tsv` are generated from it. A probe of 432
+documents, each written both ways, found the same meaning in both
+engines, `keyed` in every canon, and every canon reading back to
+itself. `subsume` compares such a spread by its text, so a `keyed`
+call against the `match` it means is `undecided`, and a row holds
+that. A test in each port now holds every canon row of the shared
+suite to ADR-080. The wording of a wrong count is corrected in the same change,
+since it would have said `keyed takes one to three arguments`: the
+message now words each interval the signature table declares.
 
 ### Questions for the ruling on part 4
 
@@ -2190,8 +2218,8 @@ comparison, under
   no line that a test doesn't hold.
 - **Part 3:** each request in the table of part 3 gets an answer from
   both servers, and the same one.
-- **Part 4:** the pattern example has a spelling of one call whose
-  canon is today's.
+- **Part 4:** the pattern example has a spelling of one call that
+  means what the guarded spread means, and canon writes that call.
 - **Part 5:** deferred by ruling, so nothing here is owed.
 - **Part 6:** the document of #862 evaluates, vets and hashes from the
   command line in both ports.
