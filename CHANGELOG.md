@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### `keyed` is documented: a reference section and a how-to
+
+Task KP2 of the lang refinement plan. The language reference gains a
+section, "Key patterns: `keyed`", after the one on spreads. It says
+what the call holds, and its rules: `nil` as the last argument,
+several patterns, a list, a call outside a spread and a seal. It also
+says what canon, the hash, `subsume` and the JSON Schema export make
+of the call.
+
+A new how-to, `docs/how-to/hold-keys-to-a-pattern.md`, solves the task:
+hold the keys a pattern matches, type or refuse the rest, join several
+patterns, and keep a type open for patterned keys. The how-tos on
+spreads and on sealing point to it. The row of the guide for CUE users
+waits on that guide.
+
 ### A lone default's parent arm lifts a template's path as the term it names
 
 #704, in both engines. A lone default `*x` is `x` or its parent arm,
