@@ -426,3 +426,19 @@ lone-path-in-a-template-the-member-answers	gens	t: {&: *{a: 1, b: .d}, m: {d: 2}
 lone-path-into-a-nested-default-names-nothing	errc	x: *{a: *{c: 1}, b: .a.c}	no_path
 lone-path-through-a-list-into-a-nested-default-names-nothing	errc	x: *{a: [*{c: 1}], b: .a.0.c}	no_path
 lone-stray-step-through-a-list-into-a-nested-default	errc	x: *{a: [*{c: 1}], b: .a.0.d}	no_path
+# The path under a check, a bound or a sizing call inside a lone default
+# (#981): each argument is read at the check's own place.
+lone-stray-path-under-a-when-condition	errc	x: *{a: 1, b: when(.d, 1, 2)}	no_path
+lone-stray-path-under-a-when-result	errc	x: *{a: 1, b: when(true, .d, 2)}	no_path
+lone-stray-path-under-a-when-alternative	errc	x: *{a: 1, b: when(false, 1, .d)}	no_path
+lone-stray-path-under-a-nof-branch	errc	x: *{a: 1, b: nof(1, .d)}	no_path
+lone-stray-path-under-a-later-nof-branch	errc	x: *{a: 1, b: nof(1, 2, .d)}	no_path
+lone-stray-path-under-a-nof-count	errc	x: *{a: 1, b: nof(.d, 1)}	no_path
+lone-stray-path-under-a-must-condition	errc	x: *{a: 1, b: must(.d, "m")}	no_path
+lone-stray-path-under-len	errc	x: *{a: 1, b: len(.d)}	no_path
+lone-stray-path-under-contains	errc	x: *{a: 1, b: contains(.d)}	no_path
+lone-stray-path-under-a-contains-count	errc	x: *{a: 1, b: contains(1, .d)}	no_path
+lone-stray-path-under-rest	errc	x: *{a: 1, b: rest(.d)}	no_path
+lone-stray-path-under-a-bound	errc	x: *{a: 1, b: min(.d)}	no_path
+lone-stray-path-under-neq	errc	x: *{a: 1, b: neq(.d)}	no_path
+lone-stray-path-under-a-later-neq-value	errc	x: *{a: 1, b: neq(1, .d)}	no_path

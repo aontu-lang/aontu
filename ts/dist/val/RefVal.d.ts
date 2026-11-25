@@ -22,7 +22,7 @@ declare class RefVal extends FeatureVal {
     unify(peer: Val, ctx: AontuContext): Val;
     find(ctx: AontuContext, snap?: boolean): import("./NilVal").NilVal | Val | undefined;
     detectRefCycle(ctx: AontuContext): boolean;
-    plainRefPath(): string[] | undefined;
+    plainRefPath(at?: string[]): string[] | undefined;
     same(peer: Val): boolean;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     get aliasKey(): string | undefined;

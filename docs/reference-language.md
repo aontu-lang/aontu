@@ -1983,10 +1983,12 @@ preference. A term met beside the preference can still supply
 the member, so `x: *{a: 1, b: .d} & {d: 5}` reads `b` as `5`, and as an
 arm the preference fails alone: `x: *{a: 1, b: .d} | "z"` is `"z"`.
 Both engines read the path once the schema has settled, when nothing
-more can supply the member. Inside a lone preference they still leave
-it waiting where `maybe`, `when`, `nof`, `must`, `len` or `contains`
-reads it, which #981 tracks, and in an arm the preference holds, which
-#982 tracks. The definition reads the meet so by `Val.meetOrs`.
+more can supply the member, and read a path a check holds the same
+way: `x: *{a: 1, b: when(.d, 1, 2)}` is `no_path`. Inside a lone
+preference they still leave such a path waiting under `maybe`, where
+the definition reads absence, which #981 tracks, and in an arm the
+preference holds, which #982 tracks. The definition reads the meet so
+by `Val.meetOrs`.
 
 ### Recursive references (fixpoints)
 

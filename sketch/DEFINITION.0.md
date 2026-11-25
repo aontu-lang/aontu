@@ -2708,6 +2708,10 @@ until the phase that encodes it lands.
    leave the ledger, whose bound falls to 34, and rows sy0 to sy131
    hold both ports to the reading. A declaration's body is read so at
    its own place, as a plain body is, until rulings 59 to 61 are built.
+   The same day the walk came to enter a check's pending arguments
+   (#981), so a path under `when`, `nof`, `must`, `len`, `contains`,
+   `rest` or a bound is read the same, at the check's own place. A
+   path under `maybe` inside a lone preference still waits.
 54. **A written `nil`.** Raised 2026-11-16 with the completion plan's
    third milestone: both ports read `x?: nil` as a key that must be
    absent and a required `x: nil` as `invalid`, but refuse a written
