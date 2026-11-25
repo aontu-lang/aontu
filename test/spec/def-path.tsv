@@ -4585,6 +4585,52 @@ ll17	verdict	"x": {"m": {}, "n": (relate({"a": 1, "b": .a})) & (path(.m))}	{}	{"
 ll18	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid"}
 ll19	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid","opts":{"noFill":true}}
 ll20	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid","opts":{"partial":true}}
+# More of a link's template read where it lands follows in rows lr0 on: a
+# target that isn't the link's sibling, a path deeper in the template, a call
+# over such a path, a member the target doesn't declare, and two links into
+# one target.
+lr0	verdict	"x": {"n": (relate({"a": 1, "b": .a})) & (path($.out))}, "out": {}	{"out": {"a": 1, "b": 1}}	{"verdict":"valid"}
+lr1	verdict	"x": {"n": (relate({"a": 1, "b": .a})) & (path($.out))}, "out": {}	{"out": {"a": 1, "b": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lr2	verdict	"x": {"n": (relate({"a": 1, "b": .a})) & (path($.out))}, "out": {}	{"out": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+lr3	verdict	"x": {"n": (relate({"a": 1, "b": .a})) & (path($.out))}, "out": {}	{"out": {"a": 1, "b": 2}}	{"verdict":"invalid"}
+lr4	verdict	"x": {"n": (relate({"a": 1, "b": .a})) & (path($.out))}, "out": {}	{"out": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lr5	verdict	"x": {"n": (relate({"a": 1, "b": .a})) & (path($.out))}, "out": {}	{"out": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lr6	verdict	"x": {"n": (relate({"v": .k})) & (path($.out))}, "out": {"k": 2}	{"out": {"k": 2, "v": 2}}	{"verdict":"valid"}
+lr7	verdict	"x": {"n": (relate({"v": .k})) & (path($.out))}, "out": {"k": 2}	{"out": {"k": 2, "v": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lr8	verdict	"x": {"n": (relate({"v": .k})) & (path($.out))}, "out": {"k": 2}	{"out": {"k": 2, "v": 2}}	{"verdict":"valid","opts":{"partial":true}}
+lr9	verdict	"x": {"n": (relate({"v": .k})) & (path($.out))}, "out": {"k": 2}	{"out": {"k": 2, "v": 3}}	{"verdict":"invalid"}
+lr10	verdict	"x": {"n": (relate({"v": .k})) & (path($.out))}, "out": {"k": 2}	{"out": {"k": 2, "v": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+lr11	verdict	"x": {"n": (relate({"v": .k})) & (path($.out))}, "out": {"k": 2}	{"out": {"k": 2, "v": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+lr12	verdict	"x": {"m": {"k": 2}, "n": (relate({"a": {"b": ..k}})) & (path(.m))}	{}	{"verdict":"valid"}
+lr13	verdict	"x": {"m": {"k": 2}, "n": (relate({"a": {"b": ..k}})) & (path(.m))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lr14	verdict	"x": {"m": {"k": 2}, "n": (relate({"a": {"b": ..k}})) & (path(.m))}	{}	{"verdict":"valid","opts":{"partial":true}}
+lr15	verdict	"x": {"m": {"k": 2}, "n": (relate({"a": {"b": ..k}})) & (path(.m))}	{"x": {"m": {"a": {"b": 3}}}}	{"verdict":"invalid"}
+lr16	verdict	"x": {"m": {"k": 2}, "n": (relate({"a": {"b": ..k}})) & (path(.m))}	{"x": {"m": {"a": {"b": 3}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+lr17	verdict	"x": {"m": {"k": 2}, "n": (relate({"a": {"b": ..k}})) & (path(.m))}	{"x": {"m": {"a": {"b": 3}}}}	{"verdict":"invalid","opts":{"partial":true}}
+lr18	verdict	"x": {"k": 4, "m": {"k": 2}, "n": (relate({"a": {"b": ...k}})) & (path(.m))}	{"x": {"m": {"a": {"b": 4}}}}	{"verdict":"valid"}
+lr19	verdict	"x": {"k": 4, "m": {"k": 2}, "n": (relate({"a": {"b": ...k}})) & (path(.m))}	{"x": {"m": {"a": {"b": 4}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lr20	verdict	"x": {"k": 4, "m": {"k": 2}, "n": (relate({"a": {"b": ...k}})) & (path(.m))}	{"x": {"m": {"a": {"b": 4}}}}	{"verdict":"valid","opts":{"partial":true}}
+lr21	verdict	"x": {"m": {"s": "a"}, "n": (relate({"v": upper(.s)})) & (path(.m))}	{"x": {"m": {"v": "A"}}}	{"verdict":"valid"}
+lr22	verdict	"x": {"m": {"s": "a"}, "n": (relate({"v": upper(.s)})) & (path(.m))}	{"x": {"m": {"v": "A"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lr23	verdict	"x": {"m": {"s": "a"}, "n": (relate({"v": upper(.s)})) & (path(.m))}	{"x": {"m": {"v": "A"}}}	{"verdict":"valid","opts":{"partial":true}}
+lr24	verdict	"x": {"m": {"s": "a"}, "n": (relate({"v": upper(.s)})) & (path(.m))}	{"x": {"m": {"v": "a"}}}	{"verdict":"invalid"}
+lr25	verdict	"x": {"m": {"s": "a"}, "n": (relate({"v": upper(.s)})) & (path(.m))}	{"x": {"m": {"v": "a"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+lr26	verdict	"x": {"m": {"s": "a"}, "n": (relate({"v": upper(.s)})) & (path(.m))}	{"x": {"m": {"v": "a"}}}	{"verdict":"invalid","opts":{"partial":true}}
+lr27	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 2}}}	{"verdict":"error"}
+lr28	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 2}}}	{"verdict":"error","opts":{"noFill":true}}
+lr29	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 2}}}	{"verdict":"error","opts":{"partial":true}}
+lr30	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"v": 3}}}	{"verdict":"error"}
+lr31	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"v": 3}}}	{"verdict":"error","opts":{"noFill":true}}
+lr32	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{"x": {"m": {"v": 3}}}	{"verdict":"error","opts":{"partial":true}}
+lr33	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{}	{"verdict":"error"}
+lr34	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{}	{"verdict":"error","opts":{"noFill":true}}
+lr35	verdict	"x": {"m": {}, "n": (relate({"v": .k})) & (path(.m))}	{}	{"verdict":"error","opts":{"partial":true}}
+lr36	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{}	{"verdict":"valid"}
+lr37	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lr38	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{}	{"verdict":"valid","opts":{"partial":true}}
+lr39	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{"x": {"m": {"w": 3}}}	{"verdict":"invalid"}
+lr40	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{"x": {"m": {"w": 3}}}	{"verdict":"invalid","opts":{"noFill":true}}
+lr41	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{"x": {"m": {"w": 3}}}	{"verdict":"invalid","opts":{"partial":true}}
 # A use of a recursive name whose body reads its own place reads as a copy
 # of the body placed where it stands, at each level the data or the schema
 # reaches (ruling 26), in rows rr0 on.

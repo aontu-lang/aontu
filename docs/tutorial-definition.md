@@ -9739,10 +9739,15 @@ The link's flow then reads each such path from the target it reaches,
 by `Val.atTarget`. So `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}`
 sends `v: 2` into `x.m`, and a link the template carries reads its own
 address and template where that template lands, as it does in both
-engines. Both engines read the template's relative paths where the
-document writes the link, inside the template, where they name nothing.
-Rows ll0 to ll20 hold the definition to the ruling, and the ledger lists
-the six on which both engines answer otherwise, which #661 tracks.
+engines. Rows ll0 to ll20 and lr0 to lr41 hold the definition to the
+ruling, and both engines answer each as the definition does, as #661
+asked: a path that stays inside the template waits where the document
+writes the link, and each engine reads it at the target once the
+template has landed there. One reading isn't settled. A path that
+climbs past the template, as `..k` does in `relate({v: ..k})`, names a
+place that many steps up from the target here, by `climb`, and both
+engines read it where the document writes the link. The two agree wherever the target is the
+link's sibling, as in every row, and #1001 asks which holds elsewhere.
 
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,

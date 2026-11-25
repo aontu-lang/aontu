@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 22 on 2026-11-25),
+  on 2026-11-22), ledger rows (394 at most then, 16 on 2026-11-25),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,7 +64,7 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-1 of its 22 on 2026-11-25. In order:
+1 of its 16 on 2026-11-25. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
@@ -187,7 +187,7 @@ relations workstream depends on #748 and #749 from phase 2.
 
 ### Relations
 
-16 issues (4 S, 7 M, 5 L), 21 ledger rows.
+17 issues (5 S, 7 M, 5 L), 15 ledger rows.
 
 First the relations whose range names a subtype (#771, #778, #779, #780), then the ruled range check of #777, which needs #748. #491 and #811 are where `vet` and evaluation read a relation differently, and #878 where the graph atoms miss the edges a default brings; rulings 72 and 73 settle when the atoms judge.
 
@@ -198,7 +198,8 @@ First the relations whose range names a subtype (#771, #778, #779, #780), then t
 | [#779](https://github.com/aontu-lang/aontu/issues/779) | bug | M |  | Relation range naming a subtype is held by name and unfolded once; `subsume` then answers undecided. |
 | [#780](https://github.com/aontu-lang/aontu/issues/780) | parity | L |  | Table of two subtypes with subtype-ranged relation: TypeScript refuses valid data as empty; Go never terminates. |
 | [#777](https://github.com/aontu-lang/aontu/issues/777) | design | L |  | Proposal: a relation's range checks its target instead of meeting into it; ruled 2026-11-17 for checking, unbuilt. |
-| [#661](https://github.com/aontu-lang/aontu/issues/661) | def | M | 6 | Engines read a link template's relative path values where written; ruling 50 reads them at the target. |
+| [#661](https://github.com/aontu-lang/aontu/issues/661) | def | M |  | Engines read a link template's relative path values where written; ruling 50 reads them at the target. Built in both ports 2026-11-25 for a path inside the template, its 6 rows gone. |
+| [#1001](https://github.com/aontu-lang/aontu/issues/1001) | def | S |  | A path that climbs past a link's template reads from the target in the definition and where the link is written in both ports, which `routes-k20` relies on. Needs a ruling. |
 | [#542](https://github.com/aontu-lang/aontu/issues/542) | def | M |  | A container a later meet brings into a relation holds no link in both engines |
 | [#811](https://github.com/aontu-lang/aontu/issues/811) | def | M |  | `relate()` met with a scalar kind waits as incomplete in both ports; definition reads error. |
 | [#810](https://github.com/aontu-lang/aontu/issues/810) | bug | L |  | Link under a key containing a dot gets an address another path shares; reaches and acyclic misread it. |
@@ -473,7 +474,7 @@ workstream above meets its tasks.
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
 | 2 | alias cycles, preferences, seals and marks, copies | 66 | 1 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 78 | 21 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 79 | 15 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | |
@@ -482,5 +483,5 @@ The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
 #944, #946 and #953 to #957 on 2026-11-24, and #970, #971, #977,
-#979, #981 to #984, #988, #991 and #995 to #998 on 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
+#979, #981 to #984, #988, #991, #995 to #998 and #1001 on 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
 each row's cause names.
