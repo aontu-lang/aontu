@@ -24,7 +24,7 @@ The same day #894 was built and closed, and #907 was filed and placed.
 - **A definition-side fix removes its ledger rows** in the same change,
   and lowers the ledger's bound in all three places it is held.
 - **Progress is three numbers**: open issues (131 on 2026-11-19, 136
-  on 2026-11-22), ledger rows (394 at most then, 37 on 2026-11-25),
+  on 2026-11-22), ledger rows (394 at most then, 34 on 2026-11-25),
   and entries in `test/spec/divergent.tsv`.
 
 ## Phase 0: decisions
@@ -64,13 +64,13 @@ issues:
 ## Phase 2: the rules with the most ledger rows
 
 Four workstreams held 354 of the ledger's rows on 2026-11-19, and hold
-16 of its 37 on 2026-11-25. In order:
+13 of its 34 on 2026-11-25. In order:
 
 1. **The alias-cycle rule** first: one static check, five issues, and
    it removes the TypeScript crash of #360. Built 2026-11-20, and all
    five are closed.
 2. **Preferences and disjunction arms**: the largest, 178 rows then and
-   9 now, already ruled.
+   6 now, already ruled.
 3. **Seals and marks**: led by #726's bare `close()` and `open()`, with
    57 rows then and 6 now, ruled by decisions 44 to 46. #748 and #749
    here also unblock the relations workstream.
@@ -94,13 +94,13 @@ A name or a path that reaches itself consuming no key or element is a static `er
 
 ### Preferences and disjunction arms
 
-19 issues (6 S, 11 M, 2 L), 9 ledger rows.
+22 issues (6 S, 14 M, 2 L), 6 ledger rows.
 
 How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714, the layers, was built and closed on 2026-11-20, and its rows left the ledger with most of #700's, #702's and #704's. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
-| [#700](https://github.com/aontu-lang/aontu/issues/700) | def | L | 3 | A path in a live disjunction arm or lone preference waits; both ports say incomplete, the definition valid. |
+| [#700](https://github.com/aontu-lang/aontu/issues/700) | def | L |  | A path in a live disjunction arm or lone preference waited; both ports said incomplete, the definition valid. Built in both ports 2026-11-20, and on 2026-11-25 its last 3 rows: a path that names nothing inside a lone default is the schema's error. #981 and #982 hold what both ports still leave waiting. |
 | [#702](https://github.com/aontu-lang/aontu/issues/702) | def | M |  | Lone preference with an outside path: both ports' vet contradicted their own eval; definition sides with eval. Built in both ports 2026-11-25: a lone preference waits for a path its value can't read on its own. |
 | [#979](https://github.com/aontu-lang/aontu/issues/979) | bug | S |  | A lone default whose path only the term beside it answers no longer evaluated, a regression from #702's change. Fixed in both ports 2026-11-25. |
 | [#704](https://github.com/aontu-lang/aontu/issues/704) | def | M | 6 | A lone preference's parent arm lifts a path inside it to any, not the parent type it reads. |
@@ -119,6 +119,9 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#957](https://github.com/aontu-lang/aontu/issues/957) | design | S |  | Two clashing defaults in a spread's template: both engines refuse every member the data gives, the definition admits one that picks an arm. Ruled as 90: the schema's error, where it is written. Built in the definition and both ports 2026-11-24. |
 | [#970](https://github.com/aontu-lang/aontu/issues/970) | parity | M |  | A star over a `pref()` call or a path loses its arm beside another default: `*pref(1) \| *2` is `*2` alone in both ports, which then admits `3`, and the ports differ on `*pref(1) \| **2`. The definition reads `**1`. |
 | [#971](https://github.com/aontu-lang/aontu/issues/971) | def | M |  | A default written twice collapses to a preference alone in both ports, so `*1 \| *1` admits `3`; the definition's fold keeps the disjunction and refuses it. |
+| [#981](https://github.com/aontu-lang/aontu/issues/981) | def | M |  | Inside a lone default, `maybe`, `when`, `nof`, `must`, `len` and `contains` over a path that names nothing wait for good in both ports; the definition reads an error, and absence under `maybe`. |
+| [#982](https://github.com/aontu-lang/aontu/issues/982) | def | M |  | An arm's path into its own place that names nothing keeps the arm waiting in both ports, `{a: 1, b: .d} \| "z"` over no data; the definition drops the arm. |
+| [#983](https://github.com/aontu-lang/aontu/issues/983) | parity | M |  | Lone defaults of different ranks met at one place: Go holds no arm where both stand, so `(**{a: 1, b: .d}) & (*{d: 2})` evaluates in TypeScript and fails in Go; neither reports a path that names nothing. |
 
 ### Seals, marks, moves and generation-time checks
 
@@ -217,7 +220,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-24 issues (3 S, 21 M).
+25 issues (3 S, 22 M).
 
 Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63 and built 2026-11-22, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, built in the definition the same day), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, built the same day), and #917, the same path written as a relative one, fixed the same day; #919, a pattern that reads the match's own place, and #922, what a scrutinee holding a `type()` or `hide()` member selects by, both ruled 2026-11-22 (85: the pattern reads the field; 86: the scrutinee's output). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
@@ -242,6 +245,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#847](https://github.com/aontu-lang/aontu/issues/847) | bug | M |  | `filter` and `match` miss a default inside a map: the member is dropped or another arm taken, with no finding. Ruled as 78: the trial reads the value the member generates. |
 | [#870](https://github.com/aontu-lang/aontu/issues/870) | bug | M |  | A call to an unknown name, or with a wrong count, is silent inside a trial, in a disjunction's arm and under `maybe`. Ruled as 77: refused wherever it stands. Built 2026-11-22 in both ports, and 2026-11-24 in the definition. |
 | [#977](https://github.com/aontu-lang/aontu/issues/977) | def | M |  | A call that waits inside `contains`, `rest`, `len`, a branch under `*` or a spread's template: both ports answer unlike `nof`, and the definition unlike both. Asks for a ruling. |
+| [#984](https://github.com/aontu-lang/aontu/issues/984) | def | M |  | A map that holds a path naming nothing waits as an argument of `when` or `nof` and passes as a `match` result not taken, in both ports; the definition reads an error. |
 | [#850](https://github.com/aontu-lang/aontu/issues/850) | parity | M |  | A `match` whose result is a relative reference overflows the TypeScript stack; Go answers. |
 | [#868](https://github.com/aontu-lang/aontu/issues/868) | parity | M |  | A `match` whose pattern is a relative reference overflows the TypeScript stack, and a bound over it is `mapval_no_gen`; Go answers both. The bound is fixed 2026-11-22; the overflow is the parser defect of #326, fixed upstream in tabnas/expr#121. |
 | [#871](https://github.com/aontu-lang/aontu/issues/871) | parity | M |  | `maybe(v)` of a relative reference as a call's second or later argument never resolves in TypeScript; Go answers. Fixed 2026-11-22, with the second case of #868. |
@@ -462,8 +466,8 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 57 | 16 |
-| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 77 | 21 |
+| 2 | alias cycles, preferences, seals and marks, copies | 60 | 13 |
+| 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 78 | 21 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
 | alongside | the definition, the repository | 9 | |
@@ -471,6 +475,6 @@ workstream above meets its tasks.
 The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
-#944, #946 and #953 to #957 on 2026-11-24, and #970, #971, #977 and
-#979 on 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
+#944, #946 and #953 to #957 on 2026-11-24, and #970, #971, #977,
+#979 and #981 to #984 on 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
 each row's cause names.

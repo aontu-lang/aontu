@@ -1973,11 +1973,20 @@ read as one disjunction as well, each as its value or its parent arm, so
 a path in one's value reads what another prefers, or its parent type
 where the other's parent arm holds: in `x: *{a: 1, b: .c} & *{c: 2}`,
 `{a: 1, b: 2, c: 2}` and `{a: 5, b: 7, c: 7}` pass and `{a: 5, b: "s",
-c: 7}` doesn't. Both engines read such a meet so, but for a path that
-names nothing in any of the values, as in `x: *{a: 1, b: .d} & *{c:
-2}`, which the definition refuses as an error and both engines read as
-data that fails, which #700 tracks. The definition reads the meet so by
-`Val.meetOrs`.
+c: 7}` doesn't. Both engines read such a meet so. A path in a lone
+preference's value that names nothing there is the schema's error
+whatever the data, as outside a preference: `x: *{a: 1, b: .d}`
+is `no_path`, and so is `x: *{a: 1, b: .d} & *{c: 2}`, where no value
+at `x` holds a `d`. A step into a nested preference names nothing too,
+`x: *{a: *{c: 1}, b: .a.c}`, since no path reads a member of a lone
+preference. A term met beside the preference can still supply
+the member, so `x: *{a: 1, b: .d} & {d: 5}` reads `b` as `5`, and as an
+arm the preference fails alone: `x: *{a: 1, b: .d} | "z"` is `"z"`.
+Both engines read the path once the schema has settled, when nothing
+more can supply the member. Inside a lone preference they still leave
+it waiting where `maybe`, `when`, `nof`, `must`, `len` or `contains`
+reads it, which #981 tracks, and in an arm the preference holds, which
+#982 tracks. The definition reads the meet so by `Val.meetOrs`.
 
 ### Recursive references (fixpoints)
 

@@ -8,6 +8,62 @@ each change affects.
 
 ## Unreleased
 
+### A path that names nothing inside a lone default is the schema's error
+
+#700, in both engines. **Breaking** for a document that relied on the
+old reading. A path in a lone default's value to a member no term at
+that place holds names nothing. Outside a default that is `no_path`,
+the schema's own error. Inside one both engines left the path waiting
+for good, since a term met beside the default might still supply the
+member. So `aontu vet` read the document as `invalid` or `incomplete`,
+and an optional member, a `hide`, a `type` or an unused declaration
+that held the default passed. Ruling 53 reads the path as it reads
+anywhere else. Each engine now reads a lone default that still waits
+once the schema has settled, when nothing more can supply the member:
+
+- `x: *{a: 1, b: .d}` is `error` under `vet` whatever the data, and so
+  are `x: *{a: 1, b: .d} & *{c: 2}`, the default met with a map that
+  has no `d`, one level down, and at rank two. Evaluation reports
+  `no_path` at the member, where it reported `ref` or `mapval_no_gen`.
+- A step into a member that has settled and lacks the next one is the
+  same error: `.a.z` beside `a: 1`, `.a.d` beside `a: *{c: 1}`, an
+  index past a list's end, and a nested default's path that climbs out
+  into the outer one, `x: *{a: *{c: ..d}}`. So is a step into a nested
+  default at all, since no path reads a member of a lone default:
+  `x: *{a: *{c: 1}, b: .a.c}` is `no_path`, as `x: {a: *{c: 1}, b:
+  .a.c}` always was.
+- The path may stand in a meet term, a call's argument or an operand of
+  `+`: `.d & number`, `upper(.d)` and `.d + 1` each report it.
+- The default is an error wherever the document writes it. As an
+  optional member, `x?: *{a: 1, b: .d}` evaluated to
+  `{"x": {"a": 1}}`, and under `hide` or `type` it passed. As the
+  template of `each`, a result of `when`, a branch of `nof` and the
+  result a `match` takes, `vet` read it as `invalid` or `incomplete`.
+- A declaration's body reads its paths at its own place, so
+  `%T = *{a: 1, b: .d}` is `no_path` used or not, as
+  `%T = {a: 1, b: .d}` always was. `x: %T & {d: 2}` no longer
+  evaluates, since the body can't read `d` where it stands. A spread's
+  template is still no error until a member reads it.
+- `maybe` forgives only a path at the top of its argument, so
+  `maybe(*{a: 1, b: .d})` is an error, as `maybe({a: 1, b: .d})` is.
+  `vet` read it as `invalid`.
+- A term met beside the default still supplies the member:
+  `x: *{a: 1, b: .d} & {d: 5}` reads `b` as `5`. As an arm the default
+  fails alone, so `x: *{a: 1, b: .d} | "z"` is `"z"`, where evaluation
+  failed with `ref` and `vet` answered `invalid`.
+
+Rows lq27 to lq29 of `test/spec/def-path.tsv` leave `spec/ledger.tsv`,
+whose bound falls to 34, and #700 holds none. Rows sy0 to sy131 hold
+both engines to the reading, 44 cases the definition proves,
+`test/spec/pref.tsv` gains 42 rows and `test/spec/vet.tsv` 15. Four differences found on the way
+are filed. Inside a lone default both engines still leave such a path
+waiting where `maybe`, `when`, `nof`, `must`, `len` or `contains` reads
+it (#981). An arm's path into its own place that names nothing keeps
+the arm waiting (#982). Defaults of different ranks met at one place
+read a path between them differently in the two engines (#983). Outside
+a default, `when` and `nof` over an argument that holds such a path
+wait, and a `match` result not taken passes (#984).
+
 ### A lone default's path that the term beside it answers reads there again
 
 #979, in both engines. The change for #702 made a lone default wait for
