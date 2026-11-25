@@ -2711,7 +2711,12 @@ until the phase that encodes it lands.
    The same day the walk came to enter a check's pending arguments
    (#981), so a path under `when`, `nof`, `must`, `len`, `contains`,
    `rest` or a bound is read the same, at the check's own place. A
-   path under `maybe` inside a lone preference still waits.
+   path under `maybe` inside a lone preference still waits. An arm's
+   path into its own place is read at that point too (#982): the arm
+   fails where nothing supplied the member, two such arms leave the
+   schema none, and rows sa0 to sa32 and sc0 to sc41 hold both ports
+   to the arms and the checks. An arm inside a lone preference still
+   waits.
 54. **A written `nil`.** Raised 2026-11-16 with the completion plan's
    third milestone: both ports read `x?: nil` as a key that must be
    absent and a required `x: nil` as `invalid`, but refuse a written

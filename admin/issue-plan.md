@@ -94,7 +94,7 @@ A name or a path that reaches itself consuming no key or element is a static `er
 
 ### Preferences and disjunction arms
 
-22 issues (6 S, 14 M, 2 L), 6 ledger rows.
+23 issues (7 S, 14 M, 2 L), 6 ledger rows.
 
 How both engines read a preference, a lone preference and a live disjunction arm, against rulings 41 and 42 and decision 43. #714, the layers, was built and closed on 2026-11-20, and its rows left the ledger with most of #700's, #702's and #704's. #832 is the siting half of #482, and #857 is a clash the definition reads as no default.
 
@@ -120,8 +120,9 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#970](https://github.com/aontu-lang/aontu/issues/970) | parity | M |  | A star over a `pref()` call or a path loses its arm beside another default: `*pref(1) \| *2` is `*2` alone in both ports, which then admits `3`, and the ports differ on `*pref(1) \| **2`. The definition reads `**1`. |
 | [#971](https://github.com/aontu-lang/aontu/issues/971) | def | M |  | A default written twice collapses to a preference alone in both ports, so `*1 \| *1` admits `3`; the definition's fold keeps the disjunction and refuses it. |
 | [#981](https://github.com/aontu-lang/aontu/issues/981) | def | M |  | Inside a lone default, `maybe` over a path that names nothing waits for good in both ports; the definition reads absence. The five checks filed with it, `when`, `nof`, `must`, `len` and `contains`, were built in both ports 2026-11-25. |
-| [#982](https://github.com/aontu-lang/aontu/issues/982) | def | M |  | An arm's path into its own place that names nothing keeps the arm waiting in both ports, `{a: 1, b: .d} \| "z"` over no data; the definition drops the arm. |
+| [#982](https://github.com/aontu-lang/aontu/issues/982) | def | M |  | An arm's path into its own place that names nothing kept the arm waiting in both ports, `{a: 1, b: .d} \| "z"` over no data; the definition drops the arm. Built in both ports 2026-11-25 for an arm outside a default; inside a lone default an arm still waits. |
 | [#983](https://github.com/aontu-lang/aontu/issues/983) | parity | M |  | Lone defaults of different ranks met at one place: Go holds no arm where both stand, so `(**{a: 1, b: .d}) & (*{d: 2})` evaluates in TypeScript and fails in Go; neither reports a path that names nothing. |
+| [#988](https://github.com/aontu-lang/aontu/issues/988) | parity | S |  | A lone default in a list element whose path only the term beside it answers failed in TypeScript with `listval_no_gen`, where Go evaluates it: a list position compared as a number with its digits. Fixed 2026-11-25. |
 
 ### Seals, marks, moves and generation-time checks
 
@@ -466,7 +467,7 @@ workstream above meets its tasks.
 |---|---|---|---|
 | 0 | decisions | 7 questions, ruled 2026-11-19 | |
 | 1 | quick wins | 18 | |
-| 2 | alias cycles, preferences, seals and marks, copies | 60 | 13 |
+| 2 | alias cycles, preferences, seals and marks, copies | 61 | 13 |
 | 3 | relations, path steps, generators, declarations, subsume, scalars, parser | 78 | 21 |
 | 4 | diagnostics, tooling | 34 | |
 | with the lang refinement plan | root paths, language versions, scalar types | 3 | |
@@ -476,5 +477,5 @@ The issue counts overlap where a quick win belongs to a workstream.
 From phase 2 on, each count is the sum of its workstreams' own, as
 they stand on 2026-11-22 with #907 added, and #936 to #939, #942 to
 #944, #946 and #953 to #957 on 2026-11-24, and #970, #971, #977,
-#979 and #981 to #984 on 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
+#979, #981 to #984 and #988 on 2026-11-25. The ledger rows are counted on 2026-11-25, from the issue
 each row's cause names.
