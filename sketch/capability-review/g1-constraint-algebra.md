@@ -887,18 +887,19 @@ admits `"zebra"` and refuses `"apple"`.
 **What the note asked for that this design did not, and still does not:**
 
 - **N3, key-pattern constraints** (`&"^env_": …`, scoping a constraint
-  to keys matching a pattern). **DEFERRED — 2026-08-28, maintainer
-  decision.** Not implemented; `&"…"` is a parse error in both ports,
-  identically. This is a deferral, not a blockage: it is the note's
-  most substantial unbuilt proposal, and it depends on nothing that is
-  missing — `re` gives the pattern machinery and `&:` spreads give the
-  scoping point, so the work is available whenever it is wanted.
-  Recorded so that a later reader finds a decision rather than an
-  oversight, and so that nobody re-derives the dependency analysis to
-  discover it was never the obstacle. (Taken up on 2026-11-21: ruling
-  18 of [the plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
-  adopts a named call, `keyed(p, t, e?)`, in place of the key form, to
-  land as its task KP1.)
+  to keys matching a pattern). **LANDED 2026-11-24 as a call, not as
+  the key form.** Ruling 18 of
+  [the plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
+  adopted a named call, `keyed(p, t, e?)`, and its task KP1 built it in
+  both ports: each engine carries the call out by the guarded spread
+  `match(key(0), p, t, e)` it means (`buildCall` in `ts/src/lang.ts`
+  and `go/lang.go`) and writes it as `keyed` in canon, as ADR-080
+  asks, and `test/spec/keyed.tsv` holds it. The key form the
+  note proposed, `&"…"`, is still a parse error in both ports,
+  identically, and is not planned. From 2026-08-28 to the ruling this
+  was held as deferred by the maintainer's decision, a deferral and
+  not a blockage: `re` gave the pattern machinery and `&:` spreads the
+  scoping point, so the work depended on nothing that was missing.
 - **Sized integer kinds** (`int8`, `uint16` as sugar for a bounded
   `integer`). **Not being built — the language already expresses it.**
   The note called this a free win once bounds exist; bounds exist, but

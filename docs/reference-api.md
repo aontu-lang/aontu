@@ -1762,7 +1762,8 @@ guarded by its own key crosses as the keyword it spells:
 whose arms let the map's own names and patterns through is
 `additionalProperties` (its default, with `nil` as `false`), and
 `&: match(key(0), c, any, nil)` is `propertyNames: c` where `c` is not
-a bare `re()`. A plain spread beside such a guard is
+a bare `re()`. `&: keyed(p, S, e)` crosses as the guard it means, and a
+loss on it is reported under `keyed`. A plain spread beside such a guard is
 `additionalProperties` too, unless a pattern stands beside it. Any other guard
 whose arms name keys, or test one pattern, is an `allOf` member of its
 own. A written list is `prefixItems` for its positions and `minItems`

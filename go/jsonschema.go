@@ -2138,6 +2138,7 @@ type schemaGuard struct {
 	arms  [][2]Val
 	def   Val
 	tests []schemaArmTest
+	name  string
 }
 
 // schemaKeyArms reads a spread guarded by its key, match(key(0), test,
@@ -2154,7 +2155,7 @@ func schemaKeyArms(v Val) *schemaGuard {
 	if n, ok := schemaKeyLevel(k); !ok || 0 != n {
 		return nil
 	}
-	g := &schemaGuard{}
+	g := &schemaGuard{name: f.callName()}
 	end := len(f.peg)
 	if 0 == len(f.peg)%2 {
 		g.def = f.peg[len(f.peg)-1]
@@ -2318,7 +2319,7 @@ func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr V
 		_, addl := out["additionalProperties"]
 		switch {
 		case len(names)+len(res) < len(g.arms):
-			sc.lose(at, "match",
+			sc.lose(at, g.name,
 				"JSON Schema chooses a member's schema by its name or a pattern, so an "+
 					"arm testing its key any other way has no spelling, and this spread is DROPPED")
 		case anyArm && !addl && slices.Equal(names, own) && slices.Equal(res, patternKeys):
@@ -2328,7 +2329,7 @@ func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr V
 		case anyArm || 0 == len(res) || 1 == len(g.arms):
 			extra = append(extra, schemaArmsPart(sc, at, g, def, hasDef))
 		default:
-			sc.lose(at, "match",
+			sc.lose(at, g.name,
 				"arms whose keys can overlap have no JSON Schema spelling, since every "+
 					"matching keyword applies where match takes the first arm, so this "+
 					"spread is DROPPED")
@@ -2368,7 +2369,7 @@ func schemaListKeywords(sc *schemaCtx, path []string, spr Val) []any {
 			inOrder = inOrder && ok && KindString == sv.kind && itoa(j) == sv.peg
 		}
 		if !inOrder {
-			sc.lose(at, "match",
+			sc.lose(at, g.name,
 				"JSON Schema places a list member by its position from the first, so "+
 					"arms that are not the positions in order have no spelling, and this "+
 					"spread is DROPPED")

@@ -168,6 +168,18 @@ func-arity-msg	err	a:upper("x",0,1,2)	upper takes one to three arguments, but wa
 # A zero-arity builtin renders its own phrasing: before the {0,0} arm
 # (ADR-015's kinds returned it), map(1) claimed map takes exactly one.
 func-arity-none-msg	err	a:acyclic(1)	acyclic takes no arguments, but was given 1
+# The message words the interval the signature declares, for each
+# interval the table holds: a count, a pair, a ceiling and a floor.
+func-arity-one-msg	err	a:copy()	copy takes exactly one argument, but was given 0
+func-arity-two-msg	err	a:add(1)	add takes exactly two arguments, but was given 1
+func-arity-three-msg	err	a:rep("a")	rep takes exactly three arguments, but was given 1
+func-arity-none-or-one-msg	err	a:key(1,2)	key takes no arguments or one, but was given 2
+func-arity-at-most-two-msg	err	a:project(1,2,3)	project takes at most two arguments, but was given 3
+func-arity-one-or-two-msg	err	a:join()	join takes one argument or two, but was given 0
+func-arity-two-or-three-msg	err	a:when(1)	when takes two or three arguments, but was given 1
+func-arity-one-or-more-msg	err	a:neq()	neq takes one or more arguments, but was given 0
+func-arity-two-or-more-msg	err	a:nof(1)	nof takes two or more arguments, but was given 1
+func-arity-three-or-more-msg	err	a:match(1,2)	match takes three or more arguments, but was given 2
 # key takes NONE or one (how many levels up the path to read), and neq
 # takes one or more (a set of exclusions). Both are real arities, not
 # exemptions, so both spellings must keep working.

@@ -28,6 +28,8 @@
 # tn0 on.
 # An argument a trial tries against a value, with a clash below its top, admits
 # nothing, in rows tl0 on.
+# keyed(p, t, e), the short form the reader carries into a selection on key(0),
+# its default any where e is not written, follows in rows yk0 on.
 t0	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid"}
 t1	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 t2	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
@@ -1177,3 +1179,42 @@ tl17	verdict	"v": nof(1, {"b"?: (len(1)) & ([1, 2])}, {"x": 1})	{"v": {"x": 1}}	
 tl18	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid"}
 tl19	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 tl20	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+yk0	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid"}
+yk1	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+yk2	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+yk3	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": "x"}}	{"verdict":"invalid"}
+yk4	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+yk5	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+yk6	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"b": 1}}	{"verdict":"invalid"}
+yk7	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+yk8	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+yk9	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {}}	{"verdict":"valid"}
+yk10	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {}}	{"verdict":"valid","opts":{"noFill":true}}
+yk11	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {}}	{"verdict":"valid","opts":{"partial":true}}
+yk12	verdict	"z": {&: keyed("a", integer)}	{"z": {"a": 1, "b": "x"}}	{"verdict":"valid"}
+yk13	verdict	"z": {&: keyed("a", integer)}	{"z": {"a": 1, "b": "x"}}	{"verdict":"valid","opts":{"noFill":true}}
+yk14	verdict	"z": {&: keyed("a", integer)}	{"z": {"a": 1, "b": "x"}}	{"verdict":"valid","opts":{"partial":true}}
+yk15	verdict	"z": {&: keyed("a", integer)}	{"z": {"a": "x"}}	{"verdict":"invalid"}
+yk16	verdict	"z": {&: keyed("a", integer)}	{"z": {"a": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+yk17	verdict	"z": {&: keyed("a", integer)}	{"z": {"a": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+yk18	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"ab": "x", "abc": 1}}	{"verdict":"valid"}
+yk19	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"ab": "x", "abc": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+yk20	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"ab": "x", "abc": 1}}	{"verdict":"valid","opts":{"partial":true}}
+yk21	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"ab": 1}}	{"verdict":"invalid"}
+yk22	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"ab": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+yk23	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"ab": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+yk24	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"abc": "x"}}	{"verdict":"invalid"}
+yk25	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"abc": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+yk26	verdict	"z": {&: keyed(len(max(2)), string, integer)}	{"z": {"abc": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+yk27	verdict	"z": {"a": 1, &: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid"}
+yk28	verdict	"z": {"a": 1, &: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+yk29	verdict	"z": {"a": 1, &: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+yk30	verdict	"z": {"a": "x", &: keyed("a", integer, nil)}	{"z": {"a": "x"}}	{"verdict":"error"}
+yk31	verdict	"z": {"a": "x", &: keyed("a", integer, nil)}	{"z": {"a": "x"}}	{"verdict":"error","opts":{"noFill":true}}
+yk32	verdict	"z": {"a": "x", &: keyed("a", integer, nil)}	{"z": {"a": "x"}}	{"verdict":"error","opts":{"partial":true}}
+yk33	verdict	"z": [&: keyed("0", string, integer)]	{"z": ["a", 1]}	{"verdict":"valid"}
+yk34	verdict	"z": [&: keyed("0", string, integer)]	{"z": ["a", 1]}	{"verdict":"valid","opts":{"noFill":true}}
+yk35	verdict	"z": [&: keyed("0", string, integer)]	{"z": ["a", 1]}	{"verdict":"valid","opts":{"partial":true}}
+yk36	verdict	"z": [&: keyed("0", string, integer)]	{"z": [1]}	{"verdict":"invalid"}
+yk37	verdict	"z": [&: keyed("0", string, integer)]	{"z": [1]}	{"verdict":"invalid","opts":{"noFill":true}}
+yk38	verdict	"z": [&: keyed("0", string, integer)]	{"z": [1]}	{"verdict":"invalid","opts":{"partial":true}}

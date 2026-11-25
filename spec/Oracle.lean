@@ -5302,6 +5302,42 @@ theorem key_verdict_exact : ∀ c ∈ keyCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (keyCases_checkable c hc).1 (keyCases_checkable c hc).2 v
 
+/-- The calls `keyedCases` writes in the short form, each a pattern, a
+schema and the default where one is written. -/
+def keyedCalls : List (Val × Val × Option Val) :=
+  [(str "a", .integer, some Val.void), (str "a", .integer, none),
+    (.len (.max (nb 2)), .string, some .integer), (str "0", .string, some .integer)]
+
+/-- `keyed(p, t, e?)` in a spread, as `Val.keyedCall` reads it: a key the
+pattern admits held to the schema, any other to the default or left
+alone, beside a field of the map's own, and by position in a list. -/
+def keyedCases : List (Decls × Val × Data) :=
+  let spm (fs : List (String × Bool × Val)) (s : Val) : Val := .map fs (some s) false
+  let spl (s : Val) : Val := .list [] (some s) false
+  let z (v : Val) : Val := .map [("z", false, v)] none false
+  let dz (x : Data) : Data := .map [("z", x)]
+  let only : Val := .keyedCall (str "a") .integer (some Val.void)
+  let held : Val := .keyedCall (str "a") .integer
+  let short : Val := .keyedCall (.len (.max (nb 2))) .string (some .integer)
+  let pos : Val := .keyedCall (str "0") .string (some .integer)
+  [([], z (spm [] only), dz (.map [("a", j 1)])), ([], z (spm [] only), dz (.map [("a", .str "x")])),
+    ([], z (spm [] only), dz (.map [("b", j 1)])), ([], z (spm [] only), dz (.map [])),
+    ([], z (spm [] held), dz (.map [("a", j 1), ("b", .str "x")])),
+    ([], z (spm [] held), dz (.map [("a", .str "x")])),
+    ([], z (spm [] short), dz (.map [("ab", .str "x"), ("abc", j 1)])),
+    ([], z (spm [] short), dz (.map [("ab", j 1)])), ([], z (spm [] short), dz (.map [("abc", .str "x")])),
+    ([], z (spm [("a", false, int 1)] only), dz (.map [("a", j 1)])),
+    ([], z (spm [("a", false, str "x")] only), dz (.map [("a", .str "x")])),
+    ([], z (spl pos), dz (.list [.str "a", j 1])), ([], z (spl pos), dz (.list [j 1]))]
+
+set_option maxRecDepth 8192 in
+theorem keyedCases_checkable : ∀ c ∈ keyedCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem keyed_verdict_exact : ∀ c ∈ keyedCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (keyedCases_checkable c hc).1 (keyedCases_checkable c hc).2 v
+
 /-- The arguments of a trial both ports read as they build the trial,
 each dead: a size, `must`'s condition, the count of `nof` and
 `contains`, `filter`'s source and `match`'s scrutinee, which make the
@@ -5558,6 +5594,30 @@ def trialRows (tag : String) (cases : List (Decls × Val × Data) := trialCases 
     let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
     let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
+    i ← verdictLines tag i src dsrc fun m => vet m c.1 c.2.1 c.2.2
+
+/-- The `keyed` rows: each case of `keyedCases` with its selection
+written in the short form, in the three modes, with the one class `vet`
+gives the selection the call is read as. A selection the short form
+does not write stops the run. -/
+def keyedRows (tag : String) : IO Unit := do
+  let mut i := 0
+  for c in keyedCases do
+    let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
+    let mut src := (ssrc.drop 1).dropRight 1
+    for (p, t, e) in keyedCalls do
+      let some long := (Val.keyedCall p t e).cell | throw (IO.userError "a selection of the fragment has no text")
+      let some ps := p.cell | throw (IO.userError "a pattern of the fragment has no text")
+      let some ts := t.cell | throw (IO.userError "a schema of the fragment has no text")
+      let es ← match e with
+        | none => pure ""
+        | some e => match e.cell with
+          | some s => pure (", " ++ s)
+          | none => throw (IO.userError "a default of the fragment has no text")
+      src := src.replace long ("keyed(" ++ ps ++ ", " ++ ts ++ es ++ ")")
+    if (src.splitOn "match(").length ≠ 1 then
+      throw (IO.userError ("a selection the short form does not write: " ++ src))
     i ← verdictLines tag i src dsrc fun m => vet m c.1 c.2.1 c.2.2
 
 /-! ## The ninth fragment: the order -/
@@ -9047,6 +9107,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# tn0 on."
     IO.println "# An argument a trial tries against a value, with a clash below its top, admits"
     IO.println "# nothing, in rows tl0 on."
+    IO.println "# keyed(p, t, e), the short form the reader carries into a selection on key(0),"
+    IO.println "# its default any where e is not written, follows in rows yk0 on."
     trialRows "t"
     trialRows "y" keyCases
     trialRows "tc" meetNameCases
@@ -9055,6 +9117,7 @@ def main (args : List String) : IO UInt32 := do
     trialRows "td" deepEagerCases
     trialRows "tn" voidBelowCases
     trialRows "tl" lazyClashCases
+    keyedRows "yk"
     return 0
   | ["calls"] =>
     IO.println "# Generated by `lake exe oracle calls` (spec/Oracle.lean) from the definition"

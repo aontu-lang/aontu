@@ -74,7 +74,7 @@ name ::=
     "content" | "file" | "folder" | "format" | "fragment" | "inject" | "line" | "nom" | "project" | "slot" | "translate" | "abnf" | "above" | "acyclic" | "add" | "apply" | "below" | "close" | "contains" | "copyfiles" | "copy" | "deprecate" | "div"
   | "each" | "emit" | "empty" | "esc" | "filter" | "gen" | "greatest"
   | "hide" | "ident"
-  | "inverse" | "join" | "key" | "least"
+  | "inverse" | "join" | "keyed" | "key" | "least"
   | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "meta" | "min" | "mod" | "move"
   | "mulof" | "mul" | "must"
   | "neq" | "nof"

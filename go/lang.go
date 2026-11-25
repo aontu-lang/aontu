@@ -2826,6 +2826,21 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 		sp = r.O0.SI
 	}
 
+	// keyed is carried out by the match on key(0) it means, and keeps its name.
+	keyed := "keyed" == name
+	if keyed {
+		sited := func(v Val) Val {
+			v.setPos(sp)
+			stampSrc(v, r)
+			return v
+		}
+		if 2 == len(args) {
+			args = append(args, sited(newTop()))
+		}
+		key := sited(newFunc("key", []Val{sited(newInteger(0))}))
+		name, args = "match", append([]Val{key}, args...)
+	}
+
 	if "empty" == name {
 		ev := newEmpty()
 		ev.site.sp = sp
@@ -2840,6 +2855,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	}
 
 	fv := newFunc(name, args)
+	fv.keyed = keyed
 	if r.ON > 0 {
 		fv.site.sp = r.O0.SI
 		stampSrc(fv, r)

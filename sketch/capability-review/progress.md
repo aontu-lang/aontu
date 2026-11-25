@@ -535,6 +535,20 @@ surface depended on nothing, and shipped in 0.53.0 with the rest.
 | **5** — `must` | S | **LANDED** | Band B in both ports as a kept, never-simplified field on the residual, folded LAST (`LATE_CJO`/`sizingCjo`, generalised from the sizing rule) so it checks the finished value, against a CLONE so the check reports without contributing; error code `must` in `errcodes.tsv` with the author message carried into the hint. `test/spec/constraint-must.tsv` (28 rows at landing): evaluate-only reporting, the late fold over layered fragments, checks kept in written order without dedup, reference and expression arguments, container arguments, and the argument discipline (parse-time arity, string message, a check holding a nil refused as an argument). **Two departures from the design:** `must` joining the late-fold slot is what generalised it, so `docs/reference-language.md` "Sizing atoms fold last" now names all three late atoms — Go's `cjo()` was missing the `must` arm entirely, which fired the check against the first fragment, and the `must-folds-last` rows pin it. And an **effectful** argument is refused at construction: `move()` hides its resolution target in place, and settling a pending argument runs that against the LIVE root before the trial clone is taken, so `b:1 a:must(move($.b),m) a:1` dropped `b` in Go and raised `internal` in TypeScript. The sibling atoms already refused it for a different reason (an effectful value is not an orderable scalar), so this is `must` joining a policy the family had; `must-move-arg*` pins it. |
 | **6** — number exactness | S | **LANDED** | `isLossyIntegerLiteral` → `lossy_integer_literal` in `ts/src/lang.ts` and `go/lang.go`; `test/spec/number-tower.tsv`, `number-model.tsv`, `scalar.tsv`. Landed inside the number tower, commit `51e8149`. |
 
+**N3, key patterns, landed on 2026-11-24 as the call `keyed(p, t, e?)`**,
+and adds no phase to the table. G1 held N3 as deferred; ruling 18 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
+took it up as a call in place of the key form, and its task KP1 built
+it. `buildCall` in `ts/src/lang.ts` and `go/lang.go` builds the
+`match(key(0), p, t, e)` that carries it out, with `any` where `e` is
+left out, so it evaluates as G8 phase 2's `match` does, and canon
+writes it as `keyed` (`KeyedFuncVal`, and `callName` in `go/func.go`),
+as ADR-080 asks. It is declared in
+`test/spec/signature.tsv` (72 -> 73 builtins), named in the four
+grammars and both LSP completion lists, read in the definition as
+`Val.keyedCall` (`spec/Aontu/Syntax.lean`), and held by
+`test/spec/keyed.tsv` and rows yk0 on of `test/spec/def-trial.tsv`.
+
 **Phase 0's subsumption table** was the last of its three tables to be
 written, and for a while the reason this phase read PARTIAL: the phase
 text names "the pairwise meet / emptiness / subsumption tables", and
