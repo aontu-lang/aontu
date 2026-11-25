@@ -2889,8 +2889,10 @@ recursion, as `pref(%T)` does. A link there whose template is the name,
 link passes read that place with the body's calls made too
 (`Decls.bodyClash`). Used alone, `x: %T` stays residual where no data
 reaches it, as a name with no link does, so the schema generates
-nothing at `x`. Both engines expand it for the link, which #762
-tracks. The meet unfolds a name after the reading
+nothing at `x`. Both engines read it so too, as #762 asked: the name
+inside a link's template makes the body recursive, as a name in a
+member does. Rows `rx0` on of `test/spec/def-path.tsv` hold it. The
+meet unfolds a name after the reading
 has made the schema's calls, so the definition makes the calls and the
 selections in each recursive name's body first. Step 9 reads each body
 so once its paths are names, so the definition makes a `match` or a call

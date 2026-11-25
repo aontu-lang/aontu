@@ -361,7 +361,9 @@ copy's own members, where both ports read it where the target writes
 it when the target comes first, and move (#504, #696); and a recursive
 name used alone whose body links to its own member, which the
 definition keeps residual where no data reaches it, as one with no
-link, where both ports expand it for the link, and move (#762); and a path
+link, where both ports expanded it for the link, and moved on
+2026-11-25 (#762: the walk that finds a name's residual in its body
+reads a link's template, rows rx0 on); and a path
 that names nothing among lone preferences met at one place,
 which ruling 53 reads as an `error`, where both ports' `vet` answers
 `invalid`, and move (#700); the parent arm of a lone preference whose
