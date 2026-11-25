@@ -230,7 +230,7 @@ func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string
 			}
 		}
 	}
-	// A link's template is part of a name's body: the name inside it makes the body recursive (#762).
+	// A link's template is part of a name's body: the name inside it makes the body recursive.
 	if name := aliasBareName(target[0]); 1 == len(target) && aliasRe.FindString(name) == name {
 		for _, t := range linkTemplates(v) {
 			if reachesRecurse(t, target, depth+1, root, seen) {

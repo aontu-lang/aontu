@@ -270,11 +270,10 @@ function containsRecurseOf(v: any, target: string[], d: number, root?: any,
   if (null != v.spread?.cj && containsRecurseOf(v.spread.cj, target, d + 1, root, seen)) {
     return true
   }
-  // A link's template is part of a name's body: the name inside it makes the body recursive (#762).
   const named = 1 === target.length && ALIAS_NAME_RE.test(aliasBareName(target[0]))
-  const templates: any[] = !named ? [] :
+  const linkTemplates: any[] = !named ? [] :
     true === v.isRelateFunc ? v.peg : [v.tval, ...(v.relates ?? [])]
-  return templates.some((t: any) => containsRecurseOf(t, target, d + 1, root, seen))
+  return linkTemplates.some((t: any) => containsRecurseOf(t, target, d + 1, root, seen))
 } /* node:coverage ignore next 8 */
 
 
