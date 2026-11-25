@@ -15,9 +15,10 @@ import { FuncBaseVal } from './FuncBaseVal'
 import { MapVal } from './MapVal'
 import { keyTable } from './BagVal'
 import { ListVal } from './ListVal'
-import { DisjunctVal } from './DisjunctVal'
+import { DisjunctVal, unread } from './DisjunctVal'
 import { ScalarKindVal } from './ScalarKindVal'
 import { top } from './top'
+import { RESERVED_KEY_PREFIX } from '../aliasname'
 
 
 class SuperFuncVal extends FuncBaseVal {
@@ -52,6 +53,43 @@ class SuperFuncVal extends FuncBaseVal {
     return this.place(superOf(ctx, args[0]))
   }
 
+}
+
+
+const PROBE = RESERVED_KEY_PREFIX + 'probe'
+
+
+// Ruling 40: a template reads its paths at a member, so the lift gives each one a member to read at.
+function probeOf(ctx: AontuContext, v: any): Val | undefined {
+  if (true !== v.isMap) {
+    return undefined
+  }
+  const peg: Record<string, Val> = keyTable()
+  for (const k of Object.keys(v.peg)) {
+    const kid = probeOf(ctx, v.peg[k])
+    if (undefined !== kid) {
+      peg[k] = kid
+    }
+  }
+  const tmpl = v.spread?.cj
+  const inner = null == tmpl ? undefined : probeOf(ctx, tmpl)
+  if (undefined !== inner || (null != tmpl && unread(tmpl))) {
+    peg[PROBE] = inner ?? (true === tmpl.isMap ? new MapVal({ peg: keyTable() }, ctx) : top())
+  }
+  return 0 < Object.keys(peg).length ? new MapVal({ peg }, ctx) : undefined
+}
+
+
+// The member a template was read at is the template's lift.
+function unprobe(v: any): Val {
+  if (true === v.isMap) {
+    Object.keys(v.peg).forEach((k) => unprobe(v.peg[k]))
+    if (undefined !== v.peg[PROBE]) {
+      v.spread.cj = v.peg[PROBE]
+      delete v.peg[PROBE]
+    }
+  }
+  return v
 }
 
 
@@ -139,10 +177,12 @@ function superOf(ctx: AontuContext, v: any): Val {
     return sup
   }
   return v.place(top())
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 8 */
 
 
 export {
   SuperFuncVal,
   superOf,
+  probeOf,
+  unprobe,
 }

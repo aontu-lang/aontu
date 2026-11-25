@@ -23,6 +23,35 @@ patterns, and keep a type open for patterned keys. The how-tos on
 spreads and on sealing point to it. The row of the guide for CUE users
 waits on that guide.
 
+### A lone default's parent arm lifts a template's path as the term it names
+
+#704, in both engines. A lone default `*x` is `x` or its parent arm,
+the parent type of what `x` reads as on its own, which takes what
+overrides the default. Each engine read `x` on its own before lifting
+it, but a spread's template reads its paths at a member, and `x` alone
+has none. So a path in a template stayed unread and lifted to `any`,
+and the parent arm passed a value the template's own path refuses:
+
+- `x: *{&: {name: "a", url: .name}}` passed
+  `{"x": {"h": {"name": "b", "url": 1}}}`. The parent arm is
+  `{&: {name: string, url: string}}`, since `url` reads `name`, and the
+  data is `invalid`.
+- The same holds for a template in a member of the default, a template
+  inside a template, a path met with a kind, a template that is itself
+  a path, and a path to a place outside the default.
+
+Each engine now gives every template that holds a path a member to
+meet, reads the value again with that member in it, and takes the
+member's lift as the template's. A value the template's path admits
+passes as before.
+
+Rows lp51 to lp53 and lpl51 to lpl53 of `test/spec/def-path.tsv` leave
+`spec/ledger.tsv`, whose bound falls to 28, and the preferences hold no
+ledger row. `test/spec/vet.tsv` gains 36 rows, each answer the
+definition's too. A template that is a path met with a kind,
+`&: $.y & number`, still lifts to `any` in both engines, which #991
+tracks.
+
 ### An arm's path into its own place that names nothing fails the arm
 
 #982 in both engines, and #988 in TypeScript. A path written in a

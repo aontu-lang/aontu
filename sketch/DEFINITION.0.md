@@ -2182,7 +2182,13 @@ until the phase that encodes it lands.
    (#979): one into its own place that the value doesn't hold, `.c` in
    `x: (*{a: 1, b: .c}) & {c: 2}`, only the peer answers, and the first
    cut waited for it for good, so that the document no longer
-   evaluated in either port.
+   evaluated in either port. **The template built in both ports
+   2026-11-25** (#704): the own reading leaves a template's paths
+   unread, since a template reads at a member, so each port gives every
+   template that holds a path a member to meet, reads the value again
+   with that member in it, and takes the member's lift as the
+   template's. The six rows lp51 to lp53 and lpl51 to lpl53 leave the
+   ledger, whose bound falls to 28, and the preferences hold none.
 
 41. **Preferences of different ranks that meet.** Raised 2026-11-11
    while building the reference's rule that compatible defaults fold.

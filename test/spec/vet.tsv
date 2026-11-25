@@ -1158,3 +1158,43 @@ vet-lone-stray-path-under-rest-under-partial	verdict	x: *{a: 1, b: rest(.d)}	{}	
 vet-lone-stray-path-under-a-bound	verdict	x: *{a: 1, b: min(.d)}	{}	{"verdict":"error"}
 vet-lone-stray-path-under-a-bound-with-no-fill	verdict	x: *{a: 1, b: min(.d)}	{}	{"verdict":"error","opts":{"noFill":true}}
 vet-lone-stray-path-under-a-bound-under-partial	verdict	x: *{a: 1, b: min(.d)}	{}	{"verdict":"error","opts":{"partial":true}}
+# A lone default's parent arm lifts a template's path as the term it names
+# (ruling 40, #704): the template is read at a member before the lift, so a
+# value its own path would refuse is refused by the parent arm too. Each row is
+# the definition's answer too.
+vet-lone-parent-arm-lifts-a-member-holds-the-template-refuses	verdict	x: *{m: {&: {name: "a", url: .name}}}	{"x": {"m": {"h": {"name": "b", "url": 1}}}}	{"verdict":"invalid"}
+vet-lone-parent-arm-lifts-a-member-holds-the-template-refuses-with-no-fill	verdict	x: *{m: {&: {name: "a", url: .name}}}	{"x": {"m": {"h": {"name": "b", "url": 1}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-member-holds-the-template-refuses-under-partial	verdict	x: *{m: {&: {name: "a", url: .name}}}	{"x": {"m": {"h": {"name": "b", "url": 1}}}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-member-holds-the-template-admits	verdict	x: *{m: {&: {name: "a", url: .name}}}	{"x": {"m": {"h": {"name": "b", "url": "c"}}}}	{"verdict":"valid"}
+vet-lone-parent-arm-lifts-a-member-holds-the-template-admits-with-no-fill	verdict	x: *{m: {&: {name: "a", url: .name}}}	{"x": {"m": {"h": {"name": "b", "url": "c"}}}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-member-holds-the-template-admits-under-partial	verdict	x: *{m: {&: {name: "a", url: .name}}}	{"x": {"m": {"h": {"name": "b", "url": "c"}}}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-template-in-a-template-refuses	verdict	x: *{&: {&: {u: .v, v: 1}}}	{"x": {"a": {"b": {"u": "s", "v": 2}}}}	{"verdict":"invalid"}
+vet-lone-parent-arm-lifts-a-template-in-a-template-refuses-with-no-fill	verdict	x: *{&: {&: {u: .v, v: 1}}}	{"x": {"a": {"b": {"u": "s", "v": 2}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-template-in-a-template-refuses-under-partial	verdict	x: *{&: {&: {u: .v, v: 1}}}	{"x": {"a": {"b": {"u": "s", "v": 2}}}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-template-in-a-template-admits	verdict	x: *{&: {&: {u: .v, v: 1}}}	{"x": {"a": {"b": {"u": 3, "v": 2}}}}	{"verdict":"valid"}
+vet-lone-parent-arm-lifts-a-template-in-a-template-admits-with-no-fill	verdict	x: *{&: {&: {u: .v, v: 1}}}	{"x": {"a": {"b": {"u": 3, "v": 2}}}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-template-in-a-template-admits-under-partial	verdict	x: *{&: {&: {u: .v, v: 1}}}	{"x": {"a": {"b": {"u": 3, "v": 2}}}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-path-to-a-place-outside-refuses	verdict	y: 1\nx: *{&: {u: $.y}}	{"y": 1, "x": {"h": {"u": "s"}}}	{"verdict":"invalid"}
+vet-lone-parent-arm-lifts-a-path-to-a-place-outside-refuses-with-no-fill	verdict	y: 1\nx: *{&: {u: $.y}}	{"y": 1, "x": {"h": {"u": "s"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-path-to-a-place-outside-refuses-under-partial	verdict	y: 1\nx: *{&: {u: $.y}}	{"y": 1, "x": {"h": {"u": "s"}}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-path-to-a-place-outside-admits	verdict	y: 1\nx: *{&: {u: $.y}}	{"y": 1, "x": {"h": {"u": 3}}}	{"verdict":"valid"}
+vet-lone-parent-arm-lifts-a-path-to-a-place-outside-admits-with-no-fill	verdict	y: 1\nx: *{&: {u: $.y}}	{"y": 1, "x": {"h": {"u": 3}}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-path-to-a-place-outside-admits-under-partial	verdict	y: 1\nx: *{&: {u: $.y}}	{"y": 1, "x": {"h": {"u": 3}}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-path-met-with-a-kind-refuses	verdict	x: *{&: {n: 1, m: .n & number}}	{"x": {"h": {"n": 2, "m": "s"}}}	{"verdict":"invalid"}
+vet-lone-parent-arm-lifts-a-path-met-with-a-kind-refuses-with-no-fill	verdict	x: *{&: {n: 1, m: .n & number}}	{"x": {"h": {"n": 2, "m": "s"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-path-met-with-a-kind-refuses-under-partial	verdict	x: *{&: {n: 1, m: .n & number}}	{"x": {"h": {"n": 2, "m": "s"}}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-path-met-with-a-kind-admits	verdict	x: *{&: {n: 1, m: .n & number}}	{"x": {"h": {"n": 2, "m": 7}}}	{"verdict":"valid"}
+vet-lone-parent-arm-lifts-a-path-met-with-a-kind-admits-with-no-fill	verdict	x: *{&: {n: 1, m: .n & number}}	{"x": {"h": {"n": 2, "m": 7}}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-path-met-with-a-kind-admits-under-partial	verdict	x: *{&: {n: 1, m: .n & number}}	{"x": {"h": {"n": 2, "m": 7}}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-template-that-is-a-path-refuses	verdict	y: 1\nx: *{&: $.y}	{"y": 1, "x": {"h": "s"}}	{"verdict":"invalid"}
+vet-lone-parent-arm-lifts-a-template-that-is-a-path-refuses-with-no-fill	verdict	y: 1\nx: *{&: $.y}	{"y": 1, "x": {"h": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-template-that-is-a-path-refuses-under-partial	verdict	y: 1\nx: *{&: $.y}	{"y": 1, "x": {"h": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-template-that-is-a-path-admits	verdict	y: 1\nx: *{&: $.y}	{"y": 1, "x": {"h": 3}}	{"verdict":"valid"}
+vet-lone-parent-arm-lifts-a-template-that-is-a-path-admits-with-no-fill	verdict	y: 1\nx: *{&: $.y}	{"y": 1, "x": {"h": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-template-that-is-a-path-admits-under-partial	verdict	y: 1\nx: *{&: $.y}	{"y": 1, "x": {"h": 3}}	{"verdict":"valid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-member-beside-the-template-refuses	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": "s"}}}	{"verdict":"invalid"}
+vet-lone-parent-arm-lifts-a-member-beside-the-template-refuses-with-no-fill	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": "s"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-member-beside-the-template-refuses-under-partial	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": "s"}}}	{"verdict":"invalid","opts":{"partial":true}}
+vet-lone-parent-arm-lifts-a-member-beside-the-template-admits	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": 2}}}	{"verdict":"valid"}
+vet-lone-parent-arm-lifts-a-member-beside-the-template-admits-with-no-fill	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+vet-lone-parent-arm-lifts-a-member-beside-the-template-admits-under-partial	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": 2}}}	{"verdict":"valid","opts":{"partial":true}}

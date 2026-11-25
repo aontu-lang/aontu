@@ -10254,9 +10254,10 @@ def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List �
   | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
 ```
 
-Both engines read a lone preference so. They still lift a path in a
-template inside the value to `any` in the parent arm, which #704
-tracks.
+Both engines read a lone preference so. A template inside the value
+lifts the same way: each engine reads it at a member first, so in
+`x: *{&: {name: "a", url: .name}}` the parent arm holds every member's
+`url` to `string`.
 
 A disjunction or a lone preference can stand inside an arm, as in
 `x: {a: 1, b: {c: 1, d: .c} | null} | null`. The definition reads the
