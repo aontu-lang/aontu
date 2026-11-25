@@ -218,10 +218,8 @@ class ConjunctVal extends JunctionVal {
   apart(peer: Val, ctx: AontuContext): Val | undefined {
     if (this.peg.some((t: Val) => t.isRef)) {
       this.own = true
-      const out = new ConjunctVal({ peg: [this, peer] }, ctx)
+      const out = this.place(new ConjunctVal({ peg: [this, peer] }, ctx))
       out.dc = this.dc + 1
-      out.site = this.site
-      out.path = this.path
       return out
     }
     const bags = this.peg.every((t: any) => sealish(t) || true === t.isMap || true === t.isList)
