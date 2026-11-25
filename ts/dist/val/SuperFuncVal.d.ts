@@ -9,5 +9,7 @@ declare class SuperFuncVal extends FuncBaseVal {
     deferResolve(_ctx: AontuContext, args?: Val[]): boolean;
     resolve(ctx: AontuContext, args: Val[]): Val;
 }
+declare function probeOf(ctx: AontuContext, v: any): Val | undefined;
+declare function unprobe(v: any): Val;
 declare function superOf(ctx: AontuContext, v: any): Val;
-export { SuperFuncVal, superOf, };
+export { SuperFuncVal, superOf, probeOf, unprobe, };

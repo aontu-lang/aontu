@@ -25,7 +25,7 @@ import { top } from './top'
 
 import { FeatureVal } from './FeatureVal'
 import { trialUnify } from './FuncBaseVal'
-import { superOf } from './SuperFuncVal'
+import { superOf, probeOf, unprobe } from './SuperFuncVal'
 import { meetRanked, unread } from './DisjunctVal'
 import { ConjunctVal } from './ConjunctVal'
 import { genHeld } from '../genrec'
@@ -152,18 +152,20 @@ class PrefVal extends FeatureVal {
 
 
   // The default read on its own, before any data: in the schema's own tree under vet (ruling 40).
-  private own(ctx: AontuContext): Val | undefined {
-    const alone = this.alone ?? prefInnerPeg(this)
+  private own(ctx: AontuContext, alone: Val = this.alone ?? prefInnerPeg(this)): Val | undefined {
     const octx = null == (ctx as any)._ownroot ? ctx : ctx.clone({ root: (ctx as any)._ownroot })
     return trialUnify(octx.holdArm(this.path, alone, undefined, true), alone.clone(ctx), top())
   }
 
 
-  // Ruling 40: the parent arm lifts the default as read on its own.
+  // Ruling 40: the parent arm lifts the default as read on its own, each template read at a member it meets first.
   private parentArm(ctx: AontuContext): Val {
     const own = this.own(ctx)
-    return undefined === own ? this.superpeg.clone(ctx) :
-      unite(ctx, superOf(ctx, own), this.superpeg.clone(ctx), 'pref/lift')
+    const probe = undefined === own ? undefined : probeOf(ctx, own)
+    const met = undefined === probe ? undefined : trialUnify(ctx, (own as Val).clone(ctx), probe)
+    const read = (undefined === met ? undefined : this.own(ctx, met)) ?? own
+    return undefined === read ? this.superpeg.clone(ctx) :
+      unite(ctx, unprobe(superOf(ctx, read)), this.superpeg.clone(ctx), 'pref/lift')
   }
 
 

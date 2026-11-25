@@ -55,8 +55,9 @@ func (p *PrefVal) lone() Val {
 }
 
 // own is the default read on its own, before any data: in the schema's own tree under vet (ruling 40).
-func (p *PrefVal) own(ctx *Ctx) Val {
-	alone := p.lone()
+func (p *PrefVal) own(ctx *Ctx) Val { return p.ownOf(ctx, p.lone()) }
+
+func (p *PrefVal) ownOf(ctx *Ctx, alone Val) Val {
 	root := ctx.root
 	if nil != ctx.ownroot {
 		ctx.root = ctx.ownroot
@@ -67,13 +68,67 @@ func (p *PrefVal) own(ctx *Ctx) Val {
 	})
 }
 
-// Ruling 40: the parent arm lifts the default as read on its own.
+// Ruling 40: the parent arm lifts the default as read on its own. A template reads its paths
+// at a member, so each meets one first, and the value that holds it is read again.
 func (p *PrefVal) parentArm(ctx *Ctx) Val {
 	own := p.own(ctx)
 	if nil == own {
 		return clonePath(p.superpeg, cp(p.path))
 	}
-	return unite(ctx, superOf(cp(p.path), own), clonePath(p.superpeg, cp(p.path)))
+	if probe := probeOf(own); nil != probe {
+		if met := trialUnify(ctx, clonePath(own, cp(p.path)), probe); nil != met {
+			if read := p.ownOf(ctx, met); nil != read {
+				own = read
+			}
+		}
+	}
+	return unite(ctx, unprobe(superOf(cp(p.path), own)), clonePath(p.superpeg, cp(p.path)))
+}
+
+const probeKey = reservedKeyPrefix + "probe"
+
+// probeOf gives each template that holds a path a member to read it at; nil where none does.
+func probeOf(v Val) Val {
+	m, ok := v.(*MapVal)
+	if !ok {
+		return nil
+	}
+	out := newMap()
+	for _, k := range m.keys {
+		if kid := probeOf(m.peg[k]); nil != kid {
+			out.set(k, kid)
+		}
+	}
+	if nil != m.spread {
+		inner := probeOf(m.spread)
+		if _, isMap := m.spread.(*MapVal); nil == inner && isMap && unread(m.spread) {
+			inner = newMap()
+		} else if nil == inner && unread(m.spread) {
+			inner = top()
+		}
+		if nil != inner {
+			out.set(probeKey, inner)
+		}
+	}
+	if 0 == len(out.keys) {
+		return nil
+	}
+	return out
+}
+
+// unprobe: the member a template was read at is the template's lift.
+func unprobe(v Val) Val {
+	if m, ok := v.(*MapVal); ok {
+		for _, k := range m.keys {
+			unprobe(m.peg[k])
+		}
+		if lift, has := m.peg[probeKey]; has {
+			m.spread = lift
+			delete(m.peg, probeKey)
+			m.keys = slices.DeleteFunc(m.keys, func(k string) bool { return probeKey == k })
+		}
+	}
+	return v
 }
 
 // waitsForPath: only a path to a place outside the default; one into it,
