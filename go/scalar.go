@@ -151,7 +151,7 @@ func scalarPegSame(kind Kind, a, b any) bool {
 
 func (s *ScalarVal) superior() Val {
 	k := newScalarKind(s.kind)
-	// The kind that admits this value: "" needs the waiver.
+	// The kind that admits this value: "" needs the wider one.
 	if KindString == s.kind && ("" == s.peg.(string) || s.emptyOk) {
 		k.emptyOk = true
 	}

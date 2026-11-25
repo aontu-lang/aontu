@@ -921,7 +921,8 @@ example : Instance .empty
 
 /-! ## Where the definition and the engines differ -/
 
-/-- `string & (string & empty())` refuses `""`, which both engines admit. -/
+/-- `string & (string & empty())` refuses `""`: a `string` keeps its
+non-emptiness whatever it meets. -/
 example : ¬ Instance .empty (.meet .string .anyString) (.str "") :=
   fun ⟨_, h⟩ => no_meet_with_string_admits_empty _ _ _ h
 

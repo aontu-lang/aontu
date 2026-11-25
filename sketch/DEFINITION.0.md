@@ -171,7 +171,14 @@ the definition encodes them rather than restating them in prose.
    tool.
 3. The meet is a greatest lower bound. `string & empty()` is a kind of
    its own, and `string` met with it is `string`; the ports change, the
-   definition does not.
+   definition does not. **Built in both ports 2026-11-25** (#343): each
+   parser reads a `string` and an `empty()` that one written
+   conjunction holds, no parenthesis between them, as the kind, and a
+   plain `string` stands against it in every meet, as a kind, in a
+   string value and in a string residual. An `empty()` standing apart
+   is every string and lifts nothing: in another statement, outside a
+   parenthesised group, behind a name or a path. The ten rows under
+   this decision leave the ledger, whose bound falls to 39.
 4. A schema that admits nothing because its own terms contradict
    (`integer & string`) is an **error**, not an empty value. The
    definition therefore carries a notion of an ill-formed value beside

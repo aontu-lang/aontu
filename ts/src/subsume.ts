@@ -454,7 +454,7 @@ export function subsumeNode(
   // Scalar kinds: a kind subsumes its scalars, narrower kinds, and the
   // constraint residuals of its domain.
   if (true === g?.isScalarKind) {
-    // A `string` without the waiver refuses the "" a waived one admits.
+    // A plain `string` refuses the "" that `string & empty()` admits.
     const strict = String === g.peg && true !== (g as any).emptyOk
     if (true === s?.isScalarKind) {
       if ((g.peg === s.peg || kindSubsumes(g.peg, s.peg)) &&

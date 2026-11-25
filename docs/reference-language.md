@@ -242,8 +242,8 @@ key (`map: 1`) it is a key, and a reference can name that key
 
 ### The empty string: `empty()`
 
-`string` means a non-empty string. `empty()` admits `""` as well, and
-only unifies with strings:
+`string` means a non-empty string. `string & empty()` admits `""` as
+well, and `empty()` only unifies with strings:
 
 ```aontu
 a: string & x
@@ -258,13 +258,25 @@ c: string & empty() & ""
 `empty_domain`. `empty()` also meets a string constraint
 (`string & re("^a*$") & empty()` admits `""`).
 
-`empty()` waives a requirement rather than adding one, so it is not an
-ordinary meet. The engine carries the two facts as flags on the string
-(it met `string`; it met `empty()`) that every unification combines with OR,
-and decides at generation. The answer is the same whichever order the
-terms meet in, including across statements and through references. One
-consequence is that a refused `""` is not pruned from a disjunction:
-`string & "" | "z"` does not generate, where `"z"` alone would.
+`string & empty()` is a kind of its own and no meet, since a meet admits
+nothing one of its terms refuses. A conjunction that writes `string` and
+`empty()` among its terms, in any order, with no parenthesis between
+them, reads the two as that kind. A `string` that meets anything else
+keeps its non-emptiness: `string` met with `string & empty()` is
+`string`, and an `empty()` in another statement, outside a parenthesised
+group, or behind a name or a path lifts nothing:
+
+```aontu
+a: string & empty()
+a: string & ""
+```
+
+`a` is refused with `string_empty`. The engine carries the
+non-emptiness as a flag on the string that every unification keeps, and
+decides at generation, so the answer is the same whichever order the
+terms meet in. One consequence is that a refused `""` is not pruned from
+a disjunction: `string & "" | "z"` does not generate, where `"z"` alone
+would.
 
 The definition reads `string & empty()` as a term of its own, `anyString` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), which admits every string where `string` refuses `""`: `no_meet_with_string_admits_empty` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean), and `re_not_le_string` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), where the subsumption table overstates `string`.
 
@@ -2848,8 +2860,8 @@ Example: `lines: emit($.services, {match:{pin:string}, body:[.pin]})`
 ### `empty() : constraint`
 
 Admit the empty string. `string` means a **non-empty** string, and
-`empty()` waives that; it only unifies with strings. See [The empty
-string](#the-empty-string-empty).
+`string & empty()` every string; it only unifies with strings. See [The
+empty string](#the-empty-string-empty).
 
 Example: `string & empty() & ""`→`""`; `string & ""`→ error
 
