@@ -57,6 +57,8 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isScalarKind = true;
+        // The parser read it from a `string` and an `empty()` in the chain it is still reading.
+        this.folded = false;
         if (null == this.peg) {
             throw new err_1.AontuError('ScalarKindVal spec.peg undefined');
         }

@@ -763,9 +763,9 @@ help isolate the syntax error.`,
                 }
                 peg = read;
             }
-            const out = opsite(new ConjunctVal_1.ConjunctVal({ peg }), r, ctx, atTerm(peg[0]));
+            const out = new ConjunctVal_1.ConjunctVal({ peg });
             out.written = true;
-            return out;
+            return opsite(out, r, ctx, atTerm(peg[0]));
         },
         'disjunct-infix': (r, ctx, _op, terms) => {
             const peg = dropUnfilled(terms);
@@ -861,8 +861,11 @@ help isolate the syntax error.`,
             if (null == val)
                 return incompleteNil(r, ctx);
             // A parenthesis ends the chain a `string & empty()` is read in.
-            if ('' === fname && true === val?.isVal) {
-                val.written = val.folded = false;
+            if (true === val?.written) {
+                val.written = false;
+            }
+            else if (true === val?.folded) {
+                val.folded = false;
             }
             // ... and the same for a GROUPING paren, whose value is passed
             // straight through: `(([]%))` yielded a raw array, and addsite went

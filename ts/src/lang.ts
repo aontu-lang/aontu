@@ -1007,7 +1007,7 @@ help isolate the syntax error.`,
       return chain
     }
     const head = chain.find(words)
-    const kind: any = true === head.folded ? head : opsite(
+    const kind = true === head.folded ? head : opsite(
       new ScalarKindVal({ peg: String, emptyOk: true } as any), r, ctx, atTerm(head))
     kind.folded = true
     return chain.filter((t) => t === head || !(words(t) || true === t?.isEmptyConstraint))
@@ -1025,9 +1025,9 @@ help isolate the syntax error.`,
         }
         peg = read
       }
-      const out: any = opsite(new ConjunctVal({ peg }), r, ctx, atTerm(peg[0]))
+      const out = new ConjunctVal({ peg })
       out.written = true
-      return out
+      return opsite(out, r, ctx, atTerm(peg[0]))
     },
 
     'disjunct-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
@@ -1134,8 +1134,11 @@ help isolate the syntax error.`,
       // `a:()` — grouping parens with nothing inside.
       if (null == val) return incompleteNil(r, ctx)
       // A parenthesis ends the chain a `string & empty()` is read in.
-      if ('' === fname && true === val?.isVal) {
-        val.written = val.folded = false
+      if (true === val?.written) {
+        val.written = false
+      }
+      else if (true === val?.folded) {
+        val.folded = false
       }
       // ... and the same for a GROUPING paren, whose value is passed
       // straight through: `(([]%))` yielded a raw array, and addsite went

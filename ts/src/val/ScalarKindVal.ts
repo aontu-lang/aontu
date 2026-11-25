@@ -87,6 +87,8 @@ class ScalarKindVal extends FeatureVal {
 
   // `string & empty()`: the string kind that also admits "".
   emptyOk: boolean
+  // The parser read it from a `string` and an `empty()` in the chain it is still reading.
+  folded = false
 
   constructor(
     spec: ValSpec,
