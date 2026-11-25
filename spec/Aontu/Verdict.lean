@@ -112,6 +112,89 @@ Each selects by a value the document has settled, so each is made once
 the document is read, before the meet, and a document reads as its
 expansion with its selections made. -/
 
+/-- The arms a lone preference in normal form stands as where it is an
+arm of a disjunction: its own arms that prefer, the riders and links
+around it carried onto each, where every other arm it has is the parent
+type the meet marked (`Val.parentOf`); none for any other term. A
+disjunction a document writes has arms with no such mark, and a
+preference whose default a meet refused has no arm that prefers, so
+neither reads this way. -/
+def Val.loneArms : Val → Option (List (ℕ × Val))
+  | .or arms =>
+    if arms.any (fun p => p.1 != 0) && arms.all (fun p => p.1 != 0 || p.2.isParent) then
+      some (arms.filter fun p => p.1 != 0)
+    else none
+  | .ride k v r => v.loneArms.map fun arms => arms.map fun p => (p.1, .ride k p.2 r)
+  | .link v t => v.loneArms.map fun arms => arms.map fun p => (p.1, .link p.2 t)
+  | _ => none
+
+theorem Val.loneArms_checkableA : ∀ {v : Val} {arms : List (ℕ × Val)}, v.CheckableA →
+    v.loneArms = some arms → ∀ p, p ∈ arms → p.2.CheckableA
+  | .or as, arms, h, he, p, hp => by
+    simp only [Val.loneArms] at he
+    split at he
+    · cases he
+      cases h with | or ha => exact ha p.1 p.2 (List.mem_filter.mp hp).1
+    · exact nomatch he
+  | .ride k v r, arms, h, he, p, hp => by
+    simp only [Val.loneArms, Option.map_eq_some_iff] at he
+    obtain ⟨inner, hi, rfl⟩ := he
+    obtain ⟨q, hq, rfl⟩ := List.mem_map.mp hp
+    cases h with | ride hv => exact .ride (Val.loneArms_checkableA hv hi q hq)
+  | .link v t, arms, h, he, p, hp => by
+    simp only [Val.loneArms, Option.map_eq_some_iff] at he
+    obtain ⟨inner, hi, rfl⟩ := he
+    obtain ⟨q, hq, rfl⟩ := List.mem_map.mp hp
+    cases h with | link hv ht => exact .link (Val.loneArms_checkableA hv hi q hq) ht
+  | .integer, _, _, he, _, _ | .float, _, _, he, _, _ | .biginteger, _, _, he, _, _
+  | .bigdecimal, _, _, he, _, _ | .number, _, _, he, _, _ | .string, _, _, he, _, _
+  | .anyString, _, _, he, _, _ | .boolean, _, _, he, _, _ | .mapKind, _, _, he, _, _
+  | .listKind, _, _, he, _, _ | .pathKind, _, _, he, _, _ | .lit _, _, _, he, _, _
+  | .min _, _, _, he, _, _ | .max _, _, _, he, _, _ | .above _, _, _, he, _, _
+  | .beneath _, _, _, he, _, _ | .neq _, _, _, he, _, _ | .mulof _, _, _, he, _, _
+  | .len _, _, _, he, _, _ | .unique _, _, _, he, _, _ | .re _, _, _, he, _, _
+  | .format _, _, _, he, _, _ | .grammar _, _, _, he, _, _ | .any, _, _, he, _, _
+  | .nil, _, _, he, _, _ | .absent, _, _, he, _, _ | .nothing, _, _, he, _, _
+  | .map _ _ _, _, _, he, _, _ | .list _ _ _, _, _, he, _, _ | .pref _ _, _, _, he, _, _
+  | .meet _ _, _, _, he, _, _ | .alias _, _, _, he, _, _ | .path _, _, _, he, _, _
+  | .addr _, _, _, he, _, _ | .nof _ _, _, _, he, _, _ | .must _ _, _, _, he, _, _
+  | .when _ _ _, _, _, he, _, _ | .contains _ _, _, _, he, _, _ | .rest _ _, _, _, he, _, _
+  | .select _ _ _, _, _, he, _, _ | .filter _ _, _, _, he, _, _ | .key, _, _, he, _, _
+  | .keyUp _, _, _, he, _, _ | .hole, _, _, he, _, _ | .call _ _, _, _, he, _, _ => nomatch he
+
+/-- Whether an arm may read as a preference: any term but a leaf or a
+container, which stand as they are written. -/
+def Val.mayPrefer : Val → Bool
+  | .pref _ _ | .or _ | .meet _ _ | .alias _ | .path _ | .ride _ _ _ | .link _ _ | .call _ _ => true
+  | _ => false
+
+/-- An arm as a disjunction holds it once read (ruling 89). An arm that
+reads as a lone preference, whichever way it got there, a `pref()`, a
+name, a path's copy, a call's result or a meet that leaves the
+preference standing, is the arm of its rank with no parent type, as a
+written `*x` arm is: the disjunction admits what its arms say and no
+more. What it reads as is its normal form (`Val.loneArms`), and a rank
+the arm is written with adds to the preference's own, as stars count.
+Any other arm stands as written. -/
+def Decls.armStands (ds : Decls) (r : ℕ) (a : Val) : List (ℕ × Val) :=
+  if a.mayPrefer then
+    match (normaliseD ds a).loneArms with
+    | some arms => arms.map fun p => (r + p.1, p.2)
+    | none => [(r, a)]
+  else [(r, a)]
+
+theorem Decls.armStands_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {r : ℕ} {a : Val}
+    (h : a.CheckableA) : ∀ p, p ∈ ds.armStands r a → p.2.CheckableA := by
+  intro p hp
+  unfold Decls.armStands at hp
+  split at hp
+  · split at hp
+    · rename_i arms he
+      obtain ⟨q, hq, rfl⟩ := List.mem_map.mp hp
+      exact Val.loneArms_checkableA (normaliseD_checkableA hd h) he q hq
+    · rw [List.mem_singleton.mp hp]; exact h
+  · rw [List.mem_singleton.mp hp]; exact h
+
 /-- The result the arms select for the value `x`: the first whose
 pattern admits it, the default where none does, and `nil`, which no
 value satisfies, where there is no default: no match and no default is
@@ -136,7 +219,7 @@ def certainArm (ds : Decls) (s : Val) : List (Val × Val) → Option Val → Opt
 
 /-- A lone preference in normal form, `*x | super(x)`, read as `x`. -/
 def Val.lonePref : Val → Val
-  | .or [(r, x), (0, s)] => if 0 < r && s.beq x.super then x else .or [(r, x), (0, s)]
+  | .or [(r, x), (0, s)] => if 0 < r && s.unparent.beq x.super then x else .or [(r, x), (0, s)]
   | v => v
 
 /-- A term with its riders and a lone `*` read through. -/
@@ -2019,6 +2102,15 @@ def Val.rideMoves (ns : List String) : Val → Val
   | .or arms => .or (arms.map fun a => (a.1, rideAll ns a.2))
   | v => rideAll ns v
 
+/-- The moves an arm that reads as a lone preference holds
+(`Decls.armStands`), which its disjunction carries on every arm. A
+`move`'s value is a default, and where the data takes another arm that
+default's own arm is gone, with no parent type to carry the move as a
+lone preference's does; both ports make the `move` all the same, in
+whichever arm it is written. -/
+def Decls.armMoves (ds : Decls) (a : Val) : List String :=
+  if a.moves.isEmpty then [] else if (normaliseD ds a).loneArms.isSome then a.moves else []
+
 mutual
 /-- A term with its selections made, `b` the member a generator's
 template is read for, which each hole in the template stands for, and
@@ -2199,7 +2291,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     .list ((resolveElems ds b here 0 items).filter fun e =>
         !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked)
       (resolveSpread ds none (stepped here .spread) spread) closed
-  | .or arms => .or (resolveArms ds b here arms)
+  | .or arms => (Val.or (resolveArms ds b here arms)).rideMoves (resolveArmMoves ds b here arms)
   | .pref r x => .pref r (resolveD ds b here x)
   | .meet a c => .meet (resolveD ds b here a) (resolveD ds b here c)
   | .nof n cs =>
@@ -2250,7 +2342,12 @@ def resolveSpread (ds : Decls) (b : Option Val) (here : Option (List Step)) : Op
 
 def resolveArms (ds : Decls) (b : Option Val) (here : Option (List Step)) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
-  | (r, a) :: arms => (r, resolveD ds b here a) :: resolveArms ds b here arms
+  | (r, a) :: arms => ds.armStands r (resolveD ds b here a) ++ resolveArms ds b here arms
+  termination_by structural arms => arms
+
+def resolveArmMoves (ds : Decls) (b : Option Val) (here : Option (List Step)) : List (ℕ × Val) → List String
+  | [] => []
+  | (_, a) :: arms => ds.armMoves (resolveD ds b here a) ++ resolveArmMoves ds b here arms
   termination_by structural arms => arms
 
 def resolvePairs (ds : Decls) (b : Option Val) (here : Option (List Step)) : List (Val × Val) → List (Val × Val)
@@ -2745,9 +2842,15 @@ theorem resolveSpread_some {ds : Decls} {b : Option Val} {here : Option (List St
   | some s, _, h => by simp only [resolveSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
 
 theorem mem_resolveArms {ds : Decls} {b : Option Val} {here : Option (List Step)} :
-    ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
-    (r, w) ∈ resolveArms ds b here arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds b here a :=
-  Iff.mp (mem_mapArms rfl fun _ _ _ => rfl)
+    ∀ {arms : List (ℕ × Val)} {p : ℕ × Val},
+    p ∈ resolveArms ds b here arms → ∃ r a, (r, a) ∈ arms ∧ p ∈ ds.armStands r (resolveD ds b here a)
+  | [], _, h => by simp [resolveArms] at h
+  | (r, a) :: arms, p, h => by
+    simp only [resolveArms, List.mem_append] at h
+    rcases h with h | h
+    · exact ⟨r, a, List.mem_cons_self, h⟩
+    · obtain ⟨r', a', ha, he⟩ := mem_resolveArms h
+      exact ⟨r', a', List.mem_cons_of_mem _ ha, he⟩
 
 theorem mem_resolvePairs {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {ps : List (Val × Val)} {p r : Val},
@@ -3863,9 +3966,9 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ih := fun r a ha => @And.left _ _ (ih r a ha)
     simp only [resolveD]
-    refine .or fun r w hw => ?_
-    obtain ⟨a, ha, rfl⟩ := mem_resolveArms hw
-    exact ih r a ha hb
+    refine rideMoves_checkableA (.or fun r w hw => ?_)
+    obtain ⟨r₀, a, ha, he⟩ := mem_resolveArms hw
+    exact Decls.armStands_checkableA hd (ih r₀ a ha hb) (r, w) he
   | pref _ ih =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace ih := @And.left _ _ ih

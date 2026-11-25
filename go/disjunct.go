@@ -46,6 +46,15 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	// per unite).
 	slot := ctx.slot
 
+	// An arm that isn't read yet is read, the peer held, before the disjunction meets the peer:
+	// a default that reaches the arm stands as the arm it is whenever it settles (ruling 89).
+	if !isTop(peer) && slices.ContainsFunc(d.peg, pends) && !d.readArms(peer, ctx) {
+		cj := newConjunct([]Val{d, peer})
+		cj.path = cp(d.path)
+		cj.site.sp, cj.site.spu, cj.site.url = d.site.sp, d.site.spu, d.site.url
+		return cj
+	}
+
 	if !d.prefsRanked {
 		// A clash between equal-rank defaults refuses for the whole
 		// disjunction (R2): the disagreement IS the answer.
@@ -142,11 +151,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		if v == nil {
 			continue
 		}
-		if dj, ok := v.(*DisjunctVal); ok {
-			res = append(res, dj.peg...)
-		} else {
-			res = append(res, v)
-		}
+		res = append(res, flatArms(v)...)
 	}
 	res = dedup(res, false)
 
@@ -214,6 +219,51 @@ func (d *DisjunctVal) admitsToward(ctx *Ctx) bool {
 		if armAdmits(arm, ctx) {
 			return true
 		}
+	}
+	return false
+}
+
+// readArms reads each arm that isn't read yet; false where one still waits.
+func (d *DisjunctVal) readArms(peer Val, ctx *Ctx) bool {
+	slot := ctx.slot
+	arms := make([]Val, 0, len(d.peg))
+	for _, m := range d.peg {
+		if !pends(m) {
+			arms = append(arms, m)
+			continue
+		}
+		saved, savedTrial := ctx.err, ctx.trial
+		ctx.err = []*NilVal{}
+		ctx.trial = true
+		ctx.slot = slot
+		r := ctx.holdArm(d.path, prefInnerPeg(m), peer, false, func() Val { return unite(ctx, m, top()) })
+		failed := len(ctx.err) > 0 || r.Nil()
+		ctx.err, ctx.trial = saved, savedTrial
+		if failed {
+			continue
+		}
+		arms = append(arms, flatArms(r)...)
+	}
+	ctx.slot = slot
+	d.peg = arms
+	d.prefsRanked = false
+	return !slices.ContainsFunc(arms, pends)
+}
+
+func flatArms(v Val) []Val {
+	if dj, ok := v.(*DisjunctVal); ok {
+		return dj.peg
+	}
+	return []Val{v}
+}
+
+func pends(v Val) bool {
+	if DONE == v.Dc() {
+		return false
+	}
+	switch v.(type) {
+	case *RefVal, *FuncVal, *ConjunctVal:
+		return true
 	}
 	return false
 }

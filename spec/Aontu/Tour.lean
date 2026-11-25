@@ -764,10 +764,12 @@ example : meet (.or [(0, .meet (.min (.num (.integer (.of 5)))) (.max (.num (.in
     (0, .lit (.num (.integer (.of 1))))]) .any = .or [(0, .lit (.num (.integer (.of 1))))] := rfl
 
 /-- `*8080 & min(1024)` is `*8080 | (integer & min(1024))`: the preference
-widens to its parent type, and each arm meets the bound. -/
+widens to its parent type, and each arm meets the bound. The second arm
+carries the mark of a parent type (`Val.parentOf`), which admits what
+the arm admits and tells it from an arm the document writes. -/
 example : meet (.pref 1 (.lit (.num (.integer (.of 8080))))) (.min (.num (.integer (.of 1024)))) =
     .or [(1, .lit (.num (.integer (.of 8080)))),
-      (0, .meet .integer (.min (.num (.integer (.of 1024)))))] := rfl
+      (0, (Val.meet .integer (.min (.num (.integer (.of 1024))))).parentOf)] := rfl
 
 /-- `close([1, 2]) & [&: integer]` is `close([1, 2])`: the seal fixes the
 length, and each position takes the spread. -/

@@ -3742,8 +3742,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .nothing => nothingOr a
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
-  | .ride k v r, b => .ride k (rec v b) r
-  | a, .ride k v r => .ride k (rec a v) r
+  | .ride k v r, b => rideLeft rec k v r b
+  | a, .ride k v r => rideRight rec a k v r
   | .link v t, b => .link (rec v b) t
   | a, .link v t => .link (rec a v) t
   | .or arms, b => meetNodes rec (.or arms) b
@@ -3775,7 +3775,7 @@ which the two rows would otherwise do without end. It checks whether a
 pair stayed as written with `Val.beq`, under which every term reads
 alike itself (`Val.beq_refl`), `map`, `list` and `_` among them. A
 rider of step 19 carries the meet of its value, so its record rides the
-result. A
+result, by `rideLeft` and `rideRight`. A
 disjunction meets a peer arm by arm,
 the side whose preference ranks stronger outermost (`meetNodes`), so
 that `*integer & **1` and `**1 & *integer` both default to `1`, the
@@ -3871,6 +3871,140 @@ $ echo $?
 the parent arm is `{a: integer, b: integer}`: it takes `{a: 2, b: 3}`
 and refuses `"s"`.
 
+A default that reaches a disjunction as an arm stands as the arm,
+at its rank and with no parent type, whichever way it got there, as
+ruling 89 reads it. Write `arm.aontu`:
+
+<!-- test: scenario arm -->
+<!-- test: file arm.aontu -->
+```aontu
+defaults: level: *"info"
+level: $.defaults.level|"debug"
+```
+
+then `arm-other.aontu`, a level neither arm names:
+
+<!-- test: file arm-other.aontu -->
+```aontu
+level: "other"
+```
+
+and run them:
+
+<!-- test: run -->
+```sh
+$ aontu arm.aontu
+{
+  "defaults": {
+    "level": "info"
+  },
+  "level": "info"
+}
+$ aontu vet arm.aontu arm-other.aontu
+verdict: invalid
+
+$.level: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.level
+  data: arm-other.aontu:1:8 ("other")
+  schema: arm.aontu:2:8 (*"info"|"debug")
+$.level: pref_not_instance [compat]
+  the default "info" is not an instance of any remaining alternative of *"info"|"debug"
+  schema: arm.aontu:1:19 ("info")
+$ echo $?
+1
+```
+
+`defaults.level` alone takes any string, since `*"info"` alone is
+`"info" | string`. Read into `level` it brings the one arm `*"info"`,
+so `level` admits `"info"` and `"debug"` and nothing wider. A `pref()`
+call, a name, `copy`, `move`, a rider, a `match`'s result and a meet
+that leaves the default standing all reach an arm the same way, and a
+star written on such an arm adds to the default's rank, so `*(*1)` is
+`**1`. Both engines read an arm that hasn't settled before the
+disjunction meets another term, so the answer never turns on when the
+arm settles.
+
+The meet marks the parent type, so that a later reader can tell it from
+an arm the document wrote:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- A lone preference's parent type, marked. `*x` alone is
+`x | super(x)`, and the mark tells that second arm from one a document
+writes: it admits what it admitted, and a disjunction that takes the
+preference as an arm leaves it out (ruling 89). -/
+abbrev Val.parentOf (t : Val) : Val := .ride .parent t []
+```
+
+The mark is a rider, so the arm admits what the type admits and every
+theorem of this step stands. Met with a plain term it stays on what the
+type narrows to, and it gives way to a disjunction or a preference:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+/-- A rider's value met with a term on its right: the rider carries the
+meet of its own value, as an annotation rides what its value becomes.
+The mark of a parent type (`Val.parentOf`) stays on what the type
+narrows to, but gives way to a disjunction or a preference, whose arms
+the document wrote: `*1 & (1 | 2)` is `*1 | 2`, where `*1 & integer`
+is still `*1` alone. -/
+def rideLeft (rec : Val → Val → Val) (k : Rider) (v : Val) (r : Record) (b : Val) : Val :=
+  if k == .parent && b.holdsNode then rec v b else .ride k (rec v b) r
+```
+
+`mkOr` reads the mark through where no arm prefers any longer, by
+`unparentArms`: in `*1 & min(2)` the default dies, and the parent
+type `integer & min(2)` stands as any arm does. A disjunction then
+reads each of its arms once the document's selections stand:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The arms a lone preference in normal form stands as where it is an
+arm of a disjunction: its own arms that prefer, the riders and links
+around it carried onto each, where every other arm it has is the parent
+type the meet marked (`Val.parentOf`); none for any other term. A
+disjunction a document writes has arms with no such mark, and a
+preference whose default a meet refused has no arm that prefers, so
+neither reads this way. -/
+def Val.loneArms : Val → Option (List (ℕ × Val))
+  | .or arms =>
+    if arms.any (fun p => p.1 != 0) && arms.all (fun p => p.1 != 0 || p.2.isParent) then
+      some (arms.filter fun p => p.1 != 0)
+    else none
+  | .ride k v r => v.loneArms.map fun arms => arms.map fun p => (p.1, .ride k p.2 r)
+  | .link v t => v.loneArms.map fun arms => arms.map fun p => (p.1, .link p.2 t)
+  | _ => none
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- An arm as a disjunction holds it once read (ruling 89). An arm that
+reads as a lone preference, whichever way it got there, a `pref()`, a
+name, a path's copy, a call's result or a meet that leaves the
+preference standing, is the arm of its rank with no parent type, as a
+written `*x` arm is: the disjunction admits what its arms say and no
+more. What it reads as is its normal form (`Val.loneArms`), and a rank
+the arm is written with adds to the preference's own, as stars count.
+Any other arm stands as written. -/
+def Decls.armStands (ds : Decls) (r : ℕ) (a : Val) : List (ℕ × Val) :=
+  if a.mayPrefer then
+    match (normaliseD ds a).loneArms with
+    | some arms => arms.map fun p => (r + p.1, p.2)
+    | none => [(r, a)]
+  else [(r, a)]
+```
+
+What a document writes stays. A path to `*1 | number` brings both
+arms, `*1 & (1 | 2 | 3)` is `*1 | 2 | 3`, and `super()` of a default is
+its parent type. A `move`'s value is a default too, and both engines
+make the move whichever arm holds it, so the disjunction carries the
+moves of such an arm on every arm, which `Decls.armMoves` reads: in
+`a: 1` beside `b: move($.a) | 2`, data that gives `b` as `2` still
+moves `a` away. Rows ar0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to the definition, beside the `vet-arm-*` rows of
+[`test/spec/vet.tsv`](../test/spec/vet.tsv).
+
 A preference alone is
 `x | super(x)`, as step 12 reads it, so `*8080 & min(1024)` is
 `*8080 | (integer & min(1024))`. Two maps merge key by key in
@@ -3920,10 +4054,12 @@ example : meet (.or [(0, .meet (.min (.num (.integer (.of 5)))) (.max (.num (.in
     (0, .lit (.num (.integer (.of 1))))]) .any = .or [(0, .lit (.num (.integer (.of 1))))] := rfl
 
 /-- `*8080 & min(1024)` is `*8080 | (integer & min(1024))`: the preference
-widens to its parent type, and each arm meets the bound. -/
+widens to its parent type, and each arm meets the bound. The second arm
+carries the mark of a parent type (`Val.parentOf`), which admits what
+the arm admits and tells it from an arm the document writes. -/
 example : meet (.pref 1 (.lit (.num (.integer (.of 8080))))) (.min (.num (.integer (.of 1024)))) =
     .or [(1, .lit (.num (.integer (.of 8080)))),
-      (0, .meet .integer (.min (.num (.integer (.of 1024)))))] := rfl
+      (0, (Val.meet .integer (.min (.num (.integer (.of 1024))))).parentOf)] := rfl
 
 /-- `close([1, 2]) & [&: integer]` is `close([1, 2])`: the seal fixes the
 length, and each position takes the spread. -/

@@ -134,6 +134,7 @@ def Rider.name : Rider → String
   | .seals => "close"
   | .move _ => "move"
   | .void => "nil"
+  | .parent => "parent"
 
 /-! `close()` seals every level, so a sealed container prints as
 `close(…)` only where no open container sits beneath it, and a reference
@@ -314,6 +315,7 @@ def Val.src : Val → Option String
   | .call .load (t :: names@(_ :: _)) => do
     pure ("{ " ++ ", ".intercalate (← takeNamesSrc names) ++ " } = " ++ (← t.src))
   | .call f args => do pure s!"{f.name}({", ".intercalate (← itemsSrc args)})"
+  | .ride .parent v _ => v.src
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"
   | .ride .opened v [] => do pure s!"open({← v.src})"
