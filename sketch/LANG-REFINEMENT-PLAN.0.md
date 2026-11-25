@@ -1239,6 +1239,16 @@ suite to ADR-080. The wording of a wrong count is corrected in the same change,
 since it would have said `keyed takes one to three arguments`: the
 message now words each interval the signature table declares.
 
+Progress on 2026-11-25. KP2 is written, apart from its row of the
+guide for CUE users, which waits on CG4 as the guide does. The
+reference gains a section, "Key patterns: `keyed`", after the one on
+spreads: what the call holds, its rules for `nil`, several patterns, a
+list, a call outside a spread and a seal, and what canon, the hash,
+`subsume` and the JSON Schema export make of it. A how-to,
+`docs/how-to/hold-keys-to-a-pattern.md`, solves the task in four
+steps, and the pages on spreads and on sealing point to it. Every
+example on both pages is run by the documentation tests.
+
 ### Questions for the ruling on part 4
 
 18. **The spelling.** Ruled 2026-11-21: a call named `keyed`. L2 asks

@@ -106,7 +106,8 @@ only `&:` generates `{}`. Generating children from a table is `pack`'s
 job, and sealing what it generates is the subject of [seal generated
 children](seal-generated-children.md). For lists, the choice
 between `[&: T]` and the positional `[T]` is decided in [constrain every
-element of a list](constrain-list-elements.md).
+element of a list](constrain-list-elements.md). To hold only the keys
+a pattern matches, see [hold keys to a pattern](hold-keys-to-a-pattern.md).
 
 Spreads are specified in [Spreads
 `&:`](../reference-language.md#spreads-). The live versions: the
