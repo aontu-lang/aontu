@@ -10227,9 +10227,7 @@ def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val →
   else (.nil, [])
 ```
 
-Both engines read a path in an arm only once a single arm remains, so
-over that data they leave the document `incomplete`, which #700
-tracks.
+Both engines read each arm so too, and answer `valid` over that data.
 
 A lone preference `*x` reads as `x | super(x)`, and its parent arm
 takes what overrides the default. Its value `x` reads its paths where
@@ -10256,9 +10254,9 @@ def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List �
   | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
 ```
 
-Both engines lift a path inside the value to `any` in the parent arm,
-so they pass `{a: 2, b: "s"}`, which #704 tracks, and leave the path
-waiting while the default is in play, which #700 tracks.
+Both engines read a lone preference so. They still lift a path in a
+template inside the value to `any` in the parent arm, which #704
+tracks.
 
 A disjunction or a lone preference can stand inside an arm, as in
 `x: {a: 1, b: {c: 1, d: .c} | null} | null`. The definition reads the
@@ -10300,8 +10298,7 @@ Where the data narrows a kind a path names, the two readings differ. In
 `x: *({a: number, b: .a} | null)` over `x: {a: 5, b: 2.5}`, the
 default's `b` reads the data's `5` and refuses `2.5`, while the parent
 arm reads `b` as `number` and lifts it to `any`, so the document is
-`valid`, as `x: *{a: number, b: .a}` is. Both engines leave these paths
-waiting, which #700 tracks.
+`valid`, as `x: *{a: number, b: .a}` is. Both engines answer the same.
 
 Two disjunctions can meet at one place, as in `x: ({b: .a} | null) &
 ({a: 1} | {a: 2})`. Read one arm at a time, the path `.a` in `{b: .a}`
@@ -10364,9 +10361,23 @@ def Val.prefsOpened : Val → Val
 
 So `b` reads `2` there and lifts to `integer`. Over `x: {a: 5, b: 7,
 c: 7}` the document is `valid`, and over `x: {a: 5, b: "s", c: 7}` it's
-`invalid`. Both engines leave the path waiting while a default is in
-play, which #700 tracks, and lift it to `any` in a parent arm, which
-#704 tracks. Rows from lq0 on hold these cases.
+`invalid`. Both engines read the meet so. Rows from lq0 on hold these
+cases.
+
+A path that names nothing in any of the values is another matter. In
+`x: *{a: 1, b: .d} & *{c: 2}` no value at `x` holds a `d`, and in
+`x: *{a: 1, b: .d}` alone the preference's own value doesn't. A lone
+preference has two arms, its value and the parent arm lifted from it,
+and the path stands in both. Neither arm reads it, so none holds and
+the document is an `error` whatever the data, as `x: {a: 1, b: .d}` is
+with no preference at all. A step into a nested preference names
+nothing either, `x: *{a: *{c: 1}, b: .a.c}`, since no path reads a
+member of a lone preference. A term met beside the preference can still
+supply the member: `x: *{a: 1, b: .d} & {d: 5}` reads `b` as `5`. As an
+arm of a written disjunction the preference fails alone, so
+`x: *{a: 1, b: .d} | "z"` is `"z"`. Both engines answer each of these
+as the definition does, once the schema has settled and nothing more
+can supply the member. Rows from sy0 on hold them.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

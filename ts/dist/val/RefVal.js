@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RefVal = void 0;
 exports.dropPendingMarkWrappers = dropPendingMarkWrappers;
+exports.member = member;
 exports.pendingMarkWrapper = pendingMarkWrapper;
 const utility_1 = require("../utility");
 const type_1 = require("../type");
@@ -775,6 +776,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
             this.prefix ? 'prefix' : '',
         ].filter(p => '' != p).join(',');
     }
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 exports.RefVal = RefVal;
 //# sourceMappingURL=RefVal.js.map

@@ -14,12 +14,36 @@ const SuperFuncVal_1 = require("./SuperFuncVal");
 const DisjunctVal_1 = require("./DisjunctVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const genrec_1 = require("../genrec");
+const RefVal_1 = require("./RefVal");
 function prefInnerPeg(v) {
     let out = v;
     while (true === out?.isPref) {
         out = out.peg;
     }
     return out;
+}
+// An arm's path is the arm's to fail, and maybe() takes a path that names nothing.
+function strayRef(v, which) {
+    const n = prefInnerPeg(v);
+    const kids = true === n.isBag || true === n.isConjunct || true === n.isOp ||
+        (true === n.isFunc && true !== n.isMaybeFunc) ? Object.values(n.peg) : [];
+    return true === n.isRef ? (which(n) ? n : undefined) :
+        kids.reduce((found, kid) => found ?? strayRef(kid, which), undefined);
+}
+// A step to a member a settled value lacks, or into a nested default; one still waiting proves nothing.
+function namesNothing(v, parts) {
+    let node = prefInnerPeg(v);
+    for (const part of parts) {
+        if (true !== node.isBag) {
+            return node.done;
+        }
+        const kid = (0, RefVal_1.member)(node, part);
+        if (undefined === kid) {
+            return 'string' === typeof part;
+        }
+        node = kid;
+    }
+    return false;
 }
 class PrefVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -83,6 +107,14 @@ class PrefVal extends FeatureVal_1.FeatureVal {
             const to = [].concat(ref.plainRefPath());
             return !this.path.every((p, i) => p === to[i]);
         });
+    }
+    // Ruling 53: a path into the default's own place that names no member there, once all has settled.
+    stray(ctx, v) {
+        const stray = strayRef(v, (ref) => {
+            const to = [].concat(ref.plainRefPath());
+            return this.path.every((p, i) => p === to[i]) && namesNothing(v, to.slice(this.path.length));
+        });
+        return undefined === stray ? undefined : (0, err_1.makeNilErr)(ctx, 'no_path', stray);
     }
     // Unchanged on both counts is the SAME preference, returned as
     // itself: minting a new one every pass would keep the fixpoint
@@ -190,7 +222,8 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 // standing with nothing left to replace it, not a conflict.
                 const space = (0, FuncBaseVal_1.trialUnify)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'GATE') }) : ctx, this.superpeg.clone(ctx), peer);
                 const gate = undefined !== space ? space : this.superpeg;
-                out = this.stand(met, gate, ctx);
+                out = (!met.done && true === ctx.settle ? this.stray(ctx, met) : undefined) ??
+                    this.stand(met, gate, ctx);
                 why += 'stands';
                 (0, utility_1.explainClose)(te, out);
                 out.dc = met.done || true === ctx.settle ? type_1.DONE : this.dc + 1;
@@ -215,6 +248,9 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         // value still waits, as a reference may: until the settling pass.
         const waits = peer.isTop ? !this.peg.done :
             true === out.isPref && !prefInnerPeg(out).done;
+        if (waits && true === ctx.settle) {
+            out = this.stray(ctx, prefInnerPeg(peer.isTop ? this : out)) ?? out;
+        }
         out.dc = waits && true !== ctx.settle ? this.dc + 1 : type_1.DONE;
         ctx.explain && (0, utility_1.explainClose)(te, out);
         return out;

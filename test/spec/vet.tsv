@@ -1105,3 +1105,22 @@ vet-lone-peer-beside-a-path-to-a-place-outside-under-partial	verdict	y: 1\nx: (*
 vet-lone-peer-beside-a-path-to-a-place-outside-against-another-kind	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1, "x": {"a": 2, "b": "s", "c": 2}}	{"verdict":"invalid"}
 vet-lone-peer-beside-a-path-to-a-place-outside-against-another-kind-with-no-fill	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1, "x": {"a": 2, "b": "s", "c": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 vet-lone-peer-beside-a-path-to-a-place-outside-against-another-kind-under-partial	verdict	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"y": 1, "x": {"a": 2, "b": "s", "c": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+# A path can't read a member of a lone default, so inside another lone default
+# a step into a nested one names nothing once the schema has settled (#700), as
+# it does outside. A term met beside the outer default that leaves the nested
+# one a single arm lets the path read it. Each row is the definition's answer too.
+vet-lone-path-into-a-nested-default	verdict	x: *{a: *{c: 1}, b: .a.c}	{}	{"verdict":"error"}
+vet-lone-path-into-a-nested-default-with-no-fill	verdict	x: *{a: *{c: 1}, b: .a.c}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-path-into-a-nested-default-under-partial	verdict	x: *{a: *{c: 1}, b: .a.c}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-path-into-a-nested-default-against-its-own-value	verdict	x: *{a: *{c: 1}, b: .a.c}	{"x": {"a": {"c": 1}, "b": 1}}	{"verdict":"error"}
+vet-lone-path-into-a-nested-default-against-its-own-value-with-no-fill	verdict	x: *{a: *{c: 1}, b: .a.c}	{"x": {"a": {"c": 1}, "b": 1}}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-path-into-a-nested-default-against-its-own-value-under-partial	verdict	x: *{a: *{c: 1}, b: .a.c}	{"x": {"a": {"c": 1}, "b": 1}}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-path-through-a-list-into-a-nested-default	verdict	x: *{a: [*{c: 1}], b: .a.0.c}	{}	{"verdict":"error"}
+vet-lone-path-through-a-list-into-a-nested-default-with-no-fill	verdict	x: *{a: [*{c: 1}], b: .a.0.c}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-path-through-a-list-into-a-nested-default-under-partial	verdict	x: *{a: [*{c: 1}], b: .a.0.c}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-step-through-a-list-into-a-nested-default	verdict	x: *{a: [*{c: 1}], b: .a.0.d}	{}	{"verdict":"error"}
+vet-lone-stray-step-through-a-list-into-a-nested-default-with-no-fill	verdict	x: *{a: [*{c: 1}], b: .a.0.d}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-step-through-a-list-into-a-nested-default-under-partial	verdict	x: *{a: [*{c: 1}], b: .a.0.d}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-path-into-a-nested-default-a-peer-narrows	verdict	x: (*{a: *{c: 1}, b: .a.c}) & {a: {c: 2}}	{}	{"verdict":"valid"}
+vet-lone-path-into-a-nested-default-a-peer-narrows-with-no-fill	verdict	x: (*{a: *{c: 1}, b: .a.c}) & {a: {c: 2}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-lone-path-into-a-nested-default-a-peer-narrows-under-partial	verdict	x: (*{a: *{c: 1}, b: .a.c}) & {a: {c: 2}}	{}	{"verdict":"valid","opts":{"partial":true}}

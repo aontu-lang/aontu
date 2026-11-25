@@ -3,6 +3,7 @@ import { AontuContext } from '../ctx';
 import { FeatureVal } from './FeatureVal';
 declare function dropPendingMarkWrappers(v: Val): Val;
 declare function pendingMarkWrapper(v: any): boolean;
+declare function member(v: any, part: any): any;
 declare class RefVal extends FeatureVal {
     isRef: boolean;
     isGenable: boolean;
@@ -31,4 +32,4 @@ declare class RefVal extends FeatureVal {
     gen(ctx: AontuContext): undefined;
     inspection(): string;
 }
-export { dropPendingMarkWrappers, pendingMarkWrapper, RefVal, };
+export { dropPendingMarkWrappers, member, pendingMarkWrapper, RefVal, };

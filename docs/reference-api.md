@@ -4110,10 +4110,10 @@ binds them for every context an instance makes without vars of its own,
 which is how the CLI's `--var` and `--var-text` reach every verb:
 `new Aontu({ hostVars: { n: { value: '3' }, sha: { value: '0123', text: true } } })`.
 Each binding is aontu source, or with `text` the text as it stands, and
-each context makes its own values of them. A binding is a value: one
-whose source still reads a path or a variable is refused where the
-document reads it, as `invalid_var_kind`. An error in a binding's own
-source is kept, sited at the option that bound it and named at its
+each context makes its own values of them. A binding is a value: where
+the document reads one whose source still reads a path or a variable,
+both engines refuse it as `invalid_var_kind`. A binding's own source
+keeps its error, sited at the option that bound it and named at its
 path inside the binding. Otherwise, build value
 objects with the exported `Val` constructors:
 

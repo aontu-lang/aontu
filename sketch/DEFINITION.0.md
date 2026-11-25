@@ -2697,6 +2697,17 @@ until the phase that encodes it lands.
    the parent type of `2`. The definition is built so, rows lq0 on;
    both ports move, the ledger taking twenty-three rows, twenty under
    #700 and three under #704, and the ledger's bound rises to 399.
+   **The path that names nothing built in both ports 2026-11-25**
+   (#700): each port reads a lone preference that still waits once the
+   schema has settled, when nothing more can supply a member, and a
+   path into its own place that names no member there is `no_path`, as
+   it is outside a preference. A term met beside the preference still
+   supplies the member, and as an arm the preference fails alone.
+   `maybe` forgives only a path at its argument's top, so a preference
+   that holds such a path is an error under it too. Rows lq27 to lq29
+   leave the ledger, whose bound falls to 34, and rows sy0 to sy131
+   hold both ports to the reading. A declaration's body is read so at
+   its own place, as a plain body is, until rulings 59 to 61 are built.
 54. **A written `nil`.** Raised 2026-11-16 with the completion plan's
    third milestone: both ports read `x?: nil` as a key that must be
    absent and a required `x: nil` as `invalid`, but refuse a written

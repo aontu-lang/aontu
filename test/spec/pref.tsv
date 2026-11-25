@@ -373,3 +373,56 @@ lone-peer-answers-an-absolute-path-into-the-default	gens	x: (*{a: 1, b: $.x.c}) 
 lone-peer-beside-a-path-to-a-place-outside	gens	y: 1\nx: (*{a: 1, b: $.y}) & {c: 2}	{"x":{"a":1,"b":1,"c":2},"y":1}
 lone-peer-answers-one-path-beside-a-path-outside	gens	y: 1\nx: (*{a: .c, b: $.y}) & {c: 2}	{"x":{"a":2,"b":1,"c":2},"y":1}
 lone-second-default-answers-the-defaults-path	gens	x: (*{a: 1, b: .c}) & (*{c: 2})	{"x":{"a":1,"b":2,"c":2}}
+# A path in a lone default's value that names nothing there is the schema's
+# error, as it is outside a default (ruling 53, #700). Once every term has
+# settled, a member no term supplied is one the path can't name. A term
+# beside the default may still supply it, and in an arm the path fails that
+# arm alone.
+lone-stray-path-is-no-path	errc	x: *{a: 1, b: .d}	no_path
+lone-stray-path-beside-a-default	errc	x: (*{a: 1, b: .d}) & (*{c: 2})	no_path
+lone-stray-path-beside-a-map	errc	x: (*{a: 1, b: .d}) & {c: 2}	no_path
+lone-stray-path-in-a-later-statement	errc	x: {c: 2}\nx: *{a: 1, b: .d}	no_path
+lone-stray-path-in-a-meet-term	errc	x: *{a: 1, b: .d & number}	no_path
+lone-stray-path-in-a-call	errc	x: *{a: 1, b: upper(.d)}	no_path
+lone-stray-path-as-an-operand	errc	x: *{a: 1, b: .d + 1}	no_path
+lone-stray-step-into-a-scalar	errc	x: *{a: 1, b: .a.z}	no_path
+lone-stray-step-into-a-kind	errc	x: *{a: string, b: .a.d}	no_path
+lone-stray-step-into-a-nested-default	errc	x: *{a: *{c: 1}, b: .a.d}	no_path
+lone-stray-step-into-a-path-that-names-nothing	errc	x: *{b: .a.z, a: .q}	no_path
+lone-stray-index-past-the-end	errc	x: *[1, .5]	no_path
+lone-stray-index-past-a-members-end	errc	x: *{a: [1], b: .a.3}	no_path
+lone-stray-parent-step-from-a-nested-default	errc	x: *{a: *{c: ..d}}	no_path
+lone-stray-parent-step-from-a-nested-map	errc	x: *{a: {c: ..d}}	no_path
+lone-stray-path-one-level-down	errc	x: {y: *{a: 1, b: .d}}	no_path
+lone-stray-path-at-rank-two	errc	x: **{a: 1, b: .d}	no_path
+lone-stray-path-at-the-root	errc	*{a: 1, b: .d}	no_path
+lone-stray-path-another-path-reads	errc	x: *{b: .a, a: .q}	no_path
+lone-stray-step-into-a-list-element	errc	x: *{a: [1], b: .a.0.z}	no_path
+lone-path-to-a-place-outside-that-names-nothing	errc	x: *{a: 1, b: $.q}	no_path
+lone-path-the-map-beside-answers	gens	x: (*{a: 1, b: .d}) & {d: 5}	{"x":{"a":1,"b":5,"d":5}}
+lone-path-the-outer-default-answers	gens	x: *{a: *{c: ..d}, d: 3}	{"x":{"a":{"c":3},"d":3}}
+lone-index-the-list-has	gens	x: *[1, .0]	{"x":[1,1]}
+lone-index-a-member-has	gens	x: *{a: [1], b: .a.0}	{"x":{"a":[1],"b":1}}
+lone-stray-path-fails-its-arm-alone	gens	x: *{a: 1, b: .d} | "z"	{"x":"z"}
+lone-stray-path-fails-its-arm-alone-canon	canon	x: *{a: 1, b: .d} | "z"	{"x":"z"}
+# The same default is an error wherever the document writes it: an optional
+# member, a rider, a call and a declaration's body, which reads its paths at
+# its own place whether or not it is used. A spread's template is no error
+# until a member reads it. maybe() forgives only a path at its argument's top.
+lone-stray-path-in-an-optional-member	errc	x?: *{a: 1, b: .d}	no_path
+lone-stray-path-under-hide	errc	x: hide(*{a: 1, b: .d})	no_path
+lone-stray-path-under-type	errc	x: type(*{a: 1, b: .d})	no_path
+lone-stray-path-in-an-unused-declaration	errc	%T = *{a: 1, b: .d}\nx: 1	no_path
+lone-stray-path-in-a-declaration-used-beside-the-member	errc	%T = *{a: 1, b: .d}\nx: %T & {d: 2}	no_path
+lone-stray-path-under-maybe	errc	x: maybe(*{a: 1, b: .d})	no_path
+lone-stray-path-in-a-when-result	errc	x: when(true, *{a: 1, b: .d}, 2)	no_path
+lone-stray-path-in-a-nof-branch	errc	x: nof(1, *{a: 1, b: .d})	no_path
+lone-stray-path-in-an-each-template	errc	x: each(["p"], *{a: 1, b: .d})	no_path
+lone-stray-path-in-a-template-at-a-written-member	errc	t: {&: *{a: 1, b: .d}, m: {}}	no_path
+lone-stray-path-in-a-template-with-no-member	gens	t: {&: *{a: 1, b: .d}}	{"t":{}}
+lone-path-in-a-template-the-member-answers	gens	t: {&: *{a: 1, b: .d}, m: {d: 2}}	{"t":{"m":{"a":1,"b":2,"d":2}}}
+# A step into a nested default names nothing too: no path reads a member of
+# a lone default, here as outside one.
+lone-path-into-a-nested-default-names-nothing	errc	x: *{a: *{c: 1}, b: .a.c}	no_path
+lone-path-through-a-list-into-a-nested-default-names-nothing	errc	x: *{a: [*{c: 1}], b: .a.0.c}	no_path
+lone-stray-step-through-a-list-into-a-nested-default	errc	x: *{a: [*{c: 1}], b: .a.0.d}	no_path
