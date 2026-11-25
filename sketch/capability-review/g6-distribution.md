@@ -5,14 +5,14 @@ hash form, the canon-hash with `aontu hash` on both command lines,
 module identity with local resolution, the `tidy`/`vendor` tooling,
 and the publish boundary. **The network verbs have landed too**, on
 2026-09-16 under
-[ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins),
+[ADR-039](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins),
 spelled `aontu get` and `aontu publish` rather than `mod get` and
 `mod publish`; this line said they were the one thing absent until
 2026-09-18.*
 
 ***A module path in this document carries `@<major>`, and a built one
 does not.***
-[ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
+[ADR-022](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
 takes the major out of the name, and the amendment at the foot of this
 document says so — but a reader who lands in the middle meets the old
 shape first, which is why it is said here as well. Eleven sites carry
@@ -286,7 +286,7 @@ routes it, so the grammar is untouched and every existing include
 keeps its exact behaviour:
 
 *(Refined 2026-09-04 by
-[ADR-020](../../ADR.md#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace),
+[ADR-020](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace),
 which settles **which** domains. The shape below is unchanged and needs
 no amendment — `github.com/alice/widgets@1` already matches it, so the
 convention costs no grammar, no pattern and no spec row. What ADR-020
@@ -312,7 +312,7 @@ A string routes to the module resolver only when it matches
 `@<integer>` major). Anything else falls through to the existing
 chain unchanged, so no current spec row can be affected.
 
-*(Inverted by [ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
+*(Inverted by [ADR-022](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
 part 1, built 2026-09-16 in `cc240ec0`, and said here because this is a
 rule rather than a spelling: the built predicate routes a domain-shaped
 path that carries **no** major, and `MODULE_RE` in `ts/src/mod.ts`
@@ -480,7 +480,7 @@ is required for v1. Two hooks make the registry more than storage:
   credentials (docker login) suffice to start; a credential surface
   designed in haste becomes an exfiltration channel.
   *(Amended 2026-09-04 by
-  [ADR-021](../../ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
+  [ADR-021](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
   which admits authenticated reads for hosted private packages. **The
   warning survives and is the reason for the shape**: the credential
   surface is delegated rather than designed — read access to a tier-A
@@ -489,12 +489,12 @@ is required for v1. Two hooks make the registry more than storage:
   exfiltration channel. What is designed is a short-lived session and an
   OIDC exchange, neither of which is a stored credential. The OCI
   channel this bullet assumed is separately gone, foreclosed before
-  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log).)*
+  [ADR-019](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log).)*
 - **No signing or provenance attestation in v1** — dual pins give
   tamper-evidence; signatures answer "who", a separable problem
   with mature OCI ecosystem answers (sigstore) to adopt later.
   *(Amended 2026-09-06 by
-  [ADR-024](../../ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition):
+  [ADR-024](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition):
   the "later" arrived with the repository, and what was adopted is a
   **provider**, not a definition — a client verifies a signed manifest,
   a named signer its trust configuration accepts for the package's
@@ -509,7 +509,7 @@ is required for v1. Two hooks make the registry more than storage:
 - **No project-operated central REGISTRY service** — any OCI
   registry works; running infrastructure forever is not a language
   feature. *(Amended 2026-08-30 by
-  [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else),
+  [ADR-013](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else),
   which admits exactly one service and is explicit about what this
   bullet was right about. The rejection above has two halves: "OCI
   already provides storage, auth, replication and org familiarity"
@@ -522,7 +522,7 @@ is required for v1. Two hooks make the registry more than storage:
   detail. This bullet still forbids what it always forbade — a hosted
   place that keeps module bytes. See [G10](g10-transparency.md).)*
   *(Amended again 2026-09-04 by
-  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log):
+  [ADR-019](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log):
   **the remaining half now goes too.** The project stores module bytes
   and operates a repository, and the log it was admitted for is
   federated to Sigstore rather than run — one service, and a different
@@ -714,7 +714,7 @@ the documentation moved with the code.
 
 The engine adopted the executable specification's shapes and the verb
 tiers of `aontu-lang/system`'s `CLI.0.md`, ratified as
-[ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins).
+[ADR-039](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins).
 Where this document says `mod.aon`, read `pkg.aontu`; where it says
 `aontu_meta/mod-lock.aon`, read `aontu_meta/pkg-lock.aontu`; where a
 module path carries `@<major>`, it no longer does (ADR-022 part 1, now

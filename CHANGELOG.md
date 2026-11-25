@@ -2210,7 +2210,7 @@ TypeScript.
 
 - `jostraca`, the generator runtime, moves from an exact dependency,
   `0.39.0`, to a peer dependency, `>=0.41.0`, as in 0.76.3
-  ([ADR-079](ADR.md#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range)).
+  ([ADR-079](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range)).
   A fresh install takes the newest jostraca, and jostraca 0.42.0 reads
   `shape` 12. jostraca 0.39.0 and 0.41.0 take `shape` as a peer at any
   version from 11, and `shape` 12.0.0, out on 2026-11-09, no longer
@@ -5628,7 +5628,7 @@ Both implementations (G10 phase 2).
 ### The definition builds on Lean 4.24.1
 
 Definition and CI; no engine changes, and no row changes
-([ADR-077](ADR.md#adr-077--the-definition-is-pinned-to-lean-4241)).
+([ADR-077](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-077--the-definition-is-pinned-to-lean-4241)).
 On macOS 26 the oracle Lean 4.15.0 linked aborted at load, since its
 linker leaves `SG_READ_ONLY` off `__DATA_CONST`; 4.24.1 links with
 LLVM 19. Releases from 4.25.0 hold a string as bytes, which puts
@@ -5643,7 +5643,7 @@ LLVM 19. Releases from 4.25.0 hold a string as bytes, which puts
 ### A rider's record is no export loss
 
 Both implementations
-([ADR-074](ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss)).
+([ADR-074](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss)).
 
 - `aontu jsonschema` reports no loss for what a `meta()` or `ident()`
   record holds. A convention holding another kind of data, a key naming
@@ -5659,7 +5659,7 @@ Both implementations
 ### An `ident()` record takes any key
 
 Both implementations
-([ADR-073](ADR.md#adr-073--an-ident-record-is-open-declaration-metadata)).
+([ADR-073](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-073--an-ident-record-is-open-declaration-metadata)).
 
 - `ident(v, r)` takes a record of concrete data under any keys:
   `%a = ident(1, {owner: "core"})` is accepted where it refused with
@@ -5677,7 +5677,7 @@ Both implementations
 ### A `meta()` record takes any key
 
 Breaking, both implementations
-([ADR-072](ADR.md#adr-072--a-meta-record-is-open-metadata)).
+([ADR-072](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-072--a-meta-record-is-open-metadata)).
 
 - `meta(v, ...r)` takes a record of concrete data under any keys:
   `meta(1, {colour: "red"})` is `meta(1,{"colour":"red"})`, where it
@@ -5717,7 +5717,7 @@ The exporter is unchanged: `mulof(n)` crosses to `multipleOf`, and
 ### A push is checked in two minutes, a pull request in five
 
 Process; no engine changes
-([ADR-071](ADR.md#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five)).
+([ADR-071](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five)).
 
 - `make quick` is the check before a push: the comment gate, both
   builds, the gate group and the Go suite, 89 seconds with a cold Go
@@ -5729,7 +5729,7 @@ Process; no engine changes
 ### CI runs a happy path and a sample; the full run is daily; releases come from `release`
 
 Process and test layout; no engine changes
-([ADR-070](ADR.md#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release)).
+([ADR-070](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release)).
 The run on `main` took twenty-three minutes wall clock over sixteen
 jobs, its critical path the coverage gate at twenty, and every pull
 request push ran it twice.
@@ -8341,7 +8341,7 @@ to its longhand twin.
 
 ### The npm package and the Go module share one version number
 
-Policy, recorded as [ADR-041](ADR.md#adr-041--the-npm-package-and-the-go-module-share-one-version-series). They were versioned
+Policy, recorded as [ADR-041](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-041--the-npm-package-and-the-go-module-share-one-version-series). They were versioned
 independently until now — npm had reached 0.69.0 while
 the module was on 0.1.27 — and the two numbers were a standing tax on every
 bug report, which had to say which of them it meant. From this release
@@ -8978,7 +8978,7 @@ major in the path. The document queries `aontu get`, `aontu why` and
 verbs. A verb that finds the old files names the current layout, with
 the command that rebuilds it, and reads nothing from them. The details
 are in the entry below; the rename is total, by
-[ADR-039](ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins).
+[ADR-039](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins).
 
 *Both implementations.*
 
@@ -9006,7 +9006,7 @@ error, and the compatibility walk holds on a prior list longer than
 the next.
 
 A module is imported; a package is published. Both ports now carry the
-system [ADR-039](ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
+system [ADR-039](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
 ratified: one vocabulary, one set of files, three pins, and the verbs
 that read from and write to a repository.
 
@@ -9150,7 +9150,7 @@ writes the files and compares them with what is committed. The guide is
 [Generate code from a model](docs/how-to/generate-code.md).
 
 *Both implementations.* See
-[ADR-038](ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
+[ADR-038](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
 
 ### The published pages catch up with the removal
 
@@ -9592,7 +9592,7 @@ here: a `+` whose operand is a staged call is refused where it meets
 a kind at a key inside a map ([BUGS.md §92](use-cases/BUGS.md),
 which predates this change), and the absent-member refusal above
 ([§94](use-cases/BUGS.md)).
-[ADR-037](ADR.md#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent).
+[ADR-037](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent).
 
 ### A fragment is lossy only against a language with a lowering
 
@@ -9630,7 +9630,7 @@ package directory), and `make build-ts` runs it. Each port asserts its
 inlined copy is byte-identical with the tree **and** that the tree
 serves exactly the models the table lists, so neither a changed model
 nor an added one can ship stale. See
-[ADR-036](ADR.md#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port).
+[ADR-036](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port).
 
 Nothing changes for a document: the same eight names resolve to the
 same bytes, from the engine's own table and nowhere else.
@@ -9695,7 +9695,7 @@ new optional key in `%profile`, and a canon hash covers the whole
 document, so the hash of the vocabulary and of all four bundled
 profiles changes. The rows in `test/spec/aontu-profile.tsv` are
 re-pinned from both engines.
-[ADR-035](ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer).
+[ADR-035](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer).
 
 
 ### Optional input: `maybe()`
@@ -9733,7 +9733,7 @@ It does not reach out of a containing map: absence travels through a
 call and out of a list element, and a map with other keys is still a
 map. The element is what must be optional, not one of its fields.
 
-[ADR-034](ADR.md#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made).
+[ADR-034](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made).
 Both ports; `test/spec/maybe.tsv` (37 rows).
 
 ### Ordering: `sort()`
@@ -9895,7 +9895,7 @@ written up in
 [GRAMMAR-SHAPE.0.md](sketch/GRAMMAR-SHAPE.0.md).
 
 New codes: `abnf_grammar`, `parse_arg`, `parse_failed`. Rationale in
-[ADR-033](ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function).
+[ADR-033](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function).
 
 ### BREAKING: `Semver` carries build metadata and checks by grammar
 
@@ -10075,7 +10075,7 @@ a repair loop edits.
 Five `err`-mode rows in `test/spec/error.tsv` pin the path itself, which
 no row did before: `errc` rows compare the error code, and the codes
 always agreed. Rationale in
-[ADR-030](ADR.md#adr-030--the-path-of-a-meet-is-the-slot-it-was-driven-at).
+[ADR-030](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-030--the-path-of-a-meet-is-the-slot-it-was-driven-at).
 
 ### BREAKING: a bundled model lands under `$.aontu`
 
@@ -10109,7 +10109,7 @@ exactly the `code` node, so a document including a *vocabulary* had its
 the whole `aontu` namespace: nothing under it is the user's model.
 
 Rationale in
-[ADR-029](ADR.md#adr-029--a-bundled-model-lands-under-aontu-not-at-the-document-root).
+[ADR-029](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-029--a-bundled-model-lands-under-aontu-not-at-the-document-root).
 
 ### `aontu:system` gains `Semver`
 
@@ -10177,7 +10177,7 @@ unresolvable path.
 Both vocabularies are now held to the formatter, having joined the set
 that check iterates, and are reformatted; their canon-hash pins move
 with the root key. Rationale in
-[ADR-028](ADR.md#adr-028--every-language-supplied-schema-is-named-under-aontu).
+[ADR-028](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-028--every-language-supplied-schema-is-named-under-aontu).
 
 ### BREAKING: the list generator is named `each` again, and `_ & t` is its bound
 
@@ -12195,7 +12195,7 @@ gbnf grammar has.
 **Breaking, both implementations.** The identity mark gave any node a
 second, global name, and every node in one evaluation carrying that
 name was unified with every other. It is removed
-([ADR-014](ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
+([ADR-014](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
 
 The collision hazard a global namespace implies is not what decided
 it. The deciding cost is that **a model carrying an `id()` could not be
@@ -12400,7 +12400,7 @@ TypeScript handed every non-`.aon` file back as raw TEXT; Go parsed
 everything as Aontu source; `.json` crashed TypeScript with an
 unhandled internal error carrying no code, path or site.
 
-[ADR-012](ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) settles it with one table, and the table says
+[ADR-012](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) settles it with one table, and the table says
 which of two things a file is. `.aon` and `.aontu` are **Aontu source**
 — the language, with everything in it. `.json`, `.jsonld`, `.jsonc`,
 `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` are
@@ -12488,7 +12488,7 @@ correctly.
 
 Both implementations. `a: *x` and `a: *x | super(x)` were two
 mechanisms that agreed on the common case and disagreed in six places.
-[ADR-011](ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) makes the long form the structure and the
+[ADR-011](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) makes the long form the structure and the
 short form sugar for it, and the meet now distributes over the
 disjunction the star stands for:
 

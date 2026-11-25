@@ -8,7 +8,7 @@ public, append-only and independently auditable. It exists because a
 design review of a proposed "Forge Tag Transparency Registry" found the
 log sound and its substrate wrong for aontu; that review's decisions are
 recorded in
-[ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
+[ADR-013](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
 and in [Design space](#design-space) rather than relitigated here.
 Phases 1 to 4 have landed, phase 5 was retired
 as designed and phase 6 is rewritten for the federated design: the
@@ -281,7 +281,7 @@ than a second hashing algebra.
 
 The successor design was not accepted as written. What was accepted
 instead reverses its founding constraint:
-[ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+[ADR-019](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
 stores module bytes in a project-operated repository and federates the
 log to Sigstore. The design is `REPOSITORY.0.md` in
 [`aontu-lang/system`](https://github.com/aontu-lang/system/blob/main/docs/design/REPOSITORY.0.md).
@@ -330,7 +330,7 @@ on somebody else's forge.
 
 ### The provider is not the contract, 2026-09-06
 
-[ADR-024](../../ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition)
+[ADR-024](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition)
 separates two acts the settled design had fused, and it changes this
 document in two places.
 
@@ -365,7 +365,7 @@ phase-3 work that supersedes them.
 
 ### Phases 3 and 4 landed, 2026-09-16
 
-Under [ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
+Under [ADR-039](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
 both ports gained the read and write verbs against the repository:
 `aontu sync`, `get`, `add`, `remove`, `why` and `publish`, with
 `pkg outdated`, `pkg serve` and `pkg keygen`. The seam the
@@ -378,7 +378,7 @@ exclusion the plan argued for. The acquire order is the specification's
 unpack, file manifest, dependencies, evaluation, canon-hash. Trusted
 publishing is the client half: `publish --token` carries the forge's
 OIDC token to the write path and copies its claims into the manifest,
-per [ADR-024](../../ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition);
+per [ADR-024](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition);
 the write path that verifies it is `aontu-lang/system`'s Worker. The
 cooldown is timed from the repository's first-seen time rather than the
 client's (ADR-039 part 9), because a fresh machine must be able to
@@ -402,7 +402,7 @@ read `aontu pkg <op>`; where it names `ts/src/mod-tool.ts` or
 is retired and `archive` and `manifest` took its place, so wherever the
 design gives `oci` a role, read the archive digest. And **a package
 path no longer carries `@<major>`**
-([ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
+([ADR-022](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
 part 1, built), which is the one supersession that changes a shape
 rather than a name: `corp.example/schemas/service@1` is now
 `corp.example/schemas/service`, and the major survives in the leaf
@@ -429,7 +429,7 @@ length-prefixed fields — never bare JSON, whose canonicalisation is a
 second specification to get wrong.
 
 **Both pins, with the roles the lockfile already gives them**
-([ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)).
+([ADR-013](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)).
 `oci` certifies the bytes; `canon` certifies the meaning. Recording
 only the byte digest would log an identity no client checks; recording
 only the canon-hash would put aontu's *least stable* value in its most
@@ -494,7 +494,7 @@ Evaluation never touches the network — [G5](g5-trust-contract.md)'s
 contract, unchanged. `mod get` consults the log; `mod verify`, `mod
 tidy`, `mod vendor` and every evaluation do not. **A build with a
 lockfile never reaches the service**, which is
-[ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)'s
+[ADR-013](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)'s
 constraint 2 and the reason a dead log stalls new adoption rather than
 breaking existing projects.
 
@@ -516,7 +516,7 @@ code is a database with extra steps.
   sequences and signs publisher-asserted claims. This is what deletes
   the entire ingestion threat model, and reversing it re-opens all of it.
 - ~~**No artifact storage, ever**~~ — *reversed 2026-09-04 by
-  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log),
+  [ADR-019](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log),
   which stores module bytes in a repository and federates the log to
   Sigstore. The bullet was written to stop a log drifting into a
   registry by accretion, and that danger was real; what it got wrong was
@@ -532,7 +532,7 @@ code is a database with extra steps.
   or the auditors and witnesses are ours to write forever.
 - **No provider-specific verification contract.** What a client checks
   on first acquisition is stated in the project's terms, per
-  [ADR-024](../../ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition),
+  [ADR-024](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition),
   and a Sigstore bundle is one encoding of it. A client that verifies a
   bundle outside the contract, or a write path that decides admission
   from a certificate rather than the forge's token, breaches that entry.
@@ -543,7 +543,7 @@ code is a database with extra steps.
 - **No forge-tag identity, and no `?go-get=1` vanity resolution** — see
   [Design space](#design-space) C.
 - ~~**No private-module or auth design in v1**~~ — *reversed 2026-09-04
-  by [ADR-021](../../ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
+  by [ADR-021](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
   which hosts private packages behind authenticated reads as a second
   service, bounded by seven constraints. The public read path is
   unchanged and still mirrorable; the private tier is additive, and a
@@ -611,7 +611,7 @@ schema and auditor in `aontu-lang/mod`; operations in
 the federated design; it read "Cosignatures, gossip, mutation
 alerting, the git mirror" and the first two are no longer this
 project's to run.*
-[ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+[ADR-019](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
 federated the log to Sigstore, so its cosignatures, checkpoint gossip
 and witnesses are theirs to operate and phase 2's client to verify —
 nothing here builds a witness, and phase 5 was retired on that same
