@@ -160,6 +160,28 @@ gate's syntax table.
 | `stale-symbol` | a symbol in backticks is not defined by the code |
 | `stale-adr` | a decision number is not in the decision record |
 
+## The decision record
+
+[`ADR.md`](ADR.md) holds the project's fundamental decisions: the
+choices that change what the project is, and that only the maintainer
+may reverse.
+
+- **Only the maintainer adds an entry.** An agent may propose a
+  decision, in its reply or in a pull request's description, and never
+  writes one into the record itself.
+- **An entry is at most 200 words**, its heading included. It states
+  the decision, why it holds, and what it costs, in the present tense.
+- **The record has no history.** An entry carries no status, date,
+  issue number or account of what came before it. It is never amended
+  or superseded in part. A decision that stops holding is deleted, and
+  version control keeps what it said.
+- **A rule is not a decision.** A rule of the language belongs in its
+  specification, a rule of how work is done belongs in this file, and
+  how one part works belongs in its documentation.
+- **Numbers are never reused.** A new entry takes the next number, so a
+  citation of a deleted entry fails the comment gate's `stale-adr`
+  check instead of naming another decision.
+
 ## What each folder holds
 
 - **`docs/` holds only documentation that is valid and up to date**: the

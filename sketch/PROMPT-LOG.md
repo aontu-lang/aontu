@@ -2213,3 +2213,9 @@ ensure all repos in current folder aontu-lang are git pulled to latest main, and
 ```text
 the ADRs need to be completely rewritten; most of them are syntax directives - these are not ADR suitable - they belong in the lean spec, which another session is working on, so can be safely removed. there are references to historical changes, partial superceding etc. does the agents guide have a string rule that ADRs can only be added by the user? no ADR may be longer than 200 words
 ```
+
+## 2026-11-25 19:10:52 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+1. yes, 2. yes, 3. detail, 4. no; update the DEV-PROCESS in rjrodger/agent-info to include the ADR rules; this machine has git and gh logged in, use them for workflow changes; don't wait for aontu release, use local
+```
