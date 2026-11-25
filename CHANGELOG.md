@@ -8,6 +8,47 @@ each change affects.
 
 ## Unreleased
 
+### A default that reaches a disjunction as an arm stands as that arm
+
+#954, ruling 89, in the definition and both engines. An arm `*x`
+written in a disjunction is the arm `x` of rank one, with no parent
+type, so `*1 | "a"` refuses `3`. A default that got there another way
+read differently by the moment it settled: `pref(1) | "a"` refused `3`
+in both engines, and `pref($.d) | "a"` beside `d: 1`, or `$.d | "a"`
+beside `d: *1`, admitted it once data met the disjunction first. The
+definition admitted `3` for a `pref()` call and a path alike. A
+preference that stands as an arm is now that arm at its rank, however
+it got there and whenever it settles:
+
+- `level: $.defaults.level | "debug"` beside `defaults: level: *"info"`
+  is `invalid` under `aontu vet` against `{"level": "other"}`. It was
+  `valid`. It stays `valid` against `"debug"` and against nothing, where
+  `level` is `"info"`.
+- `d: 1` beside `x: pref($.d) | "a"`, and `d: *1` beside
+  `x: copy($.d) | "a"`, `x: move($.d) | "a"`, `x: meta($.d, {}) | "a"`,
+  `x: $.d & number | "a"` or `x: match(1, 1, $.d) | "a"`, are `invalid`
+  against `{"x": 3}`. Each was `valid`.
+- `x: ($.d | "a") & 3` beside `d: $.e` and `e: *1` is `empty`. It was
+  `{"x": 3}`, and already `empty` where `d: *1` stood in one step.
+- A star written on such an arm adds to the default's rank: `*(*1)` is
+  `**1` in the definition too, which read it as a rank over the whole
+  preference.
+- What a document writes stays. `d: *1 | number` beside `x: $.d | "a"`
+  admits `3`, `*1 & (1 | 2 | 3)` is `*1 | 2 | 3`, `super($.d)` is the
+  parent type, and `*1 & min(2)`, whose default the bound refuses,
+  leaves its parent type an arm like any other.
+
+Each engine reads an arm that hasn't settled, a path, a call or a meet,
+before the disjunction meets a term that isn't `top`, holding that term
+where a path to the arm's own place reads it. The definition's meet
+marks a lone preference's parent type (`Val.parentOf`, `rideLeft`),
+which admits what it admitted, and `Decls.armStands` reads each arm of
+a disjunction by its normal form (`Val.loneArms`).
+
+`test/spec/def-path.tsv` gains rows ar0 to ar149 and as0 to as5,
+`test/spec/vet.tsv` 165 rows and `test/spec/pref.tsv` 40. No other
+generated row changes.
+
 ### A spread's template that holds a default clash is the schema's error
 
 #957, ruling 90, in the definition and both engines. `x: *1 | *2` is

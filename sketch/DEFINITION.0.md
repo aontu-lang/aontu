@@ -3358,7 +3358,36 @@ until the phase that encodes it lands.
    `level: $.defaults.level | "debug"` beside
    `defaults: level: *"info"` admits `"info"` and `"debug"`. The
    definition moves, and both ports hold the reading whenever the arm
-   settles.
+   settles. **Built 2026-11-25** in the definition and both ports. The
+   structural reading the first draft made, an arm that resolves to
+   `.pref`, reached a `pref()` call and a name and nothing else: a
+   path's copy is the place's normal form, where a lone `*1` and a
+   written `*1 | number` are one term. So the meet now marks a lone
+   preference's parent type with a rider (`Rider.parent`,
+   `Val.parentOf`), which admits what the type admits and leaves every
+   theorem of the meet standing. The mark stays on what a plain term
+   narrows the type to and gives way to a disjunction or a preference
+   (`rideLeft`, `rideRight`), as both ports' preference does, `mkOr`
+   reads it through where no arm prefers any longer (`unparentArms`),
+   and two lone preferences that lead with one rank meet in a parent
+   type that keeps it (`tieRest`), so `*1 & *1` is still a default
+   alone. `Decls.armStands` then reads each arm of a
+   disjunction by its normal form (`Val.loneArms`) once the selections
+   are made (`resolveArms`): the arms that prefer, each at the arm's
+   written rank added to its own. A `move`'s value is a default, and
+   its parent type carried the move where data took another value; the
+   disjunction now carries the moves of such an arm on every arm
+   (`Decls.armMoves`), as both ports make a `move` in whichever arm it
+   is written, which row mv70 holds. Each port reads an arm that hasn't
+   settled, a path, a call or a meet, before the disjunction meets a
+   term that isn't `top`, with that term held where a path to the
+   arm's own place reads it, and waits where the arm still can't be
+   read. Rows ar0 to ar149 and as0 to as5 of
+   `test/spec/def-path.tsv`, 165 rows of `test/spec/vet.tsv` and 40 of
+   `test/spec/pref.tsv`; no other generated row changed. A star over a `pref()` call or a path,
+   `*pref(1) | *2`, loses its arm in both ports, which differ from each
+   other on `*pref(1) | **2` (#970), and a default written twice,
+   `*1 | *1`, collapses to a lone preference in both (#971).
 90. **Two clashing defaults in a spread's template.** Raised 2026-11-24
    by #957, while fixing #482. `x: *1 | *2` is the schema's error. As a
    template, `x: {&: *1 | *2}`, the definition read no error and let a
