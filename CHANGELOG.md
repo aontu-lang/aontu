@@ -45,11 +45,14 @@ always refused a later term that added one.
   `spec/ledger.tsv`, whose bound falls from 28 to 22.
 - `test/spec/def-path.tsv` gains rows db0 to db182, 61 cases the
   definition proves, each in three modes.
-- Still open, each with an issue of its own: a directive beside a lone
-  default whose value is a path (`close() & *$.b`), `open()` beside a
-  path and a sealed map, and a root written `open() & close({…})` that
-  holds a path. The definition has a limit of its own here: a path that
-  copies a place sealed this way reads the copy unsealed.
+- `close() & copy($.b)` seals the copy under `vet` too, as it did when
+  evaluated alone. The definition's seal stops at a call, which #998
+  tracks with its other limit here: a path that copies a place sealed
+  this way reads the copy unsealed, where both engines copy the seal.
+- Still open: a bare `open()` lifts the seal of one term at its place
+  only (#995), `close()` beside a lone default whose value is a path
+  seals nothing (#996), and `open()` in the argument of `pref` or
+  `super` awaits a ruling (#997). #726 closes.
 
 ### A lone default's parent arm lifts a template's path as the term it names
 

@@ -88,9 +88,11 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a bare `open()` or a bare `close()` inside the argument of a call
   whose value doesn't hold it, as `copy`, `super` and `pref` hold
   theirs, or inside a trial, a selection's result or a link's template,
-  which P2 doesn't read yet, so it reads as `any`; and a bare `close()`
+  which P2 doesn't read yet, so it reads as `any`; a bare `close()`
   beside a call, whose seal stops at the call, where both ports seal
-  the value the call makes;
+  the value the call makes; and a path's copy of a place that a bare
+  `close()` beside a path seals, which reads unsealed, where both ports
+  copy the seal (#998);
 - a member a sealed map declares, which its spread's template reaches,
   under `open()`: P2 keeps the seal the template writes on every member
   it reaches, where both ports lift it on a member the map declares and

@@ -2466,7 +2466,11 @@ until the phase that encodes it lands.
    limit of its own here: a path keeps the term of the first round that
    reaches it (`Decls.pathIn`), where the copy beside the directive
    hasn't landed, so `c: $.a` beside `a: close() & $.b` copies `a`
-   unsealed, where both ports copy the seal.
+   unsealed, where both ports copy the seal (#998). #726 closes; what
+   is left of a bare directive has an issue each: `open()` lifting one
+   term's seal only (#995), `close()` beside a default whose value is a
+   path (#996), and `open()` in the argument of `pref` or `super`,
+   which wants a ruling (#997).
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`
