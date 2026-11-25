@@ -109,6 +109,13 @@ budget-nested-links-10-msg	err	s: relate({n: relate({n: relate({n: relate({n: re
 # path -- is the regression guard, and must simply unify.
 budget-wide-conjunct-legal	gens	a:@"__FIXTURES__/large-siblings.aontu"	{"a":{"wide":{"x":1}}}
 budget-wide-conjunct-canon	canon	a:@"__FIXTURES__/large-siblings.aontu"	{"a":{"wide":{"x":1}}}
+# The same fold over members that stay unsettled through the pass (a
+# spread's key() settles on a later one): each term meets every member
+# already there with TOP again, and the memo answers each of those
+# meets without work. A meet the memo answers is not a revisit, so the
+# bound counts none of them. 600 one-line sibling statements at one
+# map, past the 502 at which the bound used to answer unify_cycle.
+budget-wide-unsettled-siblings-legal	gens	x:@"__FIXTURES__/wide-unsettled-siblings.aontu"	{"x":{"a":{"w":{"last":{"n":"last"}}}}}
 #
 # THE DEPTH BUDGET -- structural recursion, shared language surface.
 # Both engines bound `unite` nesting at 1000 (ts/src/unify.ts MAXDEPTH,

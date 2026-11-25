@@ -167,6 +167,7 @@ function rereadOn(ctx, out, a, b) {
     kept.reread = [...rereadTerms(a), ...rereadTerms(b)];
     return kept;
 }
+const metTopThisPass = (ctx, v) => undefined !== ctx.cc && v._tcc === ctx.cc && v._tpi === ctx.pathidx;
 const unite = (ctx, a, b, whence) => {
     const out = meet(ctx, a, b, whence);
     return undefined === a?.reread && undefined === b?.reread ? out : rereadOn(ctx, out, a, b);
@@ -218,16 +219,19 @@ const meet = (ctx, a, b, whence) => {
     const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'unite', a, b);
     let out = a;
     let why = 'u';
+    // A meet the pass memo answers does no work, so it is not a revisit.
+    const memoised = null != a && (null == b || true === b.isTop) && !a.done
+        && metTopThisPass(ctx, a);
     // Cycle-detection key. Use numeric path index for speed; fall back to
     // full string key when debug is enabled so the saw value is human-readable.
-    const saw = ctx.opts.debug
+    const saw = memoised ? undefined : ctx.opts.debug
         ? (a ? a.id + (a.done ? '' : '*') : '') + '~' +
             (b ? b.id + (b.done ? '' : '*') : '') + '@' + ctx.pathstr
         : (a ? a.id + (a.done ? 'd' : '') : 0) + '~' +
             (b ? b.id + (b.done ? 'd' : '') : 0) + '~' + ctx.pathidx;
     // NOTE: if this error occurs "unreasonably", attemp to avoid unnecesary unification
     // See for example PrefVal peg.id equality inspection.
-    const sawCount = ctx.seen[saw] ?? 0;
+    const sawCount = undefined === saw ? 0 : ctx.seen[saw] ?? 0;
     if (ctx.budget.depth <= ctx._depth.n) {
         out = (0, err_1.makeNilErr)(ctx, 'unify_cycle', a, b);
     }
@@ -235,7 +239,9 @@ const meet = (ctx, a, b, whence) => {
         out = (0, err_1.makeNilErr)(ctx, 'unify_cycle', a, b);
     }
     else {
-        ctx.seen[saw] = sawCount + 1;
+        if (undefined !== saw) {
+            ctx.seen[saw] = sawCount + 1;
+        }
         ctx._depth.n++;
         try {
             let unified = false;
@@ -301,8 +307,7 @@ const meet = (ctx, a, b, whence) => {
                 why += 'N';
             }
             if (!out.done && !unified) {
-                if (undefined !== ctx.cc
-                    && out._tcc === ctx.cc && out._tpi === ctx.pathidx) {
+                if (metTopThisPass(ctx, out)) {
                     why += 't';
                 }
                 else {
