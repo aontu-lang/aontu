@@ -119,3 +119,18 @@ disjunct-decided-reference-bound	gens	s: {lo: 2, hi: 10, t: (integer & min($.s.l
 #
 # A grouped disjunction is sited at its parenthesis, as written.
 vet-site-of-a-grouped-disjunction	vet	x: (boolean|map)	{"x": 5}	{"findings":[{"class":"conflict","code":"empty","path":"$.x","pointer":"/x","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"5","value":"5"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"(","value":"boolean|map"}]}],"truncated":false,"verdict":"invalid"}
+#
+# An arm's path into its own place that names nothing fails the arm, once the
+# schema has settled and nothing more can supply the member (#982). The arm
+# beside it stands, two such arms leave none, and a term the disjunction meets
+# can still supply the member.
+disjunct-arm-stray-path-fails-the-arm	gens	x: {a: 1, b: .d} | "z"	{"x":"z"}
+disjunct-arm-stray-path-fails-the-arm-canon	canon	x: {a: 1, b: .d} | "z"	{"x":"z"}
+disjunct-arm-stray-path-written-second	gens	x: "z" | {a: 1, b: .d}	{"x":"z"}
+disjunct-arm-stray-step-into-a-member	gens	x: {a: 1, b: .a.z} | "z"	{"x":"z"}
+disjunct-arm-stray-path-one-level-down	gens	x: {a: {c: .q} | 1}	{"x":{"a":1}}
+disjunct-arm-stray-path-in-a-list-element	gens	x: [{a: 1, b: .d} | "z"]	{"x":["z"]}
+disjunct-arm-stray-path-in-an-optional-member	gens	x?: {a: 1, b: .d} | "z"	{"x":"z"}
+disjunct-arm-stray-paths-leave-no-arm	errc	x: {a: 1, b: .d} | {c: .q}	empty
+disjunct-arm-path-a-met-map-answers	gens	x: ({a: 1, b: .d} | "z") & {d: 5}	{"x":{"a":1,"b":5,"d":5}}
+disjunct-arm-path-a-later-statement-answers	gens	x: {a: 1, b: .d} | "z"\nx: {d: 5}	{"x":{"a":1,"b":5,"d":5}}

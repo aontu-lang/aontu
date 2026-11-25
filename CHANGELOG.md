@@ -23,6 +23,39 @@ patterns, and keep a type open for patterned keys. The how-tos on
 spreads and on sealing point to it. The row of the guide for CUE users
 waits on that guide.
 
+### An arm's path into its own place that names nothing fails the arm
+
+#982 in both engines, and #988 in TypeScript. A path written in a
+disjunction's arm that names nothing drops the arm, where it leads
+outside the arm. Where it leads into the arm's own place, a term the
+arm meets may still supply the member, so both engines kept the arm
+waiting and never dropped it: `x: {a: 1, b: .d} | "z"` failed with
+`disjunct_no_gen`, and `vet` answered `incomplete` against no data.
+Each engine now fails such an arm once the schema has settled, when
+nothing more can supply the member:
+
+- `x: {a: 1, b: .d} | "z"` is `"z"`, and `x: {a: {c: .q} | 1}` is
+  `{"x": {"a": 1}}`.
+- Data or a term that supplies the member still lets the arm read it:
+  `x: ({a: 1, b: .d} | "z") & {d: 5}` is `{"a": 1, "b": 5, "d": 5}`,
+  and `vet` passes `{"x": {"a": 1, "b": 5, "d": 5}}` as before.
+- Two arms that each hold such a path leave the schema no arm:
+  `x: {a: 1, b: .d} | {c: .q}` is `empty`, an `error` under `vet`
+  whatever the data, where it was `incomplete`.
+
+TypeScript compared a list position's number with its digits when it
+asked whether a path leads into a default's own place, so
+`x: [(*{a: 1, b: .c}) & {c: 2}]` failed with `listval_no_gen` where Go
+evaluated it (#988). It compares each step as text now, for a default
+and for an arm.
+
+Rows sa0 to sa32 of `test/spec/def-path.tsv` hold both engines to the
+arms' reading, 11 cases the definition proves, and rows sc0 to sc41 to
+the checks of the entry below, 14 cases. `test/spec/disjunct.tsv`
+gains 10 rows and `test/spec/pref.tsv` 5. Inside a lone default an arm
+still waits, which #982 keeps. The export list of `ts/src/hostvars.ts`
+is out of the coverage count again, where #972 had left it in.
+
 ### A path that names nothing under a check inside a lone default is the schema's error
 
 #981, in both engines. The change for #700 reads a lone default's own

@@ -2,6 +2,7 @@ import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FeatureVal } from './FeatureVal';
 declare function prefInnerPeg(v: Val): Val;
+declare function strayIn(v: Val, path: any[]): any;
 declare class PrefVal extends FeatureVal {
     isPref: boolean;
     isGenable: boolean;
@@ -26,4 +27,4 @@ declare class PrefVal extends FeatureVal {
     get canon(): string;
     gen(ctx?: AontuContext): any;
 }
-export { PrefVal, prefInnerPeg, };
+export { PrefVal, prefInnerPeg, strayIn, };

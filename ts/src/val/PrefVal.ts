@@ -41,8 +41,7 @@ function prefInnerPeg(v: Val): Val {
 }
 
 
-// An arm's path is the arm's to fail, and maybe() takes a path that names nothing.
-// A check's pending argument reads at the check's own place, wherever it is held.
+// An arm's path is the arm's to fail, maybe() takes a stray path, and a check's argument reads at the check's place.
 function strayRef(v: Val, which: (ref: any, at: any[]) => boolean, at?: any[]): any {
   const n: any = prefInnerPeg(v)
   const args: any[] | undefined = n.pending?.args
@@ -51,6 +50,18 @@ function strayRef(v: Val, which: (ref: any, at: any[]) => boolean, at?: any[]): 
   return true === n.isRef ? (which(n, at ?? n.path) ? n : undefined) :
     kids.reduce((found, kid) => found ??
       strayRef(kid, which, undefined === args ? undefined : n.path), undefined)
+}
+
+
+// A list position is a number in one path and its digits in another.
+const under = (path: any[], to: any[]): boolean => path.every((p, i) => String(p) === String(to[i]))
+
+
+function strayIn(v: Val, path: any[]): any {
+  return strayRef(v, (ref: any, at: any[]) => {
+    const to = ([] as any[]).concat(ref.plainRefPath(at))
+    return under(path, to) && namesNothing(v, to.slice(path.length))
+  })
 }
 
 
@@ -159,19 +170,14 @@ class PrefVal extends FeatureVal {
   // Only a path to a place outside the default: one into it, a peer alone can answer.
   private waitsForPath(ctx: AontuContext): boolean {
     const own = this.own(ctx)
-    return undefined !== own && unread(own, (ref: any) => {
-      const to = ([] as any[]).concat(ref.plainRefPath())
-      return !this.path.every((p, i) => p === to[i])
-    })
+    return undefined !== own && unread(own, (ref: any) =>
+      !under(this.path, ([] as any[]).concat(ref.plainRefPath())))
   }
 
 
   // Ruling 53: a path into the default's own place that names no member there, once all has settled.
   private stray(ctx: AontuContext, v: Val): Val | undefined {
-    const stray = strayRef(v, (ref: any, at: any[]) => {
-      const to = ([] as any[]).concat(ref.plainRefPath(at))
-      return this.path.every((p, i) => p === to[i]) && namesNothing(v, to.slice(this.path.length))
-    })
+    const stray = strayIn(v, this.path)
     return undefined === stray ? undefined : makeNilErr(ctx, 'no_path', stray)
   }
 
@@ -406,4 +412,5 @@ class PrefVal extends FeatureVal {
 export {
   PrefVal,
   prefInnerPeg,
+  strayIn,
 }

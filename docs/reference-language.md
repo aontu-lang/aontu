@@ -2023,9 +2023,10 @@ disjunction reads `b` as the one arm's `a`, since `null` meets a map in
 nothing. Both engines read a path in an arm where the disjunction holds
 it, so over `hosts: {a: {name: "x", url: "y"}}` the first arm refuses
 the data through `url` and the second takes it. A path that names a
-member the arm doesn't write waits for the terms the arm meets, and a
-path into a disjunction or a lone preference the arm holds waits for
-that choice. A path reads its member as the terms the arm meets narrow
+member the arm doesn't write waits for the terms the arm meets, and
+fails the arm once the schema has settled with no term supplying it, so
+`x: {a: 1, b: .d} | "z"` is `"z"`. A path into a disjunction or a lone
+preference the arm holds waits for that choice. A path reads its member as the terms the arm meets narrow
 it, so `x: ({a: integer, b: .a} | null) & {a: 1}` is `{"x": {"a": 1,
 "b": 1}}`, and over `{a: 1, b: 2}` the arm refuses the data. The
 definition reads each arm so by

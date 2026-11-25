@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrefVal = void 0;
 exports.prefInnerPeg = prefInnerPeg;
+exports.strayIn = strayIn;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
 const err_1 = require("../err");
@@ -22,8 +23,7 @@ function prefInnerPeg(v) {
     }
     return out;
 }
-// An arm's path is the arm's to fail, and maybe() takes a path that names nothing.
-// A check's pending argument reads at the check's own place, wherever it is held.
+// An arm's path is the arm's to fail, maybe() takes a stray path, and a check's argument reads at the check's place.
 function strayRef(v, which, at) {
     const n = prefInnerPeg(v);
     const args = n.pending?.args;
@@ -32,6 +32,14 @@ function strayRef(v, which, at) {
     return true === n.isRef ? (which(n, at ?? n.path) ? n : undefined) :
         kids.reduce((found, kid) => found ??
             strayRef(kid, which, undefined === args ? undefined : n.path), undefined);
+}
+// A list position is a number in one path and its digits in another.
+const under = (path, to) => path.every((p, i) => String(p) === String(to[i]));
+function strayIn(v, path) {
+    return strayRef(v, (ref, at) => {
+        const to = [].concat(ref.plainRefPath(at));
+        return under(path, to) && namesNothing(v, to.slice(path.length));
+    });
 }
 // A step to a member a settled value lacks, or into a nested default; one still waiting proves nothing.
 function namesNothing(v, parts) {
@@ -106,17 +114,11 @@ class PrefVal extends FeatureVal_1.FeatureVal {
     // Only a path to a place outside the default: one into it, a peer alone can answer.
     waitsForPath(ctx) {
         const own = this.own(ctx);
-        return undefined !== own && (0, DisjunctVal_1.unread)(own, (ref) => {
-            const to = [].concat(ref.plainRefPath());
-            return !this.path.every((p, i) => p === to[i]);
-        });
+        return undefined !== own && (0, DisjunctVal_1.unread)(own, (ref) => !under(this.path, [].concat(ref.plainRefPath())));
     }
     // Ruling 53: a path into the default's own place that names no member there, once all has settled.
     stray(ctx, v) {
-        const stray = strayRef(v, (ref, at) => {
-            const to = [].concat(ref.plainRefPath(at));
-            return this.path.every((p, i) => p === to[i]) && namesNothing(v, to.slice(this.path.length));
-        });
+        const stray = strayIn(v, this.path);
         return undefined === stray ? undefined : (0, err_1.makeNilErr)(ctx, 'no_path', stray);
     }
     // Unchanged on both counts is the SAME preference, returned as

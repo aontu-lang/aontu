@@ -36,7 +36,7 @@ function bindingFailure(src: string): string | undefined {
     return String(err.message).split('\n')[0]
   }
   return holdsReference(v) ? 'a binding is a value, and reads no path or variable' : undefined
-}
+} /* node:coverage ignore next 6 */
 
 
 export {

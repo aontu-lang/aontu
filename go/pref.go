@@ -88,15 +88,20 @@ func (p *PrefVal) waitsForPath(ctx *Ctx) bool {
 
 // Ruling 53: a path into the default's own place that names no member there, once all has settled.
 func (p *PrefVal) stray(ctx *Ctx, v Val) Val {
-	stray := strayRef(v, func(r *RefVal) bool {
-		to := r.plainRefPath()
-		return len(p.path) <= len(to) && slices.Equal(p.path, to[:len(p.path)]) &&
-			namesNothing(v, to[len(p.path):])
-	})
+	stray := strayIn(v, p.path)
 	if nil == stray {
 		return nil
 	}
 	return makeNilErr(ctx, "no_path", stray, nil)
+}
+
+// The first path into a place of its own that names no member of the value there.
+func strayIn(v Val, path []string) *RefVal {
+	return strayRef(v, func(r *RefVal) bool {
+		to := r.plainRefPath()
+		return len(path) <= len(to) && slices.Equal(path, to[:len(path)]) &&
+			namesNothing(v, to[len(path):])
+	})
 }
 
 // An arm's path is the arm's to fail, and maybe() takes a path that names nothing.

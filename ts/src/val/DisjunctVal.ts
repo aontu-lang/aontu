@@ -32,7 +32,7 @@ import {
 } from './top'
 
 import { TRIAL_NIL } from '../val/NilVal'
-import { PrefVal, prefInnerPeg } from '../val/PrefVal'
+import { PrefVal, prefInnerPeg, strayIn } from '../val/PrefVal'
 import { trialUnify } from '../val/FuncBaseVal'
 import { armAdmits } from '../val/admission'
 import { JunctionVal } from '../val/JunctionVal'
@@ -140,7 +140,9 @@ class DisjunctVal extends JunctionVal {
         oval[vI] = unite((te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx)
           .holdArm(this.path, prefInnerPeg(v), member), v, member, 'dj-peer')
 
-        if (0 < trialErr.length || holdsUnmetNil(oval[vI])) {
+        // An arm's path into its own place that names nothing fails the arm, once all has settled.
+        if (0 < trialErr.length || holdsUnmetNil(oval[vI]) ||
+          (true === ctx.settle && undefined !== strayIn(oval[vI], this.path))) {
           oval[vI] = TRIAL_NIL
         }
         else if (v instanceof PrefVal && !peer.isTop) {
