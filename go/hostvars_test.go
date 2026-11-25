@@ -117,6 +117,7 @@ func TestHostVarsReadNoPathAndAreFramedAtTheirOption(t *testing.T) {
 	doc := "k: 1\nb: { k: 2, a: $n }"
 	refused := "[aontu/invalid_var_kind]: Cannot unify values at path $.b.a | --> <no-file>:2:15"
 	clash := "[aontu/scalar_kind]: Cannot unify values at path $.a | --> "
+	unknown := "[aontu/unknown_function]: Cannot resolve value at path "
 	for _, c := range []struct {
 		hv        map[string]HostVar
 		src, want string
@@ -128,6 +129,12 @@ func TestHostVarsReadNoPathAndAreFramedAtTheirOption(t *testing.T) {
 		{map[string]HostVar{"n": {Value: "$m"}, "m": {Value: "1"}}, "b: $n",
 			"[aontu/unknown_var]: Cannot unify values at path $ | --> --var n:1:1"},
 		{map[string]HostVar{"n": {Value: "{x: 1}"}}, "b: $n", `{"b":{"x":1}}`},
+		// A binding its own source refused keeps that refusal, a path beside it or not.
+		{map[string]HostVar{"n": {Value: "foo(1)"}}, doc, unknown + "$ | --> --var n:1:1"},
+		{map[string]HostVar{"n": {Value: "foo($.k)"}}, doc, unknown + "$ | --> --var n:1:1"},
+		{map[string]HostVar{"n": {Value: "{a: foo(1), b: .k}"}}, doc, unknown + "$.a | --> --var n:1:5"},
+		{map[string]HostVar{"n": {Value: "pref(1, $.k)"}}, doc,
+			"[aontu/func_arity]: Cannot resolve value at path $ | --> --var n:1:1"},
 		{map[string]HostVar{"n": {Value: "x", Text: true, From: "--vars f"}}, "a: $n & 1",
 			clash + "--vars f n:1:1"},
 		{map[string]HostVar{"n": {Value: "x", Text: true}}, "a: $n & 1", clash + "--var-text n:1:1"},

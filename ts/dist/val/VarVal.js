@@ -71,8 +71,8 @@ class VarVal extends FeatureVal_1.FeatureVal {
                         new NumberVal_1.NumberVal({ peg: found });
                 }
                 else if ('object' === ft && found.isVal) {
-                    // A variable is a value: one that reads a path has no place to read it from.
-                    out = (0, walk_1.holdsReference)(found) ?
+                    // A variable is a value and reads no path; one refused keeps its refusal.
+                    out = 0 === (0, walk_1.collectNils)(found, new Set()).length && (0, walk_1.holdsReference)(found) ?
                         (0, err_1.makeNilErr)(ctx, 'invalid_var_kind', this, peer) : found;
                 }
                 else {

@@ -21,10 +21,13 @@ engines.
   TypeScript answered `1` and Go `2`. The commands already refused
   such a binding. Both engines now refuse it where the document reads
   it, as `invalid_var_kind`: a variable is a value. Rows in
-  `test/spec/var.tsv` hold it.
+  `test/spec/var.tsv` hold it. A binding that its own source refused,
+  an unknown function in it for one, keeps that refusal.
 - An error in a binding's own source, and a binding with both a source
-  option and `text`, were framed at different places in each port.
-  Both now frame it at the option that bound it.
+  option and `text`, were framed at different places in each port, and
+  Go named the path the document read the binding at where TypeScript
+  named the path inside the binding. Both now frame it at the option
+  that bound it and name the path inside the binding.
 - Go finds a prefix operator's place by reading back from its operand,
   where TypeScript reads the operator's token. The two answer alike,
   and the difference is now registered in `DIVERGENCE.md`.

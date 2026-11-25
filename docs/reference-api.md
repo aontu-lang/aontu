@@ -4112,8 +4112,9 @@ which is how the CLI's `--var` and `--var-text` reach every verb:
 Each binding is aontu source, or with `text` the text as it stands, and
 each context makes its own values of them. A binding is a value: one
 whose source still reads a path or a variable is refused where the
-document reads it, as `invalid_var_kind`, and an error in a binding's
-own source is sited at the option that bound it. Otherwise, build value
+document reads it, as `invalid_var_kind`. An error in a binding's own
+source is kept, sited at the option that bound it and named at its
+path inside the binding. Otherwise, build value
 objects with the exported `Val` constructors:
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->

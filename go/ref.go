@@ -1159,6 +1159,11 @@ func (vv *VarVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	if ctx.vars != nil {
 		if found, ok := ctx.vars[name]; ok {
+			// A variable its own source refused keeps that refusal, where it stands.
+			var refused []*NilVal
+			if collectNils(found, &refused, map[Val]bool{}); 0 < len(refused) {
+				return clonePath(found, cp(found.vpath()))
+			}
 			// A variable is a value: one that reads a path has no place to read it from.
 			if HoldsReference(found) {
 				return makeNilErr(ctx, "invalid_var_kind", vv, peer)

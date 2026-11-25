@@ -39,7 +39,7 @@ import {
 import { unite } from '../unify'
 
 import { top } from './top'
-import { holdsReference } from '../walk'
+import { collectNils, holdsReference } from '../walk'
 
 
 class VarVal extends FeatureVal {
@@ -109,8 +109,8 @@ class VarVal extends FeatureVal {
             new NumberVal({ peg: found })
         }
         else if ('object' === ft && found.isVal) {
-          // A variable is a value: one that reads a path has no place to read it from.
-          out = holdsReference(found) ?
+          // A variable is a value and reads no path; one refused keeps its refusal.
+          out = 0 === collectNils(found, new Set()).length && holdsReference(found) ?
             makeNilErr(ctx, 'invalid_var_kind', this, peer) : found
         }
         else {

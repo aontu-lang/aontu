@@ -416,6 +416,14 @@ describe('hostvars', () => {
     Assert.equal(answer({ n: { value: '$m' }, m: { value: '1' } }, 'b: $n'),
       '[aontu/unknown_var]: Cannot unify values at path $ | --> --var n:1:1')
     Assert.equal(answer({ n: { value: '{x: 1}' } }, 'b: $n'), '{"b":{"x":1}}')
+    // A binding its own source refused keeps that refusal, a path beside it or not.
+    const unknown = '[aontu/unknown_function]: Cannot resolve value at path '
+    Assert.equal(answer({ n: { value: 'foo(1)' } }, doc), unknown + '$ | --> --var n:1:1')
+    Assert.equal(answer({ n: { value: 'foo($.k)' } }, doc), unknown + '$ | --> --var n:1:1')
+    Assert.equal(answer({ n: { value: '{a: foo(1), b: .k}' } }, doc),
+      unknown + '$.a | --> --var n:1:5')
+    Assert.equal(answer({ n: { value: 'pref(1, $.k)' } }, doc),
+      '[aontu/func_arity]: Cannot resolve value at path $ | --> --var n:1:1')
     const clash = '[aontu/scalar_kind]: Cannot unify values at path $.a | --> '
     Assert.equal(answer({ n: { value: 'x', text: true, from: '--vars f' } }, 'a: $n & 1'),
       clash + '--vars f n:1:1')

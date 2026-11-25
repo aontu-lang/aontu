@@ -2194,7 +2194,7 @@ is built.
 |---|---|---|
 | A host value that reads a path, bound through `hostVars` or `HostVars` | TypeScript read `.k` from the top and Go from where the name was read. Only the commands refused it | both engines refuse it where it is read, as `invalid_var_kind`, with rows in `test/spec/var.tsv` and a twin test in each port |
 | The frame of a binding that has both a source option and `text` | `--vars f n` in TypeScript and `--var-text n` in Go | the option that bound it, in both |
-| The frame of an error in a binding's own source | the binding's option in TypeScript and no file in Go | the binding's option, in both |
+| An error in a binding's own source | framed at the binding's option in TypeScript and at no file in Go, and named at the path inside the binding in TypeScript and at the path that read it in Go | the binding's option and the path inside the binding, in both, and the refusal is kept where a path stands beside it |
 | Go reading a prefix operator's place back from its operand | recorded in part 3 here and in a comment | registered in [DIVERGENCE.md](../DIVERGENCE.md#structural-divergences) |
 
 ### Needs a ruling
