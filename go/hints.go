@@ -212,7 +212,7 @@ var hints = map[string]string{
 	"key_level":               "The argument to key() is a LEVEL: how many steps up the path to look, where 0 is the key of the value itself and the default 1 is its parent. It must therefore be an integer -- `key(2)`, or `key(0d2)` for the exact leaf. A float, a decimal, a string, a boolean, a map or a list is not a level. A level beyond the top of the path is not an error; it yields the empty string.",
 	"no_first_arg":            "Missing first argument. The function requires a first argument but none was provided.",
 	"unknown_var":             "Unknown variable reference. The variable has not been defined.",
-	"invalid_var_kind":        "Invalid variable kind. The variable type does not match the expected kind.",
+	"invalid_var_kind":        "Invalid variable kind. The variable type does not match the expected kind.\nA variable is a value: one that still reads a path or another variable\nhas no place to read it from, and is refused where it is read.",
 	"path_cycle":              "Path cycle detected. The path contains a circular reference.",
 	"ref":                     "Reference resolution failed. Unable to resolve the reference to a value.",
 	"closed":                  "Cannot add to closed structure. The map or list is closed and does not accept new keys/elements.",

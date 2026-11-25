@@ -2,3 +2,5 @@ export declare function walkVals(v: any, visit: (v: any) => boolean, seen: Set<a
 export declare function settledTrials(v: any): any[];
 export declare function collectNils(root: any, seen: Set<any>): any[];
 export declare function parseNilIn(v: any): any;
+export declare function eachPart(root: any, visit: (v: any) => void): void;
+export declare function holdsReference(root: any): boolean;

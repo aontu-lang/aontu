@@ -138,6 +138,17 @@ the build rather than passing unremarked.
   converts it. Grouping is done — both ports reach a position through
   one member, `site` — so what is left is the spelling.
 
+- **Where a prefix operator's result is sited.** Both ports site the
+  result of `-x`, `+x`, `*x`, `.a` and `$.a` at the operator
+  (`test/spec/site.tsv` holds the answers). TypeScript reads the
+  operator's own token, `op.token`, in `atOp` (`ts/src/lang.ts`). The
+  Go parser library at the pinned `@tabnas/expr` 0.5.10 hands an
+  evaluator no token, so Go reads the place back from the operand's
+  position, over blanks and comments, in `siteAtOp` (`go/lang.go`).
+  This one is not permanent: the library has the token from 0.6, and
+  Go takes it when the pins rise. No member list differs, so
+  `ts/test/parity.test.ts` cannot hold it, and the rows do.
+
 ## Previously divergent, now fixed
 
 Kept because how each was closed is worth remembering.

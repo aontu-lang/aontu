@@ -718,6 +718,8 @@ function makeVarsCtx(a0) {
     ctx.vars.PARENT = new StringVal_1.StringVal({ peg: 'q' });
     // A kind: a binding is any value the program builds.
     ctx.vars.kint = new ScalarKindVal_1.ScalarKindVal({ peg: ScalarKindVal_1.Integer });
+    // A path: a binding that still reads one is refused where it is read.
+    ctx.vars.pathed = new aontu_1.Aontu().parse('.k');
     return ctx;
 }
 //# sourceMappingURL=spec.test.js.map
