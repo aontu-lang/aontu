@@ -1124,3 +1124,37 @@ vet-lone-stray-step-through-a-list-into-a-nested-default-under-partial	verdict	x
 vet-lone-path-into-a-nested-default-a-peer-narrows	verdict	x: (*{a: *{c: 1}, b: .a.c}) & {a: {c: 2}}	{}	{"verdict":"valid"}
 vet-lone-path-into-a-nested-default-a-peer-narrows-with-no-fill	verdict	x: (*{a: *{c: 1}, b: .a.c}) & {a: {c: 2}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 vet-lone-path-into-a-nested-default-a-peer-narrows-under-partial	verdict	x: (*{a: *{c: 1}, b: .a.c}) & {a: {c: 2}}	{}	{"verdict":"valid","opts":{"partial":true}}
+# A path that names nothing under a check inside a lone default is the schema's
+# error too, whichever argument holds it (#981): the check's arguments wait for
+# the path, and once the schema has settled nothing can supply the member. Each
+# row is the definition's answer too.
+vet-lone-stray-path-under-a-when-condition	verdict	x: *{a: 1, b: when(.d, 1, 2)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-a-when-condition-with-no-fill	verdict	x: *{a: 1, b: when(.d, 1, 2)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-a-when-condition-under-partial	verdict	x: *{a: 1, b: when(.d, 1, 2)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-a-when-result	verdict	x: *{a: 1, b: when(true, .d, 2)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-a-when-result-with-no-fill	verdict	x: *{a: 1, b: when(true, .d, 2)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-a-when-result-under-partial	verdict	x: *{a: 1, b: when(true, .d, 2)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-a-when-alternative	verdict	x: *{a: 1, b: when(false, 1, .d)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-a-when-alternative-with-no-fill	verdict	x: *{a: 1, b: when(false, 1, .d)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-a-when-alternative-under-partial	verdict	x: *{a: 1, b: when(false, 1, .d)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-a-nof-branch	verdict	x: *{a: 1, b: nof(1, .d)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-a-nof-branch-with-no-fill	verdict	x: *{a: 1, b: nof(1, .d)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-a-nof-branch-under-partial	verdict	x: *{a: 1, b: nof(1, .d)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-a-nof-count	verdict	x: *{a: 1, b: nof(.d, 1)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-a-nof-count-with-no-fill	verdict	x: *{a: 1, b: nof(.d, 1)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-a-nof-count-under-partial	verdict	x: *{a: 1, b: nof(.d, 1)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-a-must-condition	verdict	x: *{a: 1, b: must(.d, "m")}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-a-must-condition-with-no-fill	verdict	x: *{a: 1, b: must(.d, "m")}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-a-must-condition-under-partial	verdict	x: *{a: 1, b: must(.d, "m")}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-len	verdict	x: *{a: 1, b: len(.d)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-len-with-no-fill	verdict	x: *{a: 1, b: len(.d)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-len-under-partial	verdict	x: *{a: 1, b: len(.d)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-contains	verdict	x: *{a: 1, b: contains(.d)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-contains-with-no-fill	verdict	x: *{a: 1, b: contains(.d)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-contains-under-partial	verdict	x: *{a: 1, b: contains(.d)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-rest	verdict	x: *{a: 1, b: rest(.d)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-rest-with-no-fill	verdict	x: *{a: 1, b: rest(.d)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-rest-under-partial	verdict	x: *{a: 1, b: rest(.d)}	{}	{"verdict":"error","opts":{"partial":true}}
+vet-lone-stray-path-under-a-bound	verdict	x: *{a: 1, b: min(.d)}	{}	{"verdict":"error"}
+vet-lone-stray-path-under-a-bound-with-no-fill	verdict	x: *{a: 1, b: min(.d)}	{}	{"verdict":"error","opts":{"noFill":true}}
+vet-lone-stray-path-under-a-bound-under-partial	verdict	x: *{a: 1, b: min(.d)}	{}	{"verdict":"error","opts":{"partial":true}}

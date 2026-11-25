@@ -23,12 +23,15 @@ function prefInnerPeg(v) {
     return out;
 }
 // An arm's path is the arm's to fail, and maybe() takes a path that names nothing.
-function strayRef(v, which) {
+// A check's pending argument reads at the check's own place, wherever it is held.
+function strayRef(v, which, at) {
     const n = prefInnerPeg(v);
+    const args = n.pending?.args;
     const kids = true === n.isBag || true === n.isConjunct || true === n.isOp ||
-        (true === n.isFunc && true !== n.isMaybeFunc) ? Object.values(n.peg) : [];
-    return true === n.isRef ? (which(n) ? n : undefined) :
-        kids.reduce((found, kid) => found ?? strayRef(kid, which), undefined);
+        (true === n.isFunc && true !== n.isMaybeFunc) ? Object.values(n.peg) : (args ?? []);
+    return true === n.isRef ? (which(n, at ?? n.path) ? n : undefined) :
+        kids.reduce((found, kid) => found ??
+            strayRef(kid, which, undefined === args ? undefined : n.path), undefined);
 }
 // A step to a member a settled value lacks, or into a nested default; one still waiting proves nothing.
 function namesNothing(v, parts) {
@@ -110,8 +113,8 @@ class PrefVal extends FeatureVal_1.FeatureVal {
     }
     // Ruling 53: a path into the default's own place that names no member there, once all has settled.
     stray(ctx, v) {
-        const stray = strayRef(v, (ref) => {
-            const to = [].concat(ref.plainRefPath());
+        const stray = strayRef(v, (ref, at) => {
+            const to = [].concat(ref.plainRefPath(at));
             return this.path.every((p, i) => p === to[i]) && namesNothing(v, to.slice(this.path.length));
         });
         return undefined === stray ? undefined : (0, err_1.makeNilErr)(ctx, 'no_path', stray);

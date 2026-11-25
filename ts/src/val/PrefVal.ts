@@ -42,12 +42,15 @@ function prefInnerPeg(v: Val): Val {
 
 
 // An arm's path is the arm's to fail, and maybe() takes a path that names nothing.
-function strayRef(v: Val, which: (ref: any) => boolean): any {
+// A check's pending argument reads at the check's own place, wherever it is held.
+function strayRef(v: Val, which: (ref: any, at: any[]) => boolean, at?: any[]): any {
   const n: any = prefInnerPeg(v)
+  const args: any[] | undefined = n.pending?.args
   const kids: any[] = true === n.isBag || true === n.isConjunct || true === n.isOp ||
-    (true === n.isFunc && true !== n.isMaybeFunc) ? Object.values(n.peg) : []
-  return true === n.isRef ? (which(n) ? n : undefined) :
-    kids.reduce((found, kid) => found ?? strayRef(kid, which), undefined)
+    (true === n.isFunc && true !== n.isMaybeFunc) ? Object.values(n.peg) : (args ?? [])
+  return true === n.isRef ? (which(n, at ?? n.path) ? n : undefined) :
+    kids.reduce((found, kid) => found ??
+      strayRef(kid, which, undefined === args ? undefined : n.path), undefined)
 }
 
 
@@ -165,8 +168,8 @@ class PrefVal extends FeatureVal {
 
   // Ruling 53: a path into the default's own place that names no member there, once all has settled.
   private stray(ctx: AontuContext, v: Val): Val | undefined {
-    const stray = strayRef(v, (ref: any) => {
-      const to = ([] as any[]).concat(ref.plainRefPath())
+    const stray = strayRef(v, (ref: any, at: any[]) => {
+      const to = ([] as any[]).concat(ref.plainRefPath(at))
       return this.path.every((p, i) => p === to[i]) && namesNothing(v, to.slice(this.path.length))
     })
     return undefined === stray ? undefined : makeNilErr(ctx, 'no_path', stray)
