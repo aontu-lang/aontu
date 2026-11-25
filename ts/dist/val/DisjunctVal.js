@@ -145,9 +145,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         // Remove duplicates, and normalize
         if (1 < oval.length) {
             for (let vI = 0; vI < oval.length; vI++) {
-                if (oval[vI].isDisjunct) {
-                    oval.splice(vI, 1, ...oval[vI].peg);
-                }
+                oval.splice(vI, 1, ...flatArms(oval[vI]));
             }
             dedupArms(ctx, oval, false);
         }
@@ -187,7 +185,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             rctx._trialMode = true;
             const read = (0, unify_1.unite)(rctx, v, (0, top_1.top)(), 'dj-read');
             if (0 === rctx.err.length && !read.isNil) {
-                arms.push(...(true === read.isDisjunct ? read.peg : [read]));
+                arms.push(...flatArms(read));
             }
         }
         this.peg = arms;
@@ -288,6 +286,9 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.DisjunctVal = DisjunctVal;
+function flatArms(v) {
+    return true === v.isDisjunct ? v.peg : [v];
+}
 function pends(v) {
     return true !== v.done && (true === v.isRef || true === v.isFunc || true === v.isConjunct);
 }

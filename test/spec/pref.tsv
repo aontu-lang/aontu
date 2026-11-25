@@ -356,3 +356,7 @@ arm-map-default-own	gen	d: *{a: 1}\nx: $.d | "a"	{"d":{"a":1},"x":{"a":1}}
 arm-in-list	errc	x: [pref(1) | "a"] & [3]	empty
 arm-in-template	errc	x: {&: pref(key(0)) | "a"}\nx: b: "q"	empty
 arm-in-template-key	gen	x: {&: pref(key(0)) | "a"}\nx: b: "b"	{"x":{"b":"b"}}
+arm-late-path-to-a-disjunction	gen	x: ($.d | "a") & 2\nd: $.e\ne: *1 | 2	{"d":1,"e":1,"x":2}
+arm-late-path-to-a-disjunction-bounds	errc	x: ($.d | "a") & 3\nd: $.e\ne: *1 | 2	empty
+arm-copy-of-a-disjunction	gen	d: *1 | 2\nx: (copy($.d) | "a") & 2	{"d":1,"x":2}
+arm-match-result-a-disjunction	gen	x: (match(1, 1, 3 | 2) | "a") & 2	{"x":2}

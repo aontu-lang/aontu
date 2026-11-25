@@ -198,9 +198,7 @@ class DisjunctVal extends JunctionVal {
     // Remove duplicates, and normalize
     if (1 < oval.length) {
       for (let vI = 0; vI < oval.length; vI++) {
-        if (oval[vI].isDisjunct) {
-          oval.splice(vI, 1, ...oval[vI].peg)
-        }
+        oval.splice(vI, 1, ...flatArms(oval[vI]))
       }
 
       dedupArms(ctx, oval, false)
@@ -249,7 +247,7 @@ class DisjunctVal extends JunctionVal {
       rctx._trialMode = true
       const read = unite(rctx, v, top(), 'dj-read')
       if (0 === rctx.err.length && !read.isNil) {
-        arms.push(...(true === read.isDisjunct ? read.peg : [read]))
+        arms.push(...flatArms(read))
       }
     }
     this.peg = arms
@@ -370,6 +368,11 @@ class DisjunctVal extends JunctionVal {
 
     return super.gen(ctx)
   }
+}
+
+
+function flatArms(v: any): Val[] {
+  return true === v.isDisjunct ? v.peg : [v]
 }
 
 

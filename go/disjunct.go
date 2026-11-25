@@ -151,11 +151,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		if v == nil {
 			continue
 		}
-		if dj, ok := v.(*DisjunctVal); ok {
-			res = append(res, dj.peg...)
-		} else {
-			res = append(res, v)
-		}
+		res = append(res, flatArms(v)...)
 	}
 	res = dedup(res, false)
 
@@ -246,16 +242,19 @@ func (d *DisjunctVal) readArms(peer Val, ctx *Ctx) bool {
 		if failed {
 			continue
 		}
-		if dj, ok := r.(*DisjunctVal); ok {
-			arms = append(arms, dj.peg...)
-		} else {
-			arms = append(arms, r)
-		}
+		arms = append(arms, flatArms(r)...)
 	}
 	ctx.slot = slot
 	d.peg = arms
 	d.prefsRanked = false
 	return !slices.ContainsFunc(arms, pends)
+}
+
+func flatArms(v Val) []Val {
+	if dj, ok := v.(*DisjunctVal); ok {
+		return dj.peg
+	}
+	return []Val{v}
 }
 
 func pends(v Val) bool {
