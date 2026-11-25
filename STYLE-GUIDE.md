@@ -23,9 +23,7 @@ reason:
    quotes, and the parenthesis ration.
 2. The [Google developer documentation style
    guide](https://developers.google.com/style) for everything this file
-   does not cover: second person, present tense, active voice,
-   sentence-style capitalisation in headings, serial commas, one idea
-   per sentence.
+   does not cover.
 3. [Vale](https://vale.sh) defaults, which mostly means spelling.
 
 ## How this guide is enforced
@@ -358,6 +356,7 @@ as Vale rather than deferring to it.
 - Restating the question before answering it.
 - A closing one-liner that restates the thesis.
 - Stacked short declaratives (four or more in a row).
+- A second claim carried by a phrase in a sentence about something else.
 - Superlative self-ranking ("the most important thing", "the part that
   matters most").
 - A list of `**Bold term**: explanation` pairs, which is the single most
@@ -390,6 +389,195 @@ State the input, the check, the result, and any limit on that result.
   `Google.Spelling` is switched off in `.vale.ini` for it. Actual
   misspellings are still caught: `Vale.Spelling` runs at error against
   `accept.txt`, which names 223 domain terms.
+
+## Writing rules
+
+### Sentences
+
+- Use the active voice. Use the passive only when the actor is unknown
+  or irrelevant.
+- Use the present tense: the command "writes", not "will write".
+- Write instructions in the imperative: "Run", "Open", "Set".
+- Make one claim per sentence, and keep sentences short enough to read
+  once.
+- A phrase that brings in a new fact, such as `into one tree` or
+  `in under a second`, is a second claim, however short. So is a
+  relative clause, an appositive or a parenthesis that adds a fact. Give
+  it its own sentence.
+- To find a hidden claim, delete each phrase in turn. If what is lost is
+  a new fact rather than part of the claim's explanation, it needs its
+  own sentence.
+- Give a list a sentence of its own.
+- Lengthen a sentence only by explaining its claim, with a reason, an
+  example or a consequence. Mend a run of short sentences the same way,
+  never by merging claims.
+- Allow a little redundancy, which aids comprehension. Repeat a key noun
+  rather than use a distant pronoun or a synonym, and restate a key fact
+  in a section a reader may reach directly. A closing recap of the whole
+  page is still filler.
+- Keep paragraphs short, each on one subject stated in its first
+  sentence.
+- Put the key point first in the page, the paragraph and the heading.
+  Move edge cases later, or behind a link.
+- End a sentence on the words that matter most to its claim. Never
+  append a second claim to take that place.
+- Keep related words together: a subject near its verb, and a modifier
+  next to the word it modifies.
+- Avoid a run of sentences that each join two clauses with `and`, `but`
+  or `which`.
+- Keep a summary in one tense.
+- Say what to do rather than what to avoid.
+- Follow "this" with a noun, and give "it" one clear antecedent.
+- Keep list items and headings grammatically parallel.
+- Hedge only real uncertainty, and name it.
+- Use common contractions such as `it's` and `don't`, not unusual ones
+  such as `would've`.
+
+### Words
+
+- Be specific. Name the command, the file, the number and its unit, and
+  cut `very`, `really` and `quite`.
+- Prefer the short, common word: `use`, not `utilise`; `start`, not
+  `commence`.
+- Cut words that carry nothing: `in order to` is `to`.
+- Use the plain word, or define the technical term at its first use.
+- Use one term for one concept, throughout.
+- Spell product and project names as their owners do, and never use one
+  as a verb, a plural or a possessive.
+- Never call a task easy, simple or quick, and drop `just`, `simply`,
+  `obviously` and `of course`.
+- Claim only what the page shows: no superlatives and no promises.
+- Use `must` for a requirement, `can` for an ability and `may` only for
+  permission, and give every `should` its reason.
+- Write a verb as two words and its noun as one: `set up` and `setup`,
+  `log in` and `login`, `back up` and `backup`.
+- Write `for example`, `that is` and `and so on`, not `e.g.`, `i.e.` and
+  `etc.`
+- Write `and` or `or`, not a slash, and never `and/or`. In prose, write
+  `and`, not `&` or `+`.
+- Leave `please` and `thank you` out of instructions.
+- Say what software does, not what it wants, thinks or knows.
+- Let the verb carry the action: `decide`, not `make a decision`.
+- Prefer a one-word verb to a phrasal verb: `remove`, not `get rid of`.
+- Leave out idioms, slang and cultural references.
+
+### Mechanics
+
+- Capitalise proper nouns and product names, and nothing else.
+- Spell out an abbreviation at its first use, unless the short form is
+  better known, as `API` is.
+- Write numbers from zero to nine as words and from 10 as numerals. Use
+  numerals for every measurement, version, size and value the reader
+  types, and never open a sentence with one.
+- Write dates as `4 November 2026`, or as `2026-11-04` where a program
+  reads them, and never as `11/04/2026`.
+- Put a space between a number and its unit (`10 GB`), non-breaking
+  where the format allows, and none before `%`.
+- Use the serial comma: `red, green, and blue`.
+- Hyphenate a compound modifier before its noun (`a well-known tool`)
+  but not after it, and never after an adverb ending in `-ly`.
+- Prefer two sentences to a semicolon.
+- Never join two independent clauses with a comma alone. Use a full
+  stop, or a conjunction after the comma.
+- Make an opening phrase refer to the subject that follows it:
+  `After you install the package, the server restarts`, not
+  `After installing the package, the server restarts`.
+- Give each kind of element one format, and keep it everywhere.
+- Keep emphasis rare: no capitals or underlining, and bold only for
+  interface labels and the opening sentence of a rule.
+
+### Readers
+
+- Write for a named reader: what they already know, and what they came
+  to do.
+- Write for readers whose first language is not English, and for
+  translation: literal phrasing, whole sentences, and the small words
+  that remove ambiguity (`verify that the file exists`).
+- Organise a page around the reader's task, not the product's
+  structure.
+- Give the reason for a step when it changes what the reader does.
+- Never blame the reader. Say what happened and how to put it right.
+- Write inclusively: the singular `they`, gender-neutral words
+  (`staff hours`, not `man-hours`), and no assumptions about the
+  reader.
+- Describe people in their own terms, and mention age, disability,
+  gender or ethnicity only where it matters.
+- Use no disability as a figure of speech, such as `crazy`, `lame` or
+  `blind to`.
+- Write `allowlist`, `denylist`, `primary`, `replica` and `main`, and
+  show a legacy term only in code that requires it.
+- Prefer a neutral verb to a violent one, `stop` rather than `kill`,
+  except when naming a command.
+- Never identify something by colour, shape or position alone.
+- Never make `above` or `below` the only clue to a location: name or
+  link the thing.
+- Draw examples from more than one culture.
+- Document a way to complete each task with the keyboard alone.
+- Caption or transcribe video and audio.
+
+### Structure
+
+- Make a heading say what its section answers or does, key word first.
+- Nest headings in order, and never skip a level.
+- Title a page with its subject or task, in the reader's words.
+- Introduce a list with a sentence ending in a colon. Give it at least
+  two items, capitalise each, and end them with full stops when any
+  item is a sentence.
+- Number a list when order matters, and bullet it otherwise.
+- Use a table for items compared on the same attributes, with a header
+  row and short cells, and never for layout.
+- Keep notes and warnings for what the reader must not miss, never
+  stack them, and put a warning before its step.
+
+### Procedures
+
+- Introduce a procedure with a heading or sentence that names the task.
+- State the prerequisites before the first step.
+- Number the steps, one action to a step.
+- Put the goal or location before the action: "To build the site, run
+  `make build`".
+- Start an optional step with `Optional:`.
+- Show what a step produces where the reader can check it.
+
+### Links and figures
+
+- Make link text say where it goes, never `here` or `click here`.
+- Phrase a cross-reference as `For more information, see` and the
+  linked page title.
+- Prefer link text to a bare URL, and put a URL that must show in code
+  font.
+- Link the primary source, and say when a link leaves the documentation
+  or downloads a file.
+- Cite the source of any claim the page does not establish.
+- Use a figure only where it shows what prose cannot, and keep the text
+  complete without it.
+- Caption a figure with what it shows, and label its parts.
+- Crop a screenshot to what matters, and keep personal data out of it.
+
+### Interfaces and code
+
+- Name an interface element exactly as it appears, in bold.
+- Use the verb for the input: `click`, `tap`, `press` or `type`, and
+  `select` for choosing from a set.
+- Name an element's type only when its label is ambiguous: "Click
+  **Save**", not "Click the **Save** button".
+- Write a menu path as **File** > **Save**.
+- Name keys as printed, joined by `+`: `Ctrl+C`.
+- Make an error message say what went wrong and what to do next,
+  without blame or a guessed cause.
+- Start a button or command label with a verb.
+- Build a message from whole sentences, never from joined fragments.
+- Put in code font anything typed or printed: commands, options, paths,
+  file names, values and identifiers.
+- Mark placeholders one way, such as `<name>`, and say what replaces
+  them at first use.
+- Keep a command apart from its output.
+- Use reserved example values (`example.com`, `192.0.2.0/24`,
+  `2001:db8::/32`) and fictional names, never real personal data or
+  working keys.
+- State the versions a page assumes, where the result depends on them.
+- State a feature's support status, such as experimental or deprecated,
+  before describing it, and never describe what has not shipped.
 
 ## Code snippets: every one is tested
 
