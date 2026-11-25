@@ -2209,6 +2209,8 @@ the ADRs need to be completely rewritten; most of them are syntax directives - t
 
 ```text
 1. yes, 2. yes, 3. detail, 4. no; update the DEV-PROCESS in rjrodger/agent-info to include the ADR rules; this machine has git and gh logged in, use them for workflow changes; don't wait for aontu release, use local
+```
+
 ## 2026-11-25 16:02:44 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
 
 ```text
