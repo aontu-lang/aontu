@@ -9,8 +9,9 @@ quietly reverse. How one part works lives in the code and in
 
 - **Only the maintainer adds an entry.** An agent may propose one, in a
   pull request or an issue, and never writes one here.
-- **An entry is at most 200 words.** It states the decision, why it
-  holds, and what it costs or how it is enforced, in the present tense.
+- **An entry is at most 200 words, its heading included.** It states
+  the decision, why it holds, and what it costs or how it is enforced,
+  in the present tense.
 - **An entry has no history.** No status, no dates, no issue or pull
   request numbers, no amendment and no superseding. A decision that
   stops holding is rewritten or deleted, and version control keeps what
@@ -18,24 +19,22 @@ quietly reverse. How one part works lives in the code and in
 
 | ADR | Decision |
 |-----|----------|
-| [ADR-001](#adr-001--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it |
-| [ADR-002](#adr-002--two-implementations-held-at-parity-by-shared-rows) | Two implementations, held at parity by shared rows |
-| [ADR-003](#adr-003--coverage-stays-at-100--in-both-implementations) | Coverage stays at 100 % in both implementations |
-| [ADR-004](#adr-004--one-version-names-a-release-of-both-ports) | One version names a release of both ports |
-| [ADR-005](#adr-005--aontu-owns-the-meaning-of-what-it-reads) | aontu owns the meaning of what it reads |
-| [ADR-006](#adr-006--the-tree-is-user-space) | The tree is user space |
-| [ADR-007](#adr-007--language-supplied-models-are-aontu-modules) | Language-supplied models are `aontu:` modules |
-| [ADR-008](#adr-008--generated-output-is-a-component-tree-and-aontu-knows-no-target-language) | Generated output is a component tree, and aontu knows no target language |
-| [ADR-009](#adr-009--json-schema-crosses-by-rewrite-and-comes-back-from-its-own-export) | JSON Schema crosses by rewrite, and comes back from its own export |
-| [ADR-010](#adr-010--the-project-operates-a-module-repository-and-no-build-needs-it) | The project operates a module repository, and no build needs it |
-| [ADR-011](#adr-011--a-package-name-is-a-proved-namespace-and-compatibility-is-computed) | A package name is a proved namespace, and compatibility is computed |
-| [ADR-012](#adr-012--a-forge-token-authorises-a-publish-under-a-proof-contract-the-project-owns) | A forge token authorises a publish, under a proof contract the project owns |
-| [ADR-013](#adr-013--a-lock-pins-a-packages-bytes-and-its-meaning) | A lock pins a package's bytes and its meaning |
-| [ADR-014](#adr-014--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it |
+| [ADR-101](#adr-101--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it |
+| [ADR-102](#adr-102--two-implementations-held-at-parity-by-shared-rows) | Two implementations, held at parity by shared rows |
+| [ADR-103](#adr-103--coverage-stays-at-100--in-both-implementations) | Coverage stays at 100 % in both implementations |
+| [ADR-104](#adr-104--one-version-names-a-release-of-both-ports) | One version names a release of both ports |
+| [ADR-105](#adr-105--aontu-owns-the-meaning-of-what-it-reads) | aontu owns the meaning of what it reads |
+| [ADR-106](#adr-106--the-tree-is-user-space) | The tree is user space |
+| [ADR-107](#adr-107--language-supplied-models-are-aontu-modules) | Language-supplied models are `aontu:` modules |
+| [ADR-108](#adr-108--generated-output-is-a-component-tree-and-aontu-knows-no-target-language) | Generated output is a component tree, and aontu knows no target language |
+| [ADR-109](#adr-109--json-schema-crosses-by-rewrite-and-comes-back-from-its-own-export) | JSON Schema crosses by rewrite, and comes back from its own export |
+| [ADR-110](#adr-110--the-project-operates-a-module-repository-and-no-build-needs-it) | The project operates a module repository, and no build needs it |
+| [ADR-111](#adr-111--a-package-name-is-a-proved-namespace-and-compatibility-is-computed) | A package name is a proved namespace, and compatibility is computed |
+| [ADR-112](#adr-112--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it |
 
 ---
 
-## ADR-001 — The language is defined in Lean, and the ports implement it
+## ADR-101 — The language is defined in Lean, and the ports implement it
 
 The language is defined under `spec/`, in Lean 4, as relations:
 `Admits`, `Output` and `Le` say what the right answer is, not how to
@@ -58,7 +57,7 @@ written in prose cannot be checked.
 A case the ports answer otherwise is a row of `spec/ledger.tsv` naming
 which side moves; a generated row is never edited to match an engine.
 
-## ADR-002 — Two implementations, held at parity by shared rows
+## ADR-102 — Two implementations, held at parity by shared rows
 
 aontu ships a TypeScript and a Go implementation, at parity for every
 behaviour either exposes: verdicts, output, error codes and messages,
@@ -82,7 +81,7 @@ or, when structural, in `DIVERGENCE.md` with `ts/test/parity.test.ts`,
 and is removed when fixed; an unregistered divergence is a defect. A
 behaviour is shared only once both ports pass it.
 
-## ADR-003 — Coverage stays at 100 % in both implementations
+## ADR-103 — Coverage stays at 100 % in both implementations
 
 Both implementations hold 100 % coverage: Go statements, and TypeScript
 lines, branches and functions. A gap is closed by a shared row first, by
@@ -98,7 +97,7 @@ nothing checks.
 **Cost and enforcement:** every branch needs a reason to exist and a
 test that reaches it. `make cov` fails under 100 %, in the daily CI.
 
-## ADR-004 — One version names a release of both ports
+## ADR-104 — One version names a release of both ports
 
 The npm package and the Go module share one version series. Every
 release sets `ts/package.json` and `go/aontu.go` to the same number, and
@@ -112,7 +111,7 @@ and 1 only, so a major beyond 1 changes the import path of every Go
 consumer; that cost is accepted. `make publish` refuses a `V` and a
 `GOV` that disagree, since both tags are immutable once pushed.
 
-## ADR-005 — aontu owns the meaning of what it reads
+## ADR-105 — aontu owns the meaning of what it reads
 
 Where a host library would supply meaning, aontu defines it and runs it
 itself. It matches `re()` with its own engine, over ECMA-262's `u`-mode
@@ -133,7 +132,7 @@ Unicode tables, grammar runner and layouts. Generated corpora under
 `test/spec/files/` pin both ports' answers, and both ports read the
 vendored test262 and RE2 vectors.
 
-## ADR-006 — The tree is user space
+## ADR-106 — The tree is user space
 
 No plain, spellable key carries a meaning that the engine or a verb
 assigns, at any depth, the root included, and no location singles out
@@ -154,7 +153,7 @@ author who wants that name.
 spelling rather than a convenient key. No mechanical gate can see that
 a verb reads a plain key, so review carries this entry.
 
-## ADR-007 — Language-supplied models are `aontu:` modules
+## ADR-107 — Language-supplied models are `aontu:` modules
 
 Every model the language supplies is a file under `aontu/` at the
 repository root, named by its path under the `aontu:` scheme:
@@ -170,11 +169,11 @@ string inside each port.
 
 **Cost and enforcement:** a document that includes a bundled model
 cannot use the key `aontu` for itself. Since a model is opted into by
-inclusion, ADR-006 holds. Each port asserts every inlined model
+inclusion, ADR-106 holds. Each port asserts every inlined model
 identical to its file, and asserts that its table lists exactly the
 files under `aontu/`.
 
-## ADR-008 — Generated output is a component tree, and aontu knows no target language
+## ADR-108 — Generated output is a component tree, and aontu knows no target language
 
 A document that generates files builds a component tree, of `project`,
 `folder`, `file`, `content` and their peers, and nothing else. aontu
@@ -196,7 +195,7 @@ resolves one runtime, and the Go module requires a minimum version. A
 change that adds a language table or a second output vocabulary to
 either port breaches this entry.
 
-## ADR-009 — JSON Schema crosses by rewrite, and comes back from its own export
+## ADR-109 — JSON Schema crosses by rewrite, and comes back from its own export
 
 JSON Schema is not a concept of the language. Import rewrites a schema
 into aontu text, in the form `aontu fmt` writes, and export writes aontu
@@ -218,7 +217,7 @@ ledger naming why. The admission trial must agree with
 `vet --no-fill --exact-numbers` on every instance of the suite, and
 `spec/forms.tsv` holds the importer to the definition's forms.
 
-## ADR-010 — The project operates a module repository, and no build needs it
+## ADR-110 — The project operates a module repository, and no build needs it
 
 The project stores module bytes and operates a module repository. It
 operates no transparency log; attestation is federated. Its constraints
@@ -242,9 +241,9 @@ cannot break a build and leaving it costs nothing.
 
 **Cost and enforcement:** the project carries a service's availability
 and cost. The client half, pin and proof checking, is in both ports
-under ADR-002.
+under ADR-102.
 
-## ADR-011 — A package name is a proved namespace, and compatibility is computed
+## ADR-111 — A package name is a proved namespace, and compatibility is computed
 
 A package path is `<domain>/<path>`, a name and never a fetch
 instruction: the bytes always come from the repository. A publisher
@@ -268,48 +267,7 @@ identifiers it never reuses is admissible. Two versions of one package
 coexist only under an alias the consumer declares, and a local import
 carries `./`, `../` or `/`.
 
-## ADR-012 — A forge token authorises a publish, under a proof contract the project owns
-
-The write path authorises a publish from the forge's OIDC token,
-verified against the forge's published keys, and decides the namespace,
-identifier pair and trigger from it. What a client verifies on first
-acquisition is stated in the project's own terms: a signed manifest of
-the archive digest, the file list and each module's canon hash; a
-signer the client's trust configuration accepts for that name; and,
-where required, an inclusion proof in a `tlog-tiles` log. Sigstore is
-one provider of that proof, and a signature by a named key is another.
-
-**Why:** a third party's certificate issuer must not decide who may
-publish, and a provider's terms, formats or availability must not
-change what a client checks.
-
-**Cost and enforcement:** the project maintains a provider seam, and
-verifiers held to differential vectors from a pinned reference. Leaving
-a provider is a swap under the same contract, and neither builds nor
-the verification of stored proofs stop with it.
-
-## ADR-013 — A lock pins a package's bytes and its meaning
-
-A module is imported and a package is published, and the vocabulary
-keeps the two apart. A project's package file is `pkg.aontu`, and its
-lockfile `aontu_meta/pkg-lock.aontu`. A lock entry pins three things:
-the canon hash of the module evaluated standalone, the digest of the
-canonical archive of its tree, and, where it came from a repository,
-the digest of the signed manifest. The canonical archive is a
-deterministic zip, so one tree has one digest in both ports, and an
-archive that is not canonical is refused before it is unpacked.
-Verification checks bytes before meaning.
-
-**Why:** a byte pin alone misses a change of meaning, and a meaning pin
-alone misses tampered files. Together they let a vendored or mirrored
-tree be checked offline, and keep two packages that mean the same thing
-out of one cache entry.
-
-**Cost and enforcement:** a change to the canonical form invalidates
-canon pins, which `aontu pkg refreeze` recomputes. A client that checks
-one pin only is a defect.
-
-## ADR-014 — The site renders the documentation; it does not author it
+## ADR-112 — The site renders the documentation; it does not author it
 
 `docs/*.md` in this repository is synced into the site repository and
 rendered there. A page that states what the engine does is written
