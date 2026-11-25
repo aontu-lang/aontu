@@ -2108,3 +2108,46 @@ Merge and continue
 ```text
 Merge; confirm you are following all adrs in particular canon forms match builtins used (even if there are internal "rewrites" that reuse other builtins). Report on overall progress then continue work
 ```
+
+## 2026-11-24 23:55:35 UTC · Claude Code · session_01MCLq6R4ereo5mRP2RVn3Aj
+
+````text
+You are fixing a bug in the aontu language (repo `aontu-lang/aontu`, local checkout `~/Projects/aontu-lang/aontu`, on `main`, clean, about 980 commits behind `origin/main`). The user ([redacted: name], who owns these repos) has explicitly asked for real bugs in the Voxgig toolchain to be fixed locally and submitted as pull requests. Read `AGENTS.md` and `CONTRIBUTING.md` in that repo first and follow them (TS is under `ts/`, a Go port under `go/`; `ts/dist` and `ts/dist-test` are committed and must be rebuilt; there is a comment gate and a prose gate).
+
+## The bug
+
+A large set of sibling top-level statements that unify into one map fails with a false cycle error. Found through `@voxgig/apidef` 8.32.4 (which depended on aontu 0.76.3), building an SDK model for a big API whose guide file had ~1,300 lines of this form:
+
+```
+guide: entity: admin: active: false
+guide: entity: agent: path: "/api/v1/agent/chat": active: false
+```
+
+The build failed with:
+
+```
+AontuError: [aontu/unify_cycle]: Cannot unify values at path $.guide.entity.agent_marketplace
+Circular reference detected during unification.
+```
+
+There is no reference anywhere in that guide. Bisection (done earlier, against the same large base-guide file each time) showed:
+- 358 entity switch-offs alone build; 413 path switch-offs alone build.
+- Any mix of 498 statements or fewer builds; 505 or more fails. The entity named in the error moves with the mix.
+- The same lines written as one nested statement `guide: entity: { admin: active: false ... }` build fine.
+
+So the trigger is the COUNT of sibling top-level conjuncts landing in one map, not any particular line. A hypothesis worth testing first: a limit on unification passes or on conjunct count that is reported as a cycle.
+
+Real input files to reproduce with (read-only, do not modify them): the nested guide that works is `~/Projects/voxgig-sdk/composal-sdk/.sdk/model/guide/guide.aontu` and its base guide `~/Projects/voxgig-sdk/composal-sdk/.sdk/model/guide/base-guide.aontu`; the guide includes `@voxgig/apidef/model/guide.aontu` (available at `~/Projects/voxgig/apidef/model/guide.aontu`). You can flatten the nested block back into one-line statements to reproduce. But first try to build a small synthetic reproduction with no apidef dependency at all (for example a base map of a few hundred entries plus N one-line `a: b: <key>: x: false` statements), and find the threshold.
+
+## What to do
+
+1. `git fetch` and update `main` (fast-forward); confirm the bug still reproduces on current `main` before anything else. If current main no longer reproduces it, find the commit that fixed it (or note the version), stop, and report that, with no code change.
+2. If it reproduces: find the root cause in the unifier (TS first, `ts/`), fix it properly (not by raising a constant unless the constant is genuinely the design and the error message is what's wrong; if a limit is intentional, the fix is at least to report it truthfully instead of as a cycle). Mirror the fix in the Go port if the Go port has the same logic (AGENTS.md says how parity is kept).
+3. Add a regression test reproducing it (the synthetic case), in whatever test form the repo uses (check for shared fixtures run by both ports).
+4. Run the repo's gates as AGENTS.md describes (`make build`, `make test`, the comment gate). Keep heavy runs few: another session on this machine is running timing-sensitive test suites in other repos, so run each full gate once you believe the change is done, not repeatedly in parallel.
+5. Create a branch, commit (clear descriptive message; end it with the two lines `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_01MCLq6R4ereo5mRP2RVn3Aj` unless AGENTS.md says not to put tool identifiers in commits, in which case omit them), push the branch, and open a PR against `main` with `gh pr create`. The PR body should state the problem, the root cause, the fix, and the tests run with results, and end with the line `🤖 Generated with [Claude Code](https://claude.com/claude-code)` (again unless AGENTS.md forbids tool identifiers). Do NOT release or publish anything, do not push to `main`, do not merge.
+
+## Report back
+
+Concisely: whether it reproduced on current main and at what threshold; the root cause (file and function); the fix; tests added; gate results (exact pass/fail counts); the PR URL. If you could not find the root cause, say what you ruled out and stop without a PR.
+````
