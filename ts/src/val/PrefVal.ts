@@ -29,6 +29,7 @@ import { superOf } from './SuperFuncVal'
 import { meetRanked, unread } from './DisjunctVal'
 import { ConjunctVal } from './ConjunctVal'
 import { genHeld } from '../genrec'
+import { member } from './RefVal'
 
 
 function prefInnerPeg(v: Val): Val {
@@ -37,6 +38,33 @@ function prefInnerPeg(v: Val): Val {
     out = out.peg
   }
   return out
+}
+
+
+// An arm's path is the arm's to fail, and maybe() takes a path that names nothing.
+function strayRef(v: Val, which: (ref: any) => boolean): any {
+  const n: any = prefInnerPeg(v)
+  const kids: any[] = true === n.isBag || true === n.isConjunct || true === n.isOp ||
+    (true === n.isFunc && true !== n.isMaybeFunc) ? Object.values(n.peg) : []
+  return true === n.isRef ? (which(n) ? n : undefined) :
+    kids.reduce((found, kid) => found ?? strayRef(kid, which), undefined)
+}
+
+
+// A step to a member a settled value lacks, or into a nested default; one still waiting proves nothing.
+function namesNothing(v: Val, parts: any[]): boolean {
+  let node: any = prefInnerPeg(v)
+  for (const part of parts) {
+    if (true !== node.isBag) {
+      return node.done
+    }
+    const kid = member(node, part)
+    if (undefined === kid) {
+      return 'string' === typeof part
+    }
+    node = kid
+  }
+  return false
 }
 
 
@@ -132,6 +160,16 @@ class PrefVal extends FeatureVal {
       const to = ([] as any[]).concat(ref.plainRefPath())
       return !this.path.every((p, i) => p === to[i])
     })
+  }
+
+
+  // Ruling 53: a path into the default's own place that names no member there, once all has settled.
+  private stray(ctx: AontuContext, v: Val): Val | undefined {
+    const stray = strayRef(v, (ref: any) => {
+      const to = ([] as any[]).concat(ref.plainRefPath())
+      return this.path.every((p, i) => p === to[i]) && namesNothing(v, to.slice(this.path.length))
+    })
+    return undefined === stray ? undefined : makeNilErr(ctx, 'no_path', stray)
   }
 
 
@@ -271,7 +309,8 @@ class PrefVal extends FeatureVal {
           this.superpeg.clone(ctx), peer)
         const gate = undefined !== space ? space : this.superpeg
 
-        out = this.stand(met, gate, ctx)
+        out = (!met.done && true === ctx.settle ? this.stray(ctx, met) : undefined) ??
+          this.stand(met, gate, ctx)
 
         why += 'stands'
         explainClose(te, out)
@@ -302,6 +341,9 @@ class PrefVal extends FeatureVal {
     // value still waits, as a reference may: until the settling pass.
     const waits = peer.isTop ? !this.peg.done :
       true === (out as any).isPref && !prefInnerPeg(out).done
+    if (waits && true === ctx.settle) {
+      out = this.stray(ctx, prefInnerPeg(peer.isTop ? this : out)) ?? out
+    }
     out.dc = waits && true !== ctx.settle ? this.dc + 1 : DONE
 
 

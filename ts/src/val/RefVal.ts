@@ -940,11 +940,12 @@ class RefVal extends FeatureVal {
     ].filter(p => '' != p).join(',')
   }
 
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 
 
 export {
   dropPendingMarkWrappers,
+  member,
   pendingMarkWrapper,
   RefVal,
 }

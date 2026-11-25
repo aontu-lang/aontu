@@ -67,8 +67,10 @@ class MaybeFuncVal extends FuncBaseVal {
     const out = unite(actx, args[0], top(), 'maybe')
 
     // ONLY a missing referent. A conflict inside the argument stays
-    // the document's error.
-    if (out.isNil && 'reference' === (out as any).class) {
+    // the document's error, and so does a path deeper in it that names nothing.
+    const at = args[0].path
+    const inside = at.length < out.path.length && at.every((p, i) => p === out.path[i])
+    if (out.isNil && 'reference' === (out as any).class && !inside) {
       return this.place(new AbsentVal({}, ctx))
     }
 

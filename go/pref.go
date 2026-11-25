@@ -86,6 +86,73 @@ func (p *PrefVal) waitsForPath(ctx *Ctx) bool {
 	})
 }
 
+// Ruling 53: a path into the default's own place that names no member there, once all has settled.
+func (p *PrefVal) stray(ctx *Ctx, v Val) Val {
+	stray := strayRef(v, func(r *RefVal) bool {
+		to := r.plainRefPath()
+		return len(p.path) <= len(to) && slices.Equal(p.path, to[:len(p.path)]) &&
+			namesNothing(v, to[len(p.path):])
+	})
+	if nil == stray {
+		return nil
+	}
+	return makeNilErr(ctx, "no_path", stray, nil)
+}
+
+// An arm's path is the arm's to fail, and maybe() takes a path that names nothing.
+func strayRef(v Val, which func(*RefVal) bool) *RefVal {
+	var kids []Val
+	switch n := prefInnerPeg(v).(type) {
+	case *RefVal:
+		if which(n) {
+			return n
+		}
+	case *MapVal:
+		for _, k := range n.keys {
+			kids = append(kids, n.peg[k])
+		}
+	case *ListVal:
+		kids = n.peg
+	case *ConjunctVal:
+		kids = n.peg
+	case *PlusOpVal:
+		kids = n.peg
+	case *FuncVal:
+		if "maybe" != n.name {
+			kids = n.peg
+		}
+	}
+	for _, kid := range kids {
+		if r := strayRef(kid, which); nil != r {
+			return r
+		}
+	}
+	return nil
+}
+
+// A step to a member a settled value lacks, or into a nested default; one still waiting proves nothing.
+func namesNothing(v Val, parts []string) bool {
+	node := prefInnerPeg(v)
+	for _, part := range parts {
+		var kid Val
+		switch n := node.(type) {
+		case *MapVal:
+			kid = n.peg[part]
+		case *ListVal:
+			if idx, ok := listIndex(part); ok && idx < len(n.peg) {
+				kid = n.peg[idx]
+			}
+		default:
+			return DONE == node.Dc()
+		}
+		if nil == kid {
+			return true
+		}
+		node = kid
+	}
+	return false
+}
+
 // A preference met with another of its rank meets their override
 // spaces as well, so a bound that narrowed either holds of the meet.
 func (p *PrefVal) overMet(ctx *Ctx, pp *PrefVal, met Val) Val {
@@ -280,6 +347,11 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 	if waits && !ctx.settle {
 		out.setDc(p.Dc() + 1)
 	} else {
+		if op, ok := out.(*PrefVal); ok && waits {
+			if err := p.stray(ctx, prefInnerPeg(op)); nil != err {
+				out = err
+			}
+		}
 		out.setDc(DONE)
 	}
 	return out

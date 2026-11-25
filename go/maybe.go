@@ -2,6 +2,8 @@
 
 package aontu
 
+import "slices"
+
 // ADR-034. Twin of ts/src/val/MaybeFuncVal.ts and AbsentVal.ts.
 
 // Top with one difference: absence is GENERABLE, and generates
@@ -49,7 +51,10 @@ func forgive(ctx *Ctx, f *FuncVal, base []string, arg Val) Val {
 	sink := ctx.err
 	ctx.err = saved
 
-	if n, ok := out.(*NilVal); ok && "reference" == codeClass(n.why) {
+	inside := func(at []string) bool {
+		return len(base) < len(at) && slices.Equal(base, at[:len(base)])
+	}
+	if n, ok := out.(*NilVal); ok && "reference" == codeClass(n.why) && !inside(n.pathSegments()) {
 		a := newAbsent()
 		a.path = cp(base)
 		a.site.sp, a.site.spu, a.site.url = f.site.sp, f.site.spu, f.site.url
