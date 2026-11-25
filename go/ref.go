@@ -1209,11 +1209,10 @@ func landPaths(tmpl Val, base []string) {
 
 // The template as it lands: each such path read at the target.
 func landedAt(t Val, to []string) Val {
-	at := t.vpath()
+	out := instanceClone(t, t.vpath())
 	if landsOnly(t) {
-		at = to
+		setPaths(out, cp(to))
 	}
-	out := instanceClone(t, at)
 	walkVals(out, func(t Val) bool {
 		if r, ok := t.(*RefVal); ok {
 			r.lands = false
