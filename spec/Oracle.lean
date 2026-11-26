@@ -3077,6 +3077,39 @@ theorem absent_list_verdict_exact : ∀ c ∈ absentListCases, ∀ (m : Mode) (v
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (absentListCases_checkable c hc).1 (absentListCases_checkable c hc).2 v
 
+/-- A sum of an absence is absent: `+` over an operand that is absence
+makes no value, as any call over one does, so the key that holds it is
+left out, and an element that holds it takes no position. Absence on
+the right, on the left and on both sides, beside a list, a string and
+a number; a `maybe` whose path names something, in the schema and in
+the data, where the sum is made; data at the key the sum would have
+filled; a sum inside a sum; a sum met with a kind, which the absence
+leaves as it is; and one under an optional key. -/
+def sumAbsentCases : List (Decls × Val × Data) :=
+  let gone : Val := .call .maybe [p ["t"]]
+  let plus (a b : Val) : Val := .call .plus [a, b]
+  let head : Val := lst [.lit (.str "h")]
+  [([], m [("a", plus head gone)], .map []),
+    ([], m [("t", lst [.lit (.str "x")]), ("a", plus head gone)], .map []),
+    ([], m [("a", plus gone head)], .map []),
+    ([], m [("a", plus (.lit (.str "h")) gone)], .map []),
+    ([], m [("a", plus (int 1) gone)], .map []),
+    ([], m [("a", plus gone (.call .maybe [p ["u"]]))], .map []),
+    ([], m [("a", plus head gone), ("b", int 1)], .map []),
+    ([], m [("a", plus head gone)], .map [("a", .list [.str "z"])]),
+    ([], m [("a", plus head gone)], .map [("t", .list [.str "x"])]),
+    ([], m [("a", lst [int 1, plus (.lit (.str "h")) gone])], .map []),
+    ([], m [("a", plus (plus head gone) (lst [.lit (.str "z")]))], .map []),
+    ([], m [("a", .meet .listKind (plus head gone))], .map []),
+    ([], mo [("a", true, plus head gone)], .map [])]
+
+theorem sumAbsentCases_checkable : ∀ c ∈ sumAbsentCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem sumAbsent_verdict_exact : ∀ c ∈ sumAbsentCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (sumAbsentCases_checkable c hc).1 (sumAbsentCases_checkable c hc).2 v
+
 /-- `pref` over a literal, a map, a list, a disjunction with a preferred
 arm and one with a kind, a kind, a bound, a preference, `null`, a
 boolean and a map arm beside a literal; over a path, a call and
@@ -3975,6 +4008,50 @@ theorem recursiveLinkCases_checkable : ∀ c ∈ recursiveLinkCases,
 theorem recursiveLink_verdict_exact : ∀ c ∈ recursiveLinkCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (recursiveLinkCases_checkable c hc).1 (recursiveLinkCases_checkable c hc).2 v
+
+/-- A recursive name met with a kind, a disjunction and another recursive
+name. A kind picks among the name's branches as structure does, so the
+name unfolds one level against it and the data decides the rest; a
+disjunction meets the name arm by arm; a name met with itself is
+itself; and two recursive names met hold both, each unfolding where
+the data reaches. `%T` is a tree of maps with booleans at its leaves,
+`%L` nested lists of integers, and `%U` a chain that admits any `p`. -/
+def residualMeetCases : List (Decls × Val × Data) :=
+  let T : Val := .alias "T"
+  let U : Val := .alias "U"
+  let L : Val := .alias "L"
+  let dT : Decls := [("T", .or [(0, .boolean), (0, mo [("p", true, tmpl T)])])]
+  let dL : Decls := [("L", .or [(0, .integer), (0, .list [] (some L) false)])]
+  let dTU : Decls := dT ++ [("U", mo [("q", true, U), ("p", true, .any)])]
+  let leaf : Data := dm [("p", dm [("a", .bool true)])]
+  let either : Val := .or [(0, .boolean), (0, .mapKind)]
+  [(dT, m [("x", .meet T .mapKind)], dm [("x", leaf)]),
+    (dT, m [("x", .meet T .mapKind)], dm [("x", .bool true)]),
+    (dT, m [("x", .meet T .mapKind)], dm []),
+    (dT, m [("x", .meet T .boolean)], dm [("x", .bool false)]),
+    (dT, m [("x", .meet T .boolean)], dm [("x", dm [])]),
+    (dT, m [("x", .meet .mapKind T)], dm [("x", dm [("p", dm [("a", dm [("p", dm [("b", .bool true)])])])])]),
+    (dT, m [("x", .meet .mapKind T)], dm [("x", dm [("p", dm [("a", j 1)])])]),
+    (dT, m [("x", .meet T either)], dm [("x", leaf)]),
+    (dT, m [("x", .meet T either)], dm [("x", .bool true)]),
+    (dT, m [("x", .meet T either)], dm [("x", j 1)]),
+    (dT, m [("x", .meet T T)], dm [("x", leaf)]),
+    (dT, m [("x", .meet T T)], dm []),
+    (dTU, m [("x", .meet T U)], dm [("x", leaf)]),
+    (dTU, m [("x", .meet T U)], dm [("x", dm [("q", dm [])])]),
+    (dTU, m [("x", .meet T U)], dm [("x", .bool true)]),
+    (dTU, m [("x", .meet T U)], dm []),
+    (dL, m [("x", .meet L .listKind)], dm [("x", .list [j 1, .list [j 2]])]),
+    (dL, m [("x", .meet L .listKind)], dm [("x", j 1)]),
+    (dL, m [("x", .meet L .listKind)], dm [("x", .list [.str "a"])]),
+    (dL, m [("x", .meet L .integer)], dm [("x", j 3)])]
+
+theorem residualMeetCases_checkable : ∀ c ∈ residualMeetCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem residualMeet_verdict_exact : ∀ c ∈ residualMeetCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (residualMeetCases_checkable c hc).1 (residualMeetCases_checkable c hc).2 v
 
 /-- Ruling 26 for a recursion: a use of a recursive name whose body reads
 its own place reads as a copy of the body placed where the use stands,
@@ -9554,6 +9631,11 @@ def main (args : List String) : IO UInt32 := do
     pathRows "lq" lonePrefCases
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
+    IO.println "# A sum of an absence is absent, and the key that holds it is left out, in"
+    IO.println "# rows su0 on: absence on either side of `+`, beside a list, a string and a"
+    IO.println "# number, in a list, inside another sum, met with a kind and under an"
+    IO.println "# optional key."
+    pathRows "su" sumAbsentCases
     pathRows "pf" prefCases
     pathRows "pc" callPathCases
     pathRows "dp" dataPathCases
@@ -9611,6 +9693,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A recursive name whose body links back to it follows in rows rx0 on: a use"
     IO.println "# of it alone stays residual, and one met with a map unfolds."
     pathRows "rx" recursiveLinkCases
+    IO.println "# A recursive name met with a kind, a disjunction and another recursive name"
+    IO.println "# follows in rows rm0 on: a kind picks among the name's branches as structure"
+    IO.println "# does, a disjunction meets it arm by arm, and two names met hold both."
+    pathRows "rm" residualMeetCases
     IO.println "# A use of a recursive name whose body reads its own place reads as a copy"
     IO.println "# of the body placed where it stands, at each level the data or the schema"
     IO.println "# reaches (ruling 26), in rows rr0 on."
