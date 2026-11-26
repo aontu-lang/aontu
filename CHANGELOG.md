@@ -8,6 +8,35 @@ each change affects.
 
 ## Unreleased
 
+### A call in a recursive body reads its own level in TypeScript
+
+#1015, TypeScript only. A recursive name's body that holds a `match` or
+an `each` over a relative path read the path from the level above, from
+the second level down:
+
+```aontu
+%T = { kind:string v:match(.kind, "a", 1, "b", 2) o?:%T }
+x: %T & { kind:"a" o:{ kind:"b" o:{ kind:"a" } } }
+```
+
+| | `x.v` | `x.o.v` | `x.o.o.v` |
+|---|---|---|---|
+| Go, and the definition | `1` | `2` | `1` |
+| TypeScript, before | `1` | `1` | `2` |
+
+`vet` followed: data that gave each level the value its own `kind`
+selects was `invalid`, and data that gave the level above's was
+`valid`. Each level's instance is now re-pathed where it lands, as a
+reference's copy is, so a call's arguments read from the level they
+stand in.
+
+19 rows in `test/spec/recursion.tsv`, for a `match` at the second and
+third levels and an `each` at the second, generated and under `vet` in
+its three modes. Both engines answer each as the definition does. They
+are the first rows to hold the last part of #403, a selection in a
+recursive body over a scrutinee the body leaves open, which the
+definition reads with the data and the checker still can't read.
+
 ### The definition's `filter` keeps a member whose bound sits inside the condition's looser bound
 
 #962. A `filter` takes a member as the term it is where the condition

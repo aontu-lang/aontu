@@ -22,6 +22,7 @@ import { undeclared } from './IdentFuncVal'
 import { ConjunctVal } from './ConjunctVal'
 import { unite } from '../unify'
 import { propagateMarks, walk } from '../utility'
+import { repathInstance } from './Val'
 
 
 class RecurseVal extends FeatureVal {
@@ -109,6 +110,7 @@ class RecurseVal extends FeatureVal {
       const level: any = undeclared(body.clone(ctx, {
         dup: true, path: [...ctx.path],
       } as any))
+      repathInstance(level, level.path)
       walk(level, (_key: string | number | undefined, v: Val) => {
         v.mark.type = false
         v.mark.hide = false

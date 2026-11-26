@@ -310,3 +310,25 @@ in-place-recursion-in-the-document-stops-a-level-down	errc	a: {b: {c?: $.a.b}}\n
 in-place-recursion-in-the-document-stops-where-the-data-stops	errc	a: {b: {c?: $.a.b}}\na: {b: {c: {c: {}}}}	recursion_unexpanded
 in-place-recursion-in-the-document-refuses-a-member	errc	a: {b: {x?: string, c?: $.a.b}}\na: {b: {c: {x: 1}}}	no_scalar_unify
 in-place-recursion-with-schema-structure-generates	gens	a: {b: {c?: $.a.b & {extra: 1}}}	{"a":{"b":{"c":{"extra":1}}}}
+# A STAGED CALL IN A RECURSIVE BODY READS ITS OWN LEVEL: a match or an
+# each over a relative path reads the path at each level the recursion
+# unfolds to, the second and the third as the first.
+recursion-level-match-generates-by-its-own-level	gens	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T & {kind: "a", o: {kind: "b", o: {kind: "a"}}}	{"x":{"kind":"a","o":{"kind":"b","o":{"kind":"a","v":1},"v":2},"v":1}}
+recursion-level-match-reads-its-own-level	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "v": 2}}}	{"verdict":"valid"}
+recursion-level-match-reads-its-own-level-no-fill	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "v": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+recursion-level-match-reads-its-own-level-partial	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "v": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+recursion-level-match-refuses-by-its-own-level	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "v": 1}}}	{"verdict":"invalid"}
+recursion-level-match-refuses-by-its-own-level-no-fill	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "v": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+recursion-level-match-refuses-by-its-own-level-partial	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "v": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+recursion-third-level-match-reads-its-own-level	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "o": {"kind": "a", "v": 1}}}}	{"verdict":"valid"}
+recursion-third-level-match-reads-its-own-level-no-fill	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "o": {"kind": "a", "v": 1}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+recursion-third-level-match-reads-its-own-level-partial	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "o": {"kind": "a", "v": 1}}}}	{"verdict":"valid","opts":{"partial":true}}
+recursion-third-level-match-refuses-by-its-own-level	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "o": {"kind": "a", "v": 2}}}}	{"verdict":"invalid"}
+recursion-third-level-match-refuses-by-its-own-level-no-fill	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "o": {"kind": "a", "v": 2}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+recursion-third-level-match-refuses-by-its-own-level-partial	verdict	%T = {kind: string, v: match(.kind, "a", 1, "b", 2), o?: %T}\nx: %T	{"x": {"kind": "a", "o": {"kind": "b", "o": {"kind": "a", "v": 2}}}}	{"verdict":"invalid","opts":{"partial":true}}
+recursion-level-each-reads-its-own-level	verdict	%T = {xs: [&: number], n: each(.xs, {d: _}), o?: %T}\nx: %T	{"x": {"xs": [1], "o": {"xs": [2], "n": [{"d": 2}]}}}	{"verdict":"valid"}
+recursion-level-each-reads-its-own-level-no-fill	verdict	%T = {xs: [&: number], n: each(.xs, {d: _}), o?: %T}\nx: %T	{"x": {"xs": [1], "o": {"xs": [2], "n": [{"d": 2}]}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+recursion-level-each-reads-its-own-level-partial	verdict	%T = {xs: [&: number], n: each(.xs, {d: _}), o?: %T}\nx: %T	{"x": {"xs": [1], "o": {"xs": [2], "n": [{"d": 2}]}}}	{"verdict":"valid","opts":{"partial":true}}
+recursion-level-each-refuses-by-its-own-level	verdict	%T = {xs: [&: number], n: each(.xs, {d: _}), o?: %T}\nx: %T	{"x": {"xs": [1], "o": {"xs": [2], "n": [{"d": 1}]}}}	{"verdict":"invalid"}
+recursion-level-each-refuses-by-its-own-level-no-fill	verdict	%T = {xs: [&: number], n: each(.xs, {d: _}), o?: %T}\nx: %T	{"x": {"xs": [1], "o": {"xs": [2], "n": [{"d": 1}]}}}	{"verdict":"invalid","opts":{"noFill":true}}
+recursion-level-each-refuses-by-its-own-level-partial	verdict	%T = {xs: [&: number], n: each(.xs, {d: _}), o?: %T}\nx: %T	{"x": {"xs": [1], "o": {"xs": [2], "n": [{"d": 1}]}}}	{"verdict":"invalid","opts":{"partial":true}}
