@@ -190,7 +190,7 @@ relations workstream depends on #748 and #749 from phase 2.
 
 ### Relations
 
-17 issues (5 S, 7 M, 5 L), and no ledger row from 2026-11-26.
+18 issues (5 S, 8 M, 5 L), and no ledger row from 2026-11-26.
 
 First the relations whose range names a subtype (#771, #778, #779, #780), then the ruled range check of #777, which needs #748. #491 and #811 are where `vet` and evaluation read a relation differently, and #878 where the graph atoms miss the edges a default brings; rulings 72 and 73 settle when the atoms judge.
 
@@ -198,6 +198,7 @@ First the relations whose range names a subtype (#771, #778, #779, #780), then t
 |---|---|---|---|---|
 | [#771](https://github.com/aontu-lang/aontu/issues/771) | bug | M |  | relate() whose template is a subtype built from the declaring type is unify_cycle at the declaration, even unused. Built in both ports: by name on 2026-11-25 with #762, by path on 2026-11-26 with #778. |
 | [#778](https://github.com/aontu-lang/aontu/issues/778) | def | L |  | Two path definitions, one a meet over the other, generate, stay unresolved or cycle by writing order. Built in both ports 2026-11-26: a path that reaches itself through other paths names a recursion, as a name does. Its 15 rows gone, and the ledger empty. |
+| [#1007](https://github.com/aontu-lang/aontu/issues/1007) | bug | M |  | A path nested in a relation's template, to a subtype of the declaring type, generates or is `unify_cycle` by the order written; the definition reads every order valid. |
 | [#779](https://github.com/aontu-lang/aontu/issues/779) | bug | M |  | Relation range naming a subtype is held by name and unfolded once; `subsume` then answers undecided. |
 | [#780](https://github.com/aontu-lang/aontu/issues/780) | parity | L |  | Table of two subtypes with subtype-ranged relation: TypeScript refuses valid data as empty; Go never terminates. |
 | [#777](https://github.com/aontu-lang/aontu/issues/777) | design | L |  | Proposal: a relation's range checks its target instead of meeting into it; ruled 2026-11-17 for checking, unbuilt. |
@@ -409,7 +410,7 @@ These can run at any point. #826 and #828 are already in phase 1.
 
 ### The definition
 
-5 issues (2 S, 2 M, 1 L).
+6 issues (2 S, 3 M, 1 L).
 
 #403 and #432 are proof and reading gaps in `spec/`, and #829 lists the redundancy the first review pass left.
 
@@ -420,6 +421,7 @@ These can run at any point. #826 and #828 are already in phase 1.
 | [#829](https://github.com/aontu-lang/aontu/issues/829) | spec | L |  | Tracking list of remaining definition and proof redundancy left after the first review pass, #827. |
 | [#403](https://github.com/aontu-lang/aontu/issues/403) | spec | M |  | Definition: a selection in a recursive body over an open scrutinee lacks a VetP theorem and rows. |
 | [#432](https://github.com/aontu-lang/aontu/issues/432) | spec | M |  | Definition read a waiting `+` inside a trial as refusing; both ports wait (incomplete). Built in the definition 2026-11-25 for `match`, `nof`, `must` and `when`, its 2 rows gone; #977 holds the forms both ports read another way. |
+| [#1008](https://github.com/aontu-lang/aontu/issues/1008) | spec | M |  | The definition holds a map's absent member to the spread's template, as a required member; both ports leave the member out. The definition moves. |
 
 ### Repository process
 

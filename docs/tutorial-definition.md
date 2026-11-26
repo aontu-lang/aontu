@@ -2846,7 +2846,10 @@ rule: a residual met with concrete structure, a scalar, a kind, a
 bound, a literal, a map or a list, expands by one level, and met with
 `any`, another reference or a connective it stays. So a recursion
 unfolds as far as the data goes and no further, and a residual no data
-reaches generates nothing, as step 13 says of an alias.
+reaches generates nothing, as step 13 says of an alias. Rows rm0 on of
+`test/spec/def-path.tsv` hold a recursive name met with a kind, with a
+disjunction, with itself and with another recursive name, and both
+engines answer each as the definition does.
 
 <!-- test: quote spec/Aontu/Alias.lean -->
 ```lean
@@ -8006,8 +8009,8 @@ def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
 The sums have rows of their own, x300 on in `test/spec/def-call.tsv`,
 and the joins x507 on. Both engines answer every one as the definition
 does, a `join` with three arguments among them. The
-language's other rule for `+`, that a sum of an absence is absent,
-waits on `maybe`, which the definition doesn't hold yet.
+language's other rule for `+`, that a sum of an absence is absent, is
+step 33's.
 
 ## 22. Picking and sorting
 
@@ -9527,9 +9530,30 @@ absence for a member, that instance holds no position either, so
 `each([1], maybe($.gone))` is `[]`, and `pack` leaves the member out of
 its map.
 
+A sum is a call too, so a sum of an absence is absent. That's how a
+heading goes when the rows under it do. Write `heading.aontu`:
+
+<!-- test: file heading.aontu -->
+```aontu
+name: "web"
+of: ["tags:"] + maybe($.tags)
+```
+
+<!-- test: run -->
+```sh
+$ aontu heading.aontu
+{
+  "name": "web"
+}
+```
+
+Nothing names `tags`, so the sum is absence and the map leaves `of`
+out, the literal `"tags:"` with it. Absence on the left does the same, and so
+does one beside a string or a number.
+
 Rows from mb0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, rows la0 on a list's absent element, which holds
-no position, and rows hl0 on
+no position, rows su0 on a sum of an absence, and rows hl0 on
 of `test/spec/def-verdict.tsv` a list's marked element. Both engines
 answer every row as the definition does. Where the engines read
 absence otherwise, no row holds the case, which #479 tracks: they

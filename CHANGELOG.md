@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The definition's rows hold a sum of an absence, and a recursive name met with a kind
+
+Two language rules the old decision record held, which the definition
+already answers and no generated row held. No engine changes.
+
+- **A sum of an absence is absent.** `["tags:"] + maybe($.tags)` makes
+  no value where nothing names `tags`, so the key that holds it is
+  left out, the heading with the rows under it. The definition's
+  reading makes any call over an absent argument absent, `+` among
+  them. 13 cases, rows su0 to su38 of `test/spec/def-path.tsv`:
+  absence on either side, beside a list, a string and a number, in a
+  list, inside another sum, met with a kind and under an optional key.
+- **A recursive name met with a kind, a disjunction or another
+  recursive name.** A kind picks among the name's branches as
+  structure does, a disjunction meets it arm by arm, and two names met
+  hold both. 20 cases, rows rm0 to rm59.
+
+Both engines answer all 99 rows as the definition does, and for the
+sums they generate the value the definition does.
+
+- The definition tutorial's step 21 said the sum rule waited on
+  `maybe`. Step 33 now states it, with an example the docs test runs.
+- A third rule turned out wrong in the definition, and is filed as
+  #1008: it holds a map's absent member to the spread's template, as a
+  required member, where both engines leave the member out.
+- `admin/issue-plan.md` gains #1007 and #1008.
+
 ### Definitions that name each other by path read alike in every order
 
 #778, #771, #1004 and #1005 in both engines. Two definitions that
