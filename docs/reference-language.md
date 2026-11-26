@@ -4881,7 +4881,10 @@ the document refused, or below an unresolved disjunction, declares
 nothing. The verdict lands at
 GENERATION (where no more information can arrive) as a located
 `relation_cycle` or `relation_inverse_missing` at the offending edge,
-exactly as an unmet sizing atom refuses. `aontu relations <file>`
+exactly as an unmet sizing atom refuses. `aontu vet` reads the same
+verdict where the document generates, so a broken atom there is
+`invalid` with that finding, and it judges no graph of a document that
+waits or already refuses. `aontu relations <file>`
 reports the same findings without generating, and the library exposes
 `relationCheck(src)`. The closure question (does `a` reach `b` at any
 remove?) is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
@@ -4897,8 +4900,9 @@ definition reads `acyclic()` and `inverse(k)` as absence carrying the
 atom, `callTerm` and `inverseOf` in `spec/Aontu/Verdict.lean`, so each
 rides the value it meets and changes nothing in it, and an
 `inverse` whose argument is no name is an `error`. It has no rule yet
-for what the atoms ask of the edges, which `vet` doesn't check either
-([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
+for what the atoms ask of the edges, and neither engine judges an edge
+only a default brings
+([#878](https://github.com/aontu-lang/aontu/issues/878)). Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it, and rows from rh0 on to a constraint met with `relate()` and to a
 spread over the value's addresses. Data writes no address, so whatever

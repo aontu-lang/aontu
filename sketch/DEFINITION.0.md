@@ -3131,9 +3131,14 @@ until the phase that encodes it lands.
    2026-11-21 (the project's owner): the atoms wait for generation.**
    An incomplete document's graph is not judged, so `--partial` passes
    it, and a document that generates is judged, `vet` reading a broken
-   atom as a refusal at generation, `invalid` (decision 8). **Not yet
-   built**: `vet` in both ports (#491), and the definition, which
-   reads the atoms as terms since 2026-11-26 and holds rows ga0 on of
+   atom as a refusal at generation, `invalid` (decision 8). **Built in
+   both ports on 2026-11-26** (#491): `vet` reads `relationErrors`
+   where the document generates and no finding is an error, and never
+   under `--at`, with 48 rows in `test/spec/relation.tsv`. A data
+   document written in aontu that writes the edges itself is judged
+   in every mode, `--no-fill` among them, since the fill has nothing
+   to supply. **Not yet built**: the definition, which reads the atoms
+   as terms since 2026-11-26 and holds rows ga0 on of
    `test/spec/def-path.tsv` for documents whose graphs keep what their
    atoms ask.
 74. **A conflict below the top of an argument read against a value.**
