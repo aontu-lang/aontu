@@ -5936,3 +5936,109 @@ ap56	verdict	"a": {}, "b": {}, "x": (path($.a)) + ("/n")	{"x": "$.a/n"}	{"verdic
 ap57	verdict	"a": {}, "b": {}, "x": (path($.a)) + ("/n")	{"x": "other"}	{"verdict":"invalid"}
 ap58	verdict	"a": {}, "b": {}, "x": (path($.a)) + ("/n")	{"x": "other"}	{"verdict":"invalid","opts":{"noFill":true}}
 ap59	verdict	"a": {}, "b": {}, "x": (path($.a)) + ("/n")	{"x": "other"}	{"verdict":"invalid","opts":{"partial":true}}
+# A choice the meet or a dead arm settles to one arm is that arm for a call,
+# in rows oa0 on: an operand of `+`, `upper`, `lower` and `add`, a bag a fold,
+# `join`, `pick` or `sort` reads and an element of one, and the source of
+# `each` and `pack`, where the schema settles the choice and where the data does.
+oa0	verdict	"p": ((integer) | (string)) & (1), "x": ($.p) + (1)	{}	{"verdict":"valid"}
+oa1	verdict	"p": ((integer) | (string)) & (1), "x": ($.p) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa2	verdict	"p": ((integer) | (string)) & (1), "x": ($.p) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa3	verdict	"x": (((integer) | (string)) & (1)) + (1)	{}	{"verdict":"valid"}
+oa4	verdict	"x": (((integer) | (string)) & (1)) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa5	verdict	"x": (((integer) | (string)) & (1)) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa6	verdict	"p": ((integer) | (string)) & ("a"), "x": ($.p) + ("b")	{}	{"verdict":"valid"}
+oa7	verdict	"p": ((integer) | (string)) & ("a"), "x": ($.p) + ("b")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa8	verdict	"p": ((integer) | (string)) & ("a"), "x": ($.p) + ("b")	{}	{"verdict":"valid","opts":{"partial":true}}
+oa9	verdict	"p": (([&: integer]) | (string)) & ([1]), "x": ($.p) + ([2])	{}	{"verdict":"valid"}
+oa10	verdict	"p": (([&: integer]) | (string)) & ([1]), "x": ($.p) + ([2])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa11	verdict	"p": (([&: integer]) | (string)) & ([1]), "x": ($.p) + ([2])	{}	{"verdict":"valid","opts":{"partial":true}}
+oa12	verdict	"x": upper(((integer) | (string)) & ("a"))	{}	{"verdict":"valid"}
+oa13	verdict	"x": upper(((integer) | (string)) & ("a"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa14	verdict	"x": upper(((integer) | (string)) & ("a"))	{}	{"verdict":"valid","opts":{"partial":true}}
+oa15	verdict	"p": ((integer) | (string)) & ("a"), "x": upper($.p)	{}	{"verdict":"valid"}
+oa16	verdict	"p": ((integer) | (string)) & ("a"), "x": upper($.p)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa17	verdict	"p": ((integer) | (string)) & ("a"), "x": upper($.p)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa18	verdict	"p": ((integer) | (string)) & ("AB"), "x": lower($.p)	{}	{"verdict":"valid"}
+oa19	verdict	"p": ((integer) | (string)) & ("AB"), "x": lower($.p)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa20	verdict	"p": ((integer) | (string)) & ("AB"), "x": lower($.p)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa21	verdict	"p": ((integer) | (string)) & (2), "x": add($.p, 1)	{}	{"verdict":"valid"}
+oa22	verdict	"p": ((integer) | (string)) & (2), "x": add($.p, 1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa23	verdict	"p": ((integer) | (string)) & (2), "x": add($.p, 1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa24	verdict	"a": {}, "p": (relate()) & (path($.a)), "x": ($.p) + ("/n")	{}	{"verdict":"valid"}
+oa25	verdict	"a": {}, "p": (relate()) & (path($.a)), "x": ($.p) + ("/n")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa26	verdict	"a": {}, "p": (relate()) & (path($.a)), "x": ($.p) + ("/n")	{}	{"verdict":"valid","opts":{"partial":true}}
+oa27	verdict	"a": {}, "x": ((relate()) & (path($.a))) + ("/n")	{}	{"verdict":"valid"}
+oa28	verdict	"a": {}, "x": ((relate()) & (path($.a))) + ("/n")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa29	verdict	"a": {}, "x": ((relate()) & (path($.a))) + ("/n")	{}	{"verdict":"valid","opts":{"partial":true}}
+oa30	verdict	"a": {}, "p": ((path) | (string)) & (path($.a)), "x": ($.p) + ("/n")	{}	{"verdict":"valid"}
+oa31	verdict	"a": {}, "p": ((path) | (string)) & (path($.a)), "x": ($.p) + ("/n")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa32	verdict	"a": {}, "p": ((path) | (string)) & (path($.a)), "x": ($.p) + ("/n")	{}	{"verdict":"valid","opts":{"partial":true}}
+oa33	verdict	"p": (([&: integer]) | (string)) & ([7, 8]), "x": sum($.p)	{}	{"verdict":"valid"}
+oa34	verdict	"p": (([&: integer]) | (string)) & ([7, 8]), "x": sum($.p)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa35	verdict	"p": (([&: integer]) | (string)) & ([7, 8]), "x": sum($.p)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa36	verdict	"p": (([&: string]) | (integer)) & (["a", "b"]), "x": join($.p, "-")	{}	{"verdict":"valid"}
+oa37	verdict	"p": (([&: string]) | (integer)) & (["a", "b"]), "x": join($.p, "-")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa38	verdict	"p": (([&: string]) | (integer)) & (["a", "b"]), "x": join($.p, "-")	{}	{"verdict":"valid","opts":{"partial":true}}
+oa39	verdict	"p": (({"a": integer}) | (string)) & ({"a": 1}), "x": pick([$.p], "a")	{}	{"verdict":"valid"}
+oa40	verdict	"p": (({"a": integer}) | (string)) & ({"a": 1}), "x": pick([$.p], "a")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa41	verdict	"p": (({"a": integer}) | (string)) & ({"a": 1}), "x": pick([$.p], "a")	{}	{"verdict":"valid","opts":{"partial":true}}
+oa42	verdict	"p": ((integer) | (string)) & (1), "x": sum([$.p, 2])	{}	{"verdict":"valid"}
+oa43	verdict	"p": ((integer) | (string)) & (1), "x": sum([$.p, 2])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa44	verdict	"p": ((integer) | (string)) & (1), "x": sum([$.p, 2])	{}	{"verdict":"valid","opts":{"partial":true}}
+oa45	verdict	"p": ((integer) | (string)) & ("a"), "x": join([$.p, "b"])	{}	{"verdict":"valid"}
+oa46	verdict	"p": ((integer) | (string)) & ("a"), "x": join([$.p, "b"])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa47	verdict	"p": ((integer) | (string)) & ("a"), "x": join([$.p, "b"])	{}	{"verdict":"valid","opts":{"partial":true}}
+oa48	verdict	"p": ((integer) | (string)) & (3), "x": sort([$.p, 2])	{}	{"verdict":"valid"}
+oa49	verdict	"p": ((integer) | (string)) & (3), "x": sort([$.p, 2])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa50	verdict	"p": ((integer) | (string)) & (3), "x": sort([$.p, 2])	{}	{"verdict":"valid","opts":{"partial":true}}
+oa51	verdict	"p": ((integer) | (string)) & (1), "x": sum([$.p, $.p])	{}	{"verdict":"valid"}
+oa52	verdict	"p": ((integer) | (string)) & (1), "x": sum([$.p, $.p])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa53	verdict	"p": ((integer) | (string)) & (1), "x": sum([$.p, $.p])	{}	{"verdict":"valid","opts":{"partial":true}}
+oa54	verdict	"p": (([&: integer]) | (string)) & ([7, 8]), "x": each($.p, _)	{}	{"verdict":"valid"}
+oa55	verdict	"p": (([&: integer]) | (string)) & ([7, 8]), "x": each($.p, _)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa56	verdict	"p": (([&: integer]) | (string)) & ([7, 8]), "x": each($.p, _)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa57	verdict	"p": (([&: string]) | (integer)) & (["a", "b"]), "x": pack($.p, 1)	{}	{"verdict":"valid"}
+oa58	verdict	"p": (([&: string]) | (integer)) & (["a", "b"]), "x": pack($.p, 1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa59	verdict	"p": (([&: string]) | (integer)) & (["a", "b"]), "x": pack($.p, 1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa60	verdict	"p": ((integer) | (string)) & (1), "x": apply($.p, add(_, 1))	{}	{"verdict":"valid"}
+oa61	verdict	"p": ((integer) | (string)) & (1), "x": apply($.p, add(_, 1))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa62	verdict	"p": ((integer) | (string)) & (1), "x": apply($.p, add(_, 1))	{}	{"verdict":"valid","opts":{"partial":true}}
+oa63	verdict	"p": ((integer) | (string)) & (1), "x": each([$.p, 2], add(_, 1))	{}	{"verdict":"valid"}
+oa64	verdict	"p": ((integer) | (string)) & (1), "x": each([$.p, 2], add(_, 1))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa65	verdict	"p": ((integer) | (string)) & (1), "x": each([$.p, 2], add(_, 1))	{}	{"verdict":"valid","opts":{"partial":true}}
+oa66	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{}	{"verdict":"incomplete"}
+oa67	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa68	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa69	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1}	{"verdict":"valid"}
+oa70	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa71	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1}	{"verdict":"valid","opts":{"partial":true}}
+oa72	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": "a"}	{"verdict":"valid"}
+oa73	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": "a"}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa74	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": "a"}	{"verdict":"valid","opts":{"partial":true}}
+oa75	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1, "x": 2}	{"verdict":"valid"}
+oa76	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1, "x": 2}	{"verdict":"valid","opts":{"noFill":true}}
+oa77	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1, "x": 2}	{"verdict":"valid","opts":{"partial":true}}
+oa78	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1, "x": 3}	{"verdict":"invalid"}
+oa79	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1, "x": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+oa80	verdict	"p": (integer) | (string), "x": ($.p) + (1)	{"p": 1, "x": 3}	{"verdict":"invalid","opts":{"partial":true}}
+oa81	verdict	"p": ((integer) | (number) | (string)) & (1), "x": ($.p) + (1)	{}	{"verdict":"valid"}
+oa82	verdict	"p": ((integer) | (number) | (string)) & (1), "x": ($.p) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa83	verdict	"p": ((integer) | (number) | (string)) & (1), "x": ($.p) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa84	verdict	"p": ((1) | (1)) & (integer), "x": ($.p) + (1)	{}	{"verdict":"valid"}
+oa85	verdict	"p": ((1) | (1)) & (integer), "x": ($.p) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa86	verdict	"p": ((1) | (1)) & (integer), "x": ($.p) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa87	verdict	"p": (1) | (2), "x": ($.p) + (1)	{}	{"verdict":"incomplete"}
+oa88	verdict	"p": (1) | (2), "x": ($.p) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa89	verdict	"p": (1) | (2), "x": ($.p) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa90	verdict	"p": (1) | (2), "x": ($.p) + (1)	{"p": 2}	{"verdict":"valid"}
+oa91	verdict	"p": (1) | (2), "x": ($.p) + (1)	{"p": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa92	verdict	"p": (1) | (2), "x": ($.p) + (1)	{"p": 2}	{"verdict":"valid","opts":{"partial":true}}
+oa93	verdict	"x": add((nil) | (1), 1)	{}	{"verdict":"valid"}
+oa94	verdict	"x": add((nil) | (1), 1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa95	verdict	"x": add((nil) | (1), 1)	{}	{"verdict":"valid","opts":{"partial":true}}
+oa96	verdict	"x": upper(((1) & (2)) | ("a"))	{}	{"verdict":"valid"}
+oa97	verdict	"x": upper(((1) & (2)) | ("a"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa98	verdict	"x": upper(((1) & (2)) | ("a"))	{}	{"verdict":"valid","opts":{"partial":true}}
+oa99	verdict	"p": hide(((integer) | (string)) & (1)), "x": ($.p) + (1)	{}	{"verdict":"valid"}
+oa100	verdict	"p": hide(((integer) | (string)) & (1)), "x": ($.p) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+oa101	verdict	"p": hide(((integer) | (string)) & (1)), "x": ($.p) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
