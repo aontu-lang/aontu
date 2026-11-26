@@ -19,8 +19,8 @@ entry:
   host.
 
 How work is done is [DEV-PROCESS.md](DEV-PROCESS.md), and it holds code
-comments to a gate: comments are sparse and terse, and exist only for
-code whose correct form is surprising; intent goes in identifier names,
+comments to a gate: a comment is only for surprising code, and as short
+as it can be; intent goes in identifier names,
 business logic and requirements go in documents. `make comments` runs
 the gate, and it checks accuracy as well as form.
 

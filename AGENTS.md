@@ -143,7 +143,7 @@ without `gh`".
   changes in the same commit that changes its status.** Forward-looking
   design is the gap documents G1–G12; the register is the only record of
   what has been built.
-- **Comments are for the surprising code and nothing else**
+- **A comment is only for surprising code, and as short as it can be**
   ([DEV-PROCESS.md](DEV-PROCESS.md#code-comments)),
   and a comment naming a path, symbol or decision that does not resolve
   fails the build.

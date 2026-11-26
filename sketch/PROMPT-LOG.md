@@ -2255,6 +2255,8 @@ merge
 ```text
 How much of the aontu language does the lean spec now cover?
 How much of the aontu language does the lean spec now cover?
+```
+
 ## 2026-11-26 00:15:00 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
 
 ```text
@@ -2301,4 +2303,10 @@ explain the comment-rule paragraphs?
 
 ```text
 are there other rules about comments?
+```
+
+## 2026-11-26 18:52:50 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+when need consistent instructions in all places: comments are only for surprising code, and must be kept as short as possible - update dev-process template too
 ```
