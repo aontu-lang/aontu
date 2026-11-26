@@ -3114,7 +3114,9 @@ until the phase that encodes it lands.
    verdict lands at generation, so the atoms judge the edges
    generation writes, defaults taken, and that document is a
    `relation_cycle`. **Not yet built**: both ports and the definition
-   move (#878).
+   move (#878). The definition reads the atoms as terms since
+   2026-11-26, absence carrying the atom (`Rider.acyclic`,
+   `Rider.inverse`), and judges no edge yet.
 73. **A broken graph in an incomplete document.** Raised 2026-11-21
    by P11's graph atoms. Beside an unfilled `n: integer`, the cycle
    a → b → a leaves `vet` `incomplete` and `vet --partial` `valid` in
@@ -3123,7 +3125,10 @@ until the phase that encodes it lands.
    An incomplete document's graph is not judged, so `--partial` passes
    it, and a document that generates is judged, `vet` reading a broken
    atom as a refusal at generation, `invalid` (decision 8). **Not yet
-   built**: `vet` in both ports (#491), and the definition.
+   built**: `vet` in both ports (#491), and the definition, which
+   reads the atoms as terms since 2026-11-26 and holds rows ga0 on of
+   `test/spec/def-path.tsv` for documents whose graphs keep what their
+   atoms ask.
 74. **A conflict below the top of an argument read against a value.**
    Raised 2026-11-21 by building decision 62 (#892): both ports read
    a conflict anywhere in a trial's argument they read against a

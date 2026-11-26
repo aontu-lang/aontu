@@ -414,9 +414,9 @@ These can run at any point. #826 and #828 are already in phase 1.
 
 ### The definition
 
-7 issues (3 S, 3 M, 1 L).
+9 issues (4 S, 4 M, 1 L).
 
-#403 and #432 are proof and reading gaps in `spec/`, #829 lists the redundancy the first review pass left, and #1021 is the axiom gate.
+#403 and #432 are proof and reading gaps in `spec/`, #829 lists the redundancy the first review pass left, #1021 is the axiom gate, and #1023 and #1024 are two readings of a call's operand.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -427,6 +427,8 @@ These can run at any point. #826 and #828 are already in phase 1.
 | [#432](https://github.com/aontu-lang/aontu/issues/432) | spec | M |  | Definition read a waiting `+` inside a trial as refusing; both ports wait (incomplete). Built in the definition 2026-11-25 for `match`, `nof`, `must` and `when`, its 2 rows gone; #977 holds the forms both ports read another way. |
 | [#1008](https://github.com/aontu-lang/aontu/issues/1008) | spec | M |  | The definition holds a map's absent member to the spread's template, as a required member; both ports leave the member out. Built 2026-11-26: the map's meet leaves a member that is absence on its own alone under a spread, and both ports hold the template back from a computed absence too. |
 | [#1021](https://github.com/aontu-lang/aontu/issues/1021) | spec | S |  | Five theorems rest on `Classical.choice`, by `beq_self_eq_true` on a string, and the axiom gate holds only the theorems on its list. Fixed 2026-11-26: the two root proofs go by `beq_iff_eq`, and `spec/Aontu/Axioms.lean` judges every theorem. |
+| [#1023](https://github.com/aontu-lang/aontu/issues/1023) | spec | M |  | The definition doesn't read a call's operand that a meet settles to one arm of a disjunction, `(integer \| string) & 1`: `+` waits and `upper` or `add` is an error, where both ports compute. Decisions 16 and 55 read the leftover as its arm for a size and a bound. |
+| [#1024](https://github.com/aontu-lang/aontu/issues/1024) | spec | S |  | The definition's `+` waits beside an address, where both ports join the address's text. Built 2026-11-26: an operand that is an address reads as its text (`Val.plusOperand`), rows ap0 on. |
 
 ### Repository process
 

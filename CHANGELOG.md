@@ -8,6 +8,50 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads the graph atoms as terms
+
+`acyclic()` and `inverse(k)` were the last two built-in functions with
+no term in the definition, apart from `gen(spec)`. Each is now a call
+that reads as absence carrying the atom, `Rider.acyclic` and
+`Rider.inverse` in `spec/Aontu/Syntax.lean`, made by `callTerm` in
+`spec/Aontu/Verdict.lean`:
+
+- An atom rides the value it meets and changes nothing in it, as both
+  engines read it: `relate() & acyclic() & [path($.b)]` is the relation
+  it would be without the atom, and a template still flows through it.
+- An atom alone is no member of the output, so `d: acyclic()` generates
+  nothing at `d` and admits what the data gives there.
+- An `inverse` whose argument is no name, `inverse(1)` or
+  `inverse("a b")`, is the schema's error (`isRelName`, `inverseOf`).
+
+99 rows, ga0 to ga98 of `test/spec/def-path.tsv`, from 33 cases proved
+in `spec/Oracle.lean`. Both engines answer every one as the definition
+does, and `spec/forms.tsv` gains the two calls.
+
+What the atoms ask isn't stated yet. A document whose graph breaks one
+reads in the definition as it would without the atom, where both
+engines refuse to generate it, and rulings 72 and 73 say `vet` should
+refuse it too (#491, #878). Every row here is a document whose graph
+keeps what its atoms ask.
+
+### The definition's `+` joins an address as text
+
+#1024. `path($.a) + "/n"` waited in the definition, where both engines
+answer `"$.a/n"`. An operand of `+` that is an address now reads as the
+text that spells it (`Val.plusOperand`), so it joins as a string does:
+with a string, a number, a boolean and another address, a relative
+address as it's written, and it waits beside `null`, a container or a
+kind.
+
+60 rows, ap0 to ap59 of `test/spec/def-path.tsv`, from 20 cases. Both
+engines answer every one as the definition does.
+
+One shape is still open, #1023: an operand that a meet settles to one
+arm of a disjunction. `p: (integer | string) & 1` with `x: $.p + 1` is
+`2` in both engines and waits in the definition, and an address a
+relation holds is the same case, since the relation kind is a
+disjunction.
+
 ### The axiom gate judges every theorem of the definition
 
 #1021. `spec/README.md` says no theorem of the definition rests on an
