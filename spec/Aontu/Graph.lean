@@ -28,7 +28,8 @@ already refused isn't judged (rulings 72 and 73 of the design note's
   (`Cyclic`), and `inverse(k)` that each edge of its relation be
   mirrored by one of `k`, from its end back to its start (`Holds`).
 - The verdict, `vetG`, is `vetP`'s, and `invalid` where `vetP` answers
-  `valid`, the document generates, and its graph breaks an atom.
+  `valid`, the document generates, and its graph breaks an atom. And
+  such a document generates nothing (`outputG`).
 -/
 
 namespace Aontu
@@ -378,5 +379,40 @@ theorem vetG_eq_vetP {m : Mode} {ds : Decls} {S : Val} {j : Data}
     | some N => simp only [Val.graphOk_of_no_decls (h N hw), Bool.not_true]
   unfold vetG
   rw [if_neg (fun hc => Bool.noConfusion (hb ▸ hc.2))]
+
+/-! ## The output with the atoms -/
+
+/-- The normal form generation writes a document from with no data: the
+one `OutputP` hands `genD`, hidden members and all. -/
+def Decls.genFormS (ds : Decls) (S : Val) : Val :=
+  let P := (ds.loaded S).1.preparedS (ds.loaded S).2
+  let F := P.1.withPathsS P.2
+  normaliseD F.1 (F.1.readR F.2)
+
+/-- What a document generates, its graph atoms judged: what `OutputP`
+gives, where the graph it writes keeps what its atoms ask. Where the
+graph breaks one the document generates nothing, the refusal both ports
+give at generation. -/
+def OutputG (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+  OutputP ds root S j ∧ (ds.genFormS S).GraphOk
+
+/-- What a document generates with the atoms judged, computed. -/
+def outputG (ds : Decls) (S : Val) : Option Data :=
+  if (ds.genFormS S).graphOk then outputP ds S else none
+
+/-- `outputG` computes `OutputG` wherever `outputP` computes `OutputP`. -/
+theorem outputG_iff {ds : Decls} {S : Val} {root : Data} {j : Data}
+    (h : outputP ds S = some j ↔ OutputP ds root S j) :
+    outputG ds S = some j ↔ OutputG ds root S j := by
+  unfold outputG OutputG
+  cases hg : (ds.genFormS S).graphOk with
+  | true =>
+    rw [if_pos rfl]
+    exact ⟨fun h' => ⟨h.mp h', Val.graphOk_iff.mp hg⟩, fun h' => h.mpr h'.1⟩
+  | false =>
+    rw [if_neg Bool.false_ne_true]
+    exact ⟨fun h' => Option.noConfusion h', fun h' => by
+      rw [Val.graphOk_iff.mpr h'.2] at hg
+      exact Bool.noConfusion hg⟩
 
 end Aontu
