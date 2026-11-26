@@ -18,21 +18,34 @@ assumes the [first tutorial](tutorial-config.md).
 
 ## 1. Set up
 
-The definition is eight Lean modules, which make one definition: every
-module reads the same data, the same terms, and the same rule for what
-a term admits, and none declares its own.
+The definition is the Lean modules of [`spec/Aontu`](../spec/Aontu),
+which make one definition: every module reads the same data, the same
+terms, and the same rule for what a term admits, and none declares its
+own.
 
 | File | Holds |
 |---|---|
 | [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) | the data, scalars first: numbers in the four leaves, integers, floats, big integers, and big decimals, then strings, then maps and lists, and paths into a value |
+| [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean) | the functions a call names, and the arithmetic of the four leaves |
+| [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) | the functions on text: escaping, the spellings of a name, and what a pattern's matches make |
 | [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct, and `super`, the parent type of a term |
 | [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) | what each term admits, one rule for each form |
+| [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean) | a document's alias declarations, the environment they make, and the alias-cycle rule |
+| [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean) | how a document reads under its declarations, a recursive name left to unfold against the data, and a checker that reads the names |
+| [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) | how a path reads: the term at a position, each path a document writes read as a name |
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, the strict bounds under their closed ones, two declarations of one key, and the contract any `subsume` must meet |
+| [`spec/Aontu/Reorder.lean`](../spec/Aontu/Reorder.lean) | order independence: one value written in two orders admits the same data |
 | [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) | the reference's table of subsumption rules as theorems, and the procedure that decides the order |
-| [`spec/Aontu/Profiles.lean`](../spec/Aontu/Profiles.lean) | the profiles of `subsume`, one contract each, and the order on documents |
+| [`spec/Aontu/Profiles.lean`](../spec/Aontu/Profiles.lean) | the profiles of `subsume`, one contract each, and the order on documents, two recursions among them |
+| [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) | the meet computed as the engines compute it, and the theorem that it admits what both sides admit |
+| [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) | what a term generates, which is what evaluation outputs |
+| [`spec/Aontu/Read.lean`](../spec/Aontu/Read.lean) | how `vet` reads a number the data writes, in each read mode |
+| [`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean) | how an output option writes a generated number |
+| [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) | the verdicts of `vet`, and how the calls, the generators and the component tree read |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
 | [`spec/Aontu/Tour.lean`](../spec/Aontu/Tour.lean) | the examples this page walks through |
+| [`spec/Aontu/Axioms.lean`](../spec/Aontu/Axioms.lean) | the gate on what the proofs rest on |
 
 Two more files test the engines against the definition and are no part
 of it: [`spec/Oracle.lean`](../spec/Oracle.lean), the program that
@@ -54,6 +67,22 @@ make spec
 
 That builds every module, which checks every proof, then regenerates
 the test rows and fails if they differ from the committed copy.
+
+The build also checks what each proof rests on. Lean lets a proof take
+a case by excluded middle, which rests on the axiom `Classical.choice`,
+and such a proof says a thing holds without building it.
+[`spec/Aontu/Axioms.lean`](../spec/Aontu/Axioms.lean) judges every
+theorem of the definition and stops the build at one that rests on more
+than `propext` and `Quot.sound`, the two axioms that only say when two
+things are equal:
+
+<!-- test: quote spec/Aontu/Axioms.lean -->
+```lean
+  unless more.isEmpty do
+    throwError "theorems that rest on an axiom beyond propext and Quot.sound: {more}"
+```
+
+So no proof behind this page takes a case it can't compute.
 
 The transcripts run `aontu` on a small aontu file. aontu evaluates a
 document by unifying it and prints the result, and `-c` prints it in
@@ -11479,9 +11508,9 @@ The language needs only the power to represent a JSON Schema: what
 `number & mulof(1)`, and the definition says what those mean. Step
 19 checks that it does.
 
-Nor does it order two recursions of one shape under different names,
-or read a selection inside a recursive name's body, which the checker
-of step 17 reads unmade. Neither has a rule yet.
+Nor does it read a selection inside a recursive name's body at the
+body's own place, which the checker of step 17 reads unmade. No theorem
+ties that verdict to the definition yet.
 
 Nor does it read a spread everywhere one can land. Inside a
 disjunction or a selection, a spread whose template reads its member's
