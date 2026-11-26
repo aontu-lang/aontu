@@ -8549,6 +8549,62 @@ read through its riders. The rows are x1068 on, and both engines answer
 every one as the definition does, two calls with the wrong number of
 arguments among them.
 
+`encode` and `decode` convert a string to and from text that spells
+its UTF-8 bytes. Write `encode.aontu`:
+
+<!-- test: scenario encode -->
+<!-- test: file encode.aontu -->
+```aontu
+a: encode("hello", base64)
+b: encode("hello", base64url)
+c: encode("é", hex)
+d: decode("aGVsbG8=", base64)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu encode.aontu
+{
+  "a": "aGVsbG8=",
+  "b": "aGVsbG8",
+  "c": "c3a9",
+  "d": "hello"
+}
+```
+
+The three encodings are in `spec/Aontu/Text.lean` too, each a function
+from bytes to text. base64 pads its last group with `=`, base64url
+doesn't pad, and hex writes lowercase digits:
+
+<!-- test: quote spec/Aontu/Text.lean -->
+```lean
+def Encoding.write : Encoding → List ℕ → List Char
+  | .base64 => b64Encode '+' '/' true
+  | .base64url => b64Encode '-' '_' false
+  | .hex => hexEncode
+```
+
+`decode` reads the text that `encode` writes, and no other spelling of
+the same bytes. A last group of two characters spells one byte, and
+its second character must hold no bits beyond that byte, so `aA==`
+decodes and `aG==` doesn't:
+
+<!-- test: quote spec/Aontu/Text.lean -->
+```lean
+def b64Group2 (x y c0 c1 : Char) : Option (List ℕ) := do
+  let v0 ← b64Value? x y c0
+  let v1 ← b64Value? x y c1
+  if v1 % 16 = 0 then some [v0 * 4 + v1 / 16] else none
+```
+
+`utf8Decode` then reads the bytes as UTF-8, strictly, so
+`decode("ff", hex)` is an error: a string holds characters. A name that
+is no encoding is an error too, and so is any argument but a string.
+The rows are ec0 on, and both engines answer every one as the
+definition does.
+
 `split` cuts a string into fields at a separator and keeps the empty
 ones, so `split("a,,b", ",")` is `["a", "", "b"]` and
 `join(split(s, sep), sep)` is `s`. A string separator is a literal,

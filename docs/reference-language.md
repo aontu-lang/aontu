@@ -45,6 +45,7 @@ the [Explanation](explanation.md).
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
 - [Folding to a string: `join`](#folding-to-a-string-join)
 - [Text: `esc` `usc` `rep` `split`](#text-esc-usc-rep-split)
+- [Encodings: `encode` and `decode`](#encodings-encode-and-decode)
 - [Linking: the tree is the namespace](#linking-the-tree-is-the-namespace)
 - [First-class paths: `path(p?)`](#first-class-paths-pathp)
 - [Checked links: `relate(t?)`](#checked-links-relatet)
@@ -2959,6 +2960,12 @@ already copies a VALUE.
 
 Example: `copyfiles("assets")`
 
+### `decode(t: string, name: string) : string`
+
+Read a string back out of a named encoding: the bytes the text spells, read as UTF-8. Text the encoding does not write is refused. See [encodings](#encodings-encode-and-decode).
+
+Example: `decode("aGVsbG8=", base64)` → `"hello"`
+
 ### `deprecate(v: any, r?: map) : any`
 
 Mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Two records on one value meet as their union, as [`meta()`](#annotations-meta)'s do, and a field holding several values reads as them joined with `; `. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal`.
@@ -2990,6 +2997,12 @@ Admit the empty string. `string` means a **non-empty** string, and
 empty string](#the-empty-string-empty).
 
 Example: `string & empty() & ""`→`""`; `string & ""`→ error
+
+### `encode(s: string, name: string) : string`
+
+Write a string as text in a named encoding, from its UTF-8 bytes: `base64`, `base64url` or `hex`. See [encodings](#encodings-encode-and-decode).
+
+Example: `encode("hello", base64)` → `"aGVsbG8="`
 
 ### `esc(s: string, variant?: string) : string`
 
@@ -4151,6 +4164,70 @@ points, and a separator that does not occur yields the whole string as
 one field.
 
 The definition computes `split` as `splitOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), a string separator by `splitText`, which cuts at each occurrence from the left. A pattern cuts at its matches, which `cutFields` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) reads as `rep` does.
+
+## Encodings: `encode` and `decode`
+
+`encode(s, name)` writes a string as text in a named encoding, from the
+string's UTF-8 bytes, and `decode(t, name)` reads the string back. Both
+arguments are required.
+
+| name | encoding |
+|------|----------|
+| `base64` | RFC 4648 section 4, padded with `=` to a multiple of four characters |
+| `base64url` | RFC 4648 section 5: `-` and `_` in place of `+` and `/`, and no padding |
+| `hex` | two lowercase hexadecimal digits for each byte |
+
+```aontu
+text: encode("hello", base64)
+token: encode("hello", base64url)
+code: encode("k", hex)
+back: decode("aGVsbG8=", base64)
+```
+
+```json
+{"text": "aGVsbG8=", "token": "aGVsbG8", "code": "6b", "back": "hello"}
+```
+
+A name that is not one of the three is refused at the call
+(`encode_name`). A name is matched as it is written, so `Base64` is
+refused too.
+
+**`decode` reads what `encode` writes.** `decode(encode(s, n), n)` is
+`s` for every string and each name. `decode` refuses every other
+spelling of the same bytes (`decode_malformed`):
+
+- `base64` without its padding, with more padding than it needs, or
+  with a `=` anywhere but the end.
+- `base64url` with padding.
+- A character outside the alphabet of the encoding. A space and a
+  line break are outside it, and so are the two characters that belong
+  to the other base64 alphabet.
+- A last character that holds bits beyond its bytes: `aA==` spells the
+  one byte of `h`, and `aG==` is refused.
+- `hex` with an odd number of digits.
+
+So `encode(decode(t, n), n)` is `t` wherever `decode` answers. The one
+exception is `hex`, which `decode` reads in either case and `encode`
+writes in lowercase.
+
+**A string holds characters.** `decode` also refuses text whose bytes
+are not UTF-8: `decode("ff", hex)` has no string to answer with. Binary
+data stays in its encoded form from the source to the output.
+
+<!-- test: scenario encode-refusal -->
+<!-- test: run -->
+```sh
+$ echo 'key: decode("aGVsbG8", base64)' | aontu
+[aontu/decode_malformed]: Cannot resolve value at path $.key
+...
+$ echo $?
+1
+```
+
+Both engines compute each encoding themselves, so no host library
+decides what a text decodes to.
+
+The rows are `test/spec/encode.tsv`. The definition holds the encodings in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean), each a function from bytes to text and a partial inverse, `Encoding.encode` and `Encoding.decode`, and computes both calls as `encodeOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). Rows `ec0` on of `test/spec/def-call.tsv` are generated from it.
 
 ## Linking: the tree is the namespace
 

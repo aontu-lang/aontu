@@ -8213,6 +8213,71 @@ theorem repSub_verdict_exact : ∀ c ∈ repSubCases, ∀ (m : Mode) (v : Verdic
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (repSubCases_checkable c hc)) v
 
+/-- `encode` writes a string's UTF-8 bytes in the encoding its second
+argument names, and `decode` reads them back: base64 with its padding,
+base64url with none, and hex in lowercase, read in either case. A name
+that is no encoding is an error of the schema, an argument that is no
+string and a count other than two are, and so is text the encoding does
+not write: base64 without its padding, with too much or with it out of
+place, a character of the other alphabet, a space or a line break, a
+last character that holds bits beyond its bytes, half a byte of hex,
+and text whose bytes are no string. -/
+def encodeCases : List (Val × Data) :=
+  let enc (s n : String) : Val := .call .encode [str s, str n]
+  let dec (t n : String) : Val := .call .decode [str t, str n]
+  [(enc "hello" "base64", js "aGVsbG8="), (enc "hello" "base64", js "aGVsbG8"),
+    (enc "hey" "base64", js "aGV5"), (enc "h" "base64", js "aA=="), (enc "" "base64", js ""),
+    (enc "~~~" "base64", js "fn5+"), (enc "???" "base64", js "Pz8/"),
+    (enc "hello" "base64url", js "aGVsbG8"), (enc "h" "base64url", js "aA"),
+    (enc "~~~" "base64url", js "fn5-"), (enc "???" "base64url", js "Pz8_"),
+    (enc "" "base64url", js ""), (enc "k" "hex", js "6b"), (enc "k" "hex", js "6B"),
+    (enc "hello" "hex", js "68656c6c6f"), (enc "" "hex", js ""),
+    (enc "é" "base64", js "w6k="), (enc "û" "hex", js "c3bb"), (enc "日" "hex", js "e697a5"),
+    (enc "😀" "base64url", js "8J-YgA"),
+    (enc "a" "base32", js "a"), (enc "a" "Base64", js "YQ=="), (enc "a" "", js "a"),
+    (c .encode [int 1, str "hex"], js "31"), (c .encode [str "a", int 1], js "a"),
+    (c .encode [.string, str "hex"], js "a"), (c .encode [str "a", .string], js "a"),
+    (c .encode [str "a"], js "a"), (c .encode [str "a", str "hex", str "x"], js "61"),
+    (c .encode [], js "a"),
+    (c .encode [.ride .metadata (str "k") [], str "hex"], js "6b"),
+    (c .encode [str "k", .ride .metadata (str "hex") []], js "6b"),
+    (c .encode [.pref 1 (str "k"), str "hex"], js "6b"),
+    (dec "aGVsbG8=" "base64", js "hello"), (dec "aGVsbG8=" "base64", js "hellO"),
+    (dec "aGV5" "base64", js "hey"), (dec "aA==" "base64", js "h"), (dec "" "base64", js ""),
+    (dec "fn5+" "base64", js "~~~"), (dec "Pz8/" "base64", js "???"),
+    (dec "aGVsbG8" "base64url", js "hello"), (dec "aA" "base64url", js "h"),
+    (dec "fn5-" "base64url", js "~~~"), (dec "Pz8_" "base64url", js "???"),
+    (dec "" "base64url", js ""), (dec "68656c6c6f" "hex", js "hello"), (dec "" "hex", js ""),
+    (dec "6B" "hex", js "k"), (dec "C3bB" "hex", js "û"), (dec "00" "hex", js "\x00"),
+    (dec "aGVsbG8" "base64", js "hello"), (dec "a" "base64", js "a"), (dec "aA=" "base64", js "h"),
+    (dec "aA===" "base64", js "h"), (dec "a===" "base64", js "a"), (dec "====" "base64", js ""),
+    (dec "aA==aA==" "base64", js "hh"), (dec "aGV5====" "base64", js "hey"),
+    (dec "aGVs!G8=" "base64", js "a"), (dec "aGVs bG8=" "base64", js "hello"),
+    (dec "aGVs\nbG8=" "base64", js "hello"), (dec "aGVé" "base64", js "a"),
+    (dec "fn5-" "base64", js "~~~"), (dec "fn5+" "base64url", js "~~~"),
+    (dec "aGVsbG8=" "base64url", js "hello"), (dec "aGVsb" "base64url", js "a"),
+    (dec "aG==" "base64", js "h"), (dec "aGV=" "base64", js "he"), (dec "aB" "base64url", js "h"),
+    (dec "6" "hex", js "a"), (dec "6g" "hex", js "a"), (dec "g6" "hex", js "a"),
+    (dec "é6" "hex", js "a"), (dec "0x6b" "hex", js "k"),
+    (dec "/w==" "base64", js "a"), (dec "_w" "base64url", js "a"), (dec "ff" "hex", js "a"),
+    (dec "e6" "hex", js "a"), (dec "c080" "hex", js "a"), (dec "eda080" "hex", js "a"),
+    (dec "f4908080" "hex", js "a"), (dec "a" "base32", js "a"),
+    (c .decode [int 1, str "hex"], js "a"), (c .decode [str "6b"], js "k"),
+    (c .decode [.ride .metadata (str "6b") [], str "hex"], js "k"),
+    (c .decode [c .encode [str "日本語 😀 é", str "base64"], str "base64"], js "日本語 😀 é"),
+    (c .decode [c .encode [str "日本語 😀 é", str "base64url"], str "base64url"], js "日本語 😀 é"),
+    (c .decode [c .encode [str "日本語 😀 é", str "hex"], str "hex"], js "日本語 😀 é"),
+    (c .encode [c .decode [str "aGVsbG8=", str "base64"], str "base64"], js "aGVsbG8="),
+    (c .encode [c .decode [str "6B", str "hex"], str "hex"], js "6b"),
+    (c .upper [c .encode [str "k", str "hex"]], js "6B")]
+
+theorem encodeCases_checkable : ∀ c ∈ encodeCases, (vetDoc c).1.CheckableA := by decide
+
+theorem encode_verdict_exact : ∀ c ∈ encodeCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (encodeCases_checkable c hc)) v
+
 /-- A projector and a direction read as their values, through a rider
 or a mark, as both ports read them (#435); a lone preference stays
 neither, and so does `null`, which is no absent projector. -/
@@ -10539,6 +10604,12 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "dt" spreadTmplCases
     verdictRows "dh" heldHoleCases
     verdictRows "dr" readThroughCases
+    IO.println "# encode(s, name) writes a string's UTF-8 bytes in the encoding its name is, and"
+    IO.println "# decode(t, name) reads them back, in rows ec0 on: base64 with its padding,"
+    IO.println "# base64url with none, hex in lowercase and read in either case, and an error"
+    IO.println "# of the schema for a name that is no encoding and for text the encoding does"
+    IO.println "# not write or whose bytes are no string."
+    verdictRows "ec" encodeCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

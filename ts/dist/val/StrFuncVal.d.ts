@@ -15,6 +15,20 @@ declare class UscFuncVal extends FuncBaseVal {
     funcname(): string;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
+declare class EncodeFuncVal extends FuncBaseVal {
+    isEncodeFunc: boolean;
+    constructor(spec: ValSpec, ctx?: AontuContext);
+    make(_ctx: AontuContext, spec: ValSpec): Val;
+    funcname(): string;
+    resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
+}
+declare class DecodeFuncVal extends FuncBaseVal {
+    isDecodeFunc: boolean;
+    constructor(spec: ValSpec, ctx?: AontuContext);
+    make(_ctx: AontuContext, spec: ValSpec): Val;
+    funcname(): string;
+    resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
+}
 declare class RepFuncVal extends FuncBaseVal {
     isRepFunc: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
@@ -29,4 +43,4 @@ declare class SplitFuncVal extends FuncBaseVal {
     funcname(): string;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
-export { EscFuncVal, UscFuncVal, RepFuncVal, SplitFuncVal, };
+export { EscFuncVal, UscFuncVal, EncodeFuncVal, DecodeFuncVal, RepFuncVal, SplitFuncVal, };

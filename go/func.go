@@ -85,6 +85,8 @@ var funcSet = map[string]bool{
 	"emit":      true,
 	"esc":       true,
 	"usc":       true,
+	"encode":    true,
+	"decode":    true,
 	"rep":       true,
 	"split":     true,
 	"nom":       true,
@@ -703,6 +705,10 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return escFunc(ctx, f, args)
 	case "usc":
 		return uscFunc(ctx, f, args)
+	case "encode":
+		return encodeFunc(ctx, f, args)
+	case "decode":
+		return decodeFunc(ctx, f, args)
 	case "rep":
 		return repFunc(ctx, f, args)
 	case "split":

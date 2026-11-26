@@ -12,6 +12,7 @@ import {
 
 import { makeNilErr } from '../err'
 import { isEscVariant, escapeText, unescapeText } from '../escape'
+import { isEncodeName, encodeText, decodeText } from '../encode'
 import { StringVal } from './StringVal'
 import { ListVal } from './ListVal'
 import { FuncBaseVal } from './FuncBaseVal'
@@ -209,6 +210,55 @@ class UscFuncVal extends FuncBaseVal {
 } /* node:coverage ignore next 2 */
 
 
+class EncodeFuncVal extends FuncBaseVal {
+  isEncodeFunc = true
+
+  constructor(spec: ValSpec, ctx?: AontuContext) { super(spec, ctx) }
+
+  make(_ctx: AontuContext, spec: ValSpec): Val { return new EncodeFuncVal(spec) }
+
+  funcname() { return 'encode' }
+
+  resolve(ctx: AontuContext, args: Val[]) {
+    const src = textOf(args?.[0])
+    const name = textOf(args?.[1])
+    if (undefined === src || undefined === name) {
+      return makeNilErr(ctx, 'invalid-arg', this)
+    }
+    if (!isEncodeName(name)) { return makeNilErr(ctx, 'encode_name', this) }
+
+    return this.place(new StringVal({ peg: encodeText(src, name) }, ctx))
+  }
+
+} /* node:coverage ignore next 2 */
+
+
+class DecodeFuncVal extends FuncBaseVal {
+  isDecodeFunc = true
+
+  constructor(spec: ValSpec, ctx?: AontuContext) { super(spec, ctx) }
+
+  make(_ctx: AontuContext, spec: ValSpec): Val { return new DecodeFuncVal(spec) }
+
+  funcname() { return 'decode' }
+
+  resolve(ctx: AontuContext, args: Val[]) {
+    const src = textOf(args?.[0])
+    const name = textOf(args?.[1])
+    if (undefined === src || undefined === name) {
+      return makeNilErr(ctx, 'invalid-arg', this)
+    }
+    if (!isEncodeName(name)) { return makeNilErr(ctx, 'encode_name', this) }
+
+    const [out, ok] = decodeText(src, name)
+    if (!ok) { return makeNilErr(ctx, 'decode_malformed', this) }
+
+    return this.place(new StringVal({ peg: out }, ctx))
+  }
+
+} /* node:coverage ignore next 2 */
+
+
 class RepFuncVal extends FuncBaseVal {
   isRepFunc = true
 
@@ -290,12 +340,14 @@ class SplitFuncVal extends FuncBaseVal {
     return this.place(new ListVal({ peg }, ctx))
   }
 
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 10 */
 
 
 export {
   EscFuncVal,
   UscFuncVal,
+  EncodeFuncVal,
+  DecodeFuncVal,
   RepFuncVal,
   SplitFuncVal,
 }

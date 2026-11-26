@@ -211,6 +211,8 @@ def Fn.name : Fn → String
   | .translate => "translate"
   | .esc => "esc"
   | .usc => "usc"
+  | .encode => "encode"
+  | .decode => "decode"
   | .super => "super"
   | .pref => "pref"
   | .move => "move"

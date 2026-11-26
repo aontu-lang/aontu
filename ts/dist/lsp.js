@@ -490,9 +490,9 @@ const COMPLETION_KEYWORD = 14;
 exports.COMPLETION_KEYWORD = COMPLETION_KEYWORD;
 const BUILTIN_FUNCS = [
     'abnf', 'above', 'acyclic', 'add', 'apply', 'below', 'close', 'contains', 'content', 'copy',
-    'copyfiles', 'deprecate',
+    'copyfiles', 'decode', 'deprecate',
     'div',
-    'each', 'emit', 'empty', 'esc',
+    'each', 'emit', 'empty', 'encode', 'esc',
     'file', 'filter', 'folder', 'format', 'fragment', 'gen', 'greatest',
     'hide', 'ident', 'inject', 'inverse', 'join', 'key', 'keyed', 'least', 'len', 'line',
     'listitems', 'lower',
