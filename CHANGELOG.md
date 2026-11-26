@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### Go: `vet --no-fill` reads a map's keys as the document writes them
+
+Under `--no-fill`, `vet` compares the data with what the schema
+generates. Go made that comparison with the output options applied, so
+a key that `gen({keys: …})` writes in another style read as a member
+the data lacked. TypeScript compared the value, as the suite says `vet`
+does.
+
+```aontu
+o: map & gen({keys: "snake"})
+```
+
+| `aontu vet --no-fill` against `{"o": {"aB": 1}}` | |
+|---|---|
+| TypeScript | `valid` |
+| Go, before | `incomplete`, `vet_filled` at `$.o.a_b` |
+| Go, now | `valid` |
+
+Seven rows of `test/spec/annotation-gen.tsv` hold both engines to it:
+a styled key on a kind, on a typed map, in a map's spread and in a
+list's, a member the schema still fills, and `as` and `empty` under the
+same flag, which already agreed. Go only. Fixes #1035.
+
 ### The definition loads a source that declares a name only at the root
 
 A declaration stands only at the root of a document, and both engines

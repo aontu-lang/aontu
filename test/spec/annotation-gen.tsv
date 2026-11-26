@@ -705,6 +705,16 @@ gen-vet-keys-admits-the-key-verbatim	verdict	o: close({orderId: integer}) & gen(
 gen-vet-keys-refuses-the-styled-key	verdict	o: close({orderId: integer}) & gen({keys: "snake"})	{"o": {"order_id": 7}}	{"verdict":"invalid"}
 gen-vet-omit-in-a-choice	verdict	v: {a: string & empty() & gen({empty: "omit"}), b?: integer} | {a: integer}	{"v": {"a": ""}}	{"verdict":"valid"}
 gen-vet-places-in-a-choice	verdict	v: {a: float & gen({places: 1}), b?: integer} | {a: string}	{"v": {"a": 3.14159}}	{"verdict":"valid"}
+# The fill check of --no-fill reads the value too: a key is the key the
+# document writes, whatever style writes it out, and a member the schema
+# supplies is still one the data must carry.
+gen-vet-keys-no-fill-reads-the-key-verbatim	verdict	o: map & gen({keys: "snake"})	{"o": {"aB": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+gen-vet-keys-no-fill-typed	verdict	o: {orderId: integer} & gen({keys: "snake"})	{"o": {"orderId": 7}}	{"verdict":"valid","opts":{"noFill":true}}
+gen-vet-keys-no-fill-in-a-spread	verdict	m: {&: map & gen({keys: "snake"})}	{"m": {"k": {"aB": 1}}}	{"verdict":"valid","opts":{"noFill":true}}
+gen-vet-keys-no-fill-in-a-list	verdict	l: [&: map & gen({keys: "upper"})]	{"l": [{"a": 1}]}	{"verdict":"valid","opts":{"noFill":true}}
+gen-vet-keys-no-fill-still-fills	verdict	o: {orderId: *7 | integer} & gen({keys: "snake"})	{"o": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+gen-vet-as-string-no-fill	verdict	v: number & gen({as: "string"})	{"v": 7}	{"verdict":"valid","opts":{"noFill":true}}
+gen-vet-omit-no-fill	verdict	u: {a: string & empty() & gen({empty: "omit"}), b: integer}	{"u": {"a": "", "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 # 
 # JSON Schema has no keyword for an output option, so the exporter reports
 # the annotation as a loss.
