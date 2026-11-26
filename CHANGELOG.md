@@ -8,6 +8,53 @@ each change affects.
 
 ## Unreleased
 
+### The definition loads a source that declares a name only at the root
+
+A declaration stands only at the root of a document, and both engines
+read a source in place. So a source that declares a name, loaded under
+a key, lands its declaration where none may stand, and both engines
+refuse it there as `alias_not_toplevel`. The definition read such a
+load as it reads one at the root.
+
+```aontu
+server: @"./unit.aontu"
+```
+
+With `%port = 8080` and `listen: %port` in `unit.aontu`:
+
+| | `aontu vet` against `{}` |
+|---|---|
+| Both engines | `error` |
+| The definition, before | `valid` |
+| The definition, now | `error` |
+
+`Decls.readLoad` in `spec/Aontu/Paths.lean` reads a plain load below
+the root of a source that brings a declaration as `nil`, a conflict
+where it stands. So it is the schema's error under a key, required or
+optional, in a list and in a declaration's body, and in a disjunction
+it fails its arm alone: `server: @"./unit.aontu" | "none"` generates
+`{"server": "none"}`.
+
+- **A source brings a declaration** (`Decls.brings`) where it declares
+  a name, writes a destructure at its top, or plainly loads at its top
+  a source that brings one.
+- **A term stands at a root** where it is the schema, a source's term
+  loaded plainly at a root, or one a destructure takes. A destructure
+  takes the names where it stands, so `x: { %a } = @"./f.aontu"` loads
+  under a key as before.
+- **A source that declares nothing** loads anywhere, as before.
+
+54 rows, lu0 to lu53 of `test/spec/def-path.tsv`, from 18 documents
+proved in `spec/Oracle.lean`, with one new fixture,
+`test/spec/files/alias_keys_u.aontu`. Both engines answer every one as
+the definition does, and no earlier row moves. No engine changes.
+
+Found on the way, in the engines: #1032, a declaration inside a
+spread's template, where TypeScript's `vet` answers `valid` for a
+document that doesn't generate and Go's answers `error`; and a load
+after `*`, which loses its preference as a literal map does, added to
+#349.
+
 ### The definition says what the graph atoms ask
 
 `acyclic()` and `inverse(k)` were the last built-in constraints the
