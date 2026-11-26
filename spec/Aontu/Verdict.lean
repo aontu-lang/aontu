@@ -2789,7 +2789,10 @@ theorem joinFields_distinct : ∀ {seen : List String} {fs : List (String × Boo
     have hk : seen.contains k = false := by
       cases hc : seen.contains k with
       | false => rfl
-      | true => have := hs k hc; simp [declared] at this
+      | true =>
+        have := hs k hc
+        simp only [declared, List.any_cons, Bool.or_eq_false_iff] at this
+        exact nomatch (beq_iff_eq.mpr rfl : (k == k) = true).symm.trans this.1
     have hs' : ∀ k', (k :: seen).contains k' = true → declared k' fs = false := by
       intro k' hc
       rcases List.mem_cons.mp (List.contains_iff_mem.mp hc) with rfl | hm
