@@ -1210,24 +1210,47 @@ theorem meetSpread_none {m : Val → Val → Val} {s₁ s₂ : Option Val} :
     meetSpread m s₁ s₂ = none ↔ s₁ = none ∧ s₂ = none := by
   cases s₁ <;> cases s₂ <;> simp [meetSpread]
 
+/-- A declared value under the term a spread holds for its key: their
+meet, but a value that is absence on its own stays absence. A template
+applies to a member, and absence is none, so the map leaves the member
+out as it would with no template. `any` stands where the map has no
+spread. -/
+def underSpread (m : Val → Val → Val) (v t : Val) : Val :=
+  if !t.isAny && (m v .any).isAbsent then m v .any else m v t
+
+theorem admits_underSpread {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    {v t : Val} {j : Data} (h : Admits env root (underSpread m v t) j) : Admits env root v j := by
+  unfold underSpread at h
+  split at h <;> exact ((hm _ _ _).mp h).1
+
+theorem admits_underSpread_of {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    {v t : Val} {j : Data} (hv : Admits env root v j) (ht : Admits env root t j) :
+    Admits env root (underSpread m v t) j := by
+  unfold underSpread
+  split
+  · exact (hm _ _ _).mpr ⟨hv, .any⟩
+  · exact (hm _ _ _).mpr ⟨hv, ht⟩
+
 /-- The declaration a key of one side yields in the meet, against the
 other side: a key the other declares holds the meet of all its
 declarations and is optional only where every one is; a key the other
-does not declare is met with the other's spread, or with `any` where it
-has none; and where the other is sealed the key cannot appear, so an
-optional one drops and a required one holds `nil`. -/
+does not declare is read under the other's spread (`underSpread`); and
+where the other is sealed the key cannot appear, so an optional one
+drops and a required one holds `nil`. -/
 def meetKey (m : Val → Val → Val) (other : List (String × Bool × Val)) (s : Option Val)
     (c : Bool) (f : String × Bool × Val) : Option (String × Bool × Val) :=
   if declared f.1 other then some (f.1, f.2.1 && optional f.1 other, meetDecls m f.1 f.2.2 other)
   else if c then (if f.2.1 then none else some (f.1, false, .nil))
-  else some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow.dropMarks)
+  else some (f.1, f.2.1, underSpread m f.2.2 ((s.getD .any).atKey f.1).selectNow.dropMarks)
 
-/-- Each declared value met with the spread, where the meet has one. -/
+/-- Each declared value read under the spread, where the meet has one. -/
 def foldSpread (m : Val → Val → Val) (sp : Option Val) (fs : List (String × Bool × Val)) :
     List (String × Bool × Val) :=
   match sp with
   | none => fs
-  | some t => fs.map fun f => (f.1, f.2.1, m f.2.2 (t.atKey f.1).selectNow.dropMarks)
+  | some t => fs.map fun f => (f.1, f.2.1, underSpread m f.2.2 (t.atKey f.1).selectNow.dropMarks)
 
 /-- The meet of two maps, key by key: the keys of one side, each against
 the other, then the keys of the other side alone, and every value met
@@ -1249,7 +1272,7 @@ theorem meetKey_eq_some {m : Val → Val → Val} {other : List (String × Bool 
           v = meetDecls m k f.2.2 other) ∨
        (declared k other = false ∧ c = true ∧ f.2.1 = false ∧ o = false ∧ v = .nil) ∨
        (declared k other = false ∧ c = false ∧ o = f.2.1 ∧
-          v = m f.2.2 ((s.getD .any).atKey k).selectNow.dropMarks)) := by
+          v = underSpread m f.2.2 ((s.getD .any).atKey k).selectNow.dropMarks)) := by
   unfold meetKey at h
   split at h
   · rename_i hd
@@ -1284,7 +1307,7 @@ theorem meetKey_sealed {m : Val → Val → Val} {other : List (String × Bool �
 theorem meetKey_open {m : Val → Val → Val} {other : List (String × Bool × Val)}
     {s : Option Val} (f : String × Bool × Val) (h : declared f.1 other = false) :
     meetKey m other s false f =
-      some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow.dropMarks) := by
+      some (f.1, f.2.1, underSpread m f.2.2 ((s.getD .any).atKey f.1).selectNow.dropMarks) := by
   simp [meetKey, h]
 
 theorem meetKey_alone {m : Val → Val → Val} {fs₁ : List (String × Bool × Val)} {s₁ : Option Val}
@@ -1335,9 +1358,9 @@ theorem admits_foldSpread {m : Val → Val → Val}
     constructor
     · rintro ⟨hp, ha, hs, hc⟩
       refine ⟨fun k o v x hm' hl => ?_, fun k o v hm' hl => ?_, hs, fun hcl k x hx => ?_⟩
-      · have h := hp k o (m v (t.atKey k).selectNow.dropMarks) x (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
-        exact ((hm _ _ _).mp h).1
-      · exact ha k o (m v (t.atKey k).selectNow.dropMarks) (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
+      · exact admits_underSpread hm
+          (hp k o (underSpread m v (t.atKey k).selectNow.dropMarks) x (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl)
+      · exact ha k o (underSpread m v (t.atKey k).selectNow.dropMarks) (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
       · obtain ⟨o, v', hmem⟩ := hc hcl k x hx
         obtain ⟨⟨k', o', v⟩, hm', he⟩ := List.mem_map.mp hmem
         simp only [Prod.mk.injEq] at he
@@ -1348,14 +1371,14 @@ theorem admits_foldSpread {m : Val → Val → Val}
       · obtain ⟨⟨k', o', v⟩, hmem, he⟩ := List.mem_map.mp hm'
         simp only [Prod.mk.injEq] at he
         obtain ⟨rfl, rfl, rfl⟩ := he
-        exact (hm _ _ _).mpr
-          ⟨hp _ _ _ x hmem hl, admits_dropMarks_iff.mpr ((admits_selectNow _ _).mpr (hs t rfl _ x (lookup_mem hl)))⟩
+        exact admits_underSpread_of hm (hp _ _ _ x hmem hl)
+          (admits_dropMarks_iff.mpr ((admits_selectNow _ _).mpr (hs t rfl _ x (lookup_mem hl))))
       · obtain ⟨⟨k', o', v⟩, hmem, he⟩ := List.mem_map.mp hm'
         simp only [Prod.mk.injEq] at he
         obtain ⟨rfl, rfl, -⟩ := he
         exact ha _ _ _ hmem hl
       · obtain ⟨o, v, hmem⟩ := hc hcl k x hx
-        exact ⟨o, m v (t.atKey k).selectNow.dropMarks, List.mem_map.mpr ⟨(k, o, v), hmem, rfl⟩⟩
+        exact ⟨o, underSpread m v (t.atKey k).selectNow.dropMarks, List.mem_map.mpr ⟨(k, o, v), hmem, rfl⟩⟩
 
 theorem admits_meetMap_core {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
@@ -1408,7 +1431,7 @@ theorem admits_meetMap_core {m : Val → Val → Val}
         | false =>
           have h := hp k _ _ x (List.mem_append_left _ (List.mem_filterMap.mpr
             ⟨(k, o₁, v₁), hm₁, meetKey_open (k, o₁, v₁) hd⟩)) hl
-          exact ((hm _ _ _).mp h).1
+          exact admits_underSpread hm h
     · intro k o₁ v₁ hm₁ hl
       cases hd : declared k fs₂ with
       | true =>
@@ -1483,7 +1506,7 @@ theorem admits_meetMap_core {m : Val → Val → Val}
           have h := hp k _ _ x (List.mem_append_right _ (List.mem_filterMap.mpr
             ⟨(k, o₂, v₂), hm₂,
               (meetKey_alone (k, o₂, v₂) hd).trans (meetKey_open (k, o₂, v₂) hd)⟩)) hl
-          exact ((hmf _ _ _).mp h).1
+          exact admits_underSpread hmf h
     · intro k o₂ v₂ hm₂ hl
       cases hd : declared k fs₁ with
       | true =>
@@ -1536,7 +1559,7 @@ theorem admits_meetMap_core {m : Val → Val → Val}
         · exfalso
           obtain ⟨o'', v'', hm''⟩ := hc₂ hc _ x (lookup_mem hl)
           exact Bool.false_ne_true (hd ▸ declared_iff.mpr ⟨o'', v'', hm''⟩)
-        · exact (hm _ _ _).mpr ⟨hp₁ _ o' v' x hmem' hl, admits_spread_getD hs₂ (lookup_mem hl)⟩
+        · exact admits_underSpread_of hm (hp₁ _ o' v' x hmem' hl) (admits_spread_getD hs₂ (lookup_mem hl))
       · obtain ⟨⟨k', o', v'⟩, hmem', hf⟩ := List.mem_filterMap.mp h
         simp only at hf
         split at hf
@@ -1548,7 +1571,7 @@ theorem admits_meetMap_core {m : Val → Val → Val}
           · exfalso
             obtain ⟨o'', v'', hm''⟩ := hc₁ hc _ x (lookup_mem hl)
             exact hnd (declared_iff.mpr ⟨o'', v'', hm''⟩)
-          · exact (hmf _ _ _).mpr ⟨hp₂ _ o' v' x hmem' hl, admits_spread_getD hs₁ (lookup_mem hl)⟩
+          · exact admits_underSpread_of hmf (hp₂ _ o' v' x hmem' hl) (admits_spread_getD hs₁ (lookup_mem hl))
     · intro k o v hmem hl
       rcases List.mem_append.mp hmem with h | h
       · obtain ⟨⟨k', o', v'⟩, hmem', hf⟩ := List.mem_filterMap.mp h

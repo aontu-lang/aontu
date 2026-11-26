@@ -1714,6 +1714,118 @@ su35	verdict	"a": (list) & ((["h"]) + (maybe($.t)))	{}	{"verdict":"valid","opts"
 su36	verdict	"a"?: (["h"]) + (maybe($.t))	{}	{"verdict":"valid"}
 su37	verdict	"a"?: (["h"]) + (maybe($.t))	{}	{"verdict":"valid","opts":{"noFill":true}}
 su38	verdict	"a"?: (["h"]) + (maybe($.t))	{}	{"verdict":"valid","opts":{"partial":true}}
+# A spread's template doesn't apply to a member that is absence, in rows ab0
+# on: the map leaves the member out as it would with no template, the
+# template still holds what the data gives at the key, and the absence may
+# be computed, by a sum, a call, a meet of two or under a mark.
+ab0	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"valid"}
+ab1	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab2	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab3	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe($.gone)})	{"a": {"x": "p"}}	{"verdict":"valid"}
+ab4	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe($.gone)})	{"a": {"x": "p"}}	{"verdict":"valid","opts":{"noFill":true}}
+ab5	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe($.gone)})	{"a": {"x": "p"}}	{"verdict":"valid","opts":{"partial":true}}
+ab6	verdict	"a": ({"x": "p", "y": maybe($.gone)}) & ({&: string})	{}	{"verdict":"valid"}
+ab7	verdict	"a": ({"x": "p", "y": maybe($.gone)}) & ({&: string})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab8	verdict	"a": ({"x": "p", "y": maybe($.gone)}) & ({&: string})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab9	verdict	"a": {"x": "p", "y": maybe($.gone), &: string}	{}	{"verdict":"valid"}
+ab10	verdict	"a": {"x": "p", "y": maybe($.gone), &: string}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab11	verdict	"a": {"x": "p", "y": maybe($.gone), &: string}	{}	{"verdict":"valid","opts":{"partial":true}}
+ab12	verdict	"a": {"x": "p", "y": maybe($.gone), &: string}	{"a": {"x": "p"}}	{"verdict":"valid"}
+ab13	verdict	"a": {"x": "p", "y": maybe($.gone), &: string}	{"a": {"x": "p"}}	{"verdict":"valid","opts":{"noFill":true}}
+ab14	verdict	"a": {"x": "p", "y": maybe($.gone), &: string}	{"a": {"x": "p"}}	{"verdict":"valid","opts":{"partial":true}}
+ab15	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"a": {"y": "s"}}	{"verdict":"valid"}
+ab16	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"a": {"y": "s"}}	{"verdict":"valid","opts":{"noFill":true}}
+ab17	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"a": {"y": "s"}}	{"verdict":"valid","opts":{"partial":true}}
+ab18	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"a": {"y": 5}}	{"verdict":"invalid"}
+ab19	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"a": {"y": 5}}	{"verdict":"invalid","opts":{"noFill":true}}
+ab20	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"a": {"y": 5}}	{"verdict":"invalid","opts":{"partial":true}}
+ab21	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"gone": "z"}	{"verdict":"valid"}
+ab22	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"gone": "z"}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab23	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"gone": "z"}	{"verdict":"valid","opts":{"partial":true}}
+ab24	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"gone": 1}	{"verdict":"invalid"}
+ab25	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"gone": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+ab26	verdict	"a": ({&: string}) & ({"y": maybe($.gone)})	{"gone": 1}	{"verdict":"invalid","opts":{"partial":true}}
+ab27	verdict	"n": "q", "a": ({&: string}) & ({"x": "p", "y": maybe($.n)})	{}	{"verdict":"valid"}
+ab28	verdict	"n": "q", "a": ({&: string}) & ({"x": "p", "y": maybe($.n)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab29	verdict	"n": "q", "a": ({&: string}) & ({"x": "p", "y": maybe($.n)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab30	verdict	"n": 1, "a": ({&: string}) & ({"x": "p", "y": maybe($.n)})	{}	{"verdict":"error"}
+ab31	verdict	"n": 1, "a": ({&: string}) & ({"x": "p", "y": maybe($.n)})	{}	{"verdict":"error","opts":{"noFill":true}}
+ab32	verdict	"n": 1, "a": ({&: string}) & ({"x": "p", "y": maybe($.n)})	{}	{"verdict":"error","opts":{"partial":true}}
+ab33	verdict	"a": ({&: {"k": integer}}) & ({"y": maybe($.gone)})	{}	{"verdict":"valid"}
+ab34	verdict	"a": ({&: {"k": integer}}) & ({"y": maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab35	verdict	"a": ({&: {"k": integer}}) & ({"y": maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab36	verdict	"a": ({&: *(1) | (integer)}) & ({"y": maybe($.gone)})	{}	{"verdict":"valid"}
+ab37	verdict	"a": ({&: *(1) | (integer)}) & ({"y": maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab38	verdict	"a": ({&: *(1) | (integer)}) & ({"y": maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab39	verdict	"a": ({&: *(1) | (integer)}) & ({"y": maybe($.gone)})	{"a": {}}	{"verdict":"valid"}
+ab40	verdict	"a": ({&: *(1) | (integer)}) & ({"y": maybe($.gone)})	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+ab41	verdict	"a": ({&: *(1) | (integer)}) & ({"y": maybe($.gone)})	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+ab42	verdict	"a": ({&: {"n": key(0)}}) & ({"y": maybe($.gone)})	{}	{"verdict":"valid"}
+ab43	verdict	"a": ({&: {"n": key(0)}}) & ({"y": maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab44	verdict	"a": ({&: {"n": key(0)}}) & ({"y": maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab45	verdict	"a": ({&: {&: string}}) & ({"b": {"x": "p", "y": maybe($.gone)}})	{}	{"verdict":"valid"}
+ab46	verdict	"a": ({&: {&: string}}) & ({"b": {"x": "p", "y": maybe($.gone)}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab47	verdict	"a": ({&: {&: string}}) & ({"b": {"x": "p", "y": maybe($.gone)}})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab48	verdict	"a": ({&: {&: integer}}) & ({"b": {"k": 1, "j": maybe($.gone)}, "c": maybe($.gone)})	{}	{"verdict":"valid"}
+ab49	verdict	"a": ({&: {&: integer}}) & ({"b": {"k": 1, "j": maybe($.gone)}, "c": maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab50	verdict	"a": ({&: {&: integer}}) & ({"b": {"k": 1, "j": maybe($.gone)}, "c": maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab51	verdict	"a": (({&: string}) & ({&: ("p") | ("q")})) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"valid"}
+ab52	verdict	"a": (({&: string}) & ({&: ("p") | ("q")})) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab53	verdict	"a": (({&: string}) & ({&: ("p") | ("q")})) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab54	verdict	"a": ({&: string}) & ({"x": "p", "y"?: maybe($.gone)})	{}	{"verdict":"valid"}
+ab55	verdict	"a": ({&: string}) & ({"x": "p", "y"?: maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab56	verdict	"a": ({&: string}) & ({"x": "p", "y"?: maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab57	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": "s"})	{}	{"verdict":"valid"}
+ab58	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": "s"})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab59	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": "s"})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab60	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": 5})	{}	{"verdict":"error"}
+ab61	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": 5})	{}	{"verdict":"error","opts":{"noFill":true}}
+ab62	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": 5})	{}	{"verdict":"error","opts":{"partial":true}}
+ab63	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (string)})	{}	{"verdict":"incomplete"}
+ab64	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (string)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab65	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (string)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab66	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (any)})	{}	{"verdict":"valid"}
+ab67	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (any)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab68	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (any)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab69	verdict	"a": (close({"x": string})) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"error"}
+ab70	verdict	"a": (close({"x": string})) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"error","opts":{"noFill":true}}
+ab71	verdict	"a": (close({"x": string})) & ({"x": "p", "y": maybe($.gone)})	{}	{"verdict":"error","opts":{"partial":true}}
+ab72	verdict	"a": (close()) & ({"y": maybe($.gone)})	{"a": {"y": 5}}	{"verdict":"valid"}
+ab73	verdict	"a": (close()) & ({"y": maybe($.gone)})	{"a": {"y": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+ab74	verdict	"a": (close()) & ({"y": maybe($.gone)})	{"a": {"y": 5}}	{"verdict":"valid","opts":{"partial":true}}
+ab75	verdict	"a": ({&: string}) & ({"x": "p", "y": hide(maybe($.gone))})	{}	{"verdict":"valid"}
+ab76	verdict	"a": ({&: string}) & ({"x": "p", "y": hide(maybe($.gone))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab77	verdict	"a": ({&: string}) & ({"x": "p", "y": hide(maybe($.gone))})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab78	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (maybe($.also))})	{}	{"verdict":"valid"}
+ab79	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (maybe($.also))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab80	verdict	"a": ({&: string}) & ({"x": "p", "y": (maybe($.gone)) & (maybe($.also))})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab81	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": maybe($.also)})	{}	{"verdict":"valid"}
+ab82	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": maybe($.also)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab83	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": maybe($.also)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab84	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": maybe($.gone)})	{}	{"verdict":"valid"}
+ab85	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": maybe($.gone)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab86	verdict	"a": (({&: string}) & ({"y": maybe($.gone)})) & ({"y": maybe($.gone)})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab87	verdict	"a": ({&: string}) & ({"x": "p", "y": ("h") + (maybe($.gone))})	{}	{"verdict":"valid"}
+ab88	verdict	"a": ({&: string}) & ({"x": "p", "y": ("h") + (maybe($.gone))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab89	verdict	"a": ({&: string}) & ({"x": "p", "y": ("h") + (maybe($.gone))})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab90	verdict	"a": ({&: string}) & ({"x": "p", "y": ("h") + (maybe($.gone))})	{"a": {"x": "p"}}	{"verdict":"valid"}
+ab91	verdict	"a": ({&: string}) & ({"x": "p", "y": ("h") + (maybe($.gone))})	{"a": {"x": "p"}}	{"verdict":"valid","opts":{"noFill":true}}
+ab92	verdict	"a": ({&: string}) & ({"x": "p", "y": ("h") + (maybe($.gone))})	{"a": {"x": "p"}}	{"verdict":"valid","opts":{"partial":true}}
+ab93	verdict	"a": ({&: string}) & ({"x": "p", "y": upper(maybe($.gone))})	{}	{"verdict":"valid"}
+ab94	verdict	"a": ({&: string}) & ({"x": "p", "y": upper(maybe($.gone))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab95	verdict	"a": ({&: string}) & ({"x": "p", "y": upper(maybe($.gone))})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab96	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe(maybe($.gone))})	{}	{"verdict":"valid"}
+ab97	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe(maybe($.gone))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab98	verdict	"a": ({&: string}) & ({"x": "p", "y": maybe(maybe($.gone))})	{}	{"verdict":"valid","opts":{"partial":true}}
+ab99	verdict	"a": ([&: string]) & (["p", ("h") + (maybe($.gone))])	{}	{"verdict":"valid"}
+ab100	verdict	"a": ([&: string]) & (["p", ("h") + (maybe($.gone))])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab101	verdict	"a": ([&: string]) & (["p", ("h") + (maybe($.gone))])	{}	{"verdict":"valid","opts":{"partial":true}}
+ab102	verdict	"a": ([&: string]) & (["p", hide(maybe($.gone))])	{}	{"verdict":"valid"}
+ab103	verdict	"a": ([&: string]) & (["p", hide(maybe($.gone))])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab104	verdict	"a": ([&: string]) & (["p", hide(maybe($.gone))])	{}	{"verdict":"valid","opts":{"partial":true}}
+ab105	verdict	"a": ([&: {&: string}]) & ([{"x": "p", "y": maybe($.gone)}])	{}	{"verdict":"valid"}
+ab106	verdict	"a": ([&: {&: string}]) & ([{"x": "p", "y": maybe($.gone)}])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ab107	verdict	"a": ([&: {&: string}]) & ([{"x": "p", "y": maybe($.gone)}])	{}	{"verdict":"valid","opts":{"partial":true}}
 pf0	verdict	"b": pref(1)	{}	{"verdict":"valid"}
 pf1	verdict	"b": pref(1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 pf2	verdict	"b": pref(1)	{}	{"verdict":"valid","opts":{"partial":true}}

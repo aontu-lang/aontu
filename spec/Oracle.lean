@@ -3110,6 +3110,79 @@ theorem sumAbsent_verdict_exact : ∀ c ∈ sumAbsentCases, ∀ (m : Mode) (v : 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (sumAbsentCases_checkable c hc).1 (sumAbsentCases_checkable c hc).2 v
 
+/-- A spread's template doesn't apply to a member that is absence: the
+map leaves the member out, as it would with no template, and a list
+holds no position for the element. The template beside the map, on
+either side, and written in it; data that is the output, which lacks
+nothing; data at the key, which the template still holds, and data that
+names the path; a `maybe` whose path names something, which the
+template holds; a template of maps, one with a default, one that reads
+the key, a template in a template and two templates; an optional key,
+another declaration of the key with a value, one with a value the
+template refuses, a kind and `any` met with the absence; a sealed map
+beside, which refuses the key, and a sealed map of its own; an absence
+that is computed, under a mark, as a meet of two, in two declarations,
+by a sum, by a call and by `maybe` again; and a list, for a sum, a
+marked element and a map under a template of its own. -/
+def absentSpreadCases : List (Decls × Val × Data) :=
+  let mb (v : Val) : Val := .call .maybe [v]
+  let gone : Val := mb (p ["gone"])
+  let also : Val := mb (p ["also"])
+  let px : Val := .lit (.str "p")
+  let ts : Val := tmpl .string
+  let lt (t : Val) : Val := .list [] (some t) false
+  let one : Val := .meet ts (m [("y", gone)])
+  let both : Val := .meet ts (m [("x", px), ("y", gone)])
+  let own : Val := .map [("x", false, px), ("y", false, gone)] (some .string) false
+  let dflt : Val := .meet (tmpl (.or [(1, int 1), (0, .integer)])) (m [("y", gone)])
+  let sum : Val := .meet ts (m [("x", px), ("y", .call .plus [.lit (.str "h"), gone])])
+  let out : Data := .map [("a", .map [("x", .str "p")])]
+  [([], m [("a", both)], .map []),
+    ([], m [("a", both)], out),
+    ([], m [("a", .meet (m [("x", px), ("y", gone)]) ts)], .map []),
+    ([], m [("a", own)], .map []),
+    ([], m [("a", own)], out),
+    ([], m [("a", one)], .map [("a", .map [("y", .str "s")])]),
+    ([], m [("a", one)], .map [("a", .map [("y", j 5)])]),
+    ([], m [("a", one)], .map [("gone", .str "z")]),
+    ([], m [("a", one)], .map [("gone", j 1)]),
+    ([], m [("n", .lit (.str "q")), ("a", .meet ts (m [("x", px), ("y", mb (p ["n"]))]))], .map []),
+    ([], m [("n", int 1), ("a", .meet ts (m [("x", px), ("y", mb (p ["n"]))]))], .map []),
+    ([], m [("a", .meet (tmpl (m [("k", .integer)])) (m [("y", gone)]))], .map []),
+    ([], m [("a", dflt)], .map []),
+    ([], m [("a", dflt)], .map [("a", .map [])]),
+    ([], m [("a", .meet (tmpl (m [("n", .key)])) (m [("y", gone)]))], .map []),
+    ([], m [("a", .meet (tmpl ts) (m [("b", m [("x", px), ("y", gone)])]))], .map []),
+    ([], m [("a", .meet (tmpl (tmpl .integer)) (m [("b", m [("k", int 1), ("j", gone)]), ("c", gone)]))],
+      .map []),
+    ([], m [("a", .meet (.meet ts (tmpl (.or [(0, px), (0, .lit (.str "q"))]))) (m [("x", px), ("y", gone)]))],
+      .map []),
+    ([], m [("a", .meet ts (mo [("x", false, px), ("y", true, gone)]))], .map []),
+    ([], m [("a", .meet one (m [("y", .lit (.str "s"))]))], .map []),
+    ([], m [("a", .meet one (m [("y", int 5)]))], .map []),
+    ([], m [("a", .meet ts (m [("x", px), ("y", .meet gone .string)]))], .map []),
+    ([], m [("a", .meet ts (m [("x", px), ("y", .meet gone .any)]))], .map []),
+    ([], m [("a", .meet (.map [("x", false, .string)] none true) (m [("x", px), ("y", gone)]))], .map []),
+    ([], m [("a", .meet (.ride .seals .any []) (m [("y", gone)]))], .map [("a", .map [("y", j 5)])]),
+    ([], m [("a", .meet ts (m [("x", px), ("y", hide gone)]))], .map []),
+    ([], m [("a", .meet ts (m [("x", px), ("y", .meet gone also)]))], .map []),
+    ([], m [("a", .meet one (m [("y", also)]))], .map []),
+    ([], m [("a", .meet one (m [("y", gone)]))], .map []),
+    ([], m [("a", sum)], .map []),
+    ([], m [("a", sum)], out),
+    ([], m [("a", .meet ts (m [("x", px), ("y", .call .upper [gone])]))], .map []),
+    ([], m [("a", .meet ts (m [("x", px), ("y", mb gone)]))], .map []),
+    ([], m [("a", .meet (lt .string) (lst [px, .call .plus [.lit (.str "h"), gone]]))], .map []),
+    ([], m [("a", .meet (lt .string) (lst [px, hide gone]))], .map []),
+    ([], m [("a", .meet (lt ts) (lst [m [("x", px), ("y", gone)]]))], .map [])]
+
+theorem absentSpreadCases_checkable : ∀ c ∈ absentSpreadCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem absentSpread_verdict_exact : ∀ c ∈ absentSpreadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (absentSpreadCases_checkable c hc).1 (absentSpreadCases_checkable c hc).2 v
+
 /-- `pref` over a literal, a map, a list, a disjunction with a preferred
 arm and one with a kind, a kind, a bound, a preference, `null`, a
 boolean and a map arm beside a literal; over a path, a call and
@@ -9636,6 +9709,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# number, in a list, inside another sum, met with a kind and under an"
     IO.println "# optional key."
     pathRows "su" sumAbsentCases
+    IO.println "# A spread's template doesn't apply to a member that is absence, in rows ab0"
+    IO.println "# on: the map leaves the member out as it would with no template, the"
+    IO.println "# template still holds what the data gives at the key, and the absence may"
+    IO.println "# be computed, by a sum, a call, a meet of two or under a mark."
+    pathRows "ab" absentSpreadCases
     pathRows "pf" prefCases
     pathRows "pc" callPathCases
     pathRows "dp" dataPathCases
