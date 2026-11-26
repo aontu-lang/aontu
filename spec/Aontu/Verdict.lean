@@ -270,13 +270,22 @@ def Scalar.plusText? : Scalar → Option String
   | .num n => some n.text
   | .null => none
 
+/-- A term as `+` reads its operand: as a call reads its argument
+(`Val.operand`), and an address as the text that spells it
+(`Addr.text`), so that `path($.a) + "/n"` is `"$.a/n"`. -/
+def Val.plusOperand (v : Val) : Val :=
+  match v.operand with
+  | .addr a => .lit (.str a.text)
+  | w => w
+
 /-- What `+` makes of two terms in normal form: two lists one list, the
 left's elements then the right's; two booleans either; a string and a
-scalar with text the two texts joined; two numbers their sum by `add`,
-refused where no leaf holds it; and anything else waits: a kind,
-`null`, a map, a list beside a scalar, a boolean beside a number. -/
+scalar with text the two texts joined, an address read as its text; two
+numbers their sum by `add`, refused where no leaf holds it; and
+anything else waits: a kind, `null`, a map, a list beside a scalar, a
+boolean beside a number. -/
 def plusOf (a b : Val) : Made :=
-  match a.operand, b.operand with
+  match a.plusOperand, b.plusOperand with
   | .list xs _ _, .list ys _ _ => .made (.list (xs ++ ys) none false)
   | .lit (.bool p), .lit (.bool q) => .made (.lit (.bool (p || q)))
   | .lit (.str s), .lit y => (y.plusText?.map fun t => .made (.lit (.str (s ++ t)))).getD .waits
@@ -3655,10 +3664,17 @@ theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA)
     · cases h
   · cases h
 
+theorem Val.plusOperand_checkableA {v : Val} (h : v.CheckableA) : v.plusOperand.CheckableA := by
+  have h' := Val.operand_checkableA h
+  unfold Val.plusOperand
+  split
+  · exact .lit
+  · exact h'
+
 theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
     (h : plusOf a b = .made v) : v.CheckableA := by
-  have ha' := Val.operand_checkableA ha
-  have hb' := Val.operand_checkableA hb
+  have ha' := Val.plusOperand_checkableA ha
+  have hb' := Val.plusOperand_checkableA hb
   unfold plusOf at h
   split at h
   · rename_i xs _ _ ys _ _ hxa hyb
