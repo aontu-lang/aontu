@@ -2249,3 +2249,10 @@ Start
 ```text
 merge
 ```
+
+## 2026-11-26 17:34:09 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+How much of the aontu language does the lean spec now cover?
+How much of the aontu language does the lean spec now cover?
+```
