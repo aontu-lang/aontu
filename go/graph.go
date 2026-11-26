@@ -45,15 +45,31 @@ func cutEdge(at []string) (string, string) {
 	return graphPath(at[:i]), at[i]
 }
 
-func graphWalk(root Val) ([]Edge, []string, map[string]*relDecl) {
+// pickedArms are the arms generation writes: the preference of the lowest rank, or every arm, which it writes only alike.
+func pickedArms(arms []Val) []Val {
+	var best *PrefVal
+	for _, m := range arms {
+		if p, ok := m.(*PrefVal); ok && (nil == best || p.rank < best.rank) {
+			best = p
+		}
+	}
+	if nil == best {
+		return arms
+	}
+	return []Val{best}
+}
+
+func graphWalk(root Val, written bool) ([]Edge, []string, map[string]*relDecl, map[string]Val) {
 	edges := []Edge{}
 	disjunct := []string{}
 	decls := map[string]*relDecl{}
+	sites := map[string]Val{}
 	ancestors := map[Val]bool{}
 
 	// ONE WALK, with `undecided` saying which side of the disjunction it is on:
 	// below an unresolved disjunction every link is a position the
-	// document has not decided, and nothing there is an edge.
+	// document has not decided, and nothing there is an edge. Read as
+	// `written`, the arms generation picks are decided and no other is read.
 	var visit func(node Val, path []string, hidden, undecided bool, under []string)
 	visit = func(node Val, path []string, hidden, undecided bool, under []string) {
 		if nil == node || ancestors[node] {
@@ -92,6 +108,9 @@ func graphWalk(root Val) ([]Edge, []string, map[string]*relDecl) {
 				At:     graphPath(path),
 				Hidden: hidden,
 			})
+			if _, held := sites[graphPath(path)]; !held {
+				sites[graphPath(path)] = node
+			}
 		}
 
 		// The field a `relate()` was written at names the relation of the
@@ -118,10 +137,20 @@ func graphWalk(root Val) ([]Edge, []string, map[string]*relDecl) {
 			delete(ancestors, node)
 		case *DisjunctVal:
 			ancestors[node] = true
-			for _, arm := range n.peg {
-				visit(arm, path, hidden, true, under)
+			arms := n.peg
+			if written {
+				arms = pickedArms(arms)
+			}
+			for _, arm := range arms {
+				visit(arm, path, hidden, undecided || !written, under)
 			}
 			delete(ancestors, node)
+		case *PrefVal:
+			if written {
+				ancestors[node] = true
+				visit(n.peg, path, hidden, undecided, under)
+				delete(ancestors, node)
+			}
 		case *MapVal:
 			ancestors[node] = true
 			for _, k := range n.keys {
@@ -138,12 +167,18 @@ func graphWalk(root Val) ([]Edge, []string, map[string]*relDecl) {
 	}
 
 	visit(root, nil, false, false, nil)
-	return edges, disjunct, decls
+	sort.Slice(edges, func(i, j int) bool { return edges[i].At < edges[j].At })
+	return edges, disjunct, decls, sites
+}
+
+// writtenOf reads what generation writes, a default's edges and atoms among them, with the value each edge is written at.
+func writtenOf(root Val) (Graph, map[string]*relDecl, map[string]Val) {
+	edges, _, decls, sites := graphWalk(root, true)
+	return Graph{Edges: edges}, decls, sites
 }
 
 func GraphOf(root Val) Graph {
-	edges, disjunct, _ := graphWalk(root)
-	sort.Slice(edges, func(i, j int) bool { return edges[i].At < edges[j].At })
+	edges, disjunct, _, _ := graphWalk(root, false)
 
 	if 0 < len(disjunct) {
 		sort.Strings(disjunct)
@@ -160,6 +195,6 @@ func GraphOf(root Val) Graph {
 
 // declsOf reads every graph atom the finished value holds, by the key it is met at.
 func declsOf(root Val) map[string]*relDecl {
-	_, _, decls := graphWalk(root)
+	_, _, decls, _ := graphWalk(root, false)
 	return decls
 }

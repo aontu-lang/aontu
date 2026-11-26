@@ -135,17 +135,22 @@ atom-on-a-hidden-container	canon	x: hide({a: 1} & acyclic())\ny: type([1] & inve
 
 # --- Where a declaration is read --------------------------------------
 #
-# The declarations are read from the finished value, by the key each
-# atom is met at. An atom met with nothing declares as one met with a
-# relation does, hidden or not, however often it is written. One in an
-# alternative the document refused declares nothing, and so does one
-# below an unresolved disjunction, as a link there is no edge.
+# The declarations are read from the value generation writes, by the
+# key each atom is met at. An atom met with nothing declares as one met
+# with a relation does, hidden or not, however often it is written. One
+# in an alternative the document refused declares nothing, and neither
+# does one in an arm generation doesn't take, as a link there is no
+# edge. One in the default does. A disjunction that prefers no arm is
+# written only where its arms write alike, so a document that holds an
+# atom in one that doesn't is not generated, and that is the answer.
 lone-atom-declares	relation	rules: {next: acyclic()}\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"next","at":"$.a.next.0","detail":["$.a","$.b","$.a"]}]}
 hidden-relation-declares	relation	rules: hide({next: relate() & acyclic() & []})\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"next","at":"$.a.next.0","detail":["$.a","$.b","$.a"]}]}
 hidden-lone-atom-declares	relation	rules: hide({next: acyclic()})\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"next","at":"$.a.next.0","detail":["$.a","$.b","$.a"]}]}
 lone-atom-refuses-generation	errc	rules: {next: acyclic()}\na: {next: relate() & [path($.b)]}\nb: {next: relate() & [path($.a)]}	relation_cycle
 refused-alternative-declares-nothing	relation	e: {n: (acyclic() & 1) | "a"}\ne: {n: "a"}\na: {n: relate() & [path($.b)]}\nb: {n: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
-undecided-alternative-declares-nothing	relation	x: {n: acyclic()} | 1\na: {n: relate() & [path($.b)]}\nb: {n: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
+default-alternative-declares	relation	x: *{n: acyclic()} | 1\na: {n: relate() & [path($.b)]}\nb: {n: relate() & [path($.a)]}	{"findings":[{"at":"$.a.n.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"n"}],"verdict":"fail"}
+untaken-alternative-declares-nothing	relation	x: *1 | {n: acyclic()}\na: {n: relate() & [path($.b)]}\nb: {n: relate() & [path($.a)]}	{"findings":[],"verdict":"pass"}
+undecided-alternative-is-not-generated	relation	x: {n: acyclic()} | 1\na: {n: relate() & [path($.b)]}\nb: {n: relate() & [path($.a)]}	{"errors":[{"class":"incomplete","code":"disjunct_no_gen","path":"$.x","severity":"error","sites":[{"col":4,"file":"","len":1,"role":"data","row":1,"src":"{","value":"{\\"n\\":acyclic()}|1"}]}],"findings":[],"verdict":"error"}
 
 # --- relate(t): the target half of the old declaration -------------------
 #
@@ -240,7 +245,8 @@ rel-spread-alias-map	errc	%M = {k: 1}\na: {dependsOn: relate() & [&: %M] & [path
 # completes the document, it is judged. A refusal the data earns comes
 # first: the graph of a document that is already refused isn't read.
 # A data document that writes the edges itself is judged in every mode,
-# the fill having nothing to supply.
+# the fill having nothing to supply. A warning stops nothing: beside a
+# deprecation the graph is still judged.
 vet-refuses-a-cycle	verdict	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid"}
 vet-refuses-a-cycle-no-fill	verdict	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 vet-refuses-a-cycle-partial	verdict	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid","opts":{"partial":true}}
@@ -289,3 +295,63 @@ vet-judges-an-atom-the-data-writes	verdict	a: {dependsOn: relate()}\nb: {depends
 vet-judges-an-atom-the-data-writes-no-fill	verdict	a: {dependsOn: relate()}\nb: {dependsOn: relate()}	a: dependsOn: acyclic() & [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid","opts":{"noFill":true}}
 vet-judges-an-atom-the-data-writes-partial	verdict	a: {dependsOn: relate()}\nb: {dependsOn: relate()}	a: dependsOn: acyclic() & [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid","opts":{"partial":true}}
 vet-reports-a-cycle-the-data-writes	vet	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: [path($.a)]	{"findings":[{"class":"conflict","code":"relation_cycle","path":"$.a.dependsOn.0","pointer":"/a/dependsOn/0","severity":"error","sites":[{"col":16,"file":"data","len":4,"role":"data","row":1,"src":"path","value":"path($.b)"}]}],"truncated":false,"verdict":"invalid"}
+vet-judges-a-graph-beside-a-deprecation	verdict	a: {old: deprecate(1, {msg: "gone"}), dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid"}
+vet-judges-a-graph-beside-a-deprecation-no-fill	verdict	a: {old: deprecate(1, {msg: "gone"}), dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-judges-a-graph-beside-a-deprecation-partial	verdict	a: {old: deprecate(1, {msg: "gone"}), dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid","opts":{"partial":true}}
+
+# --- The edges a default brings ---------------------------------------
+#
+# The atoms judge the edges generation writes, so a default's edge is
+# an edge and an atom in the default declares. Generation takes the
+# preference of the lowest rank, a lone one or one of several, and an
+# arm it doesn't take brings no edge and no declaration, so a mirror
+# written only there is missing and one the default writes is found.
+# Arms that prefer nothing are written only where they write alike, and
+# then each is read. generation, `relations` and vet answer alike.
+default-edge-closes-a-cycle	relation	a: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+edge-in-an-arm-not-taken-is-no-edge	relation	a: {dependsOn: relate() & acyclic() & ([path($.b)] | *[])}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[],"verdict":"pass"}
+default-edge-that-closes-nothing	relation	a: {dependsOn: relate() & acyclic() & (*[path($.c)] | [path($.b)])}\nb: {dependsOn: relate() & [path($.a)]}\nc: {}	{"findings":[],"verdict":"pass"}
+lone-default-edge-closes-a-cycle	relation	a: {dependsOn: relate() & acyclic() & *[path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+pref-call-edge-closes-a-cycle	relation	a: {dependsOn: relate() & acyclic() & pref([path($.b)])}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+lowest-rank-default-is-the-edge	relation	a: {dependsOn: relate() & acyclic() & (**[path($.c)] | *[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}\nc: {}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+higher-rank-default-is-no-edge	relation	a: {dependsOn: relate() & acyclic() & (*[path($.c)] | **[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}\nc: {}	{"findings":[],"verdict":"pass"}
+nested-default-edge-closes-a-cycle	relation	a: {dependsOn: relate() & acyclic() & (*(*[path($.b)] | [path($.c)]) | [])}\nb: {dependsOn: relate() & [path($.a)]}\nc: {}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+default-single-address-is-an-edge	relation	a: {dependsOn: relate() & acyclic() & (*path($.b) | path($.c))}\nb: {dependsOn: relate() & path($.a)}\nc: {}	{"findings":[{"at":"$.a.dependsOn","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+default-map-of-addresses-is-edges	relation	a: {dependsOn: relate() & acyclic() & (*{x: path($.b)} | {})}\nb: {dependsOn: relate() & {y: path($.a)}}	{"findings":[{"at":"$.a.dependsOn.x","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+default-member-holds-the-relation	relation	a: *{dependsOn: relate() & acyclic() & [path($.b)]} | {x: 1}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+default-edge-from-a-spread	relation	n: {&: {dependsOn: relate() & acyclic() & (*[path($.n.b)] | [])}, a: {}, b: {dependsOn: [path($.n.a)]}}	{"findings":[{"at":"$.n.a.dependsOn.0","code":"relation_cycle","detail":["$.n.a","$.n.b","$.n.a"],"relation":"dependsOn"}],"verdict":"fail"}
+default-edge-under-a-far-declaration	relation	a: {dependsOn: relate() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+both-edges-by-default	relation	a: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & (*[path($.a)] | [])}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+atom-in-the-default-declares	relation	a: {dependsOn: relate() & (*(acyclic() & [path($.b)]) | [])}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+atom-in-an-arm-not-taken-declares-nothing	relation	a: {dependsOn: relate() & (*[path($.b)] | (acyclic() & []))}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[],"verdict":"pass"}
+arms-written-alike-are-edges	relation	a: {dependsOn: relate() & acyclic() & (close([path($.b)]) | [path($.b)])}\nb: {dependsOn: relate() & [path($.a)]}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_cycle","detail":["$.a","$.b","$.a"],"relation":"dependsOn"}],"verdict":"fail"}
+default-edge-misses-its-inverse	relation	a: {dependsOn: relate() & inverse(usedBy) & (*[path($.b)] | [])}\nb: {}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_inverse_missing","detail":["$.a","$.b","usedBy"],"relation":"dependsOn"}],"verdict":"fail"}
+default-edge-has-its-inverse	relation	a: {dependsOn: relate() & inverse(usedBy) & (*[path($.b)] | [])}\nb: {usedBy: relate() & [path($.a)]}	{"findings":[],"verdict":"pass"}
+default-mirror-is-an-inverse	relation	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & (*[path($.a)] | [])}	{"findings":[],"verdict":"pass"}
+mirror-in-an-arm-not-taken-is-missing	relation	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & ([path($.a)] | *[])}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_inverse_missing","detail":["$.a","$.b","usedBy"],"relation":"dependsOn"}],"verdict":"fail"}
+inverse-in-the-default-declares	relation	a: {dependsOn: relate() & (*(inverse(usedBy) & [path($.b)]) | [])}\nb: {}	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_inverse_missing","detail":["$.a","$.b","usedBy"],"relation":"dependsOn"}],"verdict":"fail"}
+inverse-in-an-arm-not-taken-declares-nothing	relation	a: {dependsOn: relate() & ((inverse(usedBy) & [path($.b)]) | *[])}\nb: {}	{"findings":[],"verdict":"pass"}
+generation-refuses-a-cycle-a-default-closes	errc	a: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	relation_cycle
+generation-refuses-a-cycle-a-lone-default-closes	errc	a: {dependsOn: relate() & acyclic() & *[path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	relation_cycle
+generation-refuses-a-default-edge-with-no-inverse	errc	a: {dependsOn: relate() & inverse(usedBy) & (*[path($.b)] | [])}\nb: {}	relation_inverse_missing
+generation-writes-the-arm-it-judged	gens	a: {dependsOn: relate() & acyclic() & ([path($.b)] | *[])}\nb: {dependsOn: relate() & [path($.a)]}	{"a":{"dependsOn":[]},"b":{"dependsOn":["$.a"]}}
+generation-takes-a-default-mirror	gens	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & (*[path($.a)] | [])}	{"a":{"dependsOn":["$.b"]},"b":{"usedBy":["$.a"]}}
+generation-refuses-arms-written-alike-that-close-a-cycle	errc	a: {dependsOn: relate() & acyclic() & (close([path($.b)]) | [path($.b)])}\nb: {dependsOn: relate() & [path($.a)]}	relation_cycle
+vet-refuses-a-cycle-a-default-closes	verdict	a: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid"}
+vet-refuses-a-cycle-a-default-closes-no-fill	verdict	a: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-refuses-a-cycle-a-default-closes-partial	verdict	a: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid","opts":{"partial":true}}
+vet-passes-an-edge-in-an-arm-not-taken	verdict	a: {dependsOn: relate() & acyclic() & ([path($.b)] | *[])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"valid"}
+vet-passes-an-edge-in-an-arm-not-taken-no-fill	verdict	a: {dependsOn: relate() & acyclic() & ([path($.b)] | *[])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-passes-an-edge-in-an-arm-not-taken-partial	verdict	a: {dependsOn: relate() & acyclic() & ([path($.b)] | *[])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-refuses-a-default-edge-with-no-inverse	verdict	a: {dependsOn: relate() & inverse(usedBy) & (*[path($.b)] | [])}\nb: {}	{}	{"verdict":"invalid"}
+vet-refuses-a-default-edge-with-no-inverse-no-fill	verdict	a: {dependsOn: relate() & inverse(usedBy) & (*[path($.b)] | [])}\nb: {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-refuses-a-default-edge-with-no-inverse-partial	verdict	a: {dependsOn: relate() & inverse(usedBy) & (*[path($.b)] | [])}\nb: {}	{}	{"verdict":"invalid","opts":{"partial":true}}
+vet-passes-a-default-mirror	verdict	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & (*[path($.a)] | [])}	{}	{"verdict":"valid"}
+vet-passes-a-default-mirror-no-fill	verdict	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & (*[path($.a)] | [])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-passes-a-default-mirror-partial	verdict	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & (*[path($.a)] | [])}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-leaves-an-incomplete-default-cycle-unjudged	verdict	n: integer\na: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"incomplete"}
+vet-leaves-an-incomplete-default-cycle-unjudged-no-fill	verdict	n: integer\na: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-leaves-an-incomplete-default-cycle-unjudged-partial	verdict	n: integer\na: {dependsOn: relate() & acyclic() & (*[path($.b)] | [])}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"valid","opts":{"partial":true}}
+vet-reports-a-default-cycle-at-its-edge	vet	a: {dependsOn: relate() & acyclic() & (*[path($.b)] | list)}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"findings":[{"class":"conflict","code":"relation_cycle","path":"$.a.dependsOn.0","pointer":"/a/dependsOn/0","severity":"error","sites":[{"col":42,"file":"schema","len":4,"role":"schema","row":1,"src":"path","value":"path($.b)"}]}],"truncated":false,"verdict":"invalid"}
+vet-reports-a-lone-default-cycle-at-its-edge	vet	a: {dependsOn: relate() & acyclic() & *[path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"findings":[{"class":"conflict","code":"relation_cycle","path":"$.a.dependsOn.0","pointer":"/a/dependsOn/0","severity":"error","sites":[{"col":41,"file":"schema","len":4,"role":"schema","row":1,"src":"path","value":"path($.b)"}]}],"truncated":false,"verdict":"invalid"}
+vet-reports-a-default-edge-with-no-inverse	vet	a: {dependsOn: relate() & inverse(usedBy) & (*[path($.b)] | list)}\nb: {}	{}	{"findings":[{"class":"conflict","code":"relation_inverse_missing","path":"$.a.dependsOn.0","pointer":"/a/dependsOn/0","severity":"error","sites":[{"col":48,"file":"schema","len":4,"role":"schema","row":1,"src":"path","value":"path($.b)"}]}],"truncated":false,"verdict":"invalid"}
