@@ -429,6 +429,9 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	if "relate" == f.name && 0 < len(f.peg) {
 		landPaths(f.peg[0], base)
+		if rv, isPath := f.peg[0].(*RefVal); isPath {
+			rv.template = true
+		}
 	}
 
 	// Resolve operands into a scratch slice WITHOUT writing them back:

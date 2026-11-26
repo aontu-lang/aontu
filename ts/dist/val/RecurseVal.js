@@ -2,6 +2,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecurseVal = void 0;
+exports.throughWrap = throughWrap;
 exports.throughRider = throughRider;
 exports.declaration = declaration;
 exports.bumpRecurse = bumpRecurse;
@@ -36,8 +37,13 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
         return out;
     }
     body(ctx) {
-        return walkTarget(ctx.root, this.target)
+        let node = walkTarget(ctx.root, this.target)
             ?? walkTarget(ctx._fixroot, this.target);
+        // A hide() or type() still to settle marks the definition, not what a use of it unfolds.
+        while ((true === node?.isHideFunc || true === node?.isTypeFunc) && !node.done && null != node.peg?.[0]) {
+            node = node.peg[0];
+        }
+        return node;
     }
     unify(peer, ctx) {
         const p = peer;
@@ -112,14 +118,29 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
     }
 }
 exports.RecurseVal = RecurseVal;
-// walkTarget answers the definition node at the residual's target.
+// walkTarget answers the node at a target, read as a path reads one while the tree still unifies.
 function walkTarget(root, target) {
     let node = root;
     for (const seg of target) {
-        node = throughRider(node);
-        node = true === node?.isConjunct ? declaration(node, seg) : node?.peg?.[seg];
+        node = unmarked(node);
+        node = true === node?.isConjunct ? declaration(node, seg) :
+            true === node?.isMap || true === node?.isList ? node.peg[seg] : undefined;
     }
     return null != node && true === node.isVal ? node : undefined;
+}
+// A seal's value is its argument, as a rider's is: a path reads a member through one that waits.
+function throughWrap(v) {
+    v = throughRider(v);
+    while (true === v?.isFunc && (true === v.isCloseFunc || true === v.isOpenFunc) && !v.done &&
+        null != v.peg?.[0]) {
+        v = throughRider(v.peg[0]);
+    }
+    return v;
+}
+function unmarked(v) {
+    v = throughWrap(v);
+    return true === v?.isFunc && (true === v.isHideFunc || true === v.isTypeFunc) && !v.done &&
+        null != v.peg?.[0] ? throughWrap(v.peg[0]) : v;
 }
 // A value-transparent rider still being resolved stands for its value:
 // the walk reads through it as it reads through a pending mark.
@@ -144,6 +165,11 @@ function declaration(cj, key) {
         }
     }
     return undefined;
+}
+function namedPlace(ref) {
+    return undefined !== ref.aliasKey ? [ref.aliasKey] :
+        ref.absolute && 0 < ref.peg.length && ref.peg.every((p) => 'string' === typeof p) ?
+            ref.peg : undefined;
 }
 // bumpRecurse stamps the expansion depth onto every residual inside a
 // freshly cloned level, so descent is charged along the chain.
@@ -179,41 +205,30 @@ function bumpRecurse(v, xc) {
         bumpRecurse(v.spread.cj, xc);
     }
 }
-// Each alias v names is followed too, given the root.
-function containsRecurseOf(v, target, d, root, seen = new Set()) {
-    v = throughRider(v);
+// Each name or path v holds is followed to what it names too, given the root.
+function containsRecurseOf(v, target, d, root, seen = new Set(), links = false) {
+    v = unmarked(v);
     if (null == v || true !== v.isVal || 8 < d) {
         return false;
     }
-    if (true === v.isRecurse) {
-        if (v.target.length === target.length
-            && v.target.every((s, i) => s === target[i])) {
+    if (true === v.isRecurse || (true === v.isRef && Array.isArray(v.peg))) {
+        const spelt = true === v.isRecurse ? v.target : v.peg;
+        if (spelt.length === target.length && spelt.every((s, i) => s === target[i])) {
             return true;
         }
-        // Another alias's residual reaches what its declaration reaches.
-        const key = v.target[0];
-        if (undefined !== root && 1 === v.target.length &&
-            aliasname_1.ALIAS_NAME_RE.test((0, aliasname_1.aliasBareName)(key)) && !seen.has(key)) {
-            seen.add(key);
-            return containsRecurseOf(walkTarget(root, [key]), target, d + 1, root, seen);
+        // A residual or a path reaches what the place it names reaches, as a name does.
+        const at = true === v.isRecurse ? v.target : namedPlace(v);
+        const key = at?.join('\u0000');
+        if (undefined === root || undefined === at || seen.has(key)) {
+            return false;
         }
-        return false;
-    }
-    if (true === v.isRef && Array.isArray(v.peg)) {
-        if (v.peg.length === target.length
-            && v.peg.every((s, i) => s === target[i])) {
-            return true;
-        }
-        const key = v.aliasKey;
-        if (undefined !== root && undefined !== key && !seen.has(key)) {
-            seen.add(key);
-            return containsRecurseOf(walkTarget(root, [key]), target, d + 1, root, seen);
-        }
+        seen.add(key);
+        return containsRecurseOf(walkTarget(root, at), target, d + 1, root, seen, links);
     }
     const peg = v.peg;
     if (true === v.isMap && null != peg) {
         for (const k of Object.keys(peg)) {
-            if (containsRecurseOf(peg[k], target, d + 1, root, seen)) {
+            if (containsRecurseOf(peg[k], target, d + 1, root, seen, links)) {
                 return true;
             }
         }
@@ -221,17 +236,17 @@ function containsRecurseOf(v, target, d, root, seen = new Set()) {
     else if ((true === v.isList || true === v.isConjunct || true === v.isDisjunct)
         && Array.isArray(peg)) {
         for (const e of peg) {
-            if (containsRecurseOf(e, target, d + 1, root, seen)) {
+            if (containsRecurseOf(e, target, d + 1, root, seen, links)) {
                 return true;
             }
         }
     }
-    if (null != v.spread?.cj && containsRecurseOf(v.spread.cj, target, d + 1, root, seen)) {
+    if (null != v.spread?.cj && containsRecurseOf(v.spread.cj, target, d + 1, root, seen, links)) {
         return true;
     }
-    const named = 1 === target.length && aliasname_1.ALIAS_NAME_RE.test((0, aliasname_1.aliasBareName)(target[0]));
+    const named = links || (1 === target.length && aliasname_1.ALIAS_NAME_RE.test((0, aliasname_1.aliasBareName)(target[0])));
     const linkTemplates = !named ? [] :
         true === v.isRelateFunc ? v.peg : [v.tval, ...(v.relates ?? [])];
-    return linkTemplates.some((t) => containsRecurseOf(t, target, d + 1, root, seen));
+    return linkTemplates.some((t) => containsRecurseOf(t, target, d + 1, root, seen, links));
 } /* node:coverage ignore next 8 */
 //# sourceMappingURL=RecurseVal.js.map

@@ -376,6 +376,19 @@ once, and move (#702); and a clash a meet makes,
 two defaults of one rank that disagree, which the definition reads as
 an `error` as both ports' `eval` does, where both ports' `vet` answers
 `invalid`, and move (#482).
+The ledger has been empty since 2026-11-26, its bound 0. The last 15
+rows were #778's, one document in three orders: a type and a subtype of
+it that name each other by path, which the definition reads alike in
+every order (`order_verdicts_agree`) and both ports read by the order
+written. The ports found a name recursive by following the names in its
+body and a path only by its own spelling. They now follow a path to the
+place it names, so a path that reaches itself through other paths names
+a recursion as a name does, and the 35 cases of `mutualPathCases`, rows
+mp0 on, hold them to it: a required member with an optional way back,
+a ring of three, a list's elements (#1004) and a relation to a subtype
+of the type that declares it (#771). A reference asks the same of a
+`hide()` or `type()` still to settle before it waits for it, so two
+definitions each under a mark of its own settle too (#1005).
 The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema

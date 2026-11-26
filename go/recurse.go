@@ -2,7 +2,10 @@
 
 package aontu
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 type RecurseVal struct {
 	base
@@ -31,10 +34,15 @@ func (r *RecurseVal) body(ctx *Ctx) Val {
 	if nil == ctx {
 		return nil
 	}
-	if node := walkTarget(ctx.root, r.target); nil != node {
-		return node
+	node := walkPlace(ctx.root, r.target)
+	if nil == node {
+		node = walkPlace(ctx.fixroot, r.target)
 	}
-	return walkTarget(ctx.fixroot, r.target)
+	// A hide() or type() still to settle marks the definition, not what a use of it unfolds.
+	for fv, ok := node.(*FuncVal); ok && pendingMarkWrapper(fv) && 0 < len(fv.peg); fv, ok = node.(*FuncVal) {
+		node = fv.peg[0]
+	}
+	return node
 }
 
 // walkTarget descends a tree by the residual's absolute target path,
@@ -55,6 +63,40 @@ func walkTarget(root Val, target []string) Val {
 		}
 	}
 	return node
+}
+
+// walkPlace is walkTarget in a tree still unifying: it reads a list's element, and through a
+// seal or a hide() or type() still to settle, as a path does.
+func walkPlace(root Val, at []string) Val {
+	node := root
+	for _, seg := range at {
+		switch n := unmarked(node).(type) {
+		case *MapVal:
+			node = n.peg[seg]
+		case *ListVal:
+			idx, ok := listIndex(seg)
+			if !ok || len(n.peg) <= idx {
+				return nil
+			}
+			node = n.peg[idx]
+		case *ConjunctVal:
+			node = declaration(n, seg)
+		default:
+			return nil
+		}
+		if nil == node {
+			return nil
+		}
+	}
+	return node
+}
+
+func unmarked(v Val) Val {
+	v = throughWrap(v)
+	if fv, ok := v.(*FuncVal); ok && pendingMarkWrapper(fv) && 0 < len(fv.peg) {
+		return throughWrap(fv.peg[0])
+	}
+	return v
 }
 
 func (r *RecurseVal) sameTarget(p *RecurseVal) bool {
@@ -119,6 +161,10 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		level := undeclared(instanceClone(bodyv, cp(r.path)))
 		forceRootPath(level, cp(r.path))
+		// A body that sits deeper than this place takes its paths from the place, as a copy does.
+		if at := bodyv.vpath(); len(r.path) < len(at) && !slices.Contains(at, "&") {
+			setPaths(level, cp(r.path))
+		}
 		walkMark(level, true, false, true, false)
 		walkMarkVals(level, func(n Val) { n.setCopiedBy(key) })
 		bumpRecurse(level, r.xc+1)
@@ -165,27 +211,25 @@ func (r *RecurseVal) Gen(ctx *Ctx) (any, error) {
 }
 
 func containsRecurseOf(v Val, target []string, depth int) bool {
-	return reachesRecurse(v, target, depth, nil, map[string]bool{})
+	return reachesRecurse(v, target, depth, nil, map[string]bool{}, false)
 }
 
 // reachesRecurse follows each alias v names too, given the root.
-func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string]bool) bool {
+func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string]bool, links bool) bool {
 	if nil == v || 8 < depth {
 		return false
 	}
-	v = throughRider(v)
+	v = unmarked(v)
 	switch n := v.(type) {
 	case *RecurseVal:
 		same := len(n.target) == len(target)
 		for i := 0; same && i < len(target); i++ {
 			same = n.target[i] == target[i]
 		}
-		// Another alias's residual reaches what its declaration reaches.
-		if !same && nil != root && 1 == len(n.target) && !seen[n.target[0]] {
-			if name := aliasBareName(n.target[0]); aliasRe.FindString(name) == name {
-				seen[n.target[0]] = true
-				return reachesRecurse(walkTarget(root, n.target), target, depth+1, root, seen)
-			}
+		// Another definition's residual reaches what that definition reaches.
+		if key := strings.Join(n.target, "\x00"); !same && nil != root && !seen[key] {
+			seen[key] = true
+			return reachesRecurse(walkPlace(root, n.target), target, depth+1, root, seen, links)
 		}
 		return same
 	case *RefVal:
@@ -194,51 +238,75 @@ func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string
 			seg, ok := p.(string)
 			same = same && ok && seg == target[i]
 		}
-		if key, ok := n.aliasKey(); !same && ok && nil != root && !seen[key] {
-			seen[key] = true
-			return reachesRecurse(walkTarget(root, []string{key}), target, depth+1, root, seen)
+		if same || nil == root {
+			return same
 		}
-		return same
+		// A path reaches what its target reaches, as a name does.
+		at := n.namedPlace()
+		if key := strings.Join(at, "\x00"); nil != at && !seen[key] {
+			seen[key] = true
+			return reachesRecurse(walkPlace(root, at), target, depth+1, root, seen, links)
+		}
+		return false
 	case *MapVal:
 		for _, k := range n.keys {
-			if reachesRecurse(n.peg[k], target, depth+1, root, seen) {
+			if reachesRecurse(n.peg[k], target, depth+1, root, seen, links) {
 				return true
 			}
 		}
-		if nil != n.spread && reachesRecurse(n.spread, target, depth+1, root, seen) {
+		if nil != n.spread && reachesRecurse(n.spread, target, depth+1, root, seen, links) {
 			return true
 		}
 	case *ListVal:
 		for _, e := range n.peg {
-			if reachesRecurse(e, target, depth+1, root, seen) {
+			if reachesRecurse(e, target, depth+1, root, seen, links) {
 				return true
 			}
 		}
-		if nil != n.spread && reachesRecurse(n.spread, target, depth+1, root, seen) {
+		if nil != n.spread && reachesRecurse(n.spread, target, depth+1, root, seen, links) {
 			return true
 		}
 	case *ConjunctVal:
 		for _, e := range n.peg {
-			if reachesRecurse(e, target, depth+1, root, seen) {
+			if reachesRecurse(e, target, depth+1, root, seen, links) {
 				return true
 			}
 		}
 	case *DisjunctVal:
 		for _, e := range n.peg {
-			if reachesRecurse(e, target, depth+1, root, seen) {
+			if reachesRecurse(e, target, depth+1, root, seen, links) {
 				return true
 			}
 		}
 	}
 	// A link's template is part of a name's body: the name inside it makes the body recursive.
-	if name := aliasBareName(target[0]); 1 == len(target) && aliasRe.FindString(name) == name {
+	if name := aliasBareName(target[0]); links || (1 == len(target) && aliasRe.FindString(name) == name) {
 		for _, t := range linkTemplates(v) {
-			if reachesRecurse(t, target, depth+1, root, seen) {
+			if reachesRecurse(t, target, depth+1, root, seen, links) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// The place a name or an absolute path of plain steps names.
+func (rv *RefVal) namedPlace() []string {
+	if key, ok := rv.aliasKey(); ok {
+		return []string{key}
+	}
+	if !rv.absolute || 0 == len(rv.peg) {
+		return nil
+	}
+	at := make([]string, len(rv.peg))
+	for i, p := range rv.peg {
+		seg, ok := p.(string)
+		if !ok {
+			return nil
+		}
+		at[i] = seg
+	}
+	return at
 }
 
 // The templates a relate() call, a relation or a link holds.

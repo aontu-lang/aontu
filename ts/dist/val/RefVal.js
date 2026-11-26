@@ -128,17 +128,8 @@ function ownArgs(ctx, v) {
         return out;
     });
 }
-// A seal's value is its argument, as a rider's is: a path reads a member through one that waits.
-function throughWrap(v) {
-    v = (0, RecurseVal_1.throughRider)(v);
-    while (true === v?.isFunc && (true === v.isCloseFunc || true === v.isOpenFunc) && !v.done &&
-        null != v.peg?.[0]) {
-        v = (0, RecurseVal_1.throughRider)(v.peg[0]);
-    }
-    return v;
-}
-const waitingWrap = (t) => t !== throughWrap(t);
-const readsAsBag = (t) => true === throughWrap(t)?.isMap || true === throughWrap(t)?.isList;
+const waitingWrap = (t) => t !== (0, RecurseVal_1.throughWrap)(t);
+const readsAsBag = (t) => true === (0, RecurseVal_1.throughWrap)(t)?.isMap || true === (0, RecurseVal_1.throughWrap)(t)?.isList;
 function pendingMarkWrapper(v) {
     if (true === v.isTypeFunc || true === v.isHideFunc) {
         return !v.done;
@@ -158,7 +149,7 @@ function pendingMarkWrapper(v) {
 // the wrapper only marks and its argument is the structure the path
 // names (see the call sites in `find`).
 function markedChild(v, part) {
-    v = throughWrap(v);
+    v = (0, RecurseVal_1.throughWrap)(v);
     if (true === v?.isMap || true === v?.isList) {
         return member(v, part);
     }
@@ -255,6 +246,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
         this.rxc = 0;
         // A relative path in a link's template, which reads where the template lands (ruling 50).
         this.lands = false;
+        this.template = false;
         this.prefix = false;
         this.copyFound = false;
         this.peg = [];
@@ -483,7 +475,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         held = true;
                         peer = [arm[1], arm[2], pI];
                     }
-                    node = throughWrap(node);
+                    node = (0, RecurseVal_1.throughWrap)(node);
                     if (node.isMap) {
                         node = node.peg[part];
                     }
@@ -609,19 +601,20 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     this.detectRefCycle(ctx)) {
                     out = (0, err_1.makeNilErr)(ctx, 'path_cycle', this);
                 }
-                else if (null != out && !snap && !this.mark._hide_found &&
-                    pendingMarkWrapper(out)) {
-                    out = undefined;
-                }
                 else if (null != out && !snap && true === ctx.argsnap &&
-                    !out.done) {
+                    (!out.done || (!this.mark._hide_found && pendingMarkWrapper(out)))) {
                     out = undefined;
                 }
-                else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg, 0, ctx.root)) {
+                else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg, 0, ctx.root, new Set(), this.template)) {
                     const rec = new RecurseVal_1.RecurseVal({ target: [...this.peg], xc: this.rxc }, ctx);
                     rec.site = this.site;
                     rec.path = [...this.path];
                     out = rec;
+                }
+                // A hide() or type() still to settle is waited for, unless it reached back here above.
+                else if (null != out && !snap && !this.mark._hide_found &&
+                    pendingMarkWrapper(out)) {
+                    out = undefined;
                 }
                 // Types and hidden values are cloned and made concrete
                 else if (null != out) { //  && (out.mark.type || out.mark.hide)) {
@@ -681,7 +674,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 }
             }
         }
-        // console.log('REF-FIND', ctx.cc, this.id, selfpath, 'PEG=', pegpath, 'RP', pI, refpath.join('.'), descent, 'O=', out?.id, out?.canon, out?.done)
         return out;
     }
     detectRefCycle(ctx) {

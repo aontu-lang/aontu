@@ -26,6 +26,8 @@ type RefVal struct {
 	rxc       int
 	// again: a relative path a copy reads again, which resolves where the copy stands.
 	again bool
+	// template: a link's whole template, which reaches itself through other links' templates too.
+	template bool
 	// lands: a relative path in a link's template, which reads where the template lands (ruling 50).
 	lands bool
 }
@@ -751,11 +753,9 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		}
 	}
 
-	if !snap && !rv.hideFound && pendingMarkWrapper(node) {
-		return nil
-	}
-
-	if !snap && ctx.argsnap && node.Dc() != DONE {
+	// A hide() or type() still to settle is waited for, unless it reaches back here: that never settles.
+	pending := !snap && !rv.hideFound && pendingMarkWrapper(node)
+	if !snap && ctx.argsnap && (pending || node.Dc() != DONE) {
 		return nil
 	}
 
@@ -770,7 +770,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			}
 			target = append(target, seg)
 		}
-		if alls && reachesRecurse(node, target, 0, ctx.root, map[string]bool{}) {
+		if alls && reachesRecurse(node, target, 0, ctx.root, map[string]bool{}, rv.template) {
 			rec := newRecurse(target, rv.rxc)
 			rec.site.sp, rec.site.spu, rec.site.url = rv.site.sp, rv.site.spu, rv.site.url
 			// The source excerpt travels too, so reports frame the `$`
@@ -779,6 +779,9 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			rec.path = cp(rv.path)
 			return rec
 		}
+	}
+	if pending {
+		return nil
 	}
 
 	// A ref carrying marks transfers them onto the found node in place,

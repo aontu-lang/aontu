@@ -21,7 +21,7 @@ import {
 import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
-import { RecurseVal, containsRecurseOf, declaration, throughRider } from './RecurseVal'
+import { RecurseVal, containsRecurseOf, declaration, throughRider, throughWrap } from './RecurseVal'
 import { fixSeals, sealTree, unsealTree } from './SealVal'
 import { rereadTerms, unite } from '../unify'
 
@@ -163,17 +163,6 @@ function ownArgs(ctx: AontuContext, v: Val): Val {
       a.clone(ctx, { path: [...(true === val.folds ? val.path : a.path)] }))
     return out
   })
-}
-
-
-// A seal's value is its argument, as a rider's is: a path reads a member through one that waits.
-function throughWrap(v: any): any {
-  v = throughRider(v)
-  while (true === v?.isFunc && (true === v.isCloseFunc || true === v.isOpenFunc) && !v.done &&
-    null != v.peg?.[0]) {
-    v = throughRider(v.peg[0])
-  }
-  return v
 }
 
 
@@ -322,6 +311,7 @@ class RefVal extends FeatureVal {
 
   // A relative path in a link's template, which reads where the template lands (ruling 50).
   lands: boolean = false
+  template: boolean = false
   prefix: boolean = false
   copyFound: boolean = false
 
@@ -734,20 +724,21 @@ class RefVal extends FeatureVal {
           this.detectRefCycle(ctx)) {
           out = makeNilErr(ctx, 'path_cycle', this)
         }
-        else if (null != out && !snap && !this.mark._hide_found &&
-          pendingMarkWrapper(out)) {
-          out = undefined
-        }
         else if (null != out && !snap && true === (ctx as any).argsnap &&
-          !out.done) {
+          (!out.done || (!this.mark._hide_found && pendingMarkWrapper(out)))) {
           out = undefined
         }
-        else if (null != out && !snap && containsRecurseOf(out, this.peg as any, 0, ctx.root)) {
+        else if (null != out && !snap && containsRecurseOf(out, this.peg as any, 0, ctx.root, new Set(), this.template)) {
           const rec: any = new RecurseVal(
             { target: [...this.peg], xc: this.rxc } as any, ctx)
           rec.site = this.site
           rec.path = [...this.path]
           out = rec
+        }
+        // A hide() or type() still to settle is waited for, unless it reached back here above.
+        else if (null != out && !snap && !this.mark._hide_found &&
+          pendingMarkWrapper(out)) {
+          out = undefined
         }
         // Types and hidden values are cloned and made concrete
         else if (null != out) { //  && (out.mark.type || out.mark.hide)) {
@@ -816,8 +807,6 @@ class RefVal extends FeatureVal {
         }
       }
     }
-
-    // console.log('REF-FIND', ctx.cc, this.id, selfpath, 'PEG=', pegpath, 'RP', pI, refpath.join('.'), descent, 'O=', out?.id, out?.canon, out?.done)
 
     return out
   }

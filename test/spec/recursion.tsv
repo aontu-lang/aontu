@@ -45,10 +45,106 @@ list-alternative-is-its-length	errc	y: ([a] | [b]) & [a, extra]	empty
 list-alternative-still-merges	gens	a: [] a: [1]	{"a":[1]}
 #
 # --- Mutual recursion ------------------------------------------------
-# After $.Company expands once inside Person, its $.Person is a prefix
-# reference at its landed position and residuates by the same rule.
-# (employer? partially generates by the pinned optional-partial rule.)
-mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}	{"acme":{"staff":{"sam":{"employer":{"staff":{}},"name":"Sam"}},"title":"Acme"}}
+# A path that reaches itself through other paths names a recursion, as
+# a name does: $.Company inside Person stays a residual, so employer?
+# is left out until the data gives one.
+mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}	{"acme":{"staff":{"sam":{"name":"Sam"}},"title":"Acme"}}
+# The same in whatever order the definitions and the use are written: a
+# subtype that is a meet over its type, definitions that reach each other
+# through optional members, a required member with an optional way back,
+# which refuses until the data reaches it, and a ring of three.
+mutual-meet-subtype-first	gens	s: hide({\n  D: $.s.N & {k: "d"}\n  N: {k: "d" | "f", up?: $.s.D}\n})\ndoc: $.s.N & {k: "d"}	{"doc":{"k":"d"}}
+mutual-meet-type-first	gens	s: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})\ndoc: $.s.N & {k: "d"}	{"doc":{"k":"d"}}
+mutual-meet-use-first	gens	doc: $.s.N & {k: "d"}\ns: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})	{"doc":{"k":"d"}}
+mutual-meet-subtype-used-type-first	gens	s: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})\ndoc: $.s.D & {}	{"doc":{"k":"d"}}
+mutual-meet-subtype-used-use-first	gens	doc: $.s.D & {}\ns: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})	{"doc":{"k":"d"}}
+mutual-meet-two-levels-type-first	gens	s: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})\ndoc: $.s.N & {k: "f", up: {k: "d", up: {k: "d"}}}	{"doc":{"k":"f","up":{"k":"d","up":{"k":"d"}}}}
+mutual-meet-two-levels-use-first	gens	doc: $.s.N & {k: "f", up: {k: "d", up: {k: "d"}}}\ns: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})	{"doc":{"k":"f","up":{"k":"d","up":{"k":"d"}}}}
+mutual-meet-breach-subtype-first	errc	s: hide({\n  D: $.s.N & {k: "d"}\n  N: {k: "d" | "f", up?: $.s.D}\n})\ndoc: $.s.N & {k: "f", up: {k: "d", up: {k: "f"}}}	scalar_value
+mutual-meet-breach-subtype-first-path	err	s: hide({\n  D: $.s.N & {k: "d"}\n  N: {k: "d" | "f", up?: $.s.D}\n})\ndoc: $.s.N & {k: "f", up: {k: "d", up: {k: "f"}}}	Cannot unify values at path $.doc.up.up.k
+mutual-meet-breach-type-first	errc	s: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})\ndoc: $.s.N & {k: "f", up: {k: "d", up: {k: "f"}}}	scalar_value
+mutual-meet-breach-type-first-path	err	s: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})\ndoc: $.s.N & {k: "f", up: {k: "d", up: {k: "f"}}}	Cannot unify values at path $.doc.up.up.k
+mutual-meet-breach-use-first	errc	doc: $.s.N & {k: "f", up: {k: "d", up: {k: "f"}}}\ns: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})	scalar_value
+mutual-meet-breach-use-first-path	err	doc: $.s.N & {k: "f", up: {k: "d", up: {k: "f"}}}\ns: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N & {k: "d"}\n})	Cannot unify values at path $.doc.up.up.k
+mutual-meet-bare-second-definition	gens	s: hide({\n  N: {k: "d" | "f", up?: $.s.D}\n  D: $.s.N\n})\ndoc: $.s.N & {k: "d", up: {k: "f"}}	{"doc":{"k":"d","up":{"k":"f"}}}
+# Each definition under a hide() or a type() of its own settles too: neither
+# waits for the other's mark.
+mutual-meet-each-hidden	gens	N: hide({k: "d" | "f", up?: $.D})\nD: hide($.N & {k: "d"})\ndoc: $.N & {k: "f", up: {k: "d"}}	{"doc":{"k":"f","up":{"k":"d"}}}
+mutual-meet-each-hidden-subtype-first	gens	D: hide($.N & {k: "d"})\nN: hide({k: "d" | "f", up?: $.D})\ndoc: $.N & {k: "f", up: {k: "d"}}	{"doc":{"k":"f","up":{"k":"d"}}}
+mutual-meet-each-hidden-use-first	gens	doc: $.N & {k: "f", up: {k: "d"}}\nN: hide({k: "d" | "f", up?: $.D})\nD: hide($.N & {k: "d"})	{"doc":{"k":"f","up":{"k":"d"}}}
+mutual-meet-each-hidden-refuses	errc	N: hide({k: "d" | "f", up?: $.D})\nD: hide($.N & {k: "d"})\ndoc: $.N & {k: "f", up: {k: "f"}}	scalar_value
+mutual-meet-each-hidden-refuses-path	err	N: hide({k: "d" | "f", up?: $.D})\nD: hide($.N & {k: "d"})\ndoc: $.N & {k: "f", up: {k: "f"}}	Cannot unify values at path $.doc.up.k
+mutual-meet-each-hidden-unused	gens	N: hide({k: "d" | "f", up?: $.D})\nD: hide($.N & {k: "d"})\nx: 1	{"x":1}
+mutual-meet-each-a-type	gens	N: type({k: "d" | "f", up?: $.D})\nD: type($.N & {k: "d"})\ndoc: $.N & {k: "f", up: {k: "d"}}	{"doc":{"k":"f","up":{"k":"d"}}}
+mutual-meet-each-a-type-use-first	gens	doc: $.N & {k: "f", up: {k: "d"}}\nN: type({k: "d" | "f", up?: $.D})\nD: type($.N & {k: "d"})	{"doc":{"k":"f","up":{"k":"d"}}}
+mutual-optional-use-first	gens	doc: $.s.N & {up: {inner: {up: {}}}}\ns: hide({\n  N: {up?: $.s.D}\n  D: {inner?: $.s.N}\n})	{"doc":{"up":{"inner":{"up":{}}}}}
+mutual-optional-use-first-alone	gens	doc: $.s.N & {}\ns: hide({\n  N: {up?: $.s.D}\n  D: {inner?: $.s.N}\n})	{"doc":{}}
+mutual-optional-definitions-first	gens	s: hide({\n  N: {up?: $.s.D}\n  D: {inner?: $.s.N}\n})\ndoc: $.s.N & {up: {inner: {up: {}}}}	{"doc":{"up":{"inner":{"up":{}}}}}
+mutual-required-way-back-first	errc	s: hide({\n  A: {b: $.s.B}\n  B: {x: *1 | number, a?: $.s.A}\n})\ndoc: $.s.A & {}	recursion_unexpanded
+mutual-required-way-back-first-path	err	s: hide({\n  A: {b: $.s.B}\n  B: {x: *1 | number, a?: $.s.A}\n})\ndoc: $.s.A & {}	Cannot recurse value at path $.doc.b
+mutual-required-way-back-second	errc	s: hide({\n  B: {x: *1 | number, a?: $.s.A}\n  A: {b: $.s.B}\n})\ndoc: $.s.A & {}	recursion_unexpanded
+mutual-required-way-back-second-path	err	s: hide({\n  B: {x: *1 | number, a?: $.s.A}\n  A: {b: $.s.B}\n})\ndoc: $.s.A & {}	Cannot recurse value at path $.doc.b
+mutual-required-way-back-use-first	errc	doc: $.s.A & {}\ns: hide({\n  A: {b: $.s.B}\n  B: {x: *1 | number, a?: $.s.A}\n})	recursion_unexpanded
+mutual-required-way-back-use-first-path	err	doc: $.s.A & {}\ns: hide({\n  A: {b: $.s.B}\n  B: {x: *1 | number, a?: $.s.A}\n})	Cannot recurse value at path $.doc.b
+mutual-required-way-back-met	gens	s: hide({\n  A: {b: $.s.B}\n  B: {x: *1 | number, a?: $.s.A}\n})\ndoc: $.s.A & {b: {}}	{"doc":{"b":{"x":1}}}
+mutual-required-way-back-met-use-first	gens	doc: $.s.A & {b: {}}\ns: hide({\n  A: {b: $.s.B}\n  B: {x: *1 | number, a?: $.s.A}\n})	{"doc":{"b":{"x":1}}}
+mutual-ring-use-first	gens	doc: $.s.A & {k: 1}\ns: hide({\n  A: {k: number, b?: $.s.B}\n  B: $.s.C & {j: 2}\n  C: $.s.A & {i: 3}\n})	{"doc":{"k":1}}
+mutual-ring-two-levels	gens	s: hide({\n  A: {k: number, b?: $.s.B}\n  B: $.s.C & {j: 2}\n  C: $.s.A & {i: 3}\n})\ndoc: $.s.A & {k: 1, b: {k: 2, b: {k: 3}}}	{"doc":{"b":{"b":{"i":3,"j":2,"k":3},"i":3,"j":2,"k":2},"k":1}}
+mutual-ring-two-levels-reversed	gens	s: hide({\n  C: $.s.A & {i: 3}\n  B: $.s.C & {j: 2}\n  A: {k: number, b?: $.s.B}\n})\ndoc: $.s.A & {k: 1, b: {k: 2, b: {k: 3}}}	{"doc":{"b":{"b":{"i":3,"j":2,"k":3},"i":3,"j":2,"k":2},"k":1}}
+mutual-ring-two-levels-use-first	gens	doc: $.s.A & {k: 1, b: {k: 2, b: {k: 3}}}\ns: hide({\n  A: {k: number, b?: $.s.B}\n  B: $.s.C & {j: 2}\n  C: $.s.A & {i: 3}\n})	{"doc":{"b":{"b":{"i":3,"j":2,"k":3},"i":3,"j":2,"k":2},"k":1}}
+mutual-ring-refuses	errc	s: hide({\n  A: {k: number, b?: $.s.B}\n  B: $.s.C & {j: 2}\n  C: $.s.A & {i: 3}\n})\ndoc: $.s.A & {k: 1, b: {k: 2, j: 5}}	scalar_value
+mutual-ring-refuses-path	err	s: hide({\n  A: {k: number, b?: $.s.B}\n  B: $.s.C & {j: 2}\n  C: $.s.A & {i: 3}\n})\ndoc: $.s.A & {k: 1, b: {k: 2, j: 5}}	Cannot unify values at path $.doc.b.j
+mutual-pair-use-first	gens	acme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}\nPerson: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})	{"acme":{"staff":{"sam":{"name":"Sam"}},"title":"Acme"}}
+mutual-pair-employer-given	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam", employer: {title: "Acme", staff: {}}}}}	{"acme":{"staff":{"sam":{"employer":{"staff":{},"title":"Acme"},"name":"Sam"}},"title":"Acme"}}
+mutual-pair-employer-in-part	errc	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam", employer: {staff: {}}}}}	mapval_no_gen
+mutual-pair-employer-in-part-path	err	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam", employer: {staff: {}}}}}	Cannot resolve value at path $.acme.staff.sam.employer.title
+# A relation whose template is a subtype of the type that declares it, by
+# path and by name: the template is read at each link, in every order.
+relation-to-a-subtype-by-path-subtype-first	gens	t: hide({\n  D: $.t.N & {k: "d"}\n  N: {k: "d" | "f", up?: relate($.t.D)}\n})\nn: {&: $.t.N}\nn: a: {k: "d"}\nn: b: {k: "f", up: path($.n.a)}	{"n":{"a":{"k":"d"},"b":{"k":"f","up":"$.n.a"}}}
+relation-to-a-subtype-by-path-type-first	gens	t: hide({\n  N: {k: "d" | "f", up?: relate($.t.D)}\n  D: $.t.N & {k: "d"}\n})\nn: {&: $.t.N}\nn: a: {k: "d"}\nn: b: {k: "f", up: path($.n.a)}	{"n":{"a":{"k":"d"},"b":{"k":"f","up":"$.n.a"}}}
+relation-to-a-subtype-by-path-use-first	gens	n: {&: $.t.N}\nn: a: {k: "d"}\nn: b: {k: "f", up: path($.n.a)}\nt: hide({\n  N: {k: "d" | "f", up?: relate($.t.D)}\n  D: $.t.N & {k: "d"}\n})	{"n":{"a":{"k":"d"},"b":{"k":"f","up":"$.n.a"}}}
+relation-to-a-subtype-by-path-refuses-subtype-first	errc	t: hide({\n  D: $.t.N & {k: "d"}\n  N: {k: "d" | "f", up?: relate($.t.D)}\n})\nn: {&: $.t.N}\nn: a: {k: "f"}\nn: b: {k: "f", up: path($.n.a)}	scalar_value
+relation-to-a-subtype-by-path-refuses-subtype-first-path	err	t: hide({\n  D: $.t.N & {k: "d"}\n  N: {k: "d" | "f", up?: relate($.t.D)}\n})\nn: {&: $.t.N}\nn: a: {k: "f"}\nn: b: {k: "f", up: path($.n.a)}	Cannot unify values at path $.n.a.k
+relation-to-a-subtype-by-path-refuses-type-first	errc	t: hide({\n  N: {k: "d" | "f", up?: relate($.t.D)}\n  D: $.t.N & {k: "d"}\n})\nn: {&: $.t.N}\nn: a: {k: "f"}\nn: b: {k: "f", up: path($.n.a)}	scalar_value
+relation-to-a-subtype-by-path-refuses-type-first-path	err	t: hide({\n  N: {k: "d" | "f", up?: relate($.t.D)}\n  D: $.t.N & {k: "d"}\n})\nn: {&: $.t.N}\nn: a: {k: "f"}\nn: b: {k: "f", up: path($.n.a)}	Cannot unify values at path $.n.a.k
+relation-to-a-subtype-by-path-unused	gens	t: hide({\n  N: {k: "d" | "f", up?: relate($.t.D)}\n  D: $.t.N & {k: "d"}\n})\nx: 1	{"x":1}
+relation-to-own-type-by-name	gens	%N = {name: string, up?: relate(%N)}\nn: {&: %N}\nn: a: {name: "a"}\nn: b: {name: "b", up: path($.n.a)}	{"n":{"a":{"name":"a"},"b":{"name":"b","up":"$.n.a"}}}
+relation-to-own-type-by-name-required	gens	%N = {name: string, up: relate(%N)}\nn: {&: %N}\nn: a: {name: "a", up: path($.n.b)}\nn: b: {name: "b", up: path($.n.a)}	{"n":{"a":{"name":"a","up":"$.n.b"},"b":{"name":"b","up":"$.n.a"}}}
+relation-to-a-subtype-by-name	gens	%N = {name: string, kind: "d" | "f", up?: relate(%D)}\n%D = %N & {kind: "d"}\nn: {&: %N}\nn: a: {name: "a", kind: "d"}\nn: b: {name: "b", kind: "f", up: path($.n.a)}	{"n":{"a":{"kind":"d","name":"a"},"b":{"kind":"f","name":"b","up":"$.n.a"}}}
+relation-to-a-subtype-by-name-subtype-first	gens	%D = %N & {kind: "d"}\n%N = {name: string, kind: "d" | "f", up?: relate(%D)}\nn: {&: %N}\nn: a: {name: "a", kind: "d"}\nn: b: {name: "b", kind: "f", up: path($.n.a)}	{"n":{"a":{"kind":"d","name":"a"},"b":{"kind":"f","name":"b","up":"$.n.a"}}}
+relation-to-a-subtype-by-name-unused	gens	%N = {name: string, kind: "d" | "f", up?: relate(%D)}\n%D = %N & {kind: "d"}\nx: 1	{"x":1}
+relation-to-a-subtype-by-name-refuses	errc	%N = {name: string, kind: "d" | "f", up?: relate(%D)}\n%D = %N & {kind: "d"}\nn: {&: %N}\nn: a: {name: "a", kind: "f"}\nn: b: {name: "b", kind: "f", up: path($.n.a)}	scalar_value
+relation-to-a-subtype-by-name-refuses-path	err	%N = {name: string, kind: "d" | "f", up?: relate(%D)}\n%D = %N & {kind: "d"}\nn: {&: %N}\nn: a: {name: "a", kind: "f"}\nn: b: {name: "b", kind: "f", up: path($.n.a)}	Cannot unify values at path $.n.a.kind
+subtype-member-by-name-no-relation	gens	%N = {name: string, kind: "d" | "f", up?: %D}\n%D = %N & {kind: "d"}\nn: {&: %N}\nn: a: {name: "a", kind: "d"}\nn: b: {name: "b", kind: "f", up: {name: "c", kind: "d"}}	{"n":{"a":{"kind":"d","name":"a"},"b":{"kind":"f","name":"b","up":{"kind":"d","name":"c"}}}}
+relation-to-a-subtype-by-path-with-names	gens	t: hide({\n  N: {name: string, kind: "d" | "f", up?: relate($.t.D)}\n  D: $.t.N & {kind: "d"}\n})\nn: {&: $.t.N}\nn: a: {name: "a", kind: "d"}\nn: b: {name: "b", kind: "f", up: path($.n.a)}	{"n":{"a":{"kind":"d","name":"a"},"b":{"kind":"f","name":"b","up":"$.n.a"}}}
+# A list's element named by path is read as a map's member is.
+list-element-names-itself	gens	xs: hide([{v: number, next?: $.xs.0}])\ndoc: $.xs.0 & {v: 1, next: {v: 2}}	{"doc":{"next":{"v":2},"v":1}}
+list-element-names-itself-refuses	errc	xs: hide([{v: number, next?: $.xs.0}])\ndoc: $.xs.0 & {v: 1, next: {v: "x"}}	no_scalar_unify
+list-element-names-itself-refuses-path	err	xs: hide([{v: number, next?: $.xs.0}])\ndoc: $.xs.0 & {v: 1, next: {v: "x"}}	Cannot unify values at path $.doc.next.v
+list-element-names-itself-use-first	gens	doc: $.xs.0 & {v: 1, next: {v: 2, next: {v: 3}}}\nxs: hide([{v: number, next?: $.xs.0}])	{"doc":{"next":{"next":{"v":3},"v":2},"v":1}}
+list-elements-name-each-other	gens	xs: hide([{v: number, next?: $.ys.0}])\nys: hide([$.xs.0 & {w: 1}])\ndoc: $.xs.0 & {v: 1, next: {v: 2}}	{"doc":{"next":{"v":2,"w":1},"v":1}}
+list-elements-name-each-other-use-first	gens	doc: $.xs.0 & {v: 1, next: {v: 2}}\nxs: hide([{v: number, next?: $.ys.0}])\nys: hide([$.xs.0 & {w: 1}])	{"doc":{"next":{"v":2,"w":1},"v":1}}
+# A residual above its definition expands at its own place, and says so.
+expansion-path-from-a-deeper-definition-use-first	errc	doc: $.s.N & {v: 1}\ns: hide({N: {v: number, next: $.s.N}})	recursion_unexpanded
+expansion-path-from-a-deeper-definition-use-first-path	err	doc: $.s.N & {v: 1}\ns: hide({N: {v: number, next: $.s.N}})	Cannot recurse value at path $.doc.next
+# A path inside a definition that names nothing is no recursion: the walk
+# stops at a list's end, at a key into a list, at a scalar and at a missing
+# member, and the path is refused where it stands.
+path-in-a-definition-past-a-list-end	errc	xs: [1]\nb: {c?: $.xs.5}\ndoc: $.b	no_path
+path-in-a-definition-past-a-list-end-path	err	xs: [1]\nb: {c?: $.xs.5}\ndoc: $.b	Cannot resolve value at path $.b.c
+path-in-a-definition-through-a-list-by-a-key	errc	xs: [1]\nb: {v: 2, c?: $.xs.k}\ndoc: $.b	no_path
+path-in-a-definition-through-a-list-by-a-key-path	err	xs: [1]\nb: {v: 2, c?: $.xs.k}\ndoc: $.b	Cannot resolve value at path $.b.c
+path-in-a-definition-through-a-scalar	errc	a: 1\nb: {v: 2, c?: $.a.x}\ndoc: $.b	no_path
+path-in-a-definition-through-a-scalar-path	err	a: 1\nb: {v: 2, c?: $.a.x}\ndoc: $.b	Cannot resolve value at path $.b.c
+path-in-a-definition-to-nothing	errc	b: {v: 2, c?: $.zz.y}\ndoc: $.b	no_path
+path-in-a-definition-to-nothing-path	err	b: {v: 2, c?: $.zz.y}\ndoc: $.b	Cannot resolve value at path $.b.c
+# Where the use is written first, the copy's place refuses it.
+path-in-a-definition-past-a-list-end-use-first	errc	doc: $.b\nxs: [1]\nb: {c?: $.xs.5}	no_path
+path-in-a-definition-past-a-list-end-use-first-path	err	doc: $.b\nxs: [1]\nb: {c?: $.xs.5}	Cannot resolve value at path $.doc.c
+path-in-a-definition-through-a-list-by-a-key-use-first	errc	doc: $.b\nxs: [1]\nb: {v: 2, c?: $.xs.k}	no_path
+path-in-a-definition-through-a-list-by-a-key-use-first-path	err	doc: $.b\nxs: [1]\nb: {v: 2, c?: $.xs.k}	Cannot resolve value at path $.doc.c
+path-in-a-definition-through-a-scalar-use-first	errc	doc: $.b\na: 1\nb: {v: 2, c?: $.a.x}	no_path
+path-in-a-definition-through-a-scalar-use-first-path	err	doc: $.b\na: 1\nb: {v: 2, c?: $.a.x}	Cannot resolve value at path $.doc.c
 #
 # --- JSON itself, as a guarded alias ---------------------------------
 json-alias	gens	%json = null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}

@@ -2158,6 +2158,98 @@ theorem order_verdicts_agree : ∀ i, i < 3 → ∀ k, k < 3 → orderVerdict i 
   | 2, _, 1, _ => orderVerdict_2_1.trans orderVerdict_0_1.symm
   | 2, _, 2, _ => orderVerdict_2_2.trans orderVerdict_0_2.symm
 
+/-- Definitions that reach each other by path, read as names that reach
+each other are: a path that reaches itself through other paths names a
+recursion, so a use of it alone stays residual and one met with a map
+unfolds, in whatever order the document is written. A required member
+that names a definition with an optional way back, in three orders, met
+with data and used bare; two definitions that reach each other through
+optional members; a pair where one holds a set of the other; a ring of
+three, two of them meets; a list's element that names itself, and two
+elements that name each other; a relation whose template is a subtype
+of the type that declares it, by name and by path, with a link that
+keeps the subtype and one that breaks it; and a copy of a link whose
+template reads the copy, which is no recursion. -/
+def mutualPathCases : List (Decls × Val × Data) :=
+  let rl (t : Val) : Val := .call .relate [t]
+  let kd : Val := .or [(0, str "d"), (0, str "f")]
+  let block (fs : List (String × Val)) : Val := hide (m fs)
+  let rA : Val := m [("b", p ["s", "B"])]
+  let rB : Val := mo [("x", false, int 1), ("a", true, p ["s", "A"])]
+  let useA : Val := .meet (p ["s", "A"]) (m [])
+  let oN : Val := mo [("up", true, p ["s", "D"])]
+  let oD : Val := mo [("inner", true, p ["s", "N"])]
+  let useN : Val := .meet (p ["s", "N"]) (m [])
+  let pair : Val := m [("Person", hide (mo [("name", false, .string), ("employer", true, p ["Company"])])),
+    ("Company", hide (m [("title", .string), ("staff", tmpl (p ["Person"]))])), ("acme", p ["Company"])]
+  let sam (extra : List (String × Data)) : Data :=
+    dm [("acme", dm [("title", .str "Acme"), ("staff", dm [("sam", dm (("name", .str "Sam") :: extra))])])]
+  let gA : Val := mo [("k", false, .integer), ("b", true, p ["s", "B"])]
+  let gB : Val := .meet (p ["s", "C"]) (m [("j", int 2)])
+  let gC : Val := .meet (p ["s", "A"]) (m [("i", int 3)])
+  let ring : Val := block [("A", gA), ("B", gB), ("C", gC)]
+  let useK : Val := .meet (p ["s", "A"]) (m [("k", int 1)])
+  let x0 : Val := .path [.key "xs", .idx 0]
+  let xs (next : Val) : Val := hide (.list [mo [("v", false, .integer), ("next", true, next)]] none false)
+  let ys : Val := hide (.list [.meet x0 (m [("w", int 1)])] none false)
+  let nd (v : Data) (more : List (String × Data)) : Data := dm (("v", v) :: more)
+  let dN : Decls := [("N", mo [("name", false, .string), ("kind", false, kd), ("up", true, rl (.alias "D"))]),
+    ("D", .meet (.alias "N") (m [("kind", str "d")]))]
+  let named (ak : String) : Val := .meet (tmpl (.alias "N")) (m [("a", m [("name", str "a"), ("kind", str ak)]),
+    ("b", m [("name", str "b"), ("kind", str "f"), ("up", .addr ⟨0, ["n", "a"]⟩)])])
+  let tN : Val := mo [("k", false, kd), ("up", true, rl (p ["t", "D"]))]
+  let tD : Val := .meet (p ["t", "N"]) (m [("k", str "d")])
+  let nodes (ak : String) : Val := .meet (tmpl (p ["t", "N"]))
+    (m [("a", m [("k", str ak)]), ("b", m [("k", str "f"), ("up", .addr ⟨0, ["n", "a"]⟩)])])
+  [([], m [("s", block [("A", rA), ("B", rB)]), ("doc", useA)], dm []),
+    ([], m [("s", block [("B", rB), ("A", rA)]), ("doc", useA)], dm []),
+    ([], m [("doc", useA), ("s", block [("A", rA), ("B", rB)])], dm []),
+    ([], m [("s", block [("A", rA), ("B", rB)]), ("doc", useA)], dm [("doc", dm [("b", dm [])])]),
+    ([], m [("s", block [("A", rA), ("B", rB)]), ("doc", p ["s", "A"])], dm []),
+    ([], m [("s", block [("N", oN), ("D", oD)]), ("doc", useN)], dm []),
+    ([], m [("doc", useN), ("s", block [("N", oN), ("D", oD)])], dm []),
+    ([], m [("doc", useN), ("s", block [("N", oN), ("D", oD)])],
+      dm [("doc", dm [("up", dm [("inner", dm [("up", dm [])])])])]),
+    ([], pair, sam []),
+    ([], pair, sam [("employer", dm [("staff", dm [])])]),
+    ([], pair, sam [("employer", dm [("title", .str "Acme"), ("staff", dm [])])]),
+    ([], m [("s", ring), ("doc", useK)], dm []),
+    ([], m [("doc", useK), ("s", ring)], dm []),
+    ([], m [("s", block [("C", gC), ("B", gB), ("A", gA)]), ("doc", useK)], dm []),
+    ([], m [("s", ring), ("doc", p ["s", "A"])],
+      dm [("doc", dm [("k", j 1), ("b", dm [("k", j 2), ("b", dm [("k", j 3)])])])]),
+    ([], m [("doc", p ["s", "A"]), ("s", ring)],
+      dm [("doc", dm [("k", j 1), ("b", dm [("k", j 2), ("b", dm [("k", j 3)])])])]),
+    ([], m [("s", ring), ("doc", p ["s", "A"])], dm [("doc", dm [("k", j 1), ("b", dm [("k", j 2), ("j", j 5)])])]),
+    ([], m [("xs", xs x0), ("doc", x0)], dm [("doc", nd (j 1) [("next", nd (j 2) [])])]),
+    ([], m [("xs", xs x0), ("doc", x0)], dm [("doc", nd (j 1) [("next", nd (.str "x") [])])]),
+    ([], m [("doc", x0), ("xs", xs x0)], dm [("doc", nd (j 1) [("next", nd (j 2) [("next", nd (j 3) [])])])]),
+    ([], m [("xs", xs x0), ("doc", x0)], dm []),
+    ([], m [("xs", xs (.path [.key "ys", .idx 0])), ("ys", ys), ("doc", x0)],
+      dm [("doc", nd (j 1) [("next", nd (j 2) [])])]),
+    ([], m [("doc", x0), ("xs", xs (.path [.key "ys", .idx 0])), ("ys", ys)],
+      dm [("doc", nd (j 1) [("next", nd (j 2) [])])]),
+    ([], m [("xs", xs (.path [.key "ys", .idx 0])), ("ys", ys), ("doc", x0)],
+      dm [("doc", nd (j 1) [("next", nd (j 2) [("w", j 5)])])]),
+    (dN, m [("x", int 1)], dm []),
+    (dN, m [("n", named "d")], dm []),
+    (dN.reverse, m [("n", named "d")], dm []),
+    (dN, m [("n", named "f")], dm []),
+    ([], m [("w", m [("a", .meet (rl (m [("x", p ["v"])])) (.addr ⟨0, ["b"]⟩))]), ("v", p ["w"]), ("b", m [])], dm []),
+    ([], m [("t", block [("D", tD), ("N", tN)]), ("n", nodes "d")], dm []),
+    ([], m [("t", block [("N", tN), ("D", tD)]), ("n", nodes "d")], dm []),
+    ([], m [("n", nodes "d"), ("t", block [("N", tN), ("D", tD)])], dm []),
+    ([], m [("t", block [("D", tD), ("N", tN)]), ("n", nodes "f")], dm []),
+    ([], m [("t", block [("N", tN), ("D", tD)]), ("n", nodes "f")], dm []),
+    ([], m [("t", block [("N", tN), ("D", tD)]), ("x", int 1)], dm [])]
+
+theorem mutualPathCases_checkable : ∀ c ∈ mutualPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem mutualPath_verdict_exact : ∀ c ∈ mutualPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (mutualPathCases_checkable c hc).1 (mutualPathCases_checkable c hc).2 v
+
 /-- A path reference's copy reads its target's relative paths where it
 stands (ruling 26), with what the data writes at the target met in:
 `c: {x: 3, d: $.a.b}` beside `a: {x: 2, b: {v: ..x}}`, the reference
@@ -9565,6 +9657,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# data that keeps the type and data that breaks it. The definition reads the"
     IO.println "# three orders alike (`order_verdicts_agree`)."
     pathRows "od" orderCases
+    IO.println "# Definitions that reach each other by path follow in rows mp0 on: a path"
+    IO.println "# that reaches itself through other paths names a recursion, as a name does,"
+    IO.println "# whatever the order. A required member and an optional way back, a pair, a"
+    IO.println "# ring of three, a list's elements, and a relation to a subtype of the type"
+    IO.println "# that declares it, by name and by path."
+    pathRows "mp" mutualPathCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

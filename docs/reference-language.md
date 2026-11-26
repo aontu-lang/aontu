@@ -2133,9 +2133,26 @@ hash pins the mu-form: one string for an infinitely deep type:
  "schema":{"Step":{"label":string,"then"?:$.schema.Step}}}
 ```
 
-Mutual recursion (`A` referencing `B` referencing `A`) works the same
-way, and so does a recursive [alias](#aliases-), which is enough to
-write the JSON value space in one line:
+Mutual recursion works the same way. A definition that reaches itself
+through other definitions is recursive too, by path or by
+[alias](#aliases-), in whatever order they're written. Here a node's
+`up` is a folder, and a folder is a node of kind `"d"`:
+
+```aontu
+Node: hide({ kind:"d"|"f" up?:$.Folder })
+Folder: hide($.Node & { kind:"d" })
+doc: $.Node & { kind:"f" up:kind:"d" }
+```
+
+```json
+{"doc": {"kind": "f", "up": {"kind": "d"}}}
+```
+
+The data decides how far such definitions unfold, as it does for one.
+An optional member that names one stays out where the data gives none,
+and a required member that never meets data is `recursion_unexpanded`.
+
+A recursive alias is enough to write the JSON value space in one line:
 
 ```aontu
 %json = null|boolean|number|string|[&: %json]|{ &: %json }

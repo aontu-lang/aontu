@@ -5435,3 +5435,113 @@ od23	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"),
 od24	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid"}
 od25	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"noFill":true}}
 od26	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"partial":true}}
+# Definitions that reach each other by path follow in rows mp0 on: a path
+# that reaches itself through other paths names a recursion, as a name does,
+# whatever the order. A required member and an optional way back, a pair, a
+# ring of three, a list's elements, and a relation to a subtype of the type
+# that declares it, by name and by path.
+mp0	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": ($.s.A) & ({})	{}	{"verdict":"incomplete"}
+mp1	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": ($.s.A) & ({})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp2	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": ($.s.A) & ({})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp3	verdict	"s": hide({"B": {"x": 1, "a"?: $.s.A}, "A": {"b": $.s.B}}), "doc": ($.s.A) & ({})	{}	{"verdict":"incomplete"}
+mp4	verdict	"s": hide({"B": {"x": 1, "a"?: $.s.A}, "A": {"b": $.s.B}}), "doc": ($.s.A) & ({})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp5	verdict	"s": hide({"B": {"x": 1, "a"?: $.s.A}, "A": {"b": $.s.B}}), "doc": ($.s.A) & ({})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp6	verdict	"doc": ($.s.A) & ({}), "s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}})	{}	{"verdict":"incomplete"}
+mp7	verdict	"doc": ($.s.A) & ({}), "s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp8	verdict	"doc": ($.s.A) & ({}), "s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp9	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": ($.s.A) & ({})	{"doc": {"b": {}}}	{"verdict":"valid"}
+mp10	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": ($.s.A) & ({})	{"doc": {"b": {}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp11	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": ($.s.A) & ({})	{"doc": {"b": {}}}	{"verdict":"valid","opts":{"partial":true}}
+mp12	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": $.s.A	{}	{"verdict":"incomplete"}
+mp13	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": $.s.A	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp14	verdict	"s": hide({"A": {"b": $.s.B}, "B": {"x": 1, "a"?: $.s.A}}), "doc": $.s.A	{}	{"verdict":"valid","opts":{"partial":true}}
+mp15	verdict	"s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}}), "doc": ($.s.N) & ({})	{}	{"verdict":"valid"}
+mp16	verdict	"s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}}), "doc": ($.s.N) & ({})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp17	verdict	"s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}}), "doc": ($.s.N) & ({})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp18	verdict	"doc": ($.s.N) & ({}), "s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}})	{}	{"verdict":"valid"}
+mp19	verdict	"doc": ($.s.N) & ({}), "s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp20	verdict	"doc": ($.s.N) & ({}), "s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp21	verdict	"doc": ($.s.N) & ({}), "s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}})	{"doc": {"up": {"inner": {"up": {}}}}}	{"verdict":"valid"}
+mp22	verdict	"doc": ($.s.N) & ({}), "s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}})	{"doc": {"up": {"inner": {"up": {}}}}}	{"verdict":"valid","opts":{"noFill":true}}
+mp23	verdict	"doc": ($.s.N) & ({}), "s": hide({"N": {"up"?: $.s.D}, "D": {"inner"?: $.s.N}})	{"doc": {"up": {"inner": {"up": {}}}}}	{"verdict":"valid","opts":{"partial":true}}
+mp24	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam"}}}}	{"verdict":"valid"}
+mp25	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam"}}}}	{"verdict":"valid","opts":{"noFill":true}}
+mp26	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam"}}}}	{"verdict":"valid","opts":{"partial":true}}
+mp27	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam", "employer": {"staff": {}}}}}}	{"verdict":"incomplete"}
+mp28	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam", "employer": {"staff": {}}}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp29	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam", "employer": {"staff": {}}}}}}	{"verdict":"valid","opts":{"partial":true}}
+mp30	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam", "employer": {"title": "Acme", "staff": {}}}}}}	{"verdict":"valid"}
+mp31	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam", "employer": {"title": "Acme", "staff": {}}}}}}	{"verdict":"valid","opts":{"noFill":true}}
+mp32	verdict	"Person": hide({"name": string, "employer"?: $.Company}), "Company": hide({"title": string, "staff": {&: $.Person}}), "acme": $.Company	{"acme": {"title": "Acme", "staff": {"sam": {"name": "Sam", "employer": {"title": "Acme", "staff": {}}}}}}	{"verdict":"valid","opts":{"partial":true}}
+mp33	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": ($.s.A) & ({"k": 1})	{}	{"verdict":"valid"}
+mp34	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": ($.s.A) & ({"k": 1})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp35	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": ($.s.A) & ({"k": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp36	verdict	"doc": ($.s.A) & ({"k": 1}), "s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})})	{}	{"verdict":"valid"}
+mp37	verdict	"doc": ($.s.A) & ({"k": 1}), "s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp38	verdict	"doc": ($.s.A) & ({"k": 1}), "s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp39	verdict	"s": hide({"C": ($.s.A) & ({"i": 3}), "B": ($.s.C) & ({"j": 2}), "A": {"k": integer, "b"?: $.s.B}}), "doc": ($.s.A) & ({"k": 1})	{}	{"verdict":"valid"}
+mp40	verdict	"s": hide({"C": ($.s.A) & ({"i": 3}), "B": ($.s.C) & ({"j": 2}), "A": {"k": integer, "b"?: $.s.B}}), "doc": ($.s.A) & ({"k": 1})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp41	verdict	"s": hide({"C": ($.s.A) & ({"i": 3}), "B": ($.s.C) & ({"j": 2}), "A": {"k": integer, "b"?: $.s.B}}), "doc": ($.s.A) & ({"k": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp42	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": $.s.A	{"doc": {"k": 1, "b": {"k": 2, "b": {"k": 3}}}}	{"verdict":"valid"}
+mp43	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": $.s.A	{"doc": {"k": 1, "b": {"k": 2, "b": {"k": 3}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp44	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": $.s.A	{"doc": {"k": 1, "b": {"k": 2, "b": {"k": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+mp45	verdict	"doc": $.s.A, "s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})})	{"doc": {"k": 1, "b": {"k": 2, "b": {"k": 3}}}}	{"verdict":"valid"}
+mp46	verdict	"doc": $.s.A, "s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})})	{"doc": {"k": 1, "b": {"k": 2, "b": {"k": 3}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp47	verdict	"doc": $.s.A, "s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})})	{"doc": {"k": 1, "b": {"k": 2, "b": {"k": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+mp48	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": $.s.A	{"doc": {"k": 1, "b": {"k": 2, "j": 5}}}	{"verdict":"invalid"}
+mp49	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": $.s.A	{"doc": {"k": 1, "b": {"k": 2, "j": 5}}}	{"verdict":"invalid","opts":{"noFill":true}}
+mp50	verdict	"s": hide({"A": {"k": integer, "b"?: $.s.B}, "B": ($.s.C) & ({"j": 2}), "C": ($.s.A) & ({"i": 3})}), "doc": $.s.A	{"doc": {"k": 1, "b": {"k": 2, "j": 5}}}	{"verdict":"invalid","opts":{"partial":true}}
+mp51	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"valid"}
+mp52	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+mp53	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+mp54	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": "x"}}}	{"verdict":"invalid"}
+mp55	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": "x"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+mp56	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": "x"}}}	{"verdict":"invalid","opts":{"partial":true}}
+mp57	verdict	"doc": $.xs.0, "xs": hide([{"v": integer, "next"?: $.xs.0}])	{"doc": {"v": 1, "next": {"v": 2, "next": {"v": 3}}}}	{"verdict":"valid"}
+mp58	verdict	"doc": $.xs.0, "xs": hide([{"v": integer, "next"?: $.xs.0}])	{"doc": {"v": 1, "next": {"v": 2, "next": {"v": 3}}}}	{"verdict":"valid","opts":{"noFill":true}}
+mp59	verdict	"doc": $.xs.0, "xs": hide([{"v": integer, "next"?: $.xs.0}])	{"doc": {"v": 1, "next": {"v": 2, "next": {"v": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+mp60	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{}	{"verdict":"incomplete"}
+mp61	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp62	verdict	"xs": hide([{"v": integer, "next"?: $.xs.0}]), "doc": $.xs.0	{}	{"verdict":"valid","opts":{"partial":true}}
+mp63	verdict	"xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"valid"}
+mp64	verdict	"xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp65	verdict	"xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+mp66	verdict	"doc": $.xs.0, "xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})])	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"valid"}
+mp67	verdict	"doc": $.xs.0, "xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})])	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp68	verdict	"doc": $.xs.0, "xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})])	{"doc": {"v": 1, "next": {"v": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+mp69	verdict	"xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2, "w": 5}}}	{"verdict":"invalid"}
+mp70	verdict	"xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2, "w": 5}}}	{"verdict":"invalid","opts":{"noFill":true}}
+mp71	verdict	"xs": hide([{"v": integer, "next"?: $.ys.0}]), "ys": hide([($.xs.0) & ({"w": 1})]), "doc": $.xs.0	{"doc": {"v": 1, "next": {"v": 2, "w": 5}}}	{"verdict":"invalid","opts":{"partial":true}}
+mp72	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"x": 1	{}	{"verdict":"valid"}
+mp73	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp74	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+mp75	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "d"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"valid"}
+mp76	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "d"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp77	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "d"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp78	verdict	%D = (%N) & ({"kind": "d"})\n%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "d"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"valid"}
+mp79	verdict	%D = (%N) & ({"kind": "d"})\n%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "d"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp80	verdict	%D = (%N) & ({"kind": "d"})\n%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "d"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp81	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "f"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"error"}
+mp82	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "f"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"error","opts":{"noFill":true}}
+mp83	verdict	%N = {"name": string, "kind": ("d") | ("f"), "up"?: relate(%D)}\n%D = (%N) & ({"kind": "d"})\n"n": ({&: %N}) & ({"a": {"name": "a", "kind": "f"}, "b": {"name": "b", "kind": "f", "up": path($.n.a)}})	{}	{"verdict":"error","opts":{"partial":true}}
+mp84	verdict	"w": {"a": (relate({"x": $.v})) & (path($.b))}, "v": $.w, "b": {}	{}	{"verdict":"valid"}
+mp85	verdict	"w": {"a": (relate({"x": $.v})) & (path($.b))}, "v": $.w, "b": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp86	verdict	"w": {"a": (relate({"x": $.v})) & (path($.b))}, "v": $.w, "b": {}	{}	{"verdict":"valid","opts":{"partial":true}}
+mp87	verdict	"t": hide({"D": ($.t.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}}), "n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"valid"}
+mp88	verdict	"t": hide({"D": ($.t.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}}), "n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp89	verdict	"t": hide({"D": ($.t.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}}), "n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp90	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"valid"}
+mp91	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp92	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp93	verdict	"n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}}), "t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})})	{}	{"verdict":"valid"}
+mp94	verdict	"n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}}), "t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp95	verdict	"n": ({&: $.t.N}) & ({"a": {"k": "d"}, "b": {"k": "f", "up": path($.n.a)}}), "t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})})	{}	{"verdict":"valid","opts":{"partial":true}}
+mp96	verdict	"t": hide({"D": ($.t.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}}), "n": ({&: $.t.N}) & ({"a": {"k": "f"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"error"}
+mp97	verdict	"t": hide({"D": ($.t.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}}), "n": ({&: $.t.N}) & ({"a": {"k": "f"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"error","opts":{"noFill":true}}
+mp98	verdict	"t": hide({"D": ($.t.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}}), "n": ({&: $.t.N}) & ({"a": {"k": "f"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"error","opts":{"partial":true}}
+mp99	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "n": ({&: $.t.N}) & ({"a": {"k": "f"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"error"}
+mp100	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "n": ({&: $.t.N}) & ({"a": {"k": "f"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"error","opts":{"noFill":true}}
+mp101	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "n": ({&: $.t.N}) & ({"a": {"k": "f"}, "b": {"k": "f", "up": path($.n.a)}})	{}	{"verdict":"error","opts":{"partial":true}}
+mp102	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "x": 1	{}	{"verdict":"valid"}
+mp103	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mp104	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": ($.t.N) & ({"k": "d"})}), "x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
