@@ -18,6 +18,7 @@ const ConjunctVal_1 = require("./val/ConjunctVal");
 const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
 const BagVal_1 = require("./val/BagVal");
+const RefVal_1 = require("./val/RefVal");
 const FuncBaseVal_1 = require("./val/FuncBaseVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const alias_1 = require("./alias");
@@ -501,8 +502,7 @@ function flowId(key, t) {
 // the step's position, as the result holds the container, down to the
 // template.
 function flowDoc(ctx, root, flows, depth) {
-    const here = flows.filter((f) => depth === f.to.length)
-        .map((f) => f.t.clone(ctx, { dup: true }));
+    const here = flows.filter((f) => depth === f.to.length).map((f) => (0, RefVal_1.landedAt)(ctx, f.t, f.to));
     const below = flows.filter((f) => depth < f.to.length);
     if (0 < below.length) {
         const steps = [...new Set(below.map((f) => f.to[depth]))];

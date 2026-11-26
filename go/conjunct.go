@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -17,6 +18,7 @@ type ConjunctVal struct {
 	unmarked Val
 	// chained: one step of an `&` chain as the parser read it, no parenthesis around it yet.
 	chained bool
+	own     bool
 }
 
 func newConjunct(terms []Val) *ConjunctVal {
@@ -147,6 +149,12 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	var carried []Val
 	terms := norm(c.peg, &carried, isTop(peer))
 
+	if dataBag(peer) && slices.ContainsFunc(terms, sealish) {
+		if alone := c.apart(terms, peer, ctx); nil != alone {
+			return alone
+		}
+	}
+
 	upeer := make([]Val, len(terms))
 	for i, t := range terms {
 		if t.Dc() == DONE && isTop(peer) {
@@ -212,6 +220,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		// reported `$` where TypeScript reports the node's location.
 		nc.path = cp(c.path)
 		nc.site.sp, nc.site.spu, nc.site.url = c.site.sp, c.site.spu, c.site.url
+		nc.own = c.own
 		out = nc
 	}
 	// Only the terms left after the fold decide, and a residual still
@@ -245,6 +254,53 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		out = rideOn(ctx, out, cv, nil)
 	}
 	return out
+}
+
+// A directive's seal covers the place's own terms, not the data's (decision 44): they meet first.
+func (c *ConjunctVal) apart(terms []Val, peer Val, ctx *Ctx) Val {
+	if slices.ContainsFunc(terms, func(t Val) bool { _, isRef := t.(*RefVal); return isRef }) {
+		c.own = true
+		out := newConjunct([]Val{c, peer})
+		out.path = cp(c.path)
+		out.site.sp, out.site.spu, out.site.url = c.site.sp, c.site.spu, c.site.url
+		out.setDc(c.dc + 1)
+		return out
+	}
+	for _, t := range terms {
+		_, isMap := t.(*MapVal)
+		_, isList := t.(*ListVal)
+		if !sealish(t) && !isMap && !isList {
+			return nil
+		}
+	}
+	slot := ctx.slot
+	met := c.Unify(top(), ctx)
+	ctx.slot = slot
+	return unite(ctx, met, peer)
+}
+
+// A bag of the data vet meets the schema with.
+func dataBag(v Val) bool {
+	switch b := v.(type) {
+	case *MapVal:
+		return b.isData
+	case *ListVal:
+		return b.isData
+	}
+	return false
+}
+
+// A bare directive still to fold, or a bag one sealed.
+func sealish(t Val) bool {
+	switch b := t.(type) {
+	case *SealVal:
+		return true
+	case *MapVal:
+		return b.dirSealed
+	case *ListVal:
+		return b.dirSealed
+	}
+	return bareDirective(t)
 }
 
 func sameTerms(cj *ConjunctVal, t0, t1 Val) bool {
@@ -315,7 +371,7 @@ func placeTerms(v Val) []Val {
 func norm(terms []Val, carried *[]Val, lift bool) []Val {
 	var expand []Val
 	for _, t := range terms {
-		if cj, ok := t.(*ConjunctVal); ok {
+		if cj, ok := t.(*ConjunctVal); ok && !cj.own {
 			if rides(cj) {
 				*carried = append(*carried, cj)
 			}

@@ -8,6 +8,110 @@ each change affects.
 
 ## Unreleased
 
+### A JetBrains client for the language server
+
+Task LS9 of the lang refinement plan. `editors/jetbrains/` is a fourth
+editor client, for IntelliJ IDEA and the other JetBrains IDEs. It is a
+template for [LSP4IJ](https://plugins.jetbrains.com/plugin/23257-lsp4ij),
+the plugin that connects a JetBrains IDE to any language server, and a
+README: no plugin of aontu's own, and nothing to build.
+
+- The template starts `aontu lsp`, as `cmd /C aontu lsp` on Windows,
+  and maps the filename pattern `*.aontu` to the language `aontu`.
+- Syntax colours come from the published TextMate grammar. A JetBrains
+  IDE reads `editors/vscode` as a TextMate bundle, so the client
+  carries no copy of the grammar.
+- `ts/test/editors.test.ts` holds the template to the command and the
+  extension the other clients use, and to the fields LSP4IJ reads.
+
+It was built where no JetBrains IDE runs. LSP4IJ 0.30.1's own reader
+accepts the template, IntelliJ's TextMate library reads the bundle and
+colours a sample, and both servers answer a whole session through
+LSP4J, the protocol library LSP4IJ uses. Opening a file in an IDE, and
+the Windows command, are untried.
+
+### A link's template reads its relative paths at the link's target
+
+#661 in both engines, ruling 50. `relate(t)` sends its template `t`
+into the node the link names. Each engine read a relative path in `t`
+where the document writes the link, inside the template, where the path
+names nothing. So the template never finished, the link was never
+made, and the member stayed unresolved:
+
+- `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}` failed with
+  `mapval_no_gen` at `$.x.n`, and `vet` answered `incomplete`. It is
+  now `{"x": {"m": {"k": 2, "v": 2}, "n": ".m"}}`.
+- A template that reads its own member, `relate({a: 1, b: .a})`, failed
+  the same way, and so did a link the template carries when its own
+  template reads a path.
+
+Each engine now leaves a relative path that stays inside the template
+unread where the link is written, and reads it at the target once the
+template has landed there. A call over such a path waits with it. A
+path that names no member of the target's is the schema's error, as a
+path to nothing is anywhere.
+
+A path that climbs past the template, `..k` in `relate({v: ..k})`,
+reads where the link is written, as before. The definition reads it
+from the target, which differs only where the target isn't the link's
+sibling, and #1001 asks which holds.
+
+- `ts/src/val/RefVal.ts`, `ts/src/val/RelateFuncVal.ts`,
+  `ts/src/val/FuncBaseVal.ts` and `ts/src/unify.ts`; `go/ref.go`,
+  `go/func.go` and `go/unify.go`.
+- Rows ll0, ll9, ll15 and ll18 to ll20 of `test/spec/def-path.tsv`
+  leave `spec/ledger.tsv`, whose bound falls from 22 to 16, and #661
+  closes.
+- `test/spec/def-path.tsv` gains rows lr0 to lr41, 14 cases the
+  definition proves, each in three modes.
+
+### A bare `close()` or `open()` beside a path acts on the path's copy
+
+#726 in both engines, the last of its ledger rows. A bare `close()`
+seals the terms at its place once they have met, and a path beside it
+supplies its copy as one of them. Under `vet`, each engine met the data
+with the place before it had read the path, so the seal took the data's
+keys as the place's own:
+
+- `b: {x: 1}`, `a: close() & $.b` passed `{"a": {"x": 1, "y": 2}}`.
+  The seal covers `x` alone, and the data is `invalid`.
+- `b: close({x: 1})`, `a: open() & $.b` refused the same data, where
+  `open()` lifts the seal the copy carries.
+- `a: close() & $.b & {y: 2}` refused `{"a": {"x": 1, "y": 2}}`: the
+  seal had folded into `{y: 2}` before the copy arrived.
+
+Each engine now holds the data apart from a place whose seal still
+waits for a path. The place's own terms meet first, and the data meets
+what they make. This holds for a member, an element, an optional
+member, a default's value, an arm, and a spread's template, beside a
+member the map declares or alone.
+
+The same order now holds where a schema with a path writes a directive
+beside a map at the root or in a template. Those terms had met the data
+one by one, so `close() & {x: $.y, y: integer}` passed `{"x": 2, "y":
+2, "z": 1}` and `v: {&: copy(close() & {x: $.s})}` passed a member with
+a key the template doesn't declare. Both are `invalid` now.
+
+A schema that relied on the old answer can change verdict: data that
+adds a key beside such a `close()` is refused now, as `aontu` alone
+always refused a later term that added one.
+
+- `ts/src/val/ConjunctVal.ts` and `ts/src/vet.ts`; `go/conjunct.go`,
+  `go/clone.go` and `go/vet.go`.
+- Rows dirp6 to dirp11 of `test/spec/def-path.tsv` leave
+  `spec/ledger.tsv`, whose bound falls from 28 to 22.
+- `test/spec/def-path.tsv` gains rows db0 to db182, 61 cases the
+  definition proves, each in three modes. `test/spec/vet.tsv` gains 6
+  rows for a directive beside a `pref()` call over a path, which meets
+  the data as it stands.
+- `close() & copy($.b)` seals the copy under `vet` too, as it did when
+  evaluated alone. The definition's seal stops at a call, which #998
+  tracks with its other limit here: a path that copies a place sealed
+  this way reads the copy unsealed, where both engines copy the seal.
+- Still open: a bare `open()` lifts the seal of one term at its place
+  only (#995), `close()` beside a lone default whose value is a path
+  seals nothing (#996), and `open()` in the argument of `pref` or
+  `super` awaits a ruling (#997). #726 closes.
 ### `keyed` is documented: a reference section and a how-to
 
 Task KP2 of the lang refinement plan. The language reference gains a

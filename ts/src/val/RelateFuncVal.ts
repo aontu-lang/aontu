@@ -30,6 +30,7 @@ import { ConjunctVal } from './ConjunctVal'
 import { unite } from '../unify'
 import { top } from './top'
 import { propagateMarks } from '../utility'
+import { landPaths, landsOnly } from './RefVal'
 
 
 export function findAt(
@@ -383,6 +384,15 @@ class RelateFuncVal extends FuncBaseVal {
 
   funcname() {
     return 'relate'
+  }
+
+  prepare(_ctx: AontuContext, args: Val[]) {
+    args.slice(0, 1).forEach((t: Val) => landPaths(t, this.path))
+    return args
+  }
+
+  argReady(arg: Val): boolean {
+    return arg.done || landsOnly(arg)
   }
 
   resolve(ctx: AontuContext, args: Val[]) {

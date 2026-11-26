@@ -292,6 +292,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 	case *ConjunctVal:
 		out := newConjunct(nil)
 		out.dc = n.dc
+		out.own = n.own
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {

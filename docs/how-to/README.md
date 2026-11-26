@@ -22,7 +22,7 @@ Getting aontu into your process or pipeline, and its answers out.
 - [Give an agent an entrypoint to a definition](give-an-agent-an-entrypoint.md). Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu mcp`.
 - [Collect errors instead of throwing](collect-errors.md). Gather every problem in one pass with `collect: true` (TypeScript) or `Check` (Go) instead of stopping at the first.
 - [Read a conflict error](read-a-conflict-error.md). What a conflict message names, in what order, and how to tell a conflict from an unresolved path.
-- [Wire your editor](wire-your-editor.md). Connect `aontu lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
+- [Wire your editor](wire-your-editor.md). Connect `aontu lsp` to VS Code, Neovim, a JetBrains IDE, or any LSP client for diagnostics as you type.
 
 ## Templates, defaults and composition
 

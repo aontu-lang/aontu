@@ -17,6 +17,7 @@ import { ConjunctVal } from './val/ConjunctVal'
 import { ListVal } from './val/ListVal'
 import { MapVal } from './val/MapVal'
 import { keyTable } from './val/BagVal'
+import { landedAt } from './val/RefVal'
 import { trialUnify } from './val/FuncBaseVal'
 import { waitsOnHole } from './val/PlaceVal'
 import { expandAliases } from './alias'
@@ -585,8 +586,7 @@ function flowId(key: string, t: Val): string {
 // the step's position, as the result holds the container, down to the
 // template.
 function flowDoc(ctx: AontuContext, root: any, flows: Flow[], depth: number): Val {
-  const here = flows.filter((f) => depth === f.to.length)
-    .map((f) => f.t.clone(ctx, { dup: true }))
+  const here = flows.filter((f) => depth === f.to.length).map((f) => landedAt(ctx, f.t, f.to))
   const below = flows.filter((f) => depth < f.to.length)
   if (0 < below.length) {
     const steps = [...new Set(below.map((f) => f.to[depth]))]

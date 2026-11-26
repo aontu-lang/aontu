@@ -500,7 +500,7 @@ func flowDoc(root Val, flows []flowAt, depth int) Val {
 	var below []flowAt
 	for _, f := range flows {
 		if depth == len(f.to) {
-			here = append(here, instanceClone(f.t, f.t.vpath()))
+			here = append(here, landedAt(f.t, f.to))
 		} else {
 			below = append(below, f)
 		}

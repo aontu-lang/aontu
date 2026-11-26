@@ -26,6 +26,8 @@ type RefVal struct {
 	rxc       int
 	// again: a relative path a copy reads again, which resolves where the copy stands.
 	again bool
+	// lands: a relative path in a link's template, which reads where the template lands (ruling 50).
+	lands bool
 }
 
 // walkOutcome says how a reference walk ended: it landed on a value,
@@ -331,7 +333,10 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 	slot := ctx.slot
 
 	var out Val
-	found := rv.find(ctx, false)
+	var found Val
+	if !rv.lands {
+		found = rv.find(ctx, false)
+	}
 	if found == nil {
 		// Not yet resolved: defer.
 		switch {
@@ -1185,4 +1190,49 @@ func (vv *VarVal) Gen(ctx *Ctx) (any, error) {
 	// Silent (mirrors the TS FeatureVal gen pattern): the enclosing
 	// bag reports unresolved vars.
 	return nil, nil
+}
+
+// A link's template reads the relative paths that stay inside it where it lands, at the link's
+// target (ruling 50); one that climbs past the template reads where the link is written.
+func landPaths(tmpl Val, base []string) {
+	walkVals(tmpl, func(t Val) bool {
+		if r, ok := t.(*RefVal); ok && !r.absolute {
+			climbs := 0
+			for climbs < len(r.peg) && "." == r.peg[climbs] {
+				climbs++
+			}
+			r.lands = r.lands || climbs < len(r.path)-len(base)
+		}
+		return true
+	}, map[Val]bool{})
+}
+
+// The template as it lands: each such path read at the target.
+func landedAt(t Val, to []string) Val {
+	out := instanceClone(t, t.vpath())
+	if landsOnly(t) {
+		setPaths(out, cp(to))
+	}
+	walkVals(out, func(t Val) bool {
+		if r, ok := t.(*RefVal); ok {
+			r.lands = false
+		}
+		return true
+	}, map[Val]bool{})
+	return out
+}
+
+// Whether a template waits for nothing but the paths it reads where it lands.
+func landsOnly(tmpl Val) bool {
+	lands, other := false, false
+	walkVals(tmpl, func(t Val) bool {
+		r, isRef := t.(*RefVal)
+		lands = lands || (isRef && r.lands)
+		if f, isFunc := t.(*FuncVal); isFunc && 0 == len(f.peg) {
+			other = other || DONE != t.Dc()
+		}
+		other = other || (isRef && !r.lands)
+		return !other
+	}, map[Val]bool{})
+	return lands && !other
 }
