@@ -5775,7 +5775,7 @@ mp104	verdict	"t": hide({"N": {"k": ("d") | ("f"), "up"?: relate($.t.D)}, "D": (
 # an atom rides the value it meets and leaves it as it is, one alone is no
 # member of the output, a template still flows through one, and an `inverse`
 # whose argument is no name is the schema's error. Every document here keeps
-# what its atoms ask; what a broken graph answers has no rule yet.
+# what its atoms ask; rows gj0 on hold those that don't.
 ga0	verdict	"a": {"d": acyclic()}	{}	{"verdict":"valid"}
 ga1	verdict	"a": {"d": acyclic()}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 ga2	verdict	"a": {"d": acyclic()}	{}	{"verdict":"valid","opts":{"partial":true}}
@@ -6042,3 +6042,163 @@ oa98	verdict	"x": upper(((1) & (2)) | ("a"))	{}	{"verdict":"valid","opts":{"part
 oa99	verdict	"p": hide(((integer) | (string)) & (1)), "x": ($.p) + (1)	{}	{"verdict":"valid"}
 oa100	verdict	"p": hide(((integer) | (string)) & (1)), "x": ($.p) + (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 oa101	verdict	"p": hide(((integer) | (string)) & (1)), "x": ($.p) + (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+# What the graph atoms ask, in rows gj0 on, with the one class `vetG` gives,
+# which `vetG_iff` makes the definition's own: `invalid` where the document
+# generates and the graph it writes breaks an atom, and `vetP`'s class anywhere
+# else. `acyclic()` asks that its relation hold no cycle, and `inverse(k)` that
+# each of its edges be mirrored under `k`. A declaration holds for its key
+# wherever an edge of it is written, a document that waits isn't judged, and a
+# default's edges are edges, where an arm generation doesn't take brings none.
+gj0	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj1	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj2	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj3	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj4	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj5	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj6	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj7	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj8	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj9	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"valid"}
+gj10	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj11	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj12	verdict	"t": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}, "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj13	verdict	"t": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}, "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj14	verdict	"t": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}, "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj15	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b), path($.c)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"valid"}
+gj16	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b), path($.c)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj17	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b), path($.c)])}, "b": {"dependsOn": (relate()) & ([path($.c)])}, "c": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj18	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b), path($.c)])}, "b": {"dependsOn": (relate()) & ([path($.d)])}, "c": {"dependsOn": (relate()) & ([path($.d)])}, "d": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"valid"}
+gj19	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b), path($.c)])}, "b": {"dependsOn": (relate()) & ([path($.d)])}, "c": {"dependsOn": (relate()) & ([path($.d)])}, "d": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj20	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b), path($.c)])}, "b": {"dependsOn": (relate()) & ([path($.d)])}, "c": {"dependsOn": (relate()) & ([path($.d)])}, "d": {"dependsOn": (relate()) & ([])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj21	verdict	"a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj22	verdict	"a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj23	verdict	"a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj24	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)]), "calls": (relate()) & ([])}, "b": {"calls": (relate()) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj25	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)]), "calls": (relate()) & ([])}, "b": {"calls": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj26	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)]), "calls": (relate()) & ([])}, "b": {"calls": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj27	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"calls": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj28	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"calls": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj29	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"calls": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj30	verdict	"a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj31	verdict	"a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj32	verdict	"a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": ((relate()) & (acyclic())) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj33	verdict	"rules": {"dependsOn": acyclic()}, "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj34	verdict	"rules": {"dependsOn": acyclic()}, "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj35	verdict	"rules": {"dependsOn": acyclic()}, "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj36	verdict	"rules": hide({"dependsOn": acyclic()}), "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj37	verdict	"rules": hide({"dependsOn": acyclic()}), "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj38	verdict	"rules": hide({"dependsOn": acyclic()}), "a": {"dependsOn": (relate()) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj39	verdict	"a": {"dependsOn": hide(((relate()) & (acyclic())) & ([path($.b)]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj40	verdict	"a": {"dependsOn": hide(((relate()) & (acyclic())) & ([path($.b)]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj41	verdict	"a": {"dependsOn": hide(((relate()) & (acyclic())) & ([path($.b)]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj42	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (path($.b))}, "b": {"dependsOn": (relate()) & (path($.a))}	{}	{"verdict":"invalid"}
+gj43	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (path($.b))}, "b": {"dependsOn": (relate()) & (path($.a))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj44	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (path($.b))}, "b": {"dependsOn": (relate()) & (path($.a))}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj45	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ({"x": path($.b)})}, "b": {"dependsOn": (relate()) & ({"y": path($.a)})}	{}	{"verdict":"invalid"}
+gj46	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ({"x": path($.b)})}, "b": {"dependsOn": (relate()) & ({"y": path($.a)})}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj47	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ({"x": path($.b)})}, "b": {"dependsOn": (relate()) & ({"y": path($.a)})}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj48	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ({"x": [path($.b)]})}, "b": {"dependsOn": (relate()) & ([{"y": path($.a)}])}	{}	{"verdict":"invalid"}
+gj49	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ({"x": [path($.b)]})}, "b": {"dependsOn": (relate()) & ([{"y": path($.a)}])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj50	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ({"x": [path($.b)]})}, "b": {"dependsOn": (relate()) & ([{"y": path($.a)}])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj51	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path(..b)])}, "b": {"dependsOn": (relate()) & ([path(..a)])}	{}	{"verdict":"invalid"}
+gj52	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path(..b)])}, "b": {"dependsOn": (relate()) & ([path(..a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj53	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & ([path(..b)])}, "b": {"dependsOn": (relate()) & ([path(..a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj54	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj55	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj56	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj57	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {}	{}	{"verdict":"invalid"}
+gj58	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj59	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj60	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([])}	{}	{"verdict":"invalid"}
+gj61	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj62	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj63	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.c)])}, "c": {}	{}	{"verdict":"invalid"}
+gj64	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.c)])}, "c": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj65	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.c)])}, "c": {}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj66	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([])}	{}	{"verdict":"valid"}
+gj67	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj68	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj69	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": [path($.a)]}	{}	{"verdict":"invalid"}
+gj70	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": [path($.a)]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj71	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": [path($.a)]}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj72	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": ((relate()) & (inverse("dependsOn"))) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj73	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": ((relate()) & (inverse("dependsOn"))) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj74	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": ((relate()) & (inverse("dependsOn"))) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj75	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": ((relate()) & (inverse("dependsOn"))) & ([path($.a), path($.c)])}, "c": {}	{}	{"verdict":"invalid"}
+gj76	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": ((relate()) & (inverse("dependsOn"))) & ([path($.a), path($.c)])}, "c": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj77	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": ((relate()) & (inverse("dependsOn"))) & ([path($.a), path($.c)])}, "c": {}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj78	verdict	"a": {"peer": ((relate()) & (inverse("peer"))) & ([path($.b)])}, "b": {"peer": (relate()) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj79	verdict	"a": {"peer": ((relate()) & (inverse("peer"))) & ([path($.b)])}, "b": {"peer": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj80	verdict	"a": {"peer": ((relate()) & (inverse("peer"))) & ([path($.b)])}, "b": {"peer": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj81	verdict	"a": {"peer": ((relate()) & (inverse("peer"))) & ([path($.b)])}, "b": {"peer": (relate()) & ([])}	{}	{"verdict":"invalid"}
+gj82	verdict	"a": {"peer": ((relate()) & (inverse("peer"))) & ([path($.b)])}, "b": {"peer": (relate()) & ([])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj83	verdict	"a": {"peer": ((relate()) & (inverse("peer"))) & ([path($.b)])}, "b": {"peer": (relate()) & ([])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj84	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b), path($.c)])}, "b": {"usedBy": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"invalid"}
+gj85	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b), path($.c)])}, "b": {"usedBy": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj86	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b), path($.c)])}, "b": {"usedBy": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj87	verdict	"a": {"dependsOn": (((relate()) & (acyclic())) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj88	verdict	"a": {"dependsOn": (((relate()) & (acyclic())) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj89	verdict	"a": {"dependsOn": (((relate()) & (acyclic())) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj90	verdict	"a": {"dependsOn": (((relate()) & (acyclic())) & (inverse("usedBy"))) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj91	verdict	"a": {"dependsOn": (((relate()) & (acyclic())) & (inverse("usedBy"))) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj92	verdict	"a": {"dependsOn": (((relate()) & (acyclic())) & (inverse("usedBy"))) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj93	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete"}
+gj94	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj95	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj96	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{"n": 1}	{"verdict":"invalid"}
+gj97	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{"n": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj98	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{"n": 1}	{"verdict":"invalid","opts":{"partial":true}}
+gj99	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{"n": "x"}	{"verdict":"invalid"}
+gj100	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{"n": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+gj101	verdict	"n": integer, "a": {"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{"n": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+gj102	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj103	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj104	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj105	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (([path($.b)]) | *[])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj106	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (([path($.b)]) | *[])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj107	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (([path($.b)]) | *[])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj108	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj109	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj110	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj111	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (**[path($.c)] | *[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"invalid"}
+gj112	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (**[path($.c)] | *[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj113	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (**[path($.c)] | *[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj114	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.c)] | **[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"valid"}
+gj115	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.c)] | **[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj116	verdict	"a": {"dependsOn": ((relate()) & (acyclic())) & (*[path($.c)] | **[path($.b)] | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}, "c": {}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj117	verdict	"a": {"dependsOn": (relate()) & (*((acyclic()) & ([path($.b)])) | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj118	verdict	"a": {"dependsOn": (relate()) & (*((acyclic()) & ([path($.b)])) | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj119	verdict	"a": {"dependsOn": (relate()) & (*((acyclic()) & ([path($.b)])) | ([]))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj120	verdict	"a": {"dependsOn": (relate()) & (*[path($.b)] | ((acyclic()) & ([])))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"valid"}
+gj121	verdict	"a": {"dependsOn": (relate()) & (*[path($.b)] | ((acyclic()) & ([])))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj122	verdict	"a": {"dependsOn": (relate()) & (*[path($.b)] | ((acyclic()) & ([])))}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj123	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & (*[path($.a)] | ([]))}	{}	{"verdict":"valid"}
+gj124	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & (*[path($.a)] | ([]))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj125	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & (*[path($.a)] | ([]))}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj126	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & (([path($.a)]) | *[])}	{}	{"verdict":"invalid"}
+gj127	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & (([path($.a)]) | *[])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj128	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & ([path($.b)])}, "b": {"usedBy": (relate()) & (([path($.a)]) | *[])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj129	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & (*[path($.b)] | ([]))}, "b": {}	{}	{"verdict":"invalid"}
+gj130	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & (*[path($.b)] | ([]))}, "b": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj131	verdict	"a": {"dependsOn": ((relate()) & (inverse("usedBy"))) & (*[path($.b)] | ([]))}, "b": {}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj132	verdict	"a": *{"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])} | ({"x": 1}), "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj133	verdict	"a": *{"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])} | ({"x": 1}), "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj134	verdict	"a": *{"dependsOn": ((relate()) & (acyclic())) & ([path($.b)])} | ({"x": 1}), "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj135	verdict	"a": {"dependsOn": ((relate({"k": 1})) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj136	verdict	"a": {"dependsOn": ((relate({"k": 1})) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj137	verdict	"a": {"dependsOn": ((relate({"k": 1})) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj138	verdict	%R = (relate()) & (acyclic())\n"a": {"dependsOn": (%R) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj139	verdict	%R = (relate()) & (acyclic())\n"a": {"dependsOn": (%R) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj140	verdict	%R = (relate()) & (acyclic())\n"a": {"dependsOn": (%R) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj141	verdict	"xs": [{"dependsOn": ((relate()) & (acyclic())) & ([path($.xs.1)])}, {"dependsOn": (relate()) & ([path($.xs.0)])}]	{}	{"verdict":"invalid"}
+gj142	verdict	"xs": [{"dependsOn": ((relate()) & (acyclic())) & ([path($.xs.1)])}, {"dependsOn": (relate()) & ([path($.xs.0)])}]	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj143	verdict	"xs": [{"dependsOn": ((relate()) & (acyclic())) & ([path($.xs.1)])}, {"dependsOn": (relate()) & ([path($.xs.0)])}]	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj144	verdict	"a": {"deps": [((relate()) & (acyclic())) & (path($.b))]}, "b": {"deps": [(relate()) & (path($.a))]}	{}	{"verdict":"valid"}
+gj145	verdict	"a": {"deps": [((relate()) & (acyclic())) & (path($.b))]}, "b": {"deps": [(relate()) & (path($.a))]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj146	verdict	"a": {"deps": [((relate()) & (acyclic())) & (path($.b))]}, "b": {"deps": [(relate()) & (path($.a))]}	{}	{"verdict":"valid","opts":{"partial":true}}
+gj147	verdict	"a": {"deps": [((relate()) & (acyclic())) & (path($.b))]}, "b": {"deps": [(relate()) & (path($.a))]}, "rules": {"deps": acyclic()}	{}	{"verdict":"invalid"}
+gj148	verdict	"a": {"deps": [((relate()) & (acyclic())) & (path($.b))]}, "b": {"deps": [(relate()) & (path($.a))]}, "rules": {"deps": acyclic()}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj149	verdict	"a": {"deps": [((relate()) & (acyclic())) & (path($.b))]}, "b": {"deps": [(relate()) & (path($.a))]}, "rules": {"deps": acyclic()}	{}	{"verdict":"invalid","opts":{"partial":true}}
+gj150	verdict	"a": {"dependsOn"?: ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
+gj151	verdict	"a": {"dependsOn"?: ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gj152	verdict	"a": {"dependsOn"?: ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
