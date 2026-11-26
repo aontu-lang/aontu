@@ -153,7 +153,7 @@ A seal, a mark or a move, and the checks that wait for generation: #726 (bare `c
 
 ### Where copies, bodies and templates read paths and key()
 
-23 issues (1 S, 20 M, 2 L).
+24 issues (2 S, 20 M, 2 L).
 
 Where a copy, a declaration's body or a template reads its relative paths and `key()`: the two notions of where that `sketch/CORE.0.md` §4 plans to make one. #504 was built in both ports on 2026-11-24, its 54 rows gone, and the same change answers #692, #696, #463 and #330, and #520 where a path lands above its target. #528 was built in both ports the same day, with the emit rows of #539, the rest of #520 and #783, its 12 rows gone; it found #942 and #943, both in the definition, and #944 in TypeScript. #738 is ruled: a declaration has no place, and its body is read at each use (ruling 59).
 
@@ -182,6 +182,7 @@ Where a copy, a declaration's body or a template reads its relative paths and `k
 | [#691](https://github.com/aontu-lang/aontu/issues/691) | def | M |  | A map spread's template cannot read a sibling it supplies at a member written in the same map. |
 | [#416](https://github.com/aontu-lang/aontu/issues/416) | def | M |  | A path inside a rider's value to a sibling member leaves both ports incomplete (`mapval_no_gen`). Built in both ports 2026-11-24. |
 | [#936](https://github.com/aontu-lang/aontu/issues/936) | def | M |  | A copied `each` or `pack` reads a relative path in its source where the target stands, not where the copy stands. |
+| [#1015](https://github.com/aontu-lang/aontu/issues/1015) | parity | S |  | A `match` or an `each` in a recursive body reads its relative path from the level above, from the second level down, in TypeScript; Go and the definition read each level. Fixed 2026-11-26: the level's instance is re-pathed where it lands. |
 
 ## Phase 3: by area
 

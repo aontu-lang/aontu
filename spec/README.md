@@ -102,7 +102,9 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   which the definition reads with the data at each use the data
   reaches, while the body at its own place keeps it waiting, a term the
   checker can't read, so no theorem ties that verdict to `VetP` yet and
-  no row holds it (#403);
+  no generated row holds it (#403); rows of `test/spec/recursion.tsv`
+  hold both ports to the definition's answers for a `match` and an
+  `each` at the first three levels;
 - two recursions of one shape under different names, which the order
   leaves undecided (P5);
 - a clash between two defaults of one rank that a later meet makes, by
