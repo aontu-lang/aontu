@@ -652,4 +652,392 @@ def leDecD (n : ℕ) (dg : Decls) (g : Val) (ds : Decls) (s : Val) : Option (PLi
     else none
   else none
 
+/-! ## Two recursions
+
+`leDecD` decides the order where neither reading reads a name. A name
+that refers to itself has no end to read to, so the comparison of two
+recursions assumes the pair of names it is asked about while it compares
+their bodies, and answers a pair met again below a key or an element by
+that assumption. Every value is a finite tree, so the assumption is
+only ever read on a lighter value than the one it was made for, which is
+what the proof of `leCo_sound` goes by: induction on the value's weight.
+Two recursions of one shape are ordered whatever their names are, a
+recursion and its unrolling both ways, and a recursion below a wider one
+of its shape. -/
+
+/-- The order on two terms that read no name, where `leDecF` decides it. -/
+def leBase (g s : Val) : Bool :=
+  g.checkableB && s.checkableB && (leDecF .empty 64 s g).isSome
+
+/-- What a specific container holds beyond the members it writes, held
+to `t`: its spread compared with `t`, or nothing where it is sealed, or
+anything, which only `any` admits. -/
+def leRest (r : Val → Val → Bool) (t : Val) (ssp : Option Val) (sc : Bool) : Bool :=
+  match ssp with
+  | some t' => !t'.keyed && r t t'
+  | none => sc || t.isAny
+
+/-- A map's members compared, `r` comparing two terms: each member the
+general map declares is required by the specific where the general
+requires it, and its term compared with the specific's, or with what the
+specific holds beyond its members; a general spread that reads no key is
+compared with every member of the specific and with what it holds beyond
+them; and a sealed general map declares every key a sealed specific
+does. -/
+def leMembers (r : Val → Val → Bool) (gfs : List (String × Bool × Val)) (gsp : Option Val)
+    (gc : Bool) (sfs : List (String × Bool × Val)) (ssp : Option Val) (sc : Bool) : Bool :=
+  gfs.all (fun f =>
+    (f.2.1 || sfs.any (fun f' => f'.1 == f.1 && !f'.2.1)) &&
+    (match sfs.find? (fun f' => f'.1 == f.1) with
+      | some f' => r f.2.2 f'.2.2
+      | none => leRest r f.2.2 ssp sc)) &&
+  (match gsp with
+    | none => true
+    | some t => !t.keyed && sfs.all (fun f' => r t f'.2.2) && leRest r t ssp sc) &&
+  (!gc || (sc && sfs.all (fun f' => gfs.any (fun f => f.1 == f'.1))))
+
+/-- A list's elements compared: no more written in the general than in
+the specific, each with the one at its position, a sealed general against
+a sealed specific of its length, and a general spread that reads no key
+against every element the specific writes and against its spread. -/
+def leElems (r : Val → Val → Bool) (gis : List Val) (gsp : Option Val) (gc : Bool)
+    (sis : List Val) (ssp : Option Val) (sc : Bool) : Bool :=
+  decide (gis.length ≤ sis.length) &&
+  (!(gc && gsp.isNone) || (sc && ssp.isNone && decide (sis.length = gis.length))) &&
+  (gis.zip sis).all (fun p => r p.1 p.2) &&
+  (match gsp with
+    | none => true
+    | some t => !t.keyed && sis.all (fun sv => r t sv) && leRest r t ssp sc)
+
+/-- A turn of the order on two terms that may read names, the general
+under `eg` and the specific under `es`, `r` making the turns after it. A
+pair of names met is assumed ordered while their bodies are compared,
+the rule Amadio and Cardelli give for recursive types. `cold` holds the
+pairs assumed above a key or an element, which answer where they are met
+again; `hot` holds those assumed since, which can't answer yet. -/
+def leStep (eg es : Env)
+    (r : List (String × String) → List (String × String) → Val → Val → Bool)
+    (hot cold : List (String × String)) (g s : Val) : Bool :=
+  leBase g s ||
+  match g with
+  | .any => true
+  | .alias kg =>
+    (match eg kg with
+      | none => false
+      | some bg =>
+        match s with
+        | .alias ks =>
+          cold.contains (kg, ks) ||
+            (match es ks with
+              | some bs => r ((kg, ks) :: hot) cold bg bs
+              | none => false)
+        | _ => r hot cold bg s)
+  | .meet a b => r hot cold a s && r hot cold b s
+  | _ =>
+    match s with
+    | .alias ks =>
+      (match es ks with
+        | some bs => r hot cold g bs
+        | none => false)
+    | .or arms => arms.all fun a => r hot cold g a.2
+    | .meet a b => r hot cold g a || r hot cold g b
+    | _ =>
+      match g with
+      | .or arms => arms.any fun a => r hot cold a.2 s
+      | .map gfs gsp gc =>
+        (match s with
+          | .map sfs ssp sc => leMembers (r [] (hot ++ cold)) gfs gsp gc sfs ssp sc
+          | _ => false)
+      | .list gis gsp gc =>
+        (match s with
+          | .list sis ssp sc => leElems (r [] (hot ++ cold)) gis gsp gc sis ssp sc
+          | _ => false)
+      | _ => false
+
+/-- The order on two terms that may read names, within `n` turns. -/
+def leCo (eg es : Env) : ℕ → List (String × String) → List (String × String) → Val → Val → Bool
+  | 0, _, _, _, _ => false
+  | n + 1, hot, cold, g, s => leStep eg es (leCo eg es n) hot cold g s
+
+/-- The order on data no heavier than `w`, whatever root a path would
+read: every such value the specific term admits, the general admits. -/
+def HoldsTo (eg es : Env) (w : ℕ) (g s : Val) : Prop :=
+  ∀ root j, j.weight ≤ w → j.WellFormed → Admits es root s j → Admits eg root g j
+
+theorem HoldsTo.mono {eg es : Env} {w w' : ℕ} {g s : Val} (h : HoldsTo eg es w g s) (hw : w' ≤ w) :
+    HoldsTo eg es w' g s :=
+  fun root j hj => h root j (Nat.le_trans hj hw)
+
+theorem holdsTo_of_base {eg es : Env} {g s : Val} (h : leBase g s = true) (w : ℕ) :
+    HoldsTo eg es w g s := by
+  simp only [leBase, Bool.and_eq_true] at h
+  obtain ⟨⟨hg, hs⟩, hd⟩ := h
+  have hg' := (Val.checkableB_iff g).1 hg
+  have hs' := (Val.checkableB_iff s).1 hs
+  have hle : s ⊑[.empty] g := leDecF_sound hd
+  intro root j _ hj ha
+  have h1 : Instance .empty s j :=
+    ⟨hj, (check_iff (env := .empty) (root := j) hs' j).1 ((check_iff (env := es) (root := root) hs' j).2 ha)⟩
+  exact (check_iff (env := eg) (root := root) hg' j).1
+    ((check_iff (env := .empty) (root := j) hg' j).2 (hle j h1).2)
+
+theorem admits_map_data {env : Env} {root : Data} {fs : List (String × Bool × Val)} {sp : Option Val}
+    {c : Bool} {j : Data} (h : Admits env root (.map fs sp c) j) : ∃ jfs, j = .map jfs := by
+  cases h with
+  | map _ _ _ _ => exact ⟨_, rfl⟩
+
+theorem admits_list_data {env : Env} {root : Data} {is : List Val} {sp : Option Val}
+    {c : Bool} {j : Data} (h : Admits env root (.list is sp c) j) : ∃ xs, j = .list xs := by
+  cases h with
+  | list _ _ _ _ => exact ⟨_, rfl⟩
+
+/-- A map's members compared soundly: where `r` is sound on every value
+lighter than the map, the general map admits what the specific does. -/
+theorem leMembers_sound {eg es : Env} {r : Val → Val → Bool} {gfs sfs : List (String × Bool × Val)}
+    {gc sc : Bool} {gsp ssp : Option Val} {root : Data} {jfs : List (String × Data)}
+    (hr : ∀ g s x, r g s = true → x.weight < (Data.map jfs).weight → x.WellFormed →
+      Admits es root s x → Admits eg root g x)
+    (h : leMembers r gfs gsp gc sfs ssp sc = true) (hj : (Data.map jfs).WellFormed)
+    (ha : Admits es root (.map sfs ssp sc) (.map jfs)) :
+    Admits eg root (.map gfs gsp gc) (.map jfs) := by
+  rw [admits_map_iff] at ha ⊢
+  obtain ⟨hs1, hs2, hs3, hs4⟩ := ha
+  simp only [leMembers, Bool.and_eq_true, List.all_eq_true] at h
+  obtain ⟨⟨hall, hspread⟩, hclosed⟩ := h
+  obtain ⟨hnd, hwf⟩ : (jfs.map Prod.fst).Nodup ∧ ∀ k x, (k, x) ∈ jfs → x.WellFormed := by
+    cases hj with
+    | map hn hm => exact ⟨hn, hm⟩
+  -- What the specific holds at a key it doesn't declare, the term `t` admits.
+  have rest : ∀ t k x, leRest r t ssp sc = true → (k, x) ∈ jfs →
+      (∀ o' v', (k, o', v') ∉ sfs) → Admits eg root t x := by
+    intro t k x ht hm hno
+    unfold leRest at ht
+    split at ht
+    · rename_i t'
+      simp only [Bool.and_eq_true, Bool.not_eq_true'] at ht
+      have := hs3 t' rfl k x hm
+      rw [Val.atKey_of_keyed _ ht.1] at this
+      exact hr t t' x ht.2 (Data.weight_lt_of_mem_members hm) (hwf k x hm) this
+    · rcases (Bool.or_eq_true _ _).mp ht with hsc | hany
+      · obtain ⟨o', v', hm'⟩ := hs4 hsc k x hm
+        exact absurd hm' (hno o' v')
+      · rw [isAny_eq hany]; exact .any
+  refine ⟨fun k o v x hm hl => ?_, fun k o v hm hl => ?_, fun t ht k x hm => ?_, fun hgc k x hm => ?_⟩
+  · have hf := (hall (k, o, v) hm).2
+    simp only at hf
+    split at hf
+    · rename_i f' hfind
+      have hk : f'.1 = k := by simpa using List.find?_some hfind
+      have hmem : (k, f'.2.1, f'.2.2) ∈ sfs := by
+        have := List.mem_of_find?_eq_some hfind
+        rw [← hk]; exact this
+      exact hr v f'.2.2 x hf (Data.weight_lt_of_lookup hl) (hwf k x (lookup_mem hl))
+        (hs1 k f'.2.1 f'.2.2 x hmem hl)
+    · rename_i hfind
+      refine rest v k x hf (lookup_mem hl) fun o' v' hm' => ?_
+      have := List.find?_eq_none.mp hfind (k, o', v') hm'
+      simp at this
+  · have hf := (hall (k, o, v) hm).1
+    simp only at hf
+    rcases (Bool.or_eq_true _ _).mp hf with ho | hreq
+    · exact ho
+    · obtain ⟨f', hm', hf'⟩ := List.any_eq_true.mp hreq
+      simp only [Bool.and_eq_true, beq_iff_eq, Bool.not_eq_true'] at hf'
+      have hmem : (k, false, f'.2.2) ∈ sfs := by
+        rw [← hf'.1, ← hf'.2]; exact hm'
+      exact absurd (hs2 k false f'.2.2 hmem hl) (by simp)
+  · subst ht
+    simp only [Bool.and_eq_true, Bool.not_eq_true', List.all_eq_true] at hspread
+    obtain ⟨⟨hkey, hallS⟩, hrest⟩ := hspread
+    rw [Val.atKey_of_keyed _ hkey]
+    by_cases hd : ∃ o' v', (k, o', v') ∈ sfs
+    · obtain ⟨o', v', hm'⟩ := hd
+      have hl := lookup_eq_some_of_nodup hnd hm
+      exact hr t v' x (hallS (k, o', v') hm') (Data.weight_lt_of_mem_members hm) (hwf k x hm)
+        (hs1 k o' v' x hm' hl)
+    · exact rest t k x hrest hm fun o' v' hm' => hd ⟨o', v', hm'⟩
+  · rw [hgc] at hclosed
+    simp only [Bool.not_true, Bool.false_or, Bool.and_eq_true, List.all_eq_true] at hclosed
+    obtain ⟨o', v', hm'⟩ := hs4 hclosed.1 k x hm
+    obtain ⟨f, hfm, hfk⟩ := List.any_eq_true.mp (hclosed.2 (k, o', v') hm')
+    simp only [beq_iff_eq] at hfk
+    exact ⟨f.2.1, f.2.2, by rw [← hfk]; exact hfm⟩
+
+/-- A list's elements compared soundly, as `leMembers_sound` is for a
+map's members. -/
+theorem leElems_sound {eg es : Env} {r : Val → Val → Bool} {gis sis : List Val} {gsp ssp : Option Val}
+    {gc sc : Bool} {root : Data} {xs : List Data}
+    (hr : ∀ g s x, r g s = true → x.weight < (Data.list xs).weight → x.WellFormed →
+      Admits es root s x → Admits eg root g x)
+    (h : leElems r gis gsp gc sis ssp sc = true) (hj : (Data.list xs).WellFormed)
+    (ha : Admits es root (.list sis ssp sc) (.list xs)) :
+    Admits eg root (.list gis gsp gc) (.list xs) := by
+  rw [admits_list_iff] at ha ⊢
+  obtain ⟨hs1, hs2, hs3, hs4⟩ := ha
+  simp only [leElems, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true] at h
+  obtain ⟨⟨⟨hlen, hseal⟩, hzip⟩, hspread⟩ := h
+  have hwf : ∀ x, x ∈ xs → x.WellFormed := by
+    cases hj with
+    | list hm => exact hm
+  have hat : ∀ i, i < sis.length → ∃ sv, sis[i]? = some sv := fun i hi =>
+    ⟨sis[i], List.getElem?_eq_getElem hi⟩
+  refine ⟨Nat.le_trans hlen hs1, fun hgc hgsp => ?_, fun i v x hv hx => ?_, fun t ht i x hx => ?_⟩
+  · rw [hgc, hgsp] at hseal
+    simp only [Option.isNone_none, Bool.and_self, Bool.not_true, Bool.false_or, Bool.and_eq_true,
+      Option.isNone_iff_eq_none, decide_eq_true_eq] at hseal
+    rw [← hseal.2]
+    exact hs2 hseal.1.1 hseal.1.2
+  · have hi : i < gis.length := (List.getElem?_eq_some_iff.mp hv).1
+    obtain ⟨sv, hsv⟩ := hat i (Nat.lt_of_lt_of_le hi hlen)
+    have hz : (v, sv) ∈ gis.zip sis :=
+      List.mem_of_getElem? (List.getElem?_zip_eq_some.mpr ⟨hv, hsv⟩)
+    exact hr v sv x (hzip (v, sv) hz) (Data.weight_lt_of_getElem? hx) (hwf x (List.mem_of_getElem? hx))
+      (hs3 i sv x hsv hx)
+  · subst ht
+    simp only [Bool.and_eq_true, Bool.not_eq_true', List.all_eq_true] at hspread
+    obtain ⟨⟨hkey, hall⟩, hrest⟩ := hspread
+    rw [Val.atKey_of_keyed _ hkey]
+    have hxw := hwf x (List.mem_of_getElem? hx)
+    by_cases hi : i < sis.length
+    · obtain ⟨sv, hsv⟩ := hat i hi
+      exact hr t sv x (hall sv (List.mem_of_getElem? hsv)) (Data.weight_lt_of_getElem? hx) hxw
+        (hs3 i sv x hsv hx)
+    · unfold leRest at hrest
+      split at hrest
+      · rename_i t'
+        simp only [Bool.and_eq_true, Bool.not_eq_true'] at hrest
+        have := hs4 t' rfl i x hx
+        rw [Val.atKey_of_keyed _ hrest.1] at this
+        exact hr t t' x hrest.2 (Data.weight_lt_of_getElem? hx) hxw this
+      · rcases (Bool.or_eq_true _ _).mp hrest with hsc | hany
+        · have hl := hs2 hsc rfl
+          have := (List.getElem?_eq_some_iff.mp hx).1
+          omega
+        · rw [isAny_eq hany]; exact .any
+
+/-- `leCo` is sound: where it answers yes with every pair in `cold`
+ordered on data no heavier than `w` and every pair in `hot` ordered on
+lighter data, the two terms are ordered on data no heavier than `w`. A
+pair it assumes is ordered on lighter data by induction on the weight,
+and it is only read again below a key or an element, on lighter data. -/
+theorem leCo_sound (eg es : Env) : ∀ (n : ℕ) (hot cold : List (String × String)) (g s : Val),
+    leCo eg es n hot cold g s = true → ∀ w,
+    (∀ p ∈ cold, HoldsTo eg es w (.alias p.1) (.alias p.2)) →
+    (∀ p ∈ hot, ∀ w' < w, HoldsTo eg es w' (.alias p.1) (.alias p.2)) →
+    HoldsTo eg es w g s
+  | 0, _, _, _, _, h => by simp [leCo] at h
+  | n + 1, hot, cold, g, s, h => by
+    have ih := leCo_sound eg es n
+    have below : ∀ {w : ℕ} {x : Data} {g' s' : Val} {root : Data},
+        (∀ p ∈ cold, HoldsTo eg es w (.alias p.1) (.alias p.2)) →
+        (∀ p ∈ hot, ∀ w' < w, HoldsTo eg es w' (.alias p.1) (.alias p.2)) →
+        leCo eg es n [] (hot ++ cold) g' s' = true → x.weight < w → x.WellFormed →
+        Admits es root s' x → Admits eg root g' x := by
+      intro w x g' s' root hcold hhot hr hx hxw hax
+      refine ih _ _ _ _ hr x.weight (fun p hp => ?_) (fun p hp => nomatch hp) root x (Nat.le_refl _) hxw hax
+      rcases List.mem_append.mp hp with hp | hp
+      · exact hhot p hp _ hx
+      · exact (hcold p hp).mono (Nat.le_of_lt hx)
+    rw [leCo] at h
+    unfold leStep at h
+    rw [Bool.or_eq_true] at h
+    rcases h with hb | h
+    · exact fun w _ _ => holdsTo_of_base hb w
+    · split at h
+      · exact fun w _ _ root j _ _ _ => .any
+      · rename_i kg
+        split at h
+        · exact absurd h (by simp)
+        · rename_i bg heg
+          split at h
+          · rename_i ks
+            rcases (Bool.or_eq_true _ _).mp h with hc | h
+            · intro w hcold _
+              exact hcold (kg, ks) (by simpa using hc)
+            · split at h
+              · rename_i bs hes
+                intro w
+                induction w using Nat.strongRecOn with
+                | ind w ihw =>
+                  intro hcold hhot
+                  have hpair : ∀ w' < w, HoldsTo eg es w' (.alias kg) (.alias ks) := fun w' hw' =>
+                    ihw w' hw' (fun p hp => (hcold p hp).mono (Nat.le_of_lt hw'))
+                      (fun p hp w'' hw'' => hhot p hp w'' (Nat.lt_trans hw'' hw'))
+                  have hb := ih _ _ _ _ h w hcold (by
+                    intro p hp w' hw'
+                    rcases List.mem_cons.mp hp with rfl | hp
+                    · exact hpair w' hw'
+                    · exact hhot p hp w' hw')
+                  intro root j hjw hj ha
+                  cases ha with
+                  | alias he hb' =>
+                    rw [hes] at he; cases he
+                    exact .alias heg (hb root j hjw hj hb')
+              · exact absurd h (by simp)
+          · intro w hcold hhot root j hjw hj ha
+            exact .alias heg (ih _ _ _ _ h w hcold hhot root j hjw hj ha)
+      · rename_i a b
+        rw [Bool.and_eq_true] at h
+        intro w hcold hhot root j hjw hj ha
+        exact .meet (ih _ _ _ _ h.1 w hcold hhot root j hjw hj ha)
+          (ih _ _ _ _ h.2 w hcold hhot root j hjw hj ha)
+      · split at h
+        · rename_i ks
+          split at h
+          · rename_i bs hes
+            intro w hcold hhot root j hjw hj ha
+            cases ha with
+            | alias he hb' =>
+              rw [hes] at he; cases he
+              exact ih _ _ _ _ h w hcold hhot root j hjw hj hb'
+          · exact absurd h (by simp)
+        · rename_i arms
+          rw [List.all_eq_true] at h
+          intro w hcold hhot root j hjw hj ha
+          obtain ⟨r, a, hm, haa⟩ := admits_or_iff.mp ha
+          exact ih _ _ _ _ (h (r, a) hm) w hcold hhot root j hjw hj haa
+        · rename_i a b
+          intro w hcold hhot root j hjw hj ha
+          obtain ⟨ha1, ha2⟩ := admits_meet_iff.mp ha
+          rcases (Bool.or_eq_true _ _).mp h with h | h
+          · exact ih _ _ _ _ h w hcold hhot root j hjw hj ha1
+          · exact ih _ _ _ _ h w hcold hhot root j hjw hj ha2
+        · split at h
+          · rename_i arms
+            obtain ⟨a, hm, haa⟩ := List.any_eq_true.mp h
+            intro w hcold hhot root j hjw hj ha
+            exact admits_or_iff.mpr ⟨a.1, a.2, hm, ih _ _ _ _ haa w hcold hhot root j hjw hj ha⟩
+          · rename_i gfs gsp gc
+            split at h
+            · rename_i sfs ssp sc
+              intro w hcold hhot root j hjw hj ha
+              obtain ⟨jfs, rfl⟩ := admits_map_data ha
+              exact leMembers_sound (fun g' s' x hr hx hxw hax =>
+                below hcold hhot hr (Nat.lt_of_lt_of_le hx hjw) hxw hax) h hj ha
+            · exact absurd h (by simp)
+          · rename_i gis gsp gc
+            split at h
+            · rename_i sis ssp sc
+              intro w hcold hhot root j hjw hj ha
+              obtain ⟨xs, rfl⟩ := admits_list_data ha
+              exact leElems_sound (fun g' s' x hr hx hxw hax =>
+                below hcold hhot hr (Nat.lt_of_lt_of_le hx hjw) hxw hax) h hj ha
+            · exact absurd h (by simp)
+          · exact absurd h (by simp)
+
+/-- The order on documents decided through their names: `leCo` on the two
+readings, each under its own environment, with its proof. -/
+def leCoD (n : ℕ) (dg : Decls) (g : Val) (ds : Decls) (s : Val) : Option (PLift (LeD dg g ds s)) :=
+  if h : leCo dg.envE ds.envE n [] [] (dg.readR g) (ds.readR s) = true then
+    some ⟨fun j hj => ⟨hj.1, leCo_sound dg.envE ds.envE n [] [] _ _ h j.weight
+      (fun _ hp => nomatch hp) (fun _ hp => nomatch hp) j j (Nat.le_refl _) hj.1 hj.2⟩⟩
+  else none
+
+/-- Where `leCoD` answers, the order holds. -/
+theorem leCoD_sound {n : ℕ} {dg ds : Decls} {g s : Val} (h : (leCoD n dg g ds s).isSome = true) :
+    LeD dg g ds s :=
+  match hd : leCoD n dg g ds s with
+  | some ⟨hle⟩ => hle
+  | none => by rw [hd] at h; exact nomatch h
+
 end Aontu
