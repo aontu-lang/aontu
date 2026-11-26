@@ -2296,3 +2296,9 @@ status
 ```text
 explain the comment-rule paragraphs?
 ```
+
+## 2026-11-26 18:46:15 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+are there other rules about comments?
+```
