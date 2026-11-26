@@ -12,6 +12,7 @@ import Aontu.Subsume
 import Aontu.Profiles
 import Aontu.Reorder
 import Aontu.Written
+import Aontu.Graph
 
 /-!
 # The axioms
@@ -383,6 +384,18 @@ judges every theorem.
 /-- info: 'Aontu.leCoD_sound' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.leCoD_sound
+
+/-- info: 'Aontu.cyclicB_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.cyclicB_iff
+
+/-- info: 'Aontu.Val.graphOk_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Val.graphOk_iff
+
+/-- info: 'Aontu.vetG_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.vetG_iff
 
 /-- info: 'Aontu.not_le_map_required' does not depend on any axioms -/
 #guard_msgs in

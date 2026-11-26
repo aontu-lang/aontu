@@ -7,6 +7,7 @@ import Aontu.Subsume
 import Aontu.Profiles
 import Aontu.Reorder
 import Aontu.Written
+import Aontu.Graph
 
 /-!
 # The oracle
@@ -4008,6 +4009,100 @@ theorem one_arm_verdict_exact : ∀ c ∈ oneArmCases, ∀ (m : Mode) (v : Verdi
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (oneArmCases_checkable c hc).1 (oneArmCases_checkable c hc).2 v
 
+/-- What the graph atoms ask, judged by `vetG`. A cycle of two, of one
+and of three, a chain, a cycle with a tail into it, a tail into a sink
+and a diamond, each under `acyclic()`; a cycle nobody declares, one
+under another key than the declared one, and one that runs through two
+relations; a declaration far from the edge that closes the cycle, an
+atom alone and one under `hide()`, and a hidden edge; a single address,
+a map of addresses, a bag in a bag, and addresses written from where
+the link stands. `inverse(k)` with its mirror, with none, with an empty
+relation or the wrong end in its place, with no edge to mirror, and
+with a mirror no relation holds; declared both ways, with an edge only
+one way round among them; a relation that mirrors itself; two edges and
+one mirror; both atoms kept and both broken. A broken graph beside a
+member the data must give, the same once it gives it, and beside data
+it refuses. Then the edges a default brings: a default among arms that
+closes a cycle and one generation doesn't take, a lone default, two
+ranks each way round, an atom in the default and in an arm not taken, a
+mirror a default writes and one in an arm not taken, a default's edge
+with no mirror, and a default member that holds the relation. Last, a
+template that still flows, atoms a name brings, nodes that are a list's
+elements, a relation that is a list's element, whose atom there
+declares nothing and whose edges a declaration elsewhere judges, and an
+optional relation. -/
+def graphJudgeCases : List (Decls × Val × Data) :=
+  let r0 : Val := .call .relate []
+  let ac : Val := .call .acyclic []
+  let inv (k : String) : Val := .call .inverse [str k]
+  let node (n : String) (fs : List (String × Val)) : String × Val := (n, m fs)
+  let dep (v : Val) : String × Val := ("dependsOn", v)
+  let used (v : Val) : String × Val := ("usedBy", v)
+  let to (ns : List String) : Val := lst (ns.map fun n => ad 0 [n])
+  let R (v : Val) : Val := .meet r0 v
+  let RA (v : Val) : Val := .meet (.meet r0 ac) v
+  let RI (k : String) (v : Val) : Val := .meet (.meet r0 (inv k)) v
+  let E : Data := .map []
+  [([], m [node "a" [dep (RA (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (to ["b"]))], node "b" [dep (R (to ["c"]))], node "c" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (to ["b"]))], node "b" [dep (R (to ["c"]))], node "c" [dep (R (to []))]], E),
+    ([], m [node "t" [dep (RA (to ["a"]))], node "a" [dep (R (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (to ["b", "c"]))], node "b" [dep (R (to ["c"]))], node "c" [dep (R (to []))]], E),
+    ([], m [node "a" [dep (RA (to ["b", "c"]))], node "b" [dep (R (to ["d"]))], node "c" [dep (R (to ["d"]))], node "d" [dep (R (to []))]], E),
+    ([], m [node "a" [dep (R (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (to ["b"])), ("calls", R (to []))], node "b" [("calls", R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (to ["b"]))], node "b" [("calls", RA (to ["a"]))]], E),
+    ([], m [node "a" [dep (R (to ["b"]))], node "b" [dep (RA (to ["a"]))]], E),
+    ([], m [("rules", m [dep ac]), node "a" [dep (R (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [("rules", hide (m [dep ac])), node "a" [dep (R (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (hide (RA (to ["b"])))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (ad 0 ["b"]))], node "b" [dep (R (ad 0 ["a"]))]], E),
+    ([], m [node "a" [dep (RA (m [("x", ad 0 ["b"])]))], node "b" [dep (R (m [("y", ad 0 ["a"])]))]], E),
+    ([], m [node "a" [dep (RA (m [("x", lst [ad 0 ["b"]])]))], node "b" [dep (R (lst [m [("y", ad 0 ["a"])]]))]], E),
+    ([], m [node "a" [dep (RA (lst [ad 2 ["b"]]))], node "b" [dep (R (lst [ad 2 ["a"]]))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" []], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (R (to []))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (R (to ["c"]))], node "c" []], E),
+    ([], m [node "a" [dep (RI "usedBy" (to []))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (to ["a"])]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (RI "dependsOn" (to ["a"]))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (RI "dependsOn" (to ["a", "c"]))], node "c" []], E),
+    ([], m [node "a" [("peer", RI "peer" (to ["b"]))], node "b" [("peer", R (to ["a"]))]], E),
+    ([], m [node "a" [("peer", RI "peer" (to ["b"]))], node "b" [("peer", R (to []))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b", "c"]))], node "b" [used (R (to ["a"]))], node "c" []], E),
+    ([], m [node "a" [dep (.meet (.meet (.meet r0 ac) (inv "usedBy")) (to ["b"]))], node "b" [used (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (.meet (.meet (.meet r0 ac) (inv "usedBy")) (to ["a"]))]], E),
+    ([], m [("n", .integer), node "a" [dep (RA (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [("n", .integer), node "a" [dep (RA (to ["b"]))], node "b" [dep (R (to ["a"]))]], .map [("n", j 1)]),
+    ([], m [("n", .integer), node "a" [dep (RA (to ["b"]))], node "b" [dep (R (to ["a"]))]], .map [("n", .str "x")]),
+    ([], m [node "a" [dep (RA (.or [(1, to ["b"]), (0, to [])]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (.or [(0, to ["b"]), (1, to [])]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (.pref 1 (to ["b"])))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RA (.or [(2, to ["c"]), (1, to ["b"]), (0, to [])]))], node "b" [dep (R (to ["a"]))], node "c" []], E),
+    ([], m [node "a" [dep (RA (.or [(1, to ["c"]), (2, to ["b"]), (0, to [])]))], node "b" [dep (R (to ["a"]))], node "c" []], E),
+    ([], m [node "a" [dep (R (.or [(1, .meet ac (to ["b"])), (0, to [])]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (R (.or [(1, to ["b"]), (0, .meet ac (to []))]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (R (.or [(1, to ["a"]), (0, to [])]))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (to ["b"]))], node "b" [used (R (.or [(0, to ["a"]), (1, to [])]))]], E),
+    ([], m [node "a" [dep (RI "usedBy" (.or [(1, to ["b"]), (0, to [])]))], node "b" []], E),
+    ([], m [("a", .or [(1, m [dep (RA (to ["b"]))]), (0, m [("x", int 1)])]), node "b" [dep (R (to ["a"]))]], E),
+    ([], m [node "a" [dep (.meet (.meet (.call .relate [m [("k", int 1)]]) ac) (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([("R", .meet r0 ac)], m [node "a" [dep (.meet (.alias "R") (to ["b"]))], node "b" [dep (R (to ["a"]))]], E),
+    ([], m [("xs", lst [m [dep (RA (lst [ad 0 ["xs", "1"]]))], m [dep (R (lst [ad 0 ["xs", "0"]]))]])], E),
+    ([], m [node "a" [("deps", lst [RA (ad 0 ["b"])])], node "b" [("deps", lst [R (ad 0 ["a"])])]], E),
+    ([], m [node "a" [("deps", lst [RA (ad 0 ["b"])])], node "b" [("deps", lst [R (ad 0 ["a"])])], ("rules", m [("deps", ac)])], E),
+    ([], m [("a", .map [("dependsOn", true, RA (to ["b"]))] none false), node "b" [dep (R (to ["a"]))]], E)]
+
+set_option maxRecDepth 8192 in
+theorem graphJudgeCases_checkable : ∀ c ∈ graphJudgeCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem graph_judge_verdict_exact : ∀ c ∈ graphJudgeCases, ∀ (m : Mode) (v : Verdict),
+    vetG m c.1 c.2.1 c.2.2 = v ↔ VetG m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetG_iff (graphJudgeCases_checkable c hc).1 (graphJudgeCases_checkable c hc).2 v
+
 /-- Links read where they land: a `relate` in a `type()` that a path
 reference copies, beside a target the template admits, one it refuses,
 one that names nothing and data that refuses the template; a `relate` in
@@ -5835,11 +5930,11 @@ def Aontu.Val.isTake : Val → Bool
 /-- The `paths` rows: each case's declarations and schema as one
 document, a map's braces dropped since neither CLI reads a braced map
 after a declaration, in the three modes, with the one class `vetP`
-gives. The declarations come first, or after the schema where
-`declsLast` asks. A source a case declares, `@` and its name, is a file
+gives, or `vetG` where the fragment judges the graph atoms. The
+declarations come first, or after the schema where `declsLast` asks. A source a case declares, `@` and its name, is a file
 the row loads, which the row doesn't write. -/
-def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (declsLast : Bool := false) :
-    IO Unit := do
+def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (declsLast : Bool := false)
+    (verdict : Mode → Decls → Val → Data → Verdict := vetP) : IO Unit := do
   let mut i := 0
   for c in cases do
     let mut lines ← declLines (c.1.filter fun d => !sourceName d.1 && !scopedDecl d.1)
@@ -5857,7 +5952,7 @@ def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (
         | throw (IO.userError "a schema of the fragment has no text")
       body := [match s, rest.length with | .map _ _ _, 1 => (ssrc.drop 1).dropRight 1 | _, _ => ssrc]
     let src := "\\n".intercalate (if declsLast then body ++ lines else lines ++ body)
-    i ← verdictLines tag i src dsrc fun m => vetP m c.1 c.2.1 c.2.2
+    i ← verdictLines tag i src dsrc fun m => verdict m c.1 c.2.1 c.2.2
 
 /-! ## The eighth fragment: trials -/
 
@@ -10372,7 +10467,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# an atom rides the value it meets and leaves it as it is, one alone is no"
     IO.println "# member of the output, a template still flows through one, and an `inverse`"
     IO.println "# whose argument is no name is the schema's error. Every document here keeps"
-    IO.println "# what its atoms ask; what a broken graph answers has no rule yet."
+    IO.println "# what its atoms ask; rows gj0 on hold those that don't."
     pathRows "ga" graphAtomCases
     IO.println "# `+` over an address, in rows ap0 on, which reads as the text that spells it."
     pathRows "ap" addrPlusCases
@@ -10381,6 +10476,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# `join`, `pick` or `sort` reads and an element of one, and the source of"
     IO.println "# `each` and `pack`, where the schema settles the choice and where the data does."
     pathRows "oa" oneArmCases
+    IO.println "# What the graph atoms ask, in rows gj0 on, with the one class `vetG` gives,"
+    IO.println "# which `vetG_iff` makes the definition's own: `invalid` where the document"
+    IO.println "# generates and the graph it writes breaks an atom, and `vetP`'s class anywhere"
+    IO.println "# else. `acyclic()` asks that its relation hold no cycle, and `inverse(k)` that"
+    IO.println "# each of its edges be mirrored under `k`. A declaration holds for its key"
+    IO.println "# wherever an edge of it is written, a document that waits isn't judged, and a"
+    IO.println "# default's edges are edges, where an arm generation doesn't take brings none."
+    pathRows "gj" graphJudgeCases (verdict := vetG)
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

@@ -8,6 +8,58 @@ each change affects.
 
 ## Unreleased
 
+### The definition says what the graph atoms ask
+
+`acyclic()` and `inverse(k)` were the last built-in constraints the
+definition read and didn't judge: a document whose graph breaks one
+read as it would without the atom. `spec/Aontu/Graph.lean` states the
+rule, and the definition's verdict now refuses what both engines
+refuse.
+
+```aontu
+a: dependsOn: relate() & acyclic() & [path($.b)]
+b: dependsOn: relate() & [path($.a)]
+```
+
+| `aontu vet` against `{}` | default | `--no-fill` | `--partial` |
+|---|---|---|---|
+| Both engines | `invalid` | `incomplete` | `invalid` |
+| The definition, before | `valid` | `incomplete` | `valid` |
+| The definition, now | `invalid` | `incomplete` | `invalid` |
+
+- **An edge** is an address a relation holds, from the node that holds
+  the relation's field to the node the address names, each node by the
+  text of its place (`Edge`, `edgeOf`, `Val.edges`).
+- **A declaration** is an atom with the key it is met at, where that
+  key is a name, and it holds for every edge of that key
+  (`Val.graphDecls`).
+- **Both are read from the normal form generation writes from**,
+  within the arms of a disjunction the rank rule picks, as a link's
+  template is. So a default's edges are edges, as ruling 72 asks.
+- **`Holds`** says what each atom asks: no cycle in its relation
+  (`Cyclic`, a node that reaches itself), or a mirror of each of its
+  edges under `k`. `cyclicB_iff` proves the cycle check exact, with
+  the closure the alias-cycle rule already proves.
+- **`vetG`** is the verdict: `vetP`'s, and `invalid` where `vetP`
+  answers `valid`, the document generates and its graph breaks an
+  atom. A document that waits has no graph to judge, as ruling 73
+  asks. `vetG_iff` makes it the definition's own. **`outputG`** is the
+  output: nothing, where the graph breaks an atom.
+
+153 rows, gj0 to gj152 of `test/spec/def-path.tsv`, from 51 documents
+proved in `spec/Oracle.lean`. Both engines answer every one as the
+definition does, no earlier row moves, and the ledger stays empty. No
+engine changes.
+
+The three theorems the pages name rest on `propext` and `Quot.sound`
+alone, and the axiom gate holds them to it.
+
+One shape has no row: a relation in a spread's template, with its
+members, which the definition evaluates too slowly to prove here. Both
+engines refuse such a document, `default-edge-from-a-spread` in
+`test/spec/relation.tsv`, and what the definition answers for it is
+unchecked.
+
 ### `encode` and `decode`: base64, base64url and hex
 
 Task BT1 of the lang refinement plan, in both engines. Two built-ins
