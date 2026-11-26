@@ -1435,6 +1435,14 @@ until the phase that encodes it lands.
    definition reads the index the element takes, which #539 tracks.
    A link after an absent or a marked element lands at the index its
    element takes (`Decls.holdsPlace`), as both ports read it.
+   A map keeps the key, so there the rule sits in the meet: where it
+   folds the spread into each member, it leaves alone a member that is
+   absence on its own (`underSpread`, #1008). **Built 2026-11-26.** The
+   template applies to no member that is absence, however the absence
+   is made, and both ports hold it back from a call, a sum, a mark or a
+   meet over a `maybe` as they did from the `maybe` itself. Rows ab0 on
+   in `test/spec/def-path.tsv`. A path's copy of an absence under a
+   template is #1010, where `vet` and generation differ in both ports.
 
 25. **A constraint met with `rel()` before its value.** Raised
    2026-10-22 by P11's fourth slice (#496). Both ports hold a

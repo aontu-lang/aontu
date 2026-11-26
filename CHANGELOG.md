@@ -8,6 +8,79 @@ each change affects.
 
 ## Unreleased
 
+### A template doesn't apply to a member that is absence, however the absence is made
+
+#1008 in the definition, and the same rule in both engines for an
+absence that is computed. A spread's template is for a member, and a
+member that is absence isn't there, so the container drops it as it
+would with no template. The reference says so, and both engines held
+it for a member written as `maybe(...)` alone:
+
+```aontu
+labels: { &: string app:"web" tier:maybe($.tier) note:"n:" + maybe($.note) }
+```
+
+Nothing names `tier` or `note`.
+
+| | Before | Now |
+|---|---|---|
+| The definition | `incomplete`: `tier` and `note` each a required `string` | `{"labels":{"app":"web"}}` |
+| Both engines | `mapval_no_gen` at `$.labels.note` | `{"labels":{"app":"web"}}` |
+
+- **The definition** folded a map's spread into every member, and the
+  unit rule turned an absent one into a required member of the
+  template's type. `{&: *1 | integer} & {y: maybe($.gone)}` generated
+  `{"y": 1}`, a member the template's default made up. The map's meet
+  now leaves alone a member that is absence on its own (`underSpread`
+  in `spec/Aontu/Meet.lean`). The key stays declared: a sealed map
+  beside it still refuses it, and the map holds what the data gives
+  there to the template, as it holds every member. What a map admits
+  doesn't change (`admits_foldSpread`).
+- **Both engines** held the template back from a `maybe` still to
+  answer, and from nothing else. A sum, a call or a meet over one met
+  the template first, and the unit rule then left the template standing
+  where the absence was. The test for a member that hasn't decided
+  (`undecided`) now reads through a call, a sum and a meet to the
+  `maybe` inside. Twelve of the new shared rows were `mapval_no_gen` or
+  `listval_no_gen` and now generate: a sum, a call, a call over a sum, a
+  marked member, a meet of two absences and two declarations of one key
+  in a map, and a sum, a call and a meet of two in a list.
+- **TypeScript** read `maybe($.b)` as `any` where `b` is an absence
+  written above it, and refused it as `mapval_no_gen` or
+  `listval_no_gen`. Go read absence. Absence met with `any` stays
+  absence in TypeScript too.
+
+**An answer changes for an accepted document where the template
+generates.** A default, a literal or a map of defaults in the template
+filled the key of a computed absence, a member made up for input that
+isn't there:
+
+| Document | Before | Now |
+|---|---|---|
+| `x: {&: *"d" \| string}` and `x: {y: upper(maybe($.gone))}` | `{"x":{"y":"d"}}` | `{"x":{}}` |
+| `x: {&: "v"}` and `x: {y: "h" + maybe($.gone)}` | `{"x":{"y":"v"}}` | `{"x":{}}` |
+| `x: {&: {k: *1 \| integer}}` and `x: {y: [1] + maybe($.gone)}` | `{"x":{"y":{"k":1}}}` | `{"x":{}}` |
+| `x: {&: *1 \| integer}` and `x: {y: "h" + maybe($.gone)}` | `{"x":{"y":1}}` in TypeScript, `empty` in Go | `{"x":{}}` |
+
+The same documents with `y: maybe($.gone)` always generated `{"x":{}}`.
+Go also refused a sum over a `maybe` that answers a value under such a
+template, `x: {y: 1 + maybe($.v)}` with `v: 2`, as `empty`, where
+TypeScript generated `3`. Both generate `3` now. Every other change
+turns a refusal into a value.
+
+The definition proves 36 cases (`absentSpreadCases` in
+`spec/Oracle.lean`), rows ab0 to ab107 of `test/spec/def-path.tsv`, and
+both engines answer every one as it does. `test/spec/maybe.tsv` gains
+38 rows, each answered alike by both engines and the definition.
+
+One difference is left, filed as #1010: a member that copies an absence
+by path under a template. Generation leaves it out, and `vet` holds it
+to the template, so it finds the document's own output incomplete.
+
+The reference's passage on `maybe` under a spread gains an example of a
+computed absence, and the definition tutorial's step 33 a section on a
+template and a member that isn't there.
+
 ### The definition's rows hold a sum of an absence, and a recursive name met with a kind
 
 Two language rules the old decision record held, which the definition

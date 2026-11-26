@@ -3723,6 +3723,13 @@ theorem meetDecls_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m
     · exact hm _ _ hv (hfs k' o w (List.mem_cons_self))
     · exact hv
 
+theorem underSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
+    {v t : Val} (hv : v.CheckableA) (ht : t.CheckableA) : (underSpread m v t).CheckableA := by
+  unfold underSpread
+  split
+  · exact hm _ _ hv .any
+  · exact hm _ _ hv ht
+
 theorem meetKey_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {other : List (String × Bool × Val)} {s : Option Val} {c : Bool} {f : String × Bool × Val}
     (hother : ∀ k o w, (k, o, w) ∈ other → w.CheckableA) (hs : ∀ t, s = some t → t.CheckableA)
@@ -3738,7 +3745,7 @@ theorem meetKey_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a
       · cases hg
         exact .nil
     · cases hg
-      refine hm _ _ hf (Val.CheckableA.dropMarks (Val.CheckableA.selectNow ?_))
+      refine underSpread_checkableA hm hf (Val.CheckableA.dropMarks (Val.CheckableA.selectNow ?_))
       cases s with
       | none => exact .any
       | some t => exact (hs t rfl).atKey _
@@ -3755,7 +3762,7 @@ theorem foldSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (
     obtain ⟨⟨k', o', u⟩, hu, he⟩ := List.mem_map.mp hw
     simp only [Prod.mk.injEq] at he
     obtain ⟨rfl, rfl, rfl⟩ := he
-    exact hm _ _ (hfs _ _ _ hu) ((hsp t rfl).atKey _).selectNow.dropMarks
+    exact underSpread_checkableA hm (hfs _ _ _ hu) ((hsp t rfl).atKey _).selectNow.dropMarks
 
 theorem meetSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {s₁ s₂ : Option Val} (h₁ : ∀ t, s₁ = some t → t.CheckableA) (h₂ : ∀ t, s₂ = some t → t.CheckableA) :

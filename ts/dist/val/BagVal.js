@@ -267,8 +267,16 @@ function bagGenable(child) {
         || true === child.isGraphAtom
         || undefined !== sizingResidue(child);
 }
-// A container template waits for a member that has not decided.
+// A container template waits for a member that has not decided: a
+// maybe still to answer, or a call or a meet over one.
 function undecided(child) {
-    return true === child.isMaybeFunc && !child.done;
+    if (true === child.done) {
+        return false;
+    }
+    if (true === child.isMaybeFunc) {
+        return true;
+    }
+    return (true === child.isFunc || true === child.isOp || true === child.isConjunct) &&
+        child.peg.some((a) => undecided(a));
 }
 //# sourceMappingURL=BagVal.js.map

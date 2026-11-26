@@ -3739,6 +3739,21 @@ $ echo 'x: [&: string]  x: ["a", maybe($.gone)]' | aontu
 }
 ```
 
+A computed absence drops the same way. A sum or a call over an absence
+is absent, and so is a meet of two, and the template waits for each as
+it waits for the `maybe` inside:
+
+<!-- test: scenario maybe-computed-under-a-spread -->
+<!-- test: run -->
+```sh
+$ echo 'x: {&: string}  x: {a: "p", b: "h" + maybe($.gone)}' | aontu
+{
+  "x": {
+    "a": "p"
+  }
+}
+```
+
 A member that answers a value meets the template like any other, so
 `maybe($.v)` with `v: 1` under `[&: string]` is still a conflict. A key
 a schema DECLARES is a different case: `{a:string, b:string}` against
@@ -3761,7 +3776,11 @@ which [#539](https://github.com/aontu-lang/aontu/issues/539)
 tracks. The definition drops the absent element as `resolveD` reads the
 list, and rows la0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it.
+to it. A map keeps the key, so the definition leaves an absent member
+alone where the map's meet folds the spread into each member
+(`underSpread` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean)).
+The map still holds what the data gives at that key to the template, as
+it holds every member, and rows ab0 on hold both engines to that.
 
 ## Ordering: `sort`
 

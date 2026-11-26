@@ -77,7 +77,8 @@ maybe-referenced-meets-value	canon	x:maybe($.gone)\ny:$.x & 1	{"x":maybe(),"y":1
 # A CONTAINER TEMPLATE WAITS FOR A MEMBER THAT HAS NOT DECIDED:
 # an absent member is dropped as it is with no template, a
 # present one meets the template like any member, and a key a schema
-# DECLARES is still refused.
+# DECLARES is still refused. The member is a maybe, or a sum, a call,
+# a mark or a meet over one.
 maybe-template-list-kind-drops	gens	x: [&: string]\nx: ["a", maybe($.gone)]	{"x":["a"]}
 maybe-template-list-disjunct-drops	gens	x: [&: string|number]\nx: ["a", maybe($.gone)]	{"x":["a"]}
 maybe-template-list-closed-map-drops	gens	x: [&: close({k:string})]\nx: [{k:"a"}, maybe($.gone)]	{"x":[{"k":"a"}]}
@@ -95,6 +96,48 @@ maybe-template-present-conflicts-inline	errc	v: 1\nx: [&: string, "a", maybe($.v
 maybe-template-map-present-conflicts	errc	v: 1\nx: {&: string, a: "p", b: maybe($.v)}	no_scalar_unify
 maybe-template-closed-present-refuses	errc	v: {k:"a", z:1}\nx: {&: close({k:string})}\nx: {b: maybe($.v)}	closed
 maybe-template-closed-list-present-refuses	errc	v: {k:"a", z:1}\nx: [&: close({k:string})]\nx: [maybe($.v)]	closed
+maybe-template-map-sum-drops	gens	x: {&: string}\nx: {a: "p", b: "h" + maybe($.gone)}	{"x":{"a":"p"}}
+maybe-template-map-sum-inline-drops	gens	x: {&: string, a: "p", b: "h" + maybe($.gone)}	{"x":{"a":"p"}}
+maybe-template-map-call-drops	gens	x: {&: string}\nx: {a: "p", b: upper(maybe($.gone))}	{"x":{"a":"p"}}
+maybe-template-map-call-over-sum-drops	gens	x: {&: string}\nx: {a: "p", b: upper("h" + maybe($.gone))}	{"x":{"a":"p"}}
+maybe-template-map-marked-drops	gens	x: {&: string}\nx: {a: "p", b: hide(maybe($.gone))}	{"x":{"a":"p"}}
+maybe-template-map-meet-of-two-drops	gens	x: {&: string}\nx: {a: "p", b: maybe($.gone) & maybe($.also)}	{"x":{"a":"p"}}
+maybe-template-map-two-declarations-drop	gens	x: {&: string}\nx: {a: "p", b: maybe($.gone)}\nx: {b: maybe($.also)}	{"x":{"a":"p"}}
+maybe-template-map-maybe-of-maybe-drops	gens	x: {&: string}\nx: {a: "p", b: maybe(maybe($.gone))}	{"x":{"a":"p"}}
+maybe-template-map-default-not-taken	gens	x: {&: *1 | integer}\nx: {b: maybe($.gone)}	{"x":{}}
+maybe-template-map-meet-kind-refuses	errc	x: {&: string}\nx: {a: "p", b: maybe($.gone) & string}	mapval_no_gen
+maybe-template-map-sealed-beside-refuses	errc	x: close({a: string})\nx: {a: "p", b: maybe($.gone)}	closed
+maybe-template-map-sum-present-applies	gens	v: "q"\nx: {&: string}\nx: {a: "p", b: "h" + maybe($.v)}	{"v":"q","x":{"a":"p","b":"hq"}}
+maybe-template-map-sum-present-later-applies	gens	x: {&: string}\nx: {b: "h" + maybe($.y.z)}\ny: z: "late"	{"x":{"b":"hlate"},"y":{"z":"late"}}
+maybe-template-map-sum-present-conflicts	errc	v: 1\nx: {&: string}\nx: {a: "p", b: 2 + maybe($.v)}	no_scalar_unify
+maybe-template-map-call-present-applies	gens	v: "q"\nx: {&: string}\nx: {b: upper(maybe($.v))}	{"v":"q","x":{"b":"Q"}}
+maybe-template-map-meet-present-applies	gens	v: "q"\nx: {&: string}\nx: {b: maybe($.v) & maybe($.gone)}	{"v":"q","x":{"b":"q"}}
+maybe-template-map-meet-present-conflicts	errc	v: 1\nx: {&: string}\nx: {b: maybe($.v) & maybe($.gone)}	no_scalar_unify
+maybe-template-list-sum-drops	gens	x: [&: string]\nx: ["a", "h" + maybe($.gone)]	{"x":["a"]}
+maybe-template-list-sum-inline-drops	gens	x: [&: string, "a", "h" + maybe($.gone)]	{"x":["a"]}
+maybe-template-list-call-drops	gens	x: [&: string]\nx: ["a", upper(maybe($.gone))]	{"x":["a"]}
+maybe-template-list-meet-of-two-drops	gens	x: [&: string]\nx: ["a", maybe($.gone) & maybe($.also)]	{"x":["a"]}
+maybe-template-list-sum-present-applies	gens	v: "q"\nx: [&: string]\nx: ["a", "h" + maybe($.v)]	{"v":"q","x":["a","hq"]}
+maybe-template-list-sum-present-conflicts	errc	v: 1\nx: [&: string]\nx: ["a", 2 + maybe($.v)]	no_scalar_unify
+maybe-template-list-of-maps-drops	gens	x: [&: {&: string}]\nx: [{a: "p", b: "h" + maybe($.gone)}]	{"x":[{"a":"p"}]}
+# A TEMPLATE THAT GENERATES makes up no member for an absence: a default,
+# a literal or a map of defaults is dropped with the member it would fill.
+maybe-template-map-default-sum-drops	gens	x: {&: *1 | integer}\nx: {y: "h" + maybe($.gone)}	{"x":{}}
+maybe-template-map-default-call-drops	gens	x: {&: *"d" | string}\nx: {y: upper(maybe($.gone))}	{"x":{}}
+maybe-template-map-default-marked-drops	gens	x: {&: *1 | integer}\nx: {y: hide(maybe($.gone))}	{"x":{}}
+maybe-template-map-default-meet-of-two-drops	gens	x: {&: *1 | integer}\nx: {y: maybe($.gone) & maybe($.also)}	{"x":{}}
+maybe-template-map-literal-sum-drops	gens	x: {&: "v"}\nx: {y: "h" + maybe($.gone)}	{"x":{}}
+maybe-template-map-of-defaults-sum-drops	gens	x: {&: {k: *1 | integer}}\nx: {y: [1] + maybe($.gone)}	{"x":{}}
+maybe-template-list-default-sum-drops	gens	x: [&: *1 | integer]\nx: [2, "h" + maybe($.gone)]	{"x":[2]}
+maybe-template-map-default-sum-present-applies	gens	v: 2\nx: {&: *1 | integer}\nx: {y: 1 + maybe($.v)}	{"v":2,"x":{"y":3}}
+# A maybe() OVER A PATH TO AN ABSENCE is absence, whichever is written
+# first: absence met with any stays absence.
+maybe-of-a-path-to-an-absence	gens	b: maybe($.gone)\na: {x: "p", y: maybe($.b)}	{"a":{"x":"p"}}
+maybe-of-a-path-to-an-absence-use-first	gens	a: {x: "p", y: maybe($.b)}\nb: maybe($.gone)	{"a":{"x":"p"}}
+maybe-of-a-path-to-an-absence-at-the-root	gens	b: maybe($.gone)\ny: maybe($.b)\nz: 1	{"z":1}
+maybe-of-a-path-to-an-absence-in-a-list	gens	b: maybe($.gone)\na: ["p", maybe($.b)]	{"a":["p"]}
+maybe-of-a-path-to-an-absence-under-a-template	gens	b: maybe($.gone)\na: {&: string, x: "p", y: maybe($.b)}	{"a":{"x":"p"}}
+maybe-of-a-path-to-a-sum-of-an-absence	gens	b: "h" + maybe($.gone)\na: {x: "p", y: maybe($.b)}	{"a":{"x":"p"}}
 # A maybe() INSIDE A DISJUNCTION ALTERNATIVE settles like any other: its
 # absence drops out of the alternative, and the alternatives are then
 # compared as they generate, kinds included.
