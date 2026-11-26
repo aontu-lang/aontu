@@ -2278,3 +2278,9 @@ What is fulcio? What is sigstore?
 ```text
 Is fulcio a live service?
 ```
+
+## 2026-11-26 15:18:44 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+but that means we have a dep on a third party service?
+```
