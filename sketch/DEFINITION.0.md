@@ -3423,7 +3423,12 @@ until the phase that encodes it lands.
    passes the arm over) or a default against a default scrutinee (one
    pair), beside the differences `main` had already, which are filed as
    #962 to #965. Use case 10's transforms take a `number` arm for
-   `integer | biginteger`.
+   `integer | biginteger`. **#962 built 2026-11-26** in the definition:
+   a `filter`'s condition and an `emit` template's `match` take a
+   member whose bound sits inside their looser bound, the comparison
+   asking the order where the two aren't written alike (`meetAlike`).
+   Rows tb0 on of `test/spec/def-trial.tsv` and eo0 on of
+   `test/spec/def-call.tsv`.
 88. **A key that reads inside an unused declaration's body.** Raised
    2026-11-24 by #942, while building #528. `Decls.bodyIll` reads every
    `key(n)` in a body as any string (`Val.unplaced`), which is right

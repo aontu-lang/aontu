@@ -2982,6 +2982,21 @@ theorem directive_beside_verdict_exact : ∀ c ∈ directiveBesideCases, ∀ (m 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (directiveBesideCases_checkable c hc).1 (directiveBesideCases_checkable c hc).2 v
 
+/-- A string is never a path, in the two shapes no row held: the `path`
+kind met with a string, which doesn't promote the string, and a
+relation over a list of strings, which refuses each leaf where an
+address is wanted. Each is the schema's error. -/
+def addressStringCases : List (Decls × Val × Data) :=
+  [([], m [("p", .meet .pathKind (.lit (.str "$.a")))], .map []),
+    ([], m [("a", m [("k", int 1)]), ("l", .meet (.call .relate []) (lst [.lit (.str "$.a")]))], .map [])]
+
+theorem addressStringCases_checkable : ∀ c ∈ addressStringCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem addressString_verdict_exact : ∀ c ∈ addressStringCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (addressStringCases_checkable c hc).1 (addressStringCases_checkable c hc).2 v
+
 /-- `maybe` over paths that name something and paths that name nothing:
 absence at a required key and at an optional one, as a list's element,
 an arm and a call's argument, and met with a literal and a kind, beside
@@ -6087,6 +6102,52 @@ theorem freeHoleMatch_error : ∀ c ∈ freeHoleMatchCases, ∀ (m : Mode),
     vet m c.1 c.2.1 c.2.2 = .error :=
   fun c hc _ => vet_error_iff.mpr (.inr (.inr (freeHoleMatchCases_illFormed c hc)))
 
+/-- A `filter` takes a member as the term it is where the condition
+narrows nothing in it (ruling 51), read by the order: a member whose
+bound sits inside the condition's looser bound stays, though its meet
+with the condition writes both bounds. A bound inside a looser one and
+a bound inside a kind, in a map and in a list, each against data that
+shows the member kept, held to its own bound, and a sibling dropped; a
+map member whose own member holds the bound; two bounds inside two
+looser ones; and a condition that narrows, a tighter bound and a
+narrower kind, which drops the member. -/
+def filterOrderCases : List (Decls × Val × Data) :=
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let max (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .max (.num (.integer ⟨n, h⟩))
+  let flt (s c : Val) : Val := .filter s c
+  let dx (x : Data) : Data := .map [("x", x)]
+  let byMin : Val := m [("x", flt (m [("a", .meet .integer (min 3)), ("b", .integer), ("c", int 5)]) (min 1))]
+  let byNum : Val := m [("x", flt (m [("a", min 3), ("b", .integer), ("c", int 5)]) .number)]
+  let maps : Val := m [("x", flt (m [("a", m [("p", .integer)]), ("b", m [("p", int 1)]),
+    ("c", m [("p", .meet .integer (min 2))])]) (m [("p", min 1)]))]
+  let items : Val := m [("x", flt (.list [.meet .integer (min 3), .integer, int 5] none false) (min 1))]
+  let two : Val := m [("x", flt (m [("a", .meet (min 3) (max 5)), ("c", int 5)]) (.meet (min 1) (max 9)))]
+  [([], byMin, .map []),
+    ([], byMin, dx (.map [("a", j 4), ("c", j 5)])),
+    ([], byMin, dx (.map [("a", j 2), ("c", j 5)])),
+    ([], byMin, dx (.map [("a", j 4), ("b", .str "s"), ("c", j 5)])),
+    ([], byNum, dx (.map [("a", j 3), ("b", j 1), ("c", j 5)])),
+    ([], byNum, dx (.map [("a", j 2), ("b", j 1), ("c", j 5)])),
+    ([], maps, dx (.map [("b", .map [("p", j 1)]), ("c", .map [("p", j 2)])])),
+    ([], maps, dx (.map [("b", .map [("p", j 1)]), ("c", .map [("p", j 1)])])),
+    ([], maps, dx (.map [("a", .map [("p", .str "s")]), ("b", .map [("p", j 1)]), ("c", .map [("p", j 2)])])),
+    ([], items, dx (.list [j 4, j 5])),
+    ([], items, dx (.list [j 2, j 5])),
+    ([], two, dx (.map [("a", j 4), ("c", j 5)])),
+    ([], two, dx (.map [("a", j 7), ("c", j 5)])),
+    ([], m [("x", flt (m [("a", min 1), ("c", int 5)]) (min 3))], dx (.map [("a", j 0), ("c", j 5)])),
+    ([], m [("x", flt (m [("a", .number), ("c", int 5)]) .integer)], dx (.map [("a", .str "s"), ("c", j 5)]))]
+
+set_option maxRecDepth 8192 in
+/-- Every case's schema, read with its `filter` made, holds no path, no
+pattern and no format, so `vet` is `Vet` on it, by `vet_iff`. -/
+theorem filterOrderCases_checkable : ∀ c ∈ filterOrderCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem filterOrder_verdict_exact : ∀ c ∈ filterOrderCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (filterOrderCases_checkable c hc).1 (filterOrderCases_checkable c hc).2 v
+
 /-- The cases of decision 13 of the design note's §7: a spread that
 selects on `key(0)`, the key of the member it is tried on, over a map's
 members and over a list's positions: an arm that admits, an arm that
@@ -8647,6 +8708,29 @@ theorem emit_verdict_exact : ∀ c ∈ emitCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitCases_checkable c hc)) v
 
+/-- An `emit` template's `match` takes a node where the meet narrows
+nothing in the node, read by the order as a `filter`'s condition is: a
+node whose bound sits inside the `match`'s looser bound, one inside a
+kind, and a map whose member holds the bound; a `match` that narrows,
+which no template takes, an error; and a table whose first template
+shares nothing with the node and whose second takes it. -/
+def emitOrderCases : List (Val × Data) :=
+  let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  [(c .emit [lst [.meet .integer (min 3)], rule (.meet .hole (min 1)) [str "x"]], jl [js "x"]),
+    (c .emit [lst [min 3], rule (.meet .hole .number) [str "x"]], jl [js "x"]),
+    (c .emit [lst [mp [("p", .meet .integer (min 2))]], rule (.meet .hole (mp [("p", min 1)])) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.integer], rule (.meet .hole (min 1)) [str "x"]], jl [js "x"]),
+    (c .emit [lst [min 3], lst [rule (.meet .hole .string) [str "s"], rule (.meet .hole (min 1)) [str "n"]]], jl [js "n"]),
+    (c .emit [lst [min 3], lst [rule (.meet .hole .string) [str "s"], rule (.meet .hole (min 1)) [str "n"]]], jl [js "s"])]
+
+theorem emitOrderCases_checkable : ∀ c ∈ emitOrderCases, (vetDoc c).1.CheckableA := by decide
+
+theorem emitOrder_verdict_exact : ∀ c ∈ emitOrderCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitOrderCases_checkable c hc)) v
+
 /-- `key(n)` in an `emit` body read where its piece lands (ruling 52): at
 the index the piece takes in the output, counted across the nodes and
 after the pieces each element before it splices; inside a list the
@@ -9798,6 +9882,9 @@ def main (args : List String) : IO UInt32 := do
     pathRows "rn" roundCases
     pathRows "rf" referCases
     pathRows "rl" relCases
+    IO.println "# A string is never a path: the path kind met with a string, and a relation"
+    IO.println "# over a list of strings, are each the schema's error, in rows sn0 on."
+    pathRows "sn" addressStringCases
     pathRows "rh" relHeldCases
     pathRows "ld" landCases
     pathRows "lg" genLinkCases
@@ -10009,6 +10096,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# tf0 on."
     trialRows "th" holeMatchCases
     trialRows "tf" freeHoleMatchCases
+    IO.println "# A filter takes a member where its condition narrows nothing in it, read by"
+    IO.println "# the order: a bound inside the condition's looser bound stays, in rows tb0 on."
+    trialRows "tb" filterOrderCases
     keyedRows "yk"
     return 0
   | ["calls"] =>
@@ -10089,6 +10179,9 @@ def main (args : List String) : IO UInt32 := do
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
       heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases ++ unreachedCountCases)
     verdictRows "et" emitCases
+    IO.println "# An emit template's match takes a node whose bound sits inside the match's"
+    IO.println "# looser bound, as a filter's condition does, in rows eo0 on."
+    verdictRows "eo" emitOrderCases
     verdictRows "ek" emitKeyCases
     verdictRows "ew" emitTableCases
     aliasRows "en" emitNameCases

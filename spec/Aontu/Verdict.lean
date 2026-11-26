@@ -1557,20 +1557,32 @@ def conjAlike (a b : Val) : Bool :=
   a.conjuncts.all (fun x => b.conjuncts.any x.beq) &&
     b.conjuncts.all (fun y => a.conjuncts.any y.beq)
 
+/-- Whether a term's meet with another narrows nothing in it: the two
+meet the same conjuncts (`conjAlike`), or, where neither is a
+disjunction, the term is below the meet in the order as `leDecF`
+decides it, so that a bound met with a looser one, `min(3)` with
+`min(1)`, is alike itself. A disjunction is compared arm by arm where
+its reader does so, and not here. -/
+def meetAlike (a b : Val) : Bool :=
+  conjAlike a b ||
+    match a, b with
+    | .or _, _ | _, .or _ => false
+    | _, _ => (leDecF .empty 64 a b).isSome
+
 mutual
 /-- Whether a node and its meet with a `match` are alike, as both ports
 compare them: two maps with the same members (`memberField`), each
 alike, two lists with the same elements alike, each read through its
 riders, a disjunction of one arm (`Val.one`) and a container kind beside
-a container of its kind (`Val.kindless`), and any other pair meeting the
-same conjuncts (`conjAlike`). -/
+a container of its kind (`Val.kindless`), and any other pair where the
+meet narrows nothing (`meetAlike`). -/
 def Val.alike (ds : Decls) : Val → Val → Bool
   | .ride _ v _, b => v.alike ds b
   | .link v _, b => v.alike ds b
   | .map fs _ _, .map gs _ _ =>
     (fs.filter (memberField ds)).length == (gs.filter (memberField ds)).length && alikeIn ds fs gs
   | .list xs _ _, .list ys _ _ => alikeItems ds xs ys
-  | a, b => conjAlike a b
+  | a, b => meetAlike a b
 
 def alikeIn (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val) → Bool
   | [], _ => true
@@ -1618,7 +1630,7 @@ def Val.admitAlike (ds : Decls) : Val → Val → Bool
     (fs.filter (memberField ds)).length ==
       (gs.filter fun g => memberField ds g && (!g.2.1 || fs.any (·.1 == g.1))).length && admitIn ds fs gs
   | .list xs _ _, .list ys _ _ => admitItems ds xs ys
-  | a, b => conjAlike a b
+  | a, b => meetAlike a b
 
 def admitIn (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val) → Bool
   | [], _ => true

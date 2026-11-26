@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### The definition's `filter` keeps a member whose bound sits inside the condition's looser bound
+
+#962. A `filter` takes a member as the term it is where the condition
+narrows nothing in it. The definition compared the member with its
+meet letter for letter, and the meet of `integer & min(3)` with
+`min(1)` writes both bounds, so the member was dropped. Both engines
+keep it, since every value it admits is at least `1`.
+
+```aontu
+x: filter({ a:integer & min(3) b:integer c:5 }, min(1))
+```
+
+| | what `x` keeps |
+|---|---|
+| Both engines | `a` and `c` |
+| The definition, before | `c` |
+| The definition, now | `a` and `c` |
+
+Where the member and the meet aren't written alike, and neither is a
+disjunction, the comparison now asks the order, as `certainArm` has
+since ruling 87 (`meetAlike` in `spec/Aontu/Verdict.lean`). An `emit`
+template's `match` reads the same comparison, so `match: _ & min(1)`
+takes the node `min(3)`. A condition
+that narrows still drops the member: `filter({a: min(1)}, min(3))`, and
+`filter({a: number}, integer)`.
+
+No engine changes. 23 cases proved: 15 for a `filter`, rows tb0 to tb44
+of `test/spec/def-trial.tsv`; 6 for an `emit`, rows eo0 to eo17 of
+`test/spec/def-call.tsv`; and the two address shapes the last entry
+left without a row, the `path` kind met with a string and a relation
+over a list of strings, rows sn0 to sn5 of `test/spec/def-path.tsv`.
+Both engines answer all 69 rows as the definition does.
+
 ### The definition's rows hold a `match` over a hole
 
 Another language rule the old decision record held, which the

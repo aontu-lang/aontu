@@ -6734,7 +6734,24 @@ def filterTakes (ds : Decls) (c v : Val) : Bool :=
 
 So `filter({x: integer}, any)` keeps `x: integer` for the data to
 meet, and `filter({x: integer}, 1)` drops it, since `integer` admits
-values `1` doesn't. `b: filter({x: *1 | 2}, any) & {x: 2}` is
+values `1` doesn't. A bound inside the condition's looser bound stays:
+`filter({a: integer & min(3), c: 5}, min(1))` keeps `a`, since every
+value `a` admits is at least `1`, though their meet writes both bounds.
+Where the child and the meet aren't written alike, and neither is a
+disjunction, the comparison asks the order of step 18:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def meetAlike (a b : Val) : Bool :=
+  conjAlike a b ||
+    match a, b with
+    | .or _, _ | _, .or _ => false
+    | _, _ => (leDecF .empty 64 a b).isSome
+```
+
+A tighter condition narrows, so `filter({a: min(1)}, min(3))` drops
+`a`, and so does `filter({a: number}, integer)`. `filterTakes`
+compares a disjunction arm by arm. `b: filter({x: *1 | 2}, any) & {x: 2}` is
 `{"b": {"x": 2}}`, while `filter({x: *1 | 2}, 1)` drops `x`, whose
 preference admits `2`. A link in a child the condition keeps sends its
 template, while one in a child it drops sends none, as in both engines.
@@ -6744,7 +6761,8 @@ as both engines wait for their source to settle. Where a source's
 normal form is no map or list, as a preference between two maps is,
 the data the source generates decides what the `filter` keeps
 (`keptFields`, `keptElems`). Rows fk0 to fk20
-and ft0 to ft44 hold both engines to it.
+and ft0 to ft44 hold both engines to it, and rows tb0 on of
+`test/spec/def-trial.tsv` a bound inside a looser one.
 
 Both engines read some of a trial's arguments as they build the trial,
 and a conflict there makes the trial a conflict where it stands: a
@@ -11131,9 +11149,10 @@ nothing, or an empty map or list, is no member, as `Val.members` reads
 it (`memberField`). Where the node is a kind, `integer`, the `match`
 `integer` takes it and `1` refuses it. Each side is read through its
 riders, a member's too, so `meta(integer, {})` and `type(integer)` take
-the node `1`. A meet is alike what meets the same conjuncts, so `min(1)`
-takes the node `min(1)` and `integer` takes `integer & min(1)`, while
-`min(2)` refuses `min(1)`. A disjunction with no preference
+the node `1`. A meet narrows nothing where it meets the same conjuncts,
+or where the node is below it in the order (`meetAlike`), so `min(1)`
+takes the node `min(1)` and the node `min(3)`, and `integer` takes
+`integer & min(1)`, while `min(2)` refuses `min(1)`. A disjunction with no preference
 among its arms takes the node where any arm meets it, under a rider
 too, as in `meta(1 | 2, {})`:
 
@@ -11258,8 +11277,9 @@ as in `match(1, 1, "x", .missing)`, since both engines bind a body to
 the node before they read it (`emitBound`). They bind no spread, so
 `{&: .missing}` in the part dropped is no reference the node must
 answer. Each refusal leaves the call unmade, which is an error. The
-rows are et0 on, over selections written in place, and em0 on, where a
-path names the selection. Both engines answer every one as the
+rows are et0 on, over selections written in place, em0 on, where a
+path names the selection, and eo0 on, a node whose bound sits inside
+the `match`'s looser bound. Both engines answer every one as the
 definition does.
 
 A document may write a table as an `emit` call itself. `emit(_, t)` is
