@@ -13,9 +13,14 @@ there, not here.
 
 ## The prompt log
 
-Every prompt given to an agent working in the project is recorded in
+Prompt logging starts enabled. While enabled, record prompts in
 [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md).
 
+- **Check for a logging directive when each prompt arrives.** If the
+  prompt starts with `prompt-log:off`, skip it and all following prompts
+  until one starts with `prompt-log:on`. Resume logging with that
+  `prompt-log:on` prompt. Keep the current logging state between turns,
+  and apply the same rule to prompts that arrive during a turn.
 - **Append the entry before the work starts**: the date and time the
   prompt was given, in UTC, the agent that took it, and the prompt as it
   was written, typos included. A prompt given while a turn is running is
@@ -154,6 +159,28 @@ gate's syntax table.
 | `stale-path` | a path does not resolve |
 | `stale-symbol` | a symbol in backticks is not defined by the code |
 | `stale-adr` | a decision number is not in the decision record |
+
+## The decision record
+
+[`ADR.md`](ADR.md) holds the project's fundamental decisions: the
+choices that change what the project is, and that only the maintainer
+may reverse.
+
+- **Only the maintainer adds an entry.** An agent may propose a
+  decision, in its reply or in a pull request's description, and never
+  writes one into the record itself.
+- **An entry is at most 200 words**, its heading included. It states
+  the decision, why it holds, and what it costs, in the present tense.
+- **The record has no history.** An entry carries no status, date,
+  issue number or account of what came before it. It is never amended
+  or superseded in part. A decision that stops holding is deleted, and
+  version control keeps what it said.
+- **A rule is not a decision.** A rule of the language belongs in its
+  specification, a rule of how work is done belongs in this file, and
+  how one part works belongs in its documentation.
+- **Numbers are never reused.** A new entry takes the next number, so a
+  citation of a deleted entry fails the comment gate's `stale-adr`
+  check instead of naming another decision.
 
 ## What each folder holds
 

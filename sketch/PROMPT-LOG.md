@@ -5,6 +5,9 @@ appended: when it was given, in UTC, the agent that took it, and the
 prompt as it was written, typos included
 ([ADR-076](../ADR.md#adr-076--every-prompt-is-logged)).
 
+- **Logging starts enabled.** A prompt that starts with
+  `prompt-log:off` is not logged, nor is any after it, until one starts
+  with `prompt-log:on`, which is logged. The state holds between turns.
 - **Append before the work starts**, and commit the entry with the
   first change that follows. A session that ends holding entries and no
   change commits them on a branch of their own. A prompt given while a
@@ -21,7 +24,13 @@ prompt as it was written, typos included
   `no session id`.
 - **Branches merge.** `.gitattributes` gives this file git's `union`
   merge, so two branches' appended entries both survive; their times
-  order them.
+  order them. After a merge that touches this file, each entry holds
+  one fence, closed before the next heading; a damaged entry is
+  restored from the last commit that held it whole, keeping any
+  redaction made since.
+- **The log is kept without discussion.** An agent appends and resolves
+  conflicts here without raising either, and reports an edit only when
+  asked about the log, or when a secret reached a push.
 
 The entries before 2026-10-20 16:45 were written from that session's
 transcript, with the times it recorded.
