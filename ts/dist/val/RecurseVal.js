@@ -16,6 +16,7 @@ const IdentFuncVal_1 = require("./IdentFuncVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
+const Val_1 = require("./Val");
 class RecurseVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -84,6 +85,7 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
             const level = (0, IdentFuncVal_1.undeclared)(body.clone(ctx, {
                 dup: true, path: [...ctx.path],
             }));
+            (0, Val_1.repathInstance)(level, level.path);
             (0, utility_1.walk)(level, (_key, v) => {
                 v.mark.type = false;
                 v.mark.hide = false;
