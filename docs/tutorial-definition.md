@@ -3654,6 +3654,112 @@ and no data stands at `a.b.c.c` to unfold it against. Under
 `--partial` the same data is `valid`. These are rows p144 to p146 of
 the fragment.
 
+### Definitions that name each other
+
+Two places can name each other. Here a node's `up` is a `D`, and a `D`
+is an `N` whose `k` is `"d"`. Write `order.aontu`:
+
+<!-- test: scenario order -->
+<!-- test: file order.aontu -->
+```aontu
+s: hide({ N: { k:"d"|"f" up?:$.s.D } D:$.s.N & { k:"d" } })
+doc: $.s.N
+```
+
+`$.s.D` reaches `$.s.N`, which reaches `$.s.D`, so each is a name that
+refers to itself through the other. Both are recursive
+(`Decls.recursiveB`), and a use of either is a residual that unfolds
+where the data reaches, as `then?` does. Write `order-data.aontu`:
+
+<!-- test: file order-data.aontu -->
+```aontu
+doc: { k:"f" up:k:"d" }
+```
+
+and `order-breach.aontu`, whose `up` isn't a `D`:
+
+<!-- test: file order-breach.aontu -->
+```aontu
+doc: { k:"f" up:k:"f" }
+```
+
+Now vet each:
+
+<!-- test: run -->
+```sh
+$ aontu vet order.aontu order-data.aontu
+verdict: valid
+$ echo $?
+0
+$ aontu vet order.aontu order-breach.aontu
+verdict: invalid
+
+$.doc.up.k: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.doc.up.k
+  data: order-breach.aontu:1:19 ("f")
+  schema: order.aontu:1:18 ("d")
+$ echo $?
+1
+```
+
+The block writes `N` before `D`, and the use comes after both. None of
+that belongs to what the document means.
+[`spec/Aontu/Reorder.lean`](../spec/Aontu/Reorder.lean) says what one
+value written in two orders is, `Val.Reordered`: a map's members, a
+meet's two sides and a disjunction's arms in any order, at any depth.
+Two such terms judge every datum alike:
+
+<!-- test: quote spec/Aontu/Reorder.lean -->
+```lean
+theorem Val.Reordered.judge {v w : Val} (h : v.Reordered w) :
+    ∀ (env : Env) (root : Data) (b : Bool) (j : Data),
+      Judge env root b v j ↔ Judge env root b w j := by
+```
+
+That's about what a document admits. A verdict is a reading of a
+document too, and the same demand holds it:
+
+<!-- test: quote spec/Aontu/Reorder.lean -->
+```lean
+def OrderIndependent {α : Type} (read : Decls → Val → Data → α) : Prop :=
+  ∀ (ds ds' : Decls) (S S' : Val) (j : Data),
+    ds.Perm ds' → S.Reordered S' → read ds S j = read ds' S' j
+```
+
+Write `use-first.aontu`, the same document with the use first:
+
+<!-- test: file use-first.aontu -->
+```aontu
+doc: $.s.N
+s: hide({ N: { k:"d"|"f" up?:$.s.D } D:$.s.N & { k:"d" } })
+```
+
+and vet the same data:
+
+<!-- test: run -->
+```sh
+$ aontu vet use-first.aontu order-data.aontu
+verdict: valid
+$ echo $?
+0
+```
+
+The breach is `invalid` at `$.doc.up.k` here too. For this document in
+three orders, `D` first, `N` first and the use first, the definition
+proves the verdicts alike:
+
+<!-- test: quote spec/Oracle.lean -->
+```lean
+theorem order_verdicts_agree : ∀ i, i < 3 → ∀ k, k < 3 → orderVerdict i k = orderVerdict 0 k
+```
+
+Rows od0 to od26 of the path fragment hold the three orders in the
+three modes. Rows mp0 on hold more definitions that reach each other by
+path: a required member with an optional way back, which is
+`incomplete` until the data reaches it, a ring of three, a list's
+elements, and a relation whose template is a subtype of the type that
+declares it. Both engines answer every one as the definition does.
+
 ## 10. The order, and the meet
 
 `spec/Aontu/Order.lean` orders terms by what they admit:
@@ -5803,9 +5909,15 @@ answer every one as the definition does.
 
 ## 15. Where the definition and the engines differ
 
-Both engines' test suites run rows the definition generates, as step 17 shows, and on a few of them the engines don't answer as the
-definition does. [`spec/ledger.tsv`](../spec/ledger.tsv) lists each such case,
-with the answer each side gives, which side changes, and why.
+Both engines' test suites run the rows the definition generates, as
+step 17 shows. [`spec/ledger.tsv`](../spec/ledger.tsv) lists each row
+the engines don't answer as the definition does, with the answer each
+side gives, which side changes, and why. It holds none: the last
+fifteen were step 9's document in three orders, and they left it when
+both engines came to read a path that reaches itself through other
+paths as a recursion, as they read a name. This step keeps the
+differences that were there, and the corners no generated row holds to
+one answer.
 
 In some, the engines admitted what the definition refuses, and have
 since closed the difference. No meet with `string` admits `""`:
@@ -5874,16 +5986,13 @@ Go answers so, and TypeScript answers `disjunct_no_gen`, collapsing
 arms alike as written and not arms alike in what they single out.
 `genVals` keeps such a value out of the rows until the ports agree.
 
-The definition cannot tell a `nil` written from a `nil` computed, and
-the engines answer them apart. A schema `{x: nil}` is `invalid` in both
-engines and a schema `{x: 1 & 2}` is `error`, where step 14's
-`illFormed` finds a `nil` in each and answers `error` for both. Under
-an optional key, `{x?: 1 & 2}` is `error` in both engines, a
-contradiction, where the definition reads a key that nothing can
-satisfy as a key that must be absent, so `{x?: 1 & 2}` against `{}` is
-`valid`, as `{x?: nil}` against `{}` is in both engines. The ledger's
-cause for the second kind is that a contradictory value is an error,
-and no generated row carries either corner.
+The definition once couldn't tell a `nil` written from a `nil`
+computed, where the engines answer them apart. A schema `{x: nil}` is
+`invalid` in both engines and a schema `{x: 1 & 2}` is `error`. Under
+an optional key, `{x?: nil}` against `{}` is `valid` in both, the key
+forbidden, and `{x?: 1 & 2}` is `error`, a contradiction. Ruling 54
+settled it the engines' way, and step 14's `illFormed` reads it so: the
+`nil` a document writes stands, and the `nil` a conflict makes doesn't.
 
 A seal survives a meet. `close([1, 2])` refuses `[1, 2, 3]`, so no meet
 with it admits `[1, 2, 3]`:
@@ -5945,7 +6054,7 @@ running the second arm. They now refuse both before evaluation, and the
 six rows of [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv)
 that hold them have left the ledger.
 
-In others, two optional declarations of one key can't both hold:
+Two optional declarations of one key can't both hold:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
@@ -5985,11 +6094,12 @@ $ echo $?
 4
 ```
 
-The definition reads a key that nothing can satisfy as a key that must
-be absent, and so admits `{}`. Both engines answer `error`, a schema
-they can't use. For this kind the ledger names the definition as
-the side that changes, since it has no ill-formed terms, which is what
-`error` reports.
+What a meet admits is one question, and the verdict is another.
+`Instance` reads a key that nothing can satisfy as a key that must be
+absent, and so admits `{}`. Both engines answer `error`, a schema they
+can't use, and the definition's verdict now answers `error` too: the
+conflict the meet finds at `x` is a `nil` no document wrote, which
+step 14's `illFormed` refuses.
 
 A name that refers to itself through a trial alone, `%T = nof(0, %T)`,
 breaks the alias-cycle rule and is an `error`, as `%T = %T` is: nothing
@@ -5999,13 +6109,13 @@ count fell. They now refuse it before evaluation, and the twenty-one
 rows of [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv) that
 hold seven such documents, `%T = when(%T, 1)` and
 `%T = when(string, %T)` among them, have left the ledger.
-In the same file, `must(1 & 2, "m")` refuses `1` as `nof(1, 1 & 2)`
-does, a branch that admits nothing counting as none, where both
-engines answer `error`: six rows, the engines the side that changes.
-And a default a trial refuses, `nof(1, 1, 2) & (*3 | 2)`, is a dead
-arm, so the disjunction falls to `2` and the document is `valid`, where
-both engines leave the disjunction generating nothing, `incomplete`:
-two rows, the engines the side that changes.
+In the same file, `must(1 & 2, "m")` is an `error` on both sides: a
+conflict in a trial's own argument is the schema's error, as both
+engines always answered and the definition came to. And a default a
+trial refuses, `nof(1, 1, 2) & (*3 | 2)`, is a dead arm, so the
+disjunction falls to `2` and the document is `valid`. Both engines once
+left the disjunction generating nothing, `incomplete`, and now let it
+fall as the definition does.
 
 ## 16. Trial schemas
 
@@ -11176,6 +11286,11 @@ stands. A path reference inside its own place, `b?: $.a` within `a`,
 reads as it's written, where ruling 26 would read each copy where it
 stands, at every depth the data goes to, as it reads a use of a
 recursive name.
+
+Nor does it prove that a verdict is the same whatever order a
+document comes in. Step 9's `Val.Reordered.judge` proves it of what a
+document admits, and `OrderIndependent` states it of any reading. Rows
+hold the verdict to it, od0 on and mp0 on, and no theorem does yet.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

@@ -171,9 +171,10 @@ doc: $.schema.Step & { label:"a" then: { label:"b" then:label:"c" } }
 ```
 
 The schema is one reference deep; the checks descend exactly as far as
-the data does, and no further. Mutual recursion needs nothing extra:
-once `$.B` expands inside `A`, the `$.A` in the clone is a
-self-reference at its landed position and residuates by the same rule.
+the data does, and no further. Mutual recursion needs nothing extra: a
+path that reaches itself through other paths names a recursion too, so
+the `$.B` inside `A` waits for data as the `$.A` inside `B` does,
+whichever of the two comes first.
 
 That expansion rule is also the termination argument, and it has to be,
 because the [limitations below](#limitations-and-trade-offs) refuse

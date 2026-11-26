@@ -8,6 +8,83 @@ each change affects.
 
 ## Unreleased
 
+### Definitions that name each other by path read alike in every order
+
+#778, #771, #1004 and #1005 in both engines. Two definitions that
+refer to each other by path, one a meet over the other, generated,
+stayed unresolved or were refused as a cycle by the order the document
+was written in:
+
+```aontu
+s: hide({
+  N: { k:"d"|"f" up?:$.s.D }
+  D: $.s.N & { k:"d" }
+})
+doc: $.s.N & { k:"d" }
+```
+
+| Order | Before | Now |
+|---|---|---|
+| `D` then `N` | `{"doc":{"k":"d"}}` | the same |
+| `N` then `D`, as above | `mapval_no_gen` at `$.doc` | `{"doc":{"k":"d"}}` |
+| the use above the block | `unify_cycle` at `$.doc.up.up…` | `{"doc":{"k":"d"}}` |
+
+Each engine found a name recursive by following the names in its body,
+and a path only by its own spelling. So `$.s.D` inside `N` was no
+recursion until `D` had been read, and what `N` held turned on which
+was read first. The walk now follows a path to the place it names, as
+it follows a name. A path that reaches itself through other paths
+names a recursion: a residual that unfolds against data, whatever the
+order.
+
+What that changes:
+
+- Two definitions that reach each other through optional members
+  answer with the use written first, where they ran to the depth
+  budget. A ring of three, two of them meets, answers too.
+- A relation whose template is a subtype of the type that declares it,
+  `up?: relate($.t.D)` beside `D: $.t.N & {k: "d"}`, is read at each
+  link in every order. With the type written first it was
+  `mapval_no_gen` at the link. The six documents of #771 all generate.
+- A list's element named by path, `$.xs.0`, unfolds as a map's member
+  does. Go never unfolded one, and TypeScript read the list for its
+  element where the use was written first (#1004).
+- Two such definitions each under a `hide()` or a `type()` of its own,
+  `N: hide({k: "d" | "f", up?: $.D})` beside
+  `D: hide($.N & {k: "d"})`, settle. Each waited for the other's mark,
+  and the document was `mapval_no_gen` at `$.D` in every order (#1005).
+
+Two answers change for a document that was accepted:
+
+- **A required member that names such a definition refuses until the
+  data reaches it.** With `A: {b: $.s.B}` and
+  `B: {x: *1 | number, a?: $.s.A}`, `doc: $.s.A & {}` generated
+  `{"doc":{"b":{"x":1}}}` where `A` was written first, was
+  `recursion_unexpanded` where `B` was, and `unify_cycle` where the
+  use was. It is `recursion_unexpanded` at `$.doc.b` in every order,
+  as the same definitions by name always were. Write the member,
+  `doc: $.s.A & {b: {}}`, and it generates as before.
+- **An optional member that names such a definition is left out until
+  the data gives it.** With `Person: hide({name: string, employer?:
+  $.Company})` and `Company: hide({title: string, staff: {&:
+  $.Person}})`, a person the data gave no employer generated
+  `"employer": {"staff": {}}`, a value `vet` found `incomplete`
+  against the same schema. The member is left out now. Where the data
+  gives an employer in part, the finding for its missing `title`
+  carries `mapval_no_gen` where it carried `mapval_spread_required`,
+  both `incomplete`.
+
+- `ts/src/val/RecurseVal.ts`, `ts/src/val/RefVal.ts`,
+  `ts/src/val/RelateFuncVal.ts`; `go/recurse.go`, `go/ref.go`,
+  `go/func.go`.
+- Rows od9 to od26 leave `spec/ledger.tsv`, 15 rows, and its bound
+  falls from 15 to 0: the ledger is empty, and both engines answer
+  every generated row as the definition does.
+- `test/spec/def-path.tsv` gains rows mp0 to mp104, 35 cases the
+  definition proves, each in three modes.
+- `test/spec/recursion.tsv` gains 68 rows, and row `mutual-pair` no
+  longer expects the employer.
+
 ### A name whose body links back to it stays residual when used alone
 
 #762 in both engines. A recursive name used alone generates nothing:
