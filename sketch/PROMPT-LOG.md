@@ -2266,3 +2266,9 @@ Merge prs
 ```text
 File the aontu issue
 ```
+
+## 2026-11-26 08:33:30 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+What is fulcio? What is sigstore?
+```
