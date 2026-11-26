@@ -374,6 +374,14 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.not_leD_of_witness
 
+/-- info: 'Aontu.leCo_sound' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.leCo_sound
+
+/-- info: 'Aontu.leCoD_sound' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.leCoD_sound
+
 /-- info: 'Aontu.not_le_map_required' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.not_le_map_required

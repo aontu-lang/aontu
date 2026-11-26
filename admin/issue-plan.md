@@ -299,14 +299,15 @@ Faults at an include or a built-in model's boundary, which lose structure or a s
 
 ### subsume and breaking
 
-5 issues (2 S, 3 M).
+6 issues (2 S, 4 M).
 
-The `subsume` and `breaking` gaps besides relations: a range inside a template (#321), recursive lists (#387), defaults at a list position (#424), and the missing finding for a document that does not stand up (#774, with #755).
+The `subsume` and `breaking` gaps besides relations: a range inside a template (#321), recursive lists (#387), two recursions through a spread (#1017), defaults at a list position (#424), and the missing finding for a document that does not stand up (#774, with #755).
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
 | [#321](https://github.com/aontu-lang/aontu/issues/321) | bug | M |  | breaking and subsume answer undecided for any range change inside a spread template; outside one they decide. |
 | [#387](https://github.com/aontu-lang/aontu/issues/387) | def | M |  | subsume says a recursive list subsumes `[integer, any]`, though `[1, 5]` is a witness against it. |
+| [#1017](https://github.com/aontu-lang/aontu/issues/1017) | def | M |  | subsume answers `undecided` for two recursions of one shape under different names where the recursion runs through a spread, `kids?: [&: %R]`; through a key it answers `subsumes`, and the definition proves `subsumes` for both (`leCoD`). Rows ur0 on hold both answers. |
 | [#424](https://github.com/aontu-lang/aontu/issues/424) | def | S |  | `subsume` under defaults ignores a default at a list position in both ports. Built in both ports 2026-11-24. |
 | [#774](https://github.com/aontu-lang/aontu/issues/774) | diag | S |  | subsume and breaking answer verdict error, exit 4, with no finding naming the failing document or cause. |
 | [#735](https://github.com/aontu-lang/aontu/issues/735) | diag | M |  | `subsume`/`breaking` lose a meet member's site: TypeScript writes -1:-1, Go 1:1. |

@@ -7457,6 +7457,84 @@ side alone. An open side admits any value at a key it doesn't declare,
 so since #377 both engines hold the general key to the open side's
 spread template, or to `any` where it has none.
 
+### Two recursions
+
+`leDecD` stops where either reading reads a name, and a name that
+refers to itself has no end to read to. So the comparison of two
+recursions assumes the pair of names it's asked about while it compares
+their bodies. `leStep` in `spec/Aontu/Profiles.lean` is one turn of it,
+with `r` the turns after, and this is the arm for a name on each side:
+
+<!-- test: quote spec/Aontu/Profiles.lean -->
+```lean
+        | .alias ks =>
+          cold.contains (kg, ks) ||
+            (match es ks with
+              | some bs => r ((kg, ks) :: hot) cold bg bs
+              | none => false)
+```
+
+A pair in `cold` answers at once. A new pair goes into `hot`, where it
+can't answer yet, and the turn goes on to the bodies `bg` and `bs`. The
+pairs in `hot` move to `cold` only when the comparison goes below a key
+or an element, which is how it reaches a map's members:
+`leMembers (r [] (hot ++ cold))`.
+
+The assumption costs nothing because a value is a finite tree. A pair
+answers by assumption only below a key or an element, on a member of
+the value in hand when the pair went into `hot`, and a member is lighter
+than the map that holds it. So the proof goes by induction on the
+value's weight, with `HoldsTo eg es w g s` the order on values no
+heavier than `w`:
+
+<!-- test: quote spec/Aontu/Profiles.lean -->
+```lean
+theorem leCo_sound (eg es : Env) : ∀ (n : ℕ) (hot cold : List (String × String)) (g s : Val),
+    leCo eg es n hot cold g s = true → ∀ w,
+    (∀ p ∈ cold, HoldsTo eg es w (.alias p.1) (.alias p.2)) →
+    (∀ p ∈ hot, ∀ w' < w, HoldsTo eg es w' (.alias p.1) (.alias p.2)) →
+    HoldsTo eg es w g s
+```
+
+`leCoD` runs it on two documents and carries the proof of `LeD`. Two
+recursions of one shape are then ordered whatever their names are.
+Write `list.aontu`, a list of nodes:
+
+<!-- test: scenario two-recursions -->
+<!-- test: file list.aontu -->
+```aontu
+%T = { n:integer next?:%T }
+v: %T
+```
+
+and `chain.aontu`, the same list over two names in turn:
+
+<!-- test: file chain.aontu -->
+```aontu
+%E = { n:integer next?:%O }
+%O = { n:integer next?:%E }
+v: %E
+```
+
+Each is below the other, and both engines say so:
+
+<!-- test: run -->
+```sh
+$ aontu subsume list.aontu chain.aontu
+verdict: subsumes
+$ aontu subsume chain.aontu list.aontu
+verdict: subsumes
+```
+
+`test/spec/def-subsume-docs.tsv` holds the pairs `leCoD` decides beside
+the ones an instance refutes: the rest of the twenty documents' pairs,
+and sixteen recursions compared pairwise, under other names, unrolled,
+wider and narrower, and through a spread. Where a recursion runs
+through a spread, as a tree's `kids?: [&: %R]` does, both engines
+answer `undecided` unless the two names are the same, which is #1017.
+The contract allows that, and the row holds the definition's `subsumes`
+beside it.
+
 ## 19. The forms the importer writes
 
 The definition names no JSON Schema keyword. What `aontu jsonschema
