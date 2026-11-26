@@ -8800,6 +8800,37 @@ The rows are hv0 on of `test/spec/def-call.tsv` and dp0 on of
 `test/spec/def-path.tsv`, and both engines answer every one as the
 definition does, with the code `hole_unbound`.
 
+A `match` reads the hole as any term does. In a template the generator
+binds it, and makes the match once for each member, on the member.
+Write `sizes.aontu`:
+
+<!-- test: file sizes.aontu -->
+```aontu
+sizes: each([1 2 3], match(_, 1, "one", 2, "two", "many"))
+```
+
+<!-- test: run -->
+```sh
+$ aontu sizes.aontu
+{
+  "sizes": [
+    "one",
+    "two",
+    "many"
+  ]
+}
+```
+
+Outside a template nothing binds the scrutinee, and
+`label: match(_, 1, "one", "other")` is `hole_unbound` whatever the
+data gives at `label`. The match doesn't wait for the data: a `match`
+selects by its scrutinee, and what the data gives meets the arm the
+match takes, so nothing ever fills the hole. Rows th0 on of
+`test/spec/def-trial.tsv` hold a match in a template, by `each`, by
+`pack` and in a `filter`'s condition, and rows tf0 on a match over a
+hole nothing binds. Both engines answer every one as the definition
+does.
+
 ## 28. A map from a template
 
 `pack(d, t)` makes one map member for each member of `d`, under the
