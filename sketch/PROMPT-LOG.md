@@ -2284,3 +2284,9 @@ Is fulcio a live service?
 ```text
 but that means we have a dep on a third party service?
 ```
+
+## 2026-11-26 18:40:14 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+status
+```
