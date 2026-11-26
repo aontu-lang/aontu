@@ -54,8 +54,8 @@ class RecurseVal extends FeatureVal {
   }
 
   private body(ctx: AontuContext): Val | undefined {
-    let node: any = walkPlace(ctx.root, this.target)
-      ?? walkPlace((ctx as any)._fixroot, this.target)
+    let node: any = walkTarget(ctx.root, this.target)
+      ?? walkTarget((ctx as any)._fixroot, this.target)
     // A hide() or type() still to settle marks the definition, not what a use of it unfolds.
     while ((true === node?.isHideFunc || true === node?.isTypeFunc) && !node.done && null != node.peg?.[0]) {
       node = node.peg[0]
@@ -149,21 +149,10 @@ class RecurseVal extends FeatureVal {
 }
 
 
-// walkTarget answers the definition node at the residual's target.
+// walkTarget answers the node at a target, read as a path reads one while the tree still unifies.
 function walkTarget(root: any, target: string[]): Val | undefined {
   let node: any = root
   for (const seg of target) {
-    node = throughRider(node)
-    node = true === node?.isConjunct ? declaration(node, seg) : node?.peg?.[seg]
-  }
-  return null != node && true === node.isVal ? node : undefined
-}
-
-
-// walkTarget in a tree still unifying: through a seal, or a mark still to settle, as a path reads.
-function walkPlace(root: any, at: string[]): Val | undefined {
-  let node: any = root
-  for (const seg of at) {
     node = unmarked(node)
     node = true === node?.isConjunct ? declaration(node, seg) :
       true === node?.isMap || true === node?.isList ? node.peg[seg] : undefined
@@ -280,7 +269,7 @@ function containsRecurseOf(v: any, target: string[], d: number, root?: any,
       return false
     }
     seen.add(key as string)
-    return containsRecurseOf(walkPlace(root, at), target, d + 1, root, seen, links)
+    return containsRecurseOf(walkTarget(root, at), target, d + 1, root, seen, links)
   }
   const peg: any = v.peg
   if (true === v.isMap && null != peg) {
