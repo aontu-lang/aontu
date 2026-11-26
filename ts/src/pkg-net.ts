@@ -119,7 +119,7 @@ export function isLoopback(url: string): boolean {
     ('127.0.0.1' === u.hostname || 'localhost' === u.hostname || '[::1]' === u.hostname)
 }
 
-// A base is https, or http on a loopback host (ADR-039 part 10).
+// A base is https, or http on a loopback host.
 export function baseAdmitted(url: string): boolean {
   let u: URL
   try {
@@ -266,7 +266,7 @@ function canonLine(obj: any, options: PkgToolOptions, name: string): Uint8Array 
 }
 
 
-// THE KEY PROVIDER (ADR-024 part 4): an Ed25519 key signs the manifest's
+// THE KEY PROVIDER: an Ed25519 key signs the manifest's
 // digest, domain-separated by the encoding name.
 const SPKI_ED25519_PREFIX = Buffer.from('302a300506032b6570032100', 'hex')
 
@@ -599,8 +599,8 @@ function recordSeen(ctx: AcquireCtx, pkg: string, version: string, subject: stri
 
 
 // Selection (spec acquire step 6): the newest version outside the
-// cooldown, timed from the repository's first-seen time (ADR-039 part
-// 9), not retracted. A version named explicitly is taken as it is.
+// cooldown, timed from the repository's first-seen time,
+// not retracted. A version named explicitly is taken as it is.
 function selectVersion(ctx: AcquireCtx, pkg: string, list: VersionEntry[],
   advisory: Record<string, string>, asked: string | undefined,
   fallback?: string): string {

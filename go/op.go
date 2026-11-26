@@ -107,7 +107,6 @@ func (o *PlusOpVal) operate(ctx *Ctx, args []Val) Val {
 		return bv
 	}
 
-	// ADR-034 and ADR-037.
 	if al, aok := av.(*ListVal); aok {
 		if bl, bok := bv.(*ListVal); bok {
 			peg := make([]Val, 0, len(al.peg)+len(bl.peg))

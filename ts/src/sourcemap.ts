@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
 
-// Where the importer wrote each keyword, and vet's output units (ADR-066).
+// Where the importer wrote each keyword, and vet's output units.
 
 import { createHash } from 'node:crypto'
 

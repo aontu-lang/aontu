@@ -1069,8 +1069,8 @@ func eachFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	elems := make([]Val, 0, len(vals))
 	for i, v := range vals {
 		islot := append(cp(base), itoa(i))
-		// A full instance per element, to the leaves (instanceClone,
-		// ADR-005), at the element's own position, with `_` bound to
+		// A full instance per element, to the leaves (instanceClone),
+		// at the element's own position, with `_` bound to
 		// the source child and NOTHING met into it.
 		inst := instanceClone(tmpl, islot)
 		setPaths(inst, islot)

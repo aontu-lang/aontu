@@ -240,7 +240,7 @@ func provenanceMarkdown(
 }
 
 // contributionsMarkdown renders the contributions as hover markdown.
-// Separated for the direct test (ADR-002): a siteless contribution and
+// Separated for the direct test (ADR-103): a siteless contribution and
 // a named file are both shapes the record allows and no hover
 // produces, hover evaluating one unnamed document.
 func contributionsMarkdown(conjuncts []aontu.WhyConjunct) string {

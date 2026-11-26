@@ -310,7 +310,7 @@ rule; the register's G7.1 row records it.)* The renderings:
 - default: generated JSON of the fragment — which inherits `gen`
   semantics, ~~including the known `DisjunctVal.gen` fold defect
   (ts/src/val/DisjunctVal.ts, ~line 263) until it is fixed~~ *(that
-  defect was fixed by [ADR-007](../../ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does),
+  defect was fixed by [ADR-007](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does),
   2026-08-27: an unresolved disjunction is `disjunct_no_gen` in both
   ports, and its members are never folded)*;
 - `--canon`: the fragment's canonical form — constraint-preserving,

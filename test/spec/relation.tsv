@@ -17,7 +17,7 @@
 # reports the same findings from the same declarations.
 #
 # The old declaration channel -- a `relations:` key at the document
-# root -- is GONE, discharging ADR-010's grandfather clause; the row
+# root -- is GONE, discharging ADR-106's grandfather clause; the row
 # `relations-key-is-user-space` pins the discharge. The `target:` half
 # of the old declaration is `relate(t)`'s flow at the site, pinned at the
 # end of this file. Mode `relation`: `expect` is the whole verb report
@@ -72,7 +72,7 @@ two-relations-declared	relation	a: {dependsOn: relate() & acyclic() & [path($.b)
 # An edge outside every entity has no source to be a relation OF. A
 # document that does not stand up is not a document with a bad graph:
 # the errors it already has are the answer. And `relations` as a KEY
-# is ordinary user data -- the magic key is retired (ADR-010's
+# is ordinary user data -- the magic key is retired (ADR-106's
 # grandfather clause discharged).
 edge-at-the-top-starts-at-the-root	relation	dependsOn: relate() & inverse(usedBy) & [path($.b)]\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.dependsOn.0","detail":["$","$.b","usedBy"]}]}
 broken-document-is-not-blamed-on-relations	relation	d: relate() & acyclic()\na: 1 & 2	{"verdict":"error","findings":[],"errors":[{"code":"scalar_value","class":"conflict","severity":"error","path":"$.a","sites":[{"file":"","row":2,"col":8,"len":1,"role":"data","src":"2","value":"2"},{"file":"","row":2,"col":4,"len":1,"role":"data","src":"1","value":"1"}]}]}
@@ -196,7 +196,7 @@ atom-in-list-position	canon	x: [acyclic() & ["a"]]	{"x":[["a"]&acyclic()]}
 two-inverses-one-predicate	relation	ent_a: {links: [path($.ent_b)] & relate() & inverse(back) & inverse(also), back: [], also: []}\nent_b: {back: [], also: []}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","also"]},{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","back"]}]}
 # THE PREDICATE NAME is a D-1 name (sketch/RELATIONS.0.md §3.2) --
 # a relation is a vocabulary term, not an address, so it keeps the
-# name grammar that entity names had before ADR-014 retired them: a
+# name grammar that entity names had before they were retired: a
 # letter or `_`, then letters, digits, `_` or `-`. The accepting rows
 # reach generation (an unmet relate is not concrete) rather than a name
 # refusal, which is exactly the distinction being pinned.

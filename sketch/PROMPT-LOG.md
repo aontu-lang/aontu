@@ -2219,3 +2219,21 @@ the ADRs need to be completely rewritten; most of them are syntax directives - t
 ```text
 1. yes, 2. yes, 3. detail, 4. no; update the DEV-PROCESS in rjrodger/agent-info to include the ADR rules; this machine has git and gh logged in, use them for workflow changes; don't wait for aontu release, use local
 ```
+
+## 2026-11-25 16:02:44 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+continue with KP2
+```
+
+## 2026-11-25 19:21:29 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+merge and continue with LS9
+```
+
+## 2026-11-26 00:06:39 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+Merge; report status
+```

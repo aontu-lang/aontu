@@ -1,6 +1,6 @@
 # Absence drops out of a plain list, and out of a list under a spread
-# too: the template waits until the member decides whether it is there
-# (ADR-043), so an absent member never meets it. Run:
+# too: the template waits until the member decides whether it is there,
+# so an absent member never meets it. Run:
 #   aontu absent-under-a-spread.aontu
 # expected: {"x":["a"]}
 x: [&: string]

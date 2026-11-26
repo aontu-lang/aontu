@@ -802,9 +802,12 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			}
 			stampURL(meetAnchor, schemaURL)
 			// A root meet or a template holding a bare directive settles before the data meets it, as a
-			// key's does, unless a reference in the schema, which reads the data, would settle with it.
-			if (slices.ContainsFunc(placeTerms(meetAnchor), bareDirective) || 0 < len(directedTemplates(meetAnchor))) &&
-				!holdsRef(meetAnchor) {
+			// key's does; beside a reference, which reads the data, the root's terms meet first as it's read.
+			directs := slices.ContainsFunc(placeTerms(meetAnchor), bareDirective)
+			if cj, ok := meetAnchor.(*ConjunctVal); ok {
+				cj.own = directs
+			}
+			if (directs || 0 < len(directedTemplates(meetAnchor))) && !holdsRef(meetAnchor) {
 				meetAnchor = unifyRoot(meetAnchor, &Ctx{root: meetAnchor, vars: hostVals(options.HostVars), src: schemaSrc, collect: true})
 			}
 		}

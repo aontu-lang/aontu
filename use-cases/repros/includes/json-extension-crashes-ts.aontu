@@ -6,7 +6,7 @@
 # run: node ../../../ts/bin/aontu.js json-extension-crashes-ts.aontu
 # run: aontu-go json-extension-crashes-ts.aontu
 #
-# FIXED 2026-08-30 (ADR-012). Both ports now answer
+# FIXED 2026-08-30. Both ports now answer
 #   {"vocab":{"@context":{"name":"http://schema.org/name"},"name":"Ada"}}
 #
 # `.json` alone crashed rather than falling through to text because it

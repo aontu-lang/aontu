@@ -22,7 +22,7 @@ Getting aontu into your process or pipeline, and its answers out.
 - [Give an agent an entrypoint to a definition](give-an-agent-an-entrypoint.md). Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu mcp`.
 - [Collect errors instead of throwing](collect-errors.md). Gather every problem in one pass with `collect: true` (TypeScript) or `Check` (Go) instead of stopping at the first.
 - [Read a conflict error](read-a-conflict-error.md). What a conflict message names, in what order, and how to tell a conflict from an unresolved path.
-- [Wire your editor](wire-your-editor.md). Connect `aontu lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
+- [Wire your editor](wire-your-editor.md). Connect `aontu lsp` to VS Code, Neovim, a JetBrains IDE, or any LSP client for diagnostics as you type.
 
 ## Templates, defaults and composition
 
@@ -40,6 +40,7 @@ Saying what data must look like, from optional keys to recursive shapes.
 
 - [Constrain every element of a list](constrain-list-elements.md). Type every element of a list with a `&:` spread, and know why a bare `[string]` does not.
 - [Forbid unexpected keys](forbid-unexpected-keys.md). Seal a map with `close` so a typo'd or invented key is refused instead of absorbed.
+- [Hold keys to a pattern](hold-keys-to-a-pattern.md). Hold every key a pattern matches to one schema with `keyed`, and type or refuse the keys it does not match.
 - [Make a field optional](make-a-field-optional.md). Suffix a key with `?` so a field that never receives a value is dropped instead of erroring.
 - [Name a reusable constraint](name-a-reusable-constraint.md). Build a `uint8`/`port` vocabulary as a `type()`-marked block of ordinary fields.
 - [Define a recursive schema](define-a-recursive-schema.md). Reference a definition inside itself to get a schema that applies at every depth of the data.

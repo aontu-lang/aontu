@@ -158,7 +158,7 @@ func TestEveryFormTheImporterWritesIsAFormOfTheDefinition(t *testing.T) {
 	for _, corpus := range formsCorpora(t) {
 		for _, g := range corpus.groups {
 			for _, defaults := range []bool{false, true} {
-				// ADR-065: the meta-schema check refuses no schema the import
+				// The meta-schema check refuses no schema the import
 				// would otherwise take here, and costs most of the run.
 				report := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file, Documents: corpus.documents,
 					Dialect: g.dialect, Defaults: defaults, NoMetaCheck: true,

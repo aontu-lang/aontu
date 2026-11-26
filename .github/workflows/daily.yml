@@ -1,12 +1,12 @@
 # THE DAILY RUN: everything the standard run (build.yml) leaves out,
 # nightly on main and on every push to release, so the commit a release
 # is cut from gets the whole of it before the publish run tests it once
-# more. The jobs are build.yml's as they stood before the split
-# (ADR-070), unchanged in what they check:
+# more. The jobs are build.yml's as they stood before the split,
+# unchanged in what they check:
 #
 #   TypeScript   the suite whole, three operating systems, two Node lines
 #   Go           the suite whole, three operating systems, two Go lines
-#   coverage     the ADR-002 gate, both ports
+#   coverage     the ADR-103 gate, both ports
 #   use cases    use-cases/run-all.sh, the CLI end to end over the models
 #   system       test/system/rb-solar with its Ruby bundle
 #   definition   spec.yml: every proof checked, the rows regenerated
@@ -34,7 +34,7 @@ jobs:
     # no room for the tests they were still passing. The npm cache
     # below keeps the downloads across runs; the budget keeps a slow
     # hour from reading as a failure. Twenty since Windows passed twelve
-    # (run 39280595195): the daily run has no time budget (ADR-071).
+    # (run 39280595195): the daily run has no time budget.
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -79,13 +79,13 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
 
-  # ADR-002 requires 100% coverage in BOTH ports, and until now that
+  # ADR-103 requires 100% coverage in BOTH ports, and until now that
   # floor was enforced only on a contributor's machine: CI ran the
   # suites but never the gate, so a drop reached main unremarked. One
   # job, on ubuntu -- the gate is a property of the code, not of the
   # platform the suites already cover above.
   coverage:
-    name: Coverage gate (ADR-002)
+    name: Coverage gate (ADR-103)
     # THIRTY, NOT FIFTEEN. `make cov` runs cov-ts and cov-go side by
     # side, and cov-ts is test/covrun.js, which runs the TypeScript
     # suite under coverage up to three times (V8's merge drops
@@ -148,7 +148,7 @@ jobs:
   # model.
   #
   # It ran on contributors' machines and nowhere else, and the cost
-  # arrived: ADR-014 (#102) removed id() with every suite green and
+  # arrived: id() was removed (#102) with every suite green and
   # every gate passing, and left four use cases broken on main -- 01,
   # 05, 10 and 12. Nothing in CI evaluated a model that used the feature
   # it removed, so the corpus stayed red across four merges until #107
@@ -257,7 +257,7 @@ jobs:
         run: ./check.sh
 
   # THE DEFINITION. Only here: a cold Lean build passes the pull
-  # request budget (ADR-071).
+  # request budget.
   spec:
     name: The definition
     uses: ./.github/workflows/spec.yml

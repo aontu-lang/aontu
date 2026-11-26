@@ -45,6 +45,8 @@ declare class RelateFuncVal extends FuncBaseVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
+    prepare(_ctx: AontuContext, args: Val[]): Val[];
+    argReady(arg: Val): boolean;
     resolve(ctx: AontuContext, args: Val[]): RelateVal;
 }
 export { addressPath, PendingLinkVal, RelateFuncVal, RelateVal, };

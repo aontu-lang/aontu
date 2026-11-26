@@ -8,12 +8,12 @@
 # hint are prose) when the text is not a schema. An `opts` key holds the
 # run's options: `defaults`, the entry's retrieval `uri`, and the
 # `documents` a reference may reach, by URI, whose sites name that URI.
-# The importer owns the meaning of every keyword it carries (ADR-047): a
+# The importer owns the meaning of every keyword it carries (ADR-109): a
 # schema object splits by kind, numbers are written by value in the leaf
 # that value selects, objects take optional keys and guarded spreads,
 # arrays one list spread guarded by index, and a `$ref` an alias where
 # the root is a map, whose declaration keeps the schema's identity in
-# ident() (ADR-056).
+# ident().
 #
 # EVERY EXPECTATION HERE WAS OBTAINED BY RUNNING BOTH ENGINES AND
 # REQUIRING THEM TO AGREE, never by copying one engine's answer. The
@@ -23,7 +23,7 @@
 import-true	jsonschema-import	true	{"aontu":"any\\n","lossy":[],"verdict":"ok"}
 import-false	jsonschema-import	false	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
 import-empty-object	jsonschema-import	{}	{"aontu":"any\\n","lossy":[],"verdict":"ok"}
-# Every kind, each narrowed by nothing, is what any admits (ADR-068), so a
+# Every kind, each narrowed by nothing, is what any admits (ADR-109), so a
 # schema whose keywords narrow no kind imports as any, whatever they are.
 import-keywords-that-narrow-nothing-are-any	jsonschema-import	{"items": true, "minContains": 0, "propertyNames": true}	{"aontu":"any\\n","lossy":[],"verdict":"ok"}
 import-every-type-narrowed-by-nothing-is-any	jsonschema-import	{"type": ["null", "boolean", "number", "string", "object", "array"]}	{"aontu":"any\\n","lossy":[],"verdict":"ok"}
@@ -53,7 +53,7 @@ import-multiple-of-zero-refused	jsonschema-import	{"multipleOf": 0}	{"aontu":"",
 import-multiple-of-negative-refused	jsonschema-import	{"multipleOf": -1.5}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/multipleOf","severity":"error","sites":[{"col":16,"file":"schema","len":4,"role":"schema","row":1,"src":"-1.5","value":"-1.5"}]}],"lossy":[],"verdict":"error"}
 import-multiple-of-not-a-number-refused	jsonschema-import	{"multipleOf": "2"}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/multipleOf","severity":"error","sites":[{"col":16,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"2\\"","value":"\\"2\\""}]}],"lossy":[],"verdict":"error"}
 import-multiple-of-beyond-budget-dropped	jsonschema-import	{"multipleOf": 1e-5000}	{"aontu":"any\\n","lossy":[{"construct":"multipleOf","path":"#/multipleOf","reason":"the number 1e-5000 exceeds the exactness budget, so the keyword is dropped"}],"verdict":"lossy"}
-# Strings: len counts code points. A pattern crosses in stage three (ADR-060): re() reads ECMA-262's syntax, so only ., \\s and \\S, which re() defines otherwise, are rewritten to what ECMA-262 means by them.
+# Strings: len counts code points. A pattern crosses in stage three (ADR-105): re() reads ECMA-262's syntax, so only ., \\s and \\S, which re() defines otherwise, are rewritten to what ECMA-262 means by them.
 import-string-counts	jsonschema-import	{"type": "string", "minLength": 0, "maxLength": 3}	{"aontu":"empty() & len(max(3))\\n","lossy":[],"verdict":"ok"}
 import-count-written-as-decimal	jsonschema-import	{"type": "string", "minLength": 2.0}	{"aontu":"empty() & len(min(2))\\n","lossy":[],"verdict":"ok"}
 import-count-beyond-int64	jsonschema-import	{"type": "array", "minItems": 1e30}	{"aontu":"[&: any] & len(min(0d1000000000000000000000000000000))\\n","lossy":[],"verdict":"ok"}
@@ -97,18 +97,18 @@ import-additional-false-excludes-declared	jsonschema-import	{"type": "object", "
 import-additional-alone-is-a-spread	jsonschema-import	{"type": "object", "additionalProperties": {"type": "integer"}}	{"aontu":"&: number & mulof(1)\\n","lossy":[],"verdict":"ok"}
 import-additional-dropped-with-its-pattern	jsonschema-import	{"type": "object", "patternProperties": {"(?<=a)b": true}, "additionalProperties": false}	{"aontu":"map\\n","lossy":[{"construct":"patternProperties","path":"#/patternProperties/(?<=a)b","reason":"re() cannot read the pattern, so it is dropped: a lookaround, which no regular language holds"},{"construct":"additionalProperties","path":"#/additionalProperties","reason":"a pattern beside it was dropped, so the names it excludes cannot be spelt, and it is dropped too"}],"verdict":"lossy"}
 import-additional-false-beside-a-property-pattern	jsonschema-import	{"type": "object", "patternProperties": {"\\\\p{L}": true}, "additionalProperties": false}	{"aontu":"&: match(key(0), re(\\"\\\\\\\\p{L}\\"), any, any)\\n&: match(key(0), re(\\"\\\\\\\\p{L}\\"), any, nil)\\n","lossy":[],"verdict":"ok"}
-# The order a schema lists its members in means nothing (ADR-068): the
+# The order a schema lists its members in means nothing (ADR-109): the
 # names and patterns a guarded spread excludes, and the pattern spreads
 # themselves, are written in code-point order whatever the order was.
 import-guarded-spread-names-in-one-order	jsonschema-import	{"properties":{"foo":{},"bar":{}},"additionalProperties":false}	{"aontu":"null|boolean|number|empty()|{\\n  foo?: any\\n  bar?: any\\n  &: match(key(0), \\"bar\\", any, \\"foo\\", any, nil)\\n}|list\\n","lossy":[],"verdict":"ok"}
 import-guarded-spread-patterns-in-one-order	jsonschema-import	{"patternProperties":{"^v":{"type":"string"},"^a":{"type":"number"}},"additionalProperties":false}	{"aontu":"null|boolean|number|empty()|{\\n  &: match(key(0), re(\\"^a\\"), number, any)\\n  &: match(key(0), re(\\"^v\\"), empty(), any)\\n  &: match(key(0), re(\\"^a\\"), any, re(\\"^v\\"), any, nil)\\n}|list\\n","lossy":[],"verdict":"ok"}
 # A member whose schema is written as additionalProperties is held to it
-# all the same, so the spread excludes only the others (ADR-068).
+# all the same, so the spread excludes only the others (ADR-109).
 import-additional-the-same-as-every-member-is-plain	jsonschema-import	{"properties":{"a":{"type":"string"},"b":{"type":"string"}},"additionalProperties":{"type":"string"}}	{"aontu":"null|boolean|number|empty()|{ a?:empty() b?:empty() &: empty() }|list\\n","lossy":[],"verdict":"ok"}
 import-additional-excludes-only-members-written-otherwise	jsonschema-import	{"properties":{"a":{"type":"string"},"b":{"type":"number"}},"patternProperties":{"^x":{"type":"string"},"^y":{"type":"boolean"}},"additionalProperties":{"type":"string"}}	{"aontu":"null|boolean|number|empty()|{\\n  a?: empty()\\n  b?: number\\n  &: match(key(0), re(\\"^x\\"), empty(), any)\\n  &: match(key(0), re(\\"^y\\"), boolean, any)\\n  &: match(key(0), \\"b\\", any, re(\\"^y\\"), any, empty())\\n}|list\\n","lossy":[],"verdict":"ok"}
 import-additional-compares-lists-by-their-items	jsonschema-import	{"properties":{"a":{"enum":[1,2]},"b":{"enum":[1,3]},"c":{"enum":[1]}},"additionalProperties":{"enum":[1,2]}}	{"aontu":"null|boolean|number|empty()|{\\n  a?: 1|2\\n  b?: 1|3\\n  c?: 1\\n  &: match(key(0), \\"b\\", any, \\"c\\", any, 1|2)\\n}|list\\n","lossy":[],"verdict":"ok"}
 # The names unevaluatedProperties lets through are written as
-# additionalProperties writes them, in code-point order (ADR-068).
+# additionalProperties writes them, in code-point order (ADR-109).
 import-unevaluated-names-in-one-order	jsonschema-import	{"properties":{"foo":{}},"allOf":[{"properties":{"bar":{}}}],"unevaluatedProperties":false}	{"aontu":"(null|boolean|number|empty()|{ bar?:any }|list) & (\\n  null|boolean|number|empty()|{\\n    foo?: any\\n    &: match(key(0), \\"bar\\", any, \\"foo\\", any, nil)\\n  }|list\\n)\\n","lossy":[],"verdict":"ok"}
 import-property-names	jsonschema-import	{"type": "object", "propertyNames": {"maxLength": 2}}	{"aontu":"&: match(key(0), empty() & len(max(2)), any, nil)\\n","lossy":[],"verdict":"ok"}
 import-property-names-false	jsonschema-import	{"type": "object", "propertyNames": false}	{"aontu":"&: match(key(0), nil, any, nil)\\n","lossy":[],"verdict":"ok"}
@@ -168,7 +168,7 @@ import-all-of-not-an-array-refused	jsonschema-import	{"allOf": {}}	{"aontu":"","
 import-all-of-bottom-is-nil	jsonschema-import	{"properties": {"a": {"allOf": [{"type": "string"}, {"type": "number"}]}}}	{"aontu":"null|boolean|number|empty()|{ a?:nil }|list\\n","lossy":[],"verdict":"ok"}
 import-const-against-a-sibling-is-nil	jsonschema-import	{"properties": {"a": {"const": 1, "minimum": 5}}}	{"aontu":"null|boolean|number|empty()|{ a?:nil }|list\\n","lossy":[],"verdict":"ok"}
 # A const says its kind, so a type that adds nothing to it is not
-# written beside it (ADR-068).
+# written beside it (ADR-109).
 import-const-beside-its-own-type-is-the-literal	jsonschema-import	{"const":"bar","type":"string"}	{"aontu":"\\"bar\\"\\n","lossy":[],"verdict":"ok"}
 import-const-beside-integer-is-the-literal	jsonschema-import	{"const":1,"type":"integer"}	{"aontu":"1\\n","lossy":[],"verdict":"ok"}
 import-const-a-fraction-beside-integer-is-nil	jsonschema-import	{"const":1.5,"type":"integer"}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
@@ -213,7 +213,7 @@ import-one-of-a-repeated-literal-is-a-count	jsonschema-import	{"oneOf": [{"const
 import-one-of-kinds-is-a-count	jsonschema-import	{"oneOf": [{"type": "string"}, {"type": "number"}]}	{"aontu":"nof(1, empty(), number)\\n","lossy":[],"verdict":"ok"}
 import-one-of-a-false-branch	jsonschema-import	{"oneOf": [false, {"type": "string"}]}	{"aontu":"nof(1, nil, empty())\\n","lossy":[],"verdict":"ok"}
 import-one-of-empty-refused	jsonschema-import	{"oneOf": []}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/oneOf","severity":"error","sites":[{"col":11,"file":"schema","len":2,"role":"schema","row":1,"src":"[]","value":"[]"}]}],"lossy":[],"verdict":"error"}
-# One branch held exactly once is one held at least once (ADR-068).
+# One branch held exactly once is one held at least once (ADR-109).
 import-one-of-one-branch-is-any-of-one	jsonschema-import	{"oneOf":[{"multipleOf":5}]}	{"aontu":"null|boolean|number & mulof(5)|empty()|map|list\\n","lossy":[],"verdict":"ok"}
 # not is a count of none; beside one string or integer type, an excluded enum is neq.
 import-not	jsonschema-import	{"not": {"type": "integer"}}	{"aontu":"nof(0, number & mulof(1))\\n","lossy":[],"verdict":"ok"}
@@ -359,7 +359,7 @@ import-id-duplicate-of-the-root-refused	jsonschema-import	{"$id": "https://examp
 import-id-with-a-fragment-refused	jsonschema-import	{"$id": "x.json#frag"}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/$id","severity":"error","sites":[{"col":9,"file":"schema","len":13,"role":"schema","row":1,"src":"\\"x.json#frag\\"","value":"\\"x.json#frag\\""}]}],"lossy":[],"verdict":"error"}
 import-id-not-a-string-refused	jsonschema-import	{"$id": 5}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/$id","severity":"error","sites":[{"col":9,"file":"schema","len":1,"role":"schema","row":1,"src":"5","value":"5"}]}],"lossy":[],"verdict":"error"}
 import-anchor-of-a-subresource-is-not-the-roots-refused	jsonschema-import	{"$id": "https://example.com/s.json", "type": "object", "properties": {"b": {"$ref": "#num"}}, "$defs": {"n": {"$id": "n.json", "$anchor": "num", "type": "integer"}}}	{"aontu":"","errors":[{"class":"reference","code":"jsonschema_ref","path":"#/properties/b/$ref","severity":"error","sites":[{"col":86,"file":"schema","len":6,"role":"schema","row":1,"src":"\\"#num\\"","value":"\\"#num\\""}]}],"lossy":[],"verdict":"error"}
-# Identity rides the declaration (ADR-056): ident() records the identifier, the anchor and a $defs key the name does not say.
+# Identity rides the declaration: ident() records the identifier, the anchor and a $defs key the name does not say.
 import-identity-kept-on-the-declaration	jsonschema-import	{"$id": "https://example.com/s.json", "type": "object", "properties": {"a": {"$ref": "#/$defs/n"}, "b": {"$ref": "n.json#num"}}, "$defs": {"n": {"$id": "n.json", "$anchor": "num", "type": "integer"}}}	{"aontu":"%d_n = ident(number & mulof(1), { anchor:\\"num\\" id:\\"https://example.com/n.json\\" })\\n\\na?: %d_n\\nb?: %d_n\\n","lossy":[{"construct":"$id","path":"#/$id","reason":"an identity rides only an alias declaration, and nothing declares this schema, so it is dropped"}],"verdict":"lossy"}
 import-identity-of-a-copy-is-stripped	jsonschema-import	{"type": "array", "items": {"$ref": "#/$defs/n"}, "$defs": {"n": {"$id": "n.json", "$anchor": "num", "type": "integer"}}}	{"aontu":"[&: number & mulof(1)]\\n","lossy":[{"construct":"$id","path":"#/$defs/n/$id","reason":"an identity rides only an alias declaration, and nothing declares this schema, so it is dropped"},{"construct":"$anchor","path":"#/$defs/n/$anchor","reason":"an identity rides only an alias declaration, and nothing declares this schema, so it is dropped"}],"verdict":"lossy"}
 import-identity-of-the-root	jsonschema-import	{"$id": "https://example.com/s.json", "$anchor": "top", "type": "object", "properties": {"next": {"$ref": "#top"}}}	{"aontu":"%root = ident({ next?:%root }, { anchor:\\"top\\" id:\\"https://example.com/s.json\\" })\\n\\nnext?: %root\\n","lossy":[],"verdict":"ok"}
@@ -454,12 +454,12 @@ jsi-not-beside-type-boolean	jsonschema-import	{"type":"boolean","not":{"type":"i
 jsi-dependent-required-beside-type-boolean	jsonschema-import	{"type":"boolean","dependentRequired":{"a":["b"]}}	{"aontu":"when({ a:any }, { b:any }) & boolean\\n","lossy":[],"verdict":"ok"}
 jsi-untyped-count-beside-a-dependency	jsonschema-import	{"maxProperties":1,"dependentRequired":{"a":["b"]}}	{"aontu":"when({ a:any }, { b:any }) & (null|boolean|number|empty()|{} & len(max(1))|list)\\n","lossy":[],"verdict":"ok"}
 #
-# Dynamic references (ADR-057): the importer walks with the dynamic
+# Dynamic references: the importer walks with the dynamic
 # scope, so a $dynamicRef whose initial target carries the matching
 # $dynamicAnchor is a reference to the outermost binding on the path,
 # and a schema read in two scopes is two declarations; a use that
 # reaches a definition by an anchor's name keeps its text in the meta
-# record's dynamicRef, which the export writes back (ADR-068), and any
+# record's dynamicRef, which the export writes back (ADR-109), and any
 # other use is the schema it reached.
 import-dynamic-ref-binds-the-outermost-anchor	jsonschema-import	{"type": "object", "properties": {"a": {"$ref": "#/$defs/list"}}, "$defs": {"foo": {"$dynamicAnchor": "items", "type": "string"}, "list": {"$id": "list", "type": "array", "items": {"$dynamicRef": "#items"}, "$defs": {"items": {"$dynamicAnchor": "items"}}}}}	{"aontu":"%d_foo = ident(empty(), { dynamicAnchor:\\"items\\" })\\n%d_list = ident([&: meta(%d_foo, { dynamicRef:\\"#items\\" })], { id:\\"list\\" })\\n\\na?: %d_list\\n","lossy":[],"verdict":"ok"}
 import-dynamic-ref-in-its-own-resource	jsonschema-import	{"type": "object", "properties": {"a": {"$dynamicRef": "#n"}}, "$defs": {"n": {"$dynamicAnchor": "n", "type": "integer"}}}	{"aontu":"%d_n = ident(number & mulof(1), { dynamicAnchor:\\"n\\" })\\n\\na?: meta(%d_n, { dynamicRef:\\"#n\\" })\\n","lossy":[],"verdict":"ok"}
@@ -476,7 +476,7 @@ import-dynamic-ref-names-nothing-refused	jsonschema-import	{"$dynamicRef": "#nop
 import-dynamic-anchor-nothing-declares-is-a-loss	jsonschema-import	{"type": "object", "properties": {"a": {"$dynamicAnchor": "x", "type": "string"}}}	{"aontu":"a?: empty()\\n","lossy":[{"construct":"$dynamicAnchor","path":"#/properties/a/$dynamicAnchor","reason":"an identity rides only an alias declaration, and nothing declares this schema, so it is dropped"}],"verdict":"lossy"}
 import-dynamic-ref-a-schema-no-binding-reaches-is-declared-once	jsonschema-import	{"type": "object", "properties": {"n": {"$ref": "numbers"}, "s": {"$ref": "strings"}}, "$defs": {"common": {"$id": "common", "type": "object", "properties": {"note": {"type": "string"}}}, "generic": {"$id": "generic", "type": "array", "prefixItems": [{"$ref": "common"}], "items": {"$dynamicRef": "#item"}, "$defs": {"default": {"$dynamicAnchor": "item"}}}, "numbers": {"$id": "numbers", "$ref": "generic", "$defs": {"item": {"$dynamicAnchor": "item", "type": "number"}}}, "strings": {"$id": "strings", "$ref": "generic", "$defs": {"item": {"$dynamicAnchor": "item", "type": "string"}}}}}	{"aontu":"%d_common = ident({ note?:empty() }, { id:\\"common\\" })\\n\\n%d_generic = ident(\\n  [\\n    &: match(key(0), \\"0\\", %d_common, meta(\\n      %p__24_defs_2f_numbers_2f__24_defs_2f_item,\\n      { dynamicRef:\\"#item\\" }\\n    ))\\n  ],\\n  { id:\\"generic\\" }\\n)\\n\\n%d_generic_e2 = ident(\\n  [\\n    &: match(key(0), \\"0\\", %d_common, meta(\\n      %p__24_defs_2f_strings_2f__24_defs_2f_item,\\n      { dynamicRef:\\"#item\\" }\\n    ))\\n  ],\\n  { defs:\\"generic\\" id:\\"generic\\" }\\n)\\n\\n%d_numbers = ident(%d_generic, { id:\\"numbers\\" })\\n%d_strings = ident(%d_generic_e2, { id:\\"strings\\" })\\n\\n%p__24_defs_2f_numbers_2f__24_defs_2f_item = ident(number, {\\n  dynamicAnchor: \\"item\\"\\n})\\n\\n%p__24_defs_2f_strings_2f__24_defs_2f_item = ident(empty(), {\\n  dynamicAnchor: \\"item\\"\\n})\\n\\nn?: %d_numbers\\ns?: %d_strings\\n","lossy":[],"verdict":"ok"}
 import-dynamic-ref-scopes-past-the-budget-refused	jsonschema-import	{"type":"object","properties":{"x":{"anyOf":[{"$ref":"a0"},{"$ref":"b0"}]}},"$defs":{"a0":{"$id":"a0","$dynamicAnchor":"n0","anyOf":[{"$ref":"a1"},{"$ref":"b1"}]},"b0":{"$id":"b0","$dynamicAnchor":"n0","anyOf":[{"$ref":"a1"},{"$ref":"b1"}]},"a1":{"$id":"a1","$dynamicAnchor":"n1","anyOf":[{"$ref":"a2"},{"$ref":"b2"}]},"b1":{"$id":"b1","$dynamicAnchor":"n1","anyOf":[{"$ref":"a2"},{"$ref":"b2"}]},"a2":{"$id":"a2","$dynamicAnchor":"n2","anyOf":[{"$ref":"a3"},{"$ref":"b3"}]},"b2":{"$id":"b2","$dynamicAnchor":"n2","anyOf":[{"$ref":"a3"},{"$ref":"b3"}]},"a3":{"$id":"a3","$dynamicAnchor":"n3","anyOf":[{"$ref":"a4"},{"$ref":"b4"}]},"b3":{"$id":"b3","$dynamicAnchor":"n3","anyOf":[{"$ref":"a4"},{"$ref":"b4"}]},"a4":{"$id":"a4","$dynamicAnchor":"n4","anyOf":[{"$ref":"a5"},{"$ref":"b5"}]},"b4":{"$id":"b4","$dynamicAnchor":"n4","anyOf":[{"$ref":"a5"},{"$ref":"b5"}]},"a5":{"$id":"a5","$dynamicAnchor":"n5","anyOf":[{"$ref":"a6"},{"$ref":"b6"}]},"b5":{"$id":"b5","$dynamicAnchor":"n5","anyOf":[{"$ref":"a6"},{"$ref":"b6"}]},"a6":{"$id":"a6","$dynamicAnchor":"n6","anyOf":[{"$ref":"a7"},{"$ref":"b7"}]},"b6":{"$id":"b6","$dynamicAnchor":"n6","anyOf":[{"$ref":"a7"},{"$ref":"b7"}]},"a7":{"$id":"a7","$dynamicAnchor":"n7","anyOf":[{"$ref":"t"}]},"b7":{"$id":"b7","$dynamicAnchor":"n7","anyOf":[{"$ref":"t"}]},"t":{"$id":"t","allOf":[{"$dynamicRef":"#n0"},{"$dynamicRef":"#n1"},{"$dynamicRef":"#n2"},{"$dynamicRef":"#n3"},{"$dynamicRef":"#n4"},{"$dynamicRef":"#n5"},{"$dynamicRef":"#n6"},{"$dynamicRef":"#n7"}],"$defs":{"d0":{"$dynamicAnchor":"n0"},"d1":{"$dynamicAnchor":"n1"},"d2":{"$dynamicAnchor":"n2"},"d3":{"$dynamicAnchor":"n3"},"d4":{"$dynamicAnchor":"n4"},"d5":{"$dynamicAnchor":"n5"},"d6":{"$dynamicAnchor":"n6"},"d7":{"$dynamicAnchor":"n7"}}}}}	{"aontu":"","errors":[{"class":"budget","code":"jsonschema_budget","path":"#/$defs/t","severity":"error","sites":[{"col":1308,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{"}]}],"lossy":[],"verdict":"error"}
-# ADR-058: unevaluatedProperties and unevaluatedItems. With no cover that
+# unevaluatedProperties and unevaluatedItems. With no cover that
 # depends on the value, the keyword is a guarded spread over what the
 # object's own keywords and its unconditional subschemas evaluate; an
 # anyOf, oneOf, if, else or dependentSchemas branch makes it rest(t, ...)
@@ -504,7 +504,7 @@ import-unevaluated-items-beside-contains	jsonschema-import	{"type": "array", "co
 import-unevaluated-items-under-anyOf	jsonschema-import	{"type": "array", "anyOf": [{"prefixItems": [true, {"const": "b"}]}, {"prefixItems": [true]}], "unevaluatedItems": false}	{"aontu":"nof(\\n  min(1),\\n  null|boolean|number|empty()|map|[&: match(key(0), \\"0\\", any, \\"1\\", \\"b\\", any)],\\n  null|boolean|number|empty()|map|[&: match(key(0), \\"0\\", any, any)]\\n) & [&: any] & rest(\\n  nil,\\n  {\\n    if: null|boolean|number|empty()|map|[\\n      &: match(key(0), \\"0\\", any, \\"1\\", \\"b\\", any)\\n    ]\\n    keys: \\"0\\"|\\"1\\"\\n  },\\n  {\\n    if: null|boolean|number|empty()|map|[&: match(key(0), \\"0\\", any, any)]\\n    keys: \\"0\\"\\n  }\\n)\\n","lossy":[],"verdict":"ok"}
 import-a-loss-in-a-copied-definition-is-reported-once	jsonschema-import	{"type": "array", "prefixItems": [{"$ref": "#/$defs/d"}, {"$ref": "#/$defs/d"}], "$defs": {"d": {"additionalItems": false}}}	{"aontu":"[&: match(key(0), \\"0\\", any, \\"1\\", any, any)]\\n","lossy":[{"construct":"additionalItems","path":"#/$defs/d/additionalItems","reason":"a keyword of an earlier dialect, which 2020-12 does not define, so it is dropped and the position admits more than that dialect does"}],"verdict":"lossy"}
 import-unevaluated-properties-beside-a-dropped-pattern	jsonschema-import	{"type": "object", "patternProperties": {"(?<=a)b": true}, "unevaluatedProperties": false}	{"aontu":"map\\n","lossy":[{"construct":"patternProperties","path":"#/patternProperties/(?<=a)b","reason":"re() cannot read the pattern, so it is dropped: a lookaround, which no regular language holds"},{"construct":"unevaluatedProperties","path":"#/unevaluatedProperties","reason":"a pattern it reads was dropped, so the names it evaluates cannot be spelt, and it is dropped too"}],"verdict":"lossy"}
-# Formats (ADR-059): a format annotates unless format assertion is asked for, by the
+# Formats (ADR-105): a format annotates unless format assertion is asked for, by the
 # formatAssertion option or by a meta-schema whose $vocabulary lists format-assertion;
 # then it is also format(g), with a defined format's grammar or the format set's.
 import-format-annotates-by-default	jsonschema-import	{"type": "string", "format": "date"}	{"aontu":"meta(empty(), { format:\\"date\\" })\\n","lossy":[],"verdict":"ok"}
@@ -533,7 +533,7 @@ import-x-aontu-format-grammar-that-does-not-compile-refused	jsonschema-import	{"
 import-format-meta-schema-not-json-is-refused	jsonschema-import	{"$schema": "https://example.com/meta", "type": "string", "format": "date"}	{"aontu":"","errors":[{"class":"reference","code":"jsonschema_dialect","path":"#/$schema","severity":"error","sites":[{"col":13,"file":"schema","len":26,"role":"schema","row":1,"src":"\\"https://example.com/meta\\"","value":"\\"https://example.com/meta\\""}]}],"lossy":[],"opts":{"documents":{"https://example.com/meta":"{"}},"verdict":"error"}
 import-format-meta-schema-without-vocabulary-annotates	jsonschema-import	{"$schema": "https://example.com/meta", "type": "string", "format": "date"}	{"aontu":"meta(empty(), { format:\\"date\\" })\\n","lossy":[],"opts":{"documents":{"https://example.com/meta":"{\\"$id\\": \\"https://example.com/meta\\"}"}},"verdict":"ok"}
 import-format-meta-schema-vocabulary-not-an-object-annotates	jsonschema-import	{"$schema": "https://example.com/meta", "type": "string", "format": "date"}	{"aontu":"meta(empty(), { format:\\"date\\" })\\n","lossy":[],"opts":{"documents":{"https://example.com/meta":"{\\"$id\\": \\"https://example.com/meta\\", \\"$vocabulary\\": true}"}},"verdict":"ok"}
-# Earlier dialects (ADR-061): each resource is read in the dialect it names, or
+# Earlier dialects: each resource is read in the dialect it names, or
 # the `dialect` option's, rewritten into the 2020-12 schema that means the same,
 # and a loss or a refusal names each key where it was written.
 import-dialect-draft-07-items-array	jsonschema-import	{"$schema": "http://json-schema.org/draft-07/schema#", "type": "array", "items": [{"type": "string"}], "additionalItems": false}	{"aontu":"[&: match(key(0), \\"0\\", empty(), nil)]\\n","lossy":[],"verdict":"ok"}
@@ -562,7 +562,7 @@ import-dialect-a-remote-error-names-the-key-as-written	jsonschema-import	{"$ref"
 import-dialect-an-embedded-resource-switches	jsonschema-import	{"$defs": {"old": {"$schema": "http://json-schema.org/draft-07/schema#", "$id": "https://example.com/old", "type": "array", "items": [{"type": "string"}]}}, "$ref": "https://example.com/old"}	{"aontu":"[&: match(key(0), \\"0\\", empty(), any)]\\n","lossy":[{"construct":"$id","path":"#/$defs/old/$id","reason":"an identity rides only an alias declaration, and nothing declares this schema, so it is dropped"}],"verdict":"lossy"}
 import-dialect-dependencies-compatibility	jsonschema-import	{"type": "object", "dependencies": {"a": ["b"]}}	{"aontu":"when({ a:any }, { b:any }) & map\\n","lossy":[],"verdict":"ok"}
 import-dialect-2019-09-dependencies-beside-dependent-schemas-is-a-loss	jsonschema-import	{"$schema": "https://json-schema.org/draft/2019-09/schema", "type": "object", "dependencies": {"a": ["b"]}, "dependentSchemas": {"c": true}}	{"aontu":"when({ c:any }, any) & map\\n","lossy":[{"construct":"dependencies","path":"#/dependencies","reason":"a keyword of an earlier dialect, which 2020-12 does not define, so it is dropped and the position admits more than that dialect does"}],"verdict":"lossy"}
-# Vocabularies (ADR-063): a schema whose meta-schema declares $vocabulary reads the
+# Vocabularies: a schema whose meta-schema declares $vocabulary reads the
 # keywords of the vocabularies listed there and the core vocabulary's, and each other
 # keyword of its dialect is an annotation under its own name. A vocabulary listed with any value
 # but false that aontu does not read refuses the import. $vocabulary in a schema is an
@@ -582,7 +582,7 @@ import-vocabulary-an-embedded-resource-reads-its-own-meta-schema	jsonschema-impo
 import-vocabulary-an-embedded-resource-inherits	jsonschema-import	{"$schema": "https://example.com/meta", "properties": {"n": {"$id": "https://example.com/n", "minimum": 10}}}	{"aontu":"null|boolean|number|empty()|{ n?:meta(any, { minimum:10 }) }|list\\n","lossy":[{"construct":"$id","path":"#/properties/n/$id","reason":"an identity rides only an alias declaration, and nothing declares this schema, so it is dropped"}],"opts":{"documents":{"https://example.com/meta":"{\\"$schema\\": \\"https://json-schema.org/draft/2020-12/schema\\", \\"$id\\": \\"https://example.com/meta\\", \\"$vocabulary\\": {\\"https://json-schema.org/draft/2020-12/vocab/core\\": true, \\"https://json-schema.org/draft/2020-12/vocab/applicator\\": true}}"}},"verdict":"lossy"}
 import-vocabulary-format-assertion-refuses-an-unknown-format-on-any-kind	jsonschema-import	{"$schema": "https://example.com/meta", "format": "zip"}	{"aontu":"","errors":[{"class":"conflict","code":"format_unknown","path":"#/format","severity":"error","sites":[{"col":51,"file":"schema","len":5,"role":"schema","row":1,"src":"\\"zip\\"","value":"\\"zip\\""}]}],"lossy":[],"opts":{"documents":{"https://example.com/meta":"{\\"$schema\\": \\"https://json-schema.org/draft/2020-12/schema\\", \\"$id\\": \\"https://example.com/meta\\", \\"$vocabulary\\": {\\"https://json-schema.org/draft/2020-12/vocab/core\\": true, \\"https://json-schema.org/draft/2020-12/vocab/format-assertion\\": true}}"}},"verdict":"error"}
 import-vocabulary-an-earlier-dialect-reads-every-keyword	jsonschema-import	{"$schema": "https://example.com/meta", "type": "number", "minimum": 1}	{"aontu":"number & min(1)\\n","lossy":[],"opts":{"documents":{"https://example.com/meta":"{\\"$schema\\": \\"http://json-schema.org/draft-07/schema#\\", \\"$id\\": \\"https://example.com/meta\\", \\"$vocabulary\\": {\\"https://json-schema.org/draft/2020-12/vocab/core\\": true}}"}},"verdict":"ok"}
-# The published meta-schemas (ADR-064): the importer ships the meta-schemas of the
+# The published meta-schemas: the importer ships the meta-schemas of the
 # five dialects and their vocabularies, each at its own URI where the document set
 # gives none there, so a reference reaches them without a document of its own.
 # Another document is read only where a reference reaches it.
@@ -595,7 +595,7 @@ import-meta-schema-the-2019-09-format-vocabulary-is-optional	jsonschema-import	{
 import-another-document-is-read-only-where-a-reference-reaches	jsonschema-import	{"type": "object", "properties": {"t": {"$ref": "https://example.com/old#/definitions/a"}}}	{"aontu":"%u_https_3a__2f__2f_example_2e_com_2f_old_23__2f_definitions_2f_a = 1|2\\n\\nt?: %u_https_3a__2f__2f_example_2e_com_2f_old_23__2f_definitions_2f_a\\n","lossy":[],"opts":{"documents":{"https://example.com/old":"{\\"$schema\\": \\"http://json-schema.org/draft-07/schema#\\", \\"properties\\": {\\"x\\": {\\"$ref\\": \\"#\\"}}, \\"definitions\\": {\\"a\\": {\\"enum\\": [1, 2]}}}"}},"verdict":"ok"}
 import-another-document-unreached-is-not-checked	jsonschema-import	{"type": "object", "properties": {"t": {"$ref": "https://example.com/old#/definitions/a"}}}	{"aontu":"%u_https_3a__2f__2f_example_2e_com_2f_old_23__2f_definitions_2f_a = 1|2\\n\\nt?: %u_https_3a__2f__2f_example_2e_com_2f_old_23__2f_definitions_2f_a\\n","lossy":[],"opts":{"documents":{"https://example.com/old":"{\\"definitions\\": {\\"a\\": {\\"enum\\": [1, 2]}, \\"b\\": {\\"type\\": 5}}}"}},"verdict":"ok"}
 #
-# The meta-schema check (ADR-065): an input that imports is checked against its
+# The meta-schema check: an input that imports is checked against its
 # meta-schema, read through a wrapper whose map root declares the meta-schema's
 # recursion so that it reaches every depth. What the input breaks or lacks
 # refuses the import with jsonschema_schema, once at each place, at the innermost
@@ -616,7 +616,7 @@ import-meta-check-a-meta-schema-that-does-not-import	jsonschema-import	{"$schema
 import-meta-check-off	jsonschema-import	{"type": "object", "required": ["a", "a"]}	{"aontu":"a: any\\n","lossy":[],"opts":{"noMetaCheck":true},"verdict":"ok"}
 import-meta-check-skips-a-resource-of-another-dialect	jsonschema-import	{"$defs": {"d": {"$schema": "http://json-schema.org/draft-04/schema#", "id": "https://example.com/d4", "minimum": 1, "exclusiveMinimum": true}}, "$ref": "https://example.com/d4"}	{"aontu":"null|boolean|number & above(1)|empty()|map|list\\n","lossy":[{"construct":"$id","path":"#/$defs/d/id","reason":"an identity rides only an alias declaration, and nothing declares this schema, so it is dropped"}],"verdict":"lossy"}
 
-# The source map and output units (ADR-066): the import marks each expression with
+# The source map and output units: the import marks each expression with
 # the keyword it was written for, and its map records where each landed in the
 # agreed form, by frame, a reference naming the frame it enters. The output
 # rows import with the map, vet the data with --no-fill --exact-numbers, and

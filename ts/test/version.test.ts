@@ -26,7 +26,7 @@ describe('version', () => {
   })
 
 
-  // ADR-041: one number names a release, so this reads the other port's
+  // ADR-104: one number names a release, so this reads the other port's
   // literal.
   test('matches the Go module', () => {
     const src = readFileSync(

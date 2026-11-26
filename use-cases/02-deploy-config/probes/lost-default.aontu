@@ -1,4 +1,4 @@
-# FIXED 2026-08-29 by ADR-011 (the star is sugar for `*x | super(x)`):
+# FIXED 2026-08-29 (the star is sugar for `*x | super(x)`):
 # a constraint conjunct meeting a ranked default now RESOLVES to the
 # default, because the preferred value answers the meet first and 2
 # satisfies min(1)&max(24).  The bound is not lost with it -- it rides

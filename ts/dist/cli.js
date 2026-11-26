@@ -1394,7 +1394,7 @@ function vetOnce(args, trust) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    // ADR-066: a map whose text has changed would place a finding at the
+    // A map whose text has changed would place a finding at the
     // wrong keyword.
     const map = undefined === mapSrc ? undefined : (0, sourcemap_1.readSourceMap)(mapSrc);
     if (undefined !== mapSrc && undefined === map) {
@@ -2460,7 +2460,7 @@ const PACKAGE_HELP = {
     why: 'aontu why <pkg> [dir] (try --help)',
     publish: 'aontu publish [--yes] [--to <dir>] [--key <file>] [dir] (try --help)',
 };
-// The top-level package verbs (ADR-039 part 5). Every one but `why`
+// The top-level package verbs. Every one but `why`
 // reaches a repository, so every one runs behind the seam.
 async function runPackageVerb(verb, argv, servers) {
     const io = servers.io ?? PROCESS_IO;
@@ -2613,7 +2613,7 @@ function pkgNetText(verb, report) {
     return lines.join('\n');
 }
 const MODEL_HELP = 'aontu model get|why|set ... (try --help)';
-// One document, interrogated or edited (ADR-039 part 5).
+// One document, interrogated or edited.
 // Where the subcommand is, past any global flag that precedes it.
 // `takeTrust` strips those anywhere in a tail, so the subcommand has
 // to be found past a flag AND past its value: in `--text-ext get` the
@@ -2816,7 +2816,7 @@ function runTrace(argv) {
     return 0;
 }
 // ---------------------------------------------------------------------
-// The writer (ADR-040). A generator answers a component tree; this verb
+// The writer (ADR-108). A generator answers a component tree; this verb
 // hands it to jostraca, which writes the files below a path or holds
 // them to it.
 const RENDER_HELP = 'aontu render [--check] [--at <path>] [--format json] ' +
@@ -5177,7 +5177,7 @@ function main(argv, servers = SERVERS) {
     let jsonl = false;
     let exact = false;
     const bindings = [];
-    // One spelling throughout the tools (ADR-042): every verb, one gate.
+    // One spelling throughout the tools: every verb, one gate.
     const withdrawn = argv.slice(2).find((a) => !a.startsWith('-') && /\.aon$/i.test(a));
     if (undefined !== withdrawn) {
         process.stderr.write(withdrawnMsg(withdrawn) + '\n');

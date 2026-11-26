@@ -1,6 +1,6 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// The grammar seam, ADR-033. Twin of go/grammar.go.
+// The grammar seam. Twin of go/grammar.go.
 
 import { Tabnas } from '@tabnas/parser'
 import { abnf } from '@tabnas/abnf'

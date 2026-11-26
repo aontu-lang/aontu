@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// The committed format grammars (ADR-059), staged from grammar/format/
+// The committed format grammars (ADR-105), staged from grammar/format/
 // by ts/scripts/formats.cjs and held identical with the sources by
 // go/formatgrammar_test.go. A format is <name>.abnf, or a directory of
 // grammars a string meets together, <name>.abnf first; lib/ is shared.

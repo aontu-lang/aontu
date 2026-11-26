@@ -50,7 +50,7 @@ lacks() {
 # Whole-file generation is BLOCKED by design (README gap 2 forces the
 # vet anchors to stay unmarked, and unmarked abstract values cannot
 # generate). Pin that price:
-# 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
+# 2026-08-27: the refusal is now `disjunct_no_gen`, class
 # incomplete -- "more than one alternative still admitted" -- rather
 # than a scalar_value CONFLICT between an enum's own branches, which is
 # what folding them together used to report.
@@ -59,7 +59,7 @@ has geneval err '[aontu/disjunct_no_gen]'
 ok "contract.aontu does not generate (the documented price of gap 2)"
 
 # 2026-08-26: golden regenerated after the template-clone isolation
-# change (ADR-005). Two spots inside the api spread TEMPLATE changed:
+# change. Two spots inside the api spread TEMPLATE changed:
 # the method disjunction canons as parsed (nested parens, no longer
 # flattened by a destination's application leaking back), and summary's
 # len() keeps its written argument (the `integer&` residue came from
@@ -119,7 +119,7 @@ has vsubtle out '[aontu/constraint]'
 has vsubtle out 'expected: re("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")'
 has vsubtle out '[aontu/empty]'
 has vsubtle out '"admin"|"member"|"viewer"'
-# ...and, since 2026-08-27 (ADR-007), the enum finding's schema site
+# ...and, since 2026-08-27, the enum finding's schema site
 # has a real source location. The meet mints a fresh disjunction, which
 # used to arrive unsited, so this finding pointed at -1:-1 with nowhere
 # for a repair loop to go; a narrowed disjunction now carries the site
@@ -156,7 +156,7 @@ sed -n "${row}p" "$DIR/contract.aontu" | grep -q 'DisplayName' \
   || true
 ok "vet: missing name -> exit 3; schema site names the file it excerpts"
 
-# GAP 1 CLOSED 2026-08-27 (ADR-007). A required ENUM field could be
+# GAP 1 CLOSED 2026-08-27. A required ENUM field could be
 # omitted entirely: the unresolved disjunction counted as concrete
 # because generation FOLDED its members together, and the resulting
 # scalar CONFLICT was filtered out by vet's incomplete-class pass. It
@@ -266,7 +266,7 @@ run venv 0 -- vet --at '$.errors.Envelope' "$DIR/contract.aontu" \
   "$DIR/data/error-envelope-ok.json"
 ok "vet: error envelope with inline-template details list accepted"
 
-# GAP 7, FIXED 2026-08-29 by ADR-011: the DRY page schema
+# GAP 7, FIXED 2026-08-29 (the star is sugar): the DRY page schema
 # (items: [&: $.entities.User]) vets under --at.  A lifted anchor's
 # absolute ref used to die as [aontu/no_path] at $.entities.User.
 run vpageat 0 -- vet --at '$.msg.UserPage' "$DIR/contract.aontu" \
@@ -280,7 +280,7 @@ has vpage out 'verdict: valid'
 run vpagebad 1 -- vet "$DIR/user-page.aontu" "$DIR/data/user-page-bad.json"
 has vpagebad out '[aontu/constraint]'
 has vpagebad out '"grace.hopper@"'
-# GAP 8, FIXED 2026-09-07 by ADR-025: the finding names the element
+# GAP 8, FIXED 2026-09-07: the finding names the element
 # it is about. The path used to say items.0 while the broken element
 # was items[1] (the data site's row was right; the index was not).
 # It was never TS-only: a reference's copy shared the close() call's

@@ -12,7 +12,7 @@
 # Columns: code<TAB>errcode<TAB>class<TAB>since
 #   code  : the frozen snake_case code string (the NilVal `why`).
 #           Codes are a CONTRACT: append-only, renames forbidden --
-#           with ONE sanctioned exception, recorded in ADR-011: the
+#           with ONE sanctioned exception: the
 #           disjunction-empty pair was renamed `|:empty`/`|:empty-dist`
 #           -> `empty`/`empty-dist` in 0.54.0, because the `|:` prefix
 #           named a spelling the author may never have written (a bare
@@ -79,7 +79,7 @@ merge_conflict	errcode	parse	0.53.0
 # vanish in the merge.
 include_denied	errcode	parse	0.53.0
 # An @"..." include whose EXTENSION is not one the engine reads as
-# aontu source (ADR-012, use-cases/BUGS.md §49). `.aontu`,
+# aontu source (use-cases/BUGS.md §49). `.aontu`,
 # `.json` and `.jsonld` parse; everything else -- and a name with no
 # extension -- is refused by name rather than guessed at. Parse-stage
 # and raised, not injected, for the same bare-member reason
@@ -224,7 +224,7 @@ compat_narrowed	errcode	compat	0.53.0
 compat_required_added	errcode	compat	0.53.0
 compat_default_changed	errcode	compat	0.53.0
 compat_marks_changed	errcode	compat	0.53.0
-# The outcome half of the publish gate (ADR-022): what the prior
+# The outcome half of the publish gate (ADR-111): what the prior
 # version generates with nothing supplied, the next must generate, and
 # the same. Acceptance is the subsumption query's; these two are the
 # determination and agreement findings.
@@ -281,7 +281,7 @@ recursion_unexpanded	errcode	incomplete	0.53.0
 recursion_budget	errcode	budget	0.53.0
 # THE CHECKED LINK (`relate(t?)`). Two codes. `rel_address` is the value
 # met being no address at all -- anything that is not a path value, bare
-# strings included (ADR-016) -- class `parse`, because what is wrong is
+# strings included -- class `parse`, because what is wrong is
 # the text and no later pass can repair it. `rel_unresolved` is a
 # well-formed address that names nothing in this evaluation -- class
 # `reference`, the same class as `no_path`, because it is the same kind
@@ -302,7 +302,7 @@ refer_address	errcode	parse	0.53.0
 refer_unresolved	errcode	reference	0.53.0
 # FIRST-CLASS PATHS (sketch/PATHS.0.md). One code: text that is
 # not a tree address, met by `path(p)`'s capture -- literal or computed
-# argument alike (ADR-016). Class `parse` for rel_address's reason --
+# argument alike. Class `parse` for rel_address's reason --
 # what is wrong is the text, and no later pass can repair it. An
 # address that names nothing is NOT a path error: a path value is
 # data, and existence stays relate()'s contract.
@@ -326,9 +326,9 @@ relation_inverse_missing	errcode	conflict	0.53.0
 # lesson the design names.
 #
 # `each_data` KEEPS its released meaning across two renames. The
-# meet-only `each` that first raised it was retired (ADR-026) and
+# meet-only `each` that first raised it was retired and
 # `form` took over the list generator; `form` was then renamed back to
-# `each` (ADR-027), so the code names its function again and the
+# `each`, so the code names its function again and the
 # condition it reports — a first argument with no children — never
 # changed. `form_data`, which `form` raised in between, is the retired
 # one; see RENDER P6 below.
@@ -423,11 +423,11 @@ module_path	errcode	parse	0.54.0
 module_missing	errcode	parse	0.53.0
 module_integrity	errcode	parse	0.53.0
 module_depth	errcode	budget	0.53.0
-# `module_local` (ADR-039 part 4): a bare reference whose final segment
+# `module_local`: a bare reference whose final segment
 # carries an extension the include table knows was meant as a file, and
 # the commonest mistake once the major left the name gets the message
 # that fixes it rather than `module not fetched`.
-# `module_moved` (ADR-020 part 6): the package's own file declares a new
+# `module_moved` (ADR-111): the package's own file declares a new
 # path; resolution refuses naming the destination and never follows it.
 module_local	errcode	parse	0.65.0
 module_moved	errcode	parse	0.65.0
@@ -472,7 +472,7 @@ render_unit	errcode	reference	0.58.0
 # disagreed.
 #
 # `form_data` is RETIRED and UNRAISABLE. It was `each_data`'s twin
-# while the list generator was called `form`; ADR-027 renamed that
+# while the list generator was called `form`; a later change renamed that
 # function to `each`, which answers `each_data` again. The row stays
 # because this registry is append-only — a code a consumer has already
 # seen must keep its class and its meaning, and deleting the row would

@@ -14,5 +14,5 @@ aontu: hide({})
 # The relation declarations live ON THE FIELDS now (spec.aontu,
 # CatalogEntry.dependsOn: relate($.aontu.System.Service) & acyclic() &
 # inverse(dependedOnBy)) -- the old root-level `relations:` block is
-# gone with the magic key (RELATIONS.0.md P2, ADR-010's grandfather
+# gone with the magic key (RELATIONS.0.md P2, ADR-106's grandfather
 # clause discharged), and `target` is relate(t)'s flow.

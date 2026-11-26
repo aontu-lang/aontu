@@ -1,5 +1,5 @@
 # BUGS.md section 33 -- FIXED 2026-08-26 by the template-clone
-# isolation change (ADR-005): every path in a per-destination template
+# isolation change: every path in a per-destination template
 # instance is normalised to the destination (repathInstance / the Go
 # setPaths shape), so a relative reference nested inside a `+`
 # expression or a call argument re-anchors per child exactly as the

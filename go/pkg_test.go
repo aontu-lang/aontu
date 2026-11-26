@@ -655,7 +655,7 @@ func TestPkgManifestGateRefusesABreakingVersion(t *testing.T) {
 }
 
 func TestPkgManifestGateChecksOutcomeAsWellAsAcceptance(t *testing.T) {
-	// ADR-022: `port: 8080` -> `port: integer` passes subsumption and
+	// ADR-111: `port: 8080` -> `port: integer` passes subsumption and
 	// turns a working consumer build into an error, so the gate refuses
 	// it; a value that moves while still admitting its predecessor is
 	// refused too. Widening around an unchanged outcome passes.
@@ -745,7 +745,7 @@ func TestPkgManifestGateChecksOutcomeAsWellAsAcceptance(t *testing.T) {
 }
 
 func TestPkgManifestHasNoMajorToBumpPastTheGate(t *testing.T) {
-	// Under ADR-022 a breaking change needs a new NAME, chosen by the
+	// Under ADR-111 a breaking change needs a new NAME, chosen by the
 	// publisher; a version number is not a promise the toolchain can
 	// check, so a bigger one buys nothing at the gate.
 	prior := pkgPublishable(t, "1.0.0", modSource)

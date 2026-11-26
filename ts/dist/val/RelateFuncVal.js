@@ -13,6 +13,7 @@ const ConjunctVal_1 = require("./ConjunctVal");
 const unify_1 = require("../unify");
 const top_1 = require("./top");
 const utility_1 = require("../utility");
+const RefVal_1 = require("./RefVal");
 function findAt(root, path) {
     if (null == root || 0 === path.length) {
         return undefined;
@@ -303,6 +304,13 @@ class RelateFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
     funcname() {
         return 'relate';
+    }
+    prepare(_ctx, args) {
+        args.slice(0, 1).forEach((t) => (0, RefVal_1.landPaths)(t, this.path));
+        return args;
+    }
+    argReady(arg) {
+        return arg.done || (0, RefVal_1.landsOnly)(arg);
     }
     resolve(ctx, args) {
         const out = new RelateVal({}, ctx);

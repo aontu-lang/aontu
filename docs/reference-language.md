@@ -24,6 +24,7 @@ the [Explanation](explanation.md).
 - [Preference / default `*`](#preference--default-)
 - [Optional keys `?`](#optional-keys-)
 - [Spreads `&:`](#spreads-)
+- [Key patterns: `keyed`](#key-patterns-keyed)
 - [Generating children: `pack` and `each`](#generating-children-pack-and-each)
   - [Making elements: `each`](#each-the-order-preserving-map)
   - [One instance: `apply`](#apply-one-instance)
@@ -1106,6 +1107,91 @@ container's key. Deeper in a spread's template, `key(n)` reads at each
 member the spread holds, as a relative path there does:
 `Decls.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 places the template at each member before `resolveD` reads it.
+
+## Key patterns: `keyed`
+
+`keyed(p, t, e?)`, written as a spread's template, holds each member
+whose key `p` admits to `t`, and every other member to `e`. Where `e`
+is left out it is `any`, so the other members are left as they are:
+
+```aontu
+cfg: { &: keyed(re("^env_"), string) env_name:prod other:1 }
+```
+
+```json
+{"cfg":{"env_name":"prod","other":1}}
+```
+
+`p` is tried against the member's key, which is a string. A literal
+names one key, `re(…)` names every key the pattern matches anywhere in
+it, and any other constraint on a string, such as `len(max(3))`, is
+tried the same way. `t` and `e` are what the member's value is unified
+with: a kind, a constraint, a map, a default or a reference.
+
+A member the pattern admits whose value `t` refuses is the document's
+error, at that member:
+
+<!-- test: scenario keyed-pattern -->
+<!-- test: run -->
+```sh
+$ echo 'cfg: { &: keyed(re("^env_"), string) env_name:8080 }' | aontu
+[aontu/no_scalar_unify]: Cannot unify values at path $.cfg.env_name
+...
+$ echo $?
+1
+```
+
+The rules:
+
+- **`nil` as `e` refuses every other key**, as `literal_nil` at the
+  key: `{ &: keyed(re("^env_"), string, nil) other:1 }` is refused at
+  `other`.
+- **Several patterns are conjoined.** `&: keyed(p1, t1) & keyed(p2, t2)`
+  holds a key both patterns admit to both schemas, and a key neither
+  admits to neither.
+- **In a list the key is the position**, written as a string, `"0"`
+  first: `[&: keyed("0", string, integer)]` holds the first element to
+  `string` and the rest to `integer`.
+- **Outside a spread** the key is that of the field the call is the
+  value of: `env_a: keyed(re("^env_"), string, integer)` is `string`.
+- **A seal is unchanged.** A spread declares no key, so `close()` and
+  an instance of a `type()` refuse a key that only the pattern admits,
+  as `closed`. A type that takes patterned keys is held open, and
+  closed again by `nil`:
+
+```aontu
+Env: type(open({ &: keyed(re("^env_"), string, nil) }))
+cfg: $.Env & { env_name:prod }
+```
+
+```json
+{"cfg":{"env_name":"prod"}}
+```
+
+`keyed(p, t, e)` means `match(key(0), p, t, e)`: in a spread `key(0)`
+is each member's key, and [`match`](#selecting-filter-and-match) takes
+`t` where `p` admits the key and `e` otherwise. Both engines carry the
+call out that way. The canonical form and the hash write it as `keyed`,
+with `e` left out where it is `any`:
+
+<!-- test: run -->
+```sh
+$ echo 'cfg: { &: keyed(re("^env_"), string, any) }' | aontu -c
+{"cfg":{&:keyed(re("^env_"),string)}}
+```
+
+So a `keyed` call and the `match` it means are two canonical forms
+with two hashes, and `subsume` answers `undecided` for one against the
+other, since it compares a spread that reads its key by its text.
+
+The JSON Schema export writes a `re(…)` pattern as `patternProperties`
+and `nil` beside it as `additionalProperties: false`, and reports a
+spread it cannot write under `keyed`
+([`aontu jsonschema`](reference-api.md#aontu-jsonschema)).
+
+The rows are `test/spec/keyed.tsv`. The definition gives the meaning by
+`Val.keyedCall` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean),
+and rows `yk0` on of `test/spec/def-trial.tsv` are generated from it.
 
 ## Generating children: `pack` and `each`
 
@@ -2984,7 +3070,7 @@ The definition reads `key(n)` by `keyUpAt` in [`spec/Aontu/Syntax.lean`](../spec
 
 ### `keyed(trial p: any, t: any, e?: any) : any`
 
-A short form of the guarded spread: `keyed(p, t, e)` means `match(key(0), p, t, e)`, and `e` is `any` where it is left out. As a spread it holds each member whose key `p` admits to `t`, and every other member to `e`. The canonical form and the hash write the call as `keyed`, with `e` left out where it is `any`, so `keyed(p, t)` and the `match` it means are two canonical forms with two hashes, and `subsume` answers `undecided` for one against the other, since it compares a spread that reads its key by its text. A seal is unchanged: a closed map still refuses a key that only the pattern admits. See [filter and match](#selecting-filter-and-match).
+A short form of the guarded spread: `keyed(p, t, e)` means `match(key(0), p, t, e)`, and `e` is `any` where it is left out. As a spread it holds each member whose key `p` admits to `t`, and every other member to `e`. The canonical form and the hash write the call as `keyed`, with `e` left out where it is `any`, so `keyed(p, t)` and the `match` it means are two canonical forms with two hashes, and `subsume` answers `undecided` for one against the other, since it compares a spread that reads its key by its text. A seal is unchanged: a closed map still refuses a key that only the pattern admits. See [key patterns](#key-patterns-keyed).
 
 Example: `{ &: keyed(re("^env_"), string), env_name: prod }` holds `env_name` to `string`; with `nil` as `e` the map takes no other key
 
@@ -4339,11 +4425,13 @@ as a spread's template reads its own at each member and a copy reads
 its own where the copy stands. So
 `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}` gives `x.m` the member
 `v: 2`, and a link the template carries reads its relative address
-from where that template lands, as it does in both engines. A relative
-path the template holds, as `.k` is here, both engines still read where
-the document writes the link, inside the template, where it names
-nothing, so they leave the template waiting there, which
-[#661](https://github.com/aontu-lang/aontu/issues/661) tracks.
+from where that template lands. A path that names no member of the
+target's is an error, as any path to nothing is. A path that climbs
+past the template, as `..k` does in `relate({v: ..k})`, both engines
+read where the document writes the link, and the definition from the
+target, which differ only where the target isn't the link's sibling.
+[#1001](https://github.com/aontu-lang/aontu/issues/1001) asks which
+holds.
 
 In the definition, `relate(t)` reads as the relation kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
@@ -5802,6 +5890,11 @@ closed value reached later, through a reference or a separate map
 merge, is closed exactly as `close({...})` is, and a child that
 resolves later inside a closed value (a reference, a pending call) is
 closed when it does. Unmet, `close()` does not generate.
+
+A path beside a bare `close()` supplies its copy as one of the terms at
+the place. With `b: {x: 1}`, `a: close() & $.b` seals `a` with the keys
+`b` holds, and `vet` refuses data that adds another key to `a`. A bare
+`open()` beside a path lifts a seal the copy carries.
 
 **A type is closed for its instances.** A copy of a `type()`-marked
 value taken by reference is an instance, and adds nothing at any depth,

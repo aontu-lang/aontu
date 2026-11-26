@@ -1632,7 +1632,7 @@ Examples:
   @"corp.example/s#aon1-\u2026" -> {..} # ... and a pin does not fetch it either.`,module_local:`A bare reference names a file: its last segment carries an
 extension the include table knows, and a package path never does. A
 local file is written with a \`./\`, \`../\` or \`/\` prefix, so every
-reference says what it is (ADR-022); a package path is
+reference says what it is; a package path is
 \`<domain>/<path>\` and nothing else.
  
 Examples:

@@ -688,7 +688,7 @@ func TestSpec(t *testing.T) {
 							src, want, got)
 					}
 				case "jsonschema-output":
-					// ADR-066: the schema imported with its source map, the
+					// The schema imported with its source map, the
 					// data vetted as JSON Schema asks, and the report as
 					// basic output units.
 					var golden map[string]any
@@ -998,7 +998,7 @@ func specVetGolden(t *testing.T, report VetReport) string {
 // The cases the definition's rows (test/spec/def-fragment.tsv) expect and
 // the engine does not yet answer, spec/ledger.tsv: each must keep failing
 // until its cause is fixed, and a name the rows do not carry is stale.
-const specLedgerBound = 28
+const specLedgerBound = 16
 
 func specLedger(t *testing.T, specDir string) map[string]bool {
 	t.Helper()

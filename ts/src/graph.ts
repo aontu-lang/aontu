@@ -53,7 +53,7 @@ function walk(root: Val) {
   const disjunct: string[] = []
   const decls = new Map<string, RelDecl>()
 
-  // ONE WALK, with `undecided` saying which side of ADR-007 it is on:
+  // ONE WALK, with `undecided` saying which side of the disjunction it is on:
   // below an unresolved disjunction every link is a position the
   // document has not decided, and nothing there is an edge.
   const visit = (

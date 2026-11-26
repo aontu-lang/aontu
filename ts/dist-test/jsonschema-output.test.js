@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// The official suite's output tests (ADR-066). Each schema is imported
+// The official suite's output tests. Each schema is imported
 // with its source map, each instance vetted as JSON Schema asks, and the
 // report's basic output units checked against the schema the test gives
 // for them, by the importer and vet themselves, against the ledger

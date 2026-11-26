@@ -1,4 +1,4 @@
-# FIXED 2026-08-26 (the preference admission gate, ADR-004).
+# FIXED 2026-08-26 (the preference admission gate).
 # expected: vet against out-of-enum.json reports invalid (exit 1)
 # actual (now matches): verdict: invalid, [aontu/empty] at the data
 #         site, exit 1. The schema's own pref_not_instance advisory

@@ -33,7 +33,7 @@ describe('load-profile', () => {
     }
   })
 
-  // THE LOWERING HALF IS NOT HERE (ADR-038). `lowering`, `str`,
+  // THE LOWERING HALF IS NOT HERE (ADR-108). `lowering`, `str`,
   // `ident`, `types` and `banner` were the renderer's, and the
   // vocabulary is closed, so each is an unknown key now.
   test('the-lowering-keys-are-unknown', () => {

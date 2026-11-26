@@ -205,16 +205,16 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                         if (!arg.done) {
                             const argctx = te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'ARG') }) : ctx;
                             newarg = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, argctx));
-                            // The argument's riders ride its value, as a meet's do (ADR-052).
+                            // The argument's riders ride its value, as a meet's do.
                             newarg = newarg.isNil ? newarg : (0, unify_1.rideOn)(argctx, newarg, arg, undefined);
                             newtype = newtype || newarg.mark.type;
                             newhide = newhide || newarg.mark.hide;
                         }
-                        pegdone &&= newarg.done;
+                        pegdone &&= this.argReady(newarg);
                         newpeg.push(newarg);
                     }
                 }
-                // ABSENCE PROPAGATES (ADR-034), ahead of deferResolve.
+                // ABSENCE PROPAGATES, ahead of deferResolve.
                 const gone = this.forgives ? undefined :
                     newpeg.find((a) => true === a.isAbsent);
                 if ((pegdone || (through && wrapSettled(newpeg))) &&
@@ -235,7 +235,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     out = resolved.done && peer.isTop ? resolved :
                         (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEG') }) : ctx, resolved, peer, 'func-' + this.funcname() + '/' + this.id);
                     (0, utility_1.propagateMarks)(this, out);
-                    // A rider's value is its argument, written where it is (ADR-066).
+                    // A rider's value is its argument, written where it is.
                     if (!this.rides() || out.site.row < 0) {
                         out.site.row = this.site.row;
                         out.site.col = this.site.col;
@@ -304,6 +304,9 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     }
     prepare(_ctx, args) {
         return args;
+    }
+    argReady(arg) {
+        return arg.done;
     }
     resolve(ctx, _args) {
         return (0, err_1.makeNilErr)(ctx, 'func:' + this.funcname(), this, undefined, 'resolve');

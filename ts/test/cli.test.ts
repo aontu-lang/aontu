@@ -1239,7 +1239,7 @@ describe('cli-subsume', () => {
       '"properties": {"a": {"type": "number", "minimum": 1}}}')
     Fs.writeFileSync(data, '{"a": 0}')
 
-    // ADR-066: the map is written beside the text, and the JSON form
+    // The map is written beside the text, and the JSON form
     // carries it too, its hash the text's.
     Fs.writeFileSync(aontu, vetCapture(() =>
       Assert.equal(runJsonSchema(['import', '--source-map', map, file]), 0)).out)
@@ -3116,7 +3116,7 @@ describe('cli-template', () => {
 describe('cli-pkg-layout', () => {
   // A project still carrying the older layout -- mod.aon, a root or
   // aontu_meta/ mod-lock.aon, aon_vendor/ -- is told the current one,
-  // once, whatever the verb; nothing there is read (ADR-039).
+  // once, whatever the verb; nothing there is read.
   test('pkg-names-the-old-layout', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
     Fs.writeFileSync(Path.join(dir, 'mod.aon'), 'mod: { path: "corp.example/app" }\n')
@@ -3134,7 +3134,7 @@ describe('cli-pkg-layout', () => {
     Assert.doesNotMatch(vetCapture(() => runPkg(['verify', dir3], NO_SERVERS)).err, /older layout/)
   })
 
-  // The generation ADR-042 withdrew: a project whose package file and
+  // The withdrawn `.aon` generation: a project whose package file and
   // lockfile are spelled .aon declares nothing to any verb, so `verify`
   // would answer over an empty project rather than the real one.
   test('pkg-names-the-withdrawn-extension', () => {

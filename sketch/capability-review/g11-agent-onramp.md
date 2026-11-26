@@ -212,7 +212,7 @@ the right corpus and `docs/reference-language.md` the wrong one.
 rendered declarations no rule produced.~~ existed in this repository
 when this was written, as `aontu render --coverage` (model paths no
 output consumed, rendered declarations no rule produced); that flag
-went with [ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
+went with [ADR-038](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
 (2026-09-13), and `aontu render --coverage` is refused as an unknown
 option in both ports at 2026-09-29. Phase 5 below is that idea
 carried to `vet`, and it should be read as an extension of a shipped

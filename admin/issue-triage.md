@@ -192,7 +192,7 @@ Three faults the review turned up, after the snapshot above:
 | [#756](https://github.com/aontu-lang/aontu/issues/756) | scalars | open | S | join over a list holding a path value: TypeScript joins its spelling, Go leaves it unresolved (mapval_no_gen). |
 | [#329](https://github.com/aontu-lang/aontu/issues/329) | trials | open | M | A reference cycle through nof trial schemas is invalid in TypeScript and a unify_cycle error in Go. |
 | [#360](https://github.com/aontu-lang/aontu/issues/360) | trials | open | M | A trial schema reading only its own name overflows the TypeScript stack on a container; Go answers invalid. |
-| [#368](https://github.com/aontu-lang/aontu/issues/368) | trials | likely-fixed | S | TypeScript refused a nil rest() cover as literal_nil where Go, the canon and ADR-058 drop it. |
+| [#368](https://github.com/aontu-lang/aontu/issues/368) | trials | likely-fixed | S | TypeScript refused a nil rest() cover as literal_nil where Go and the canon drop it. |
 | [#812](https://github.com/aontu-lang/aontu/issues/812) | trials | open | M | `must()` reading siblings in a spread template is `no_path` in TypeScript; Go and definition read per member. |
 
 ### Both engines against the definition (42)

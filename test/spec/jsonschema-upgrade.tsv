@@ -1,4 +1,4 @@
-# The upgrade stage (ADR-061): `upgradeJsonSchema(src, opts)` must produce the
+# The upgrade stage: `upgradeJsonSchema(src, opts)` must produce the
 # report `expect` describes: the dialect the root is read in, each pointer the
 # upgrade moved with where to ("" where the 2020-12 schema holds nothing),
 # the 2020-12 schema it wrote, each number as written, and the verdict.

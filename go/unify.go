@@ -202,7 +202,7 @@ func rereadOn(out, a, b Val) Val {
 }
 
 func uniteRaw(ctx *Ctx, a, b Val) Val {
-	// ABSENCE IS THE UNIT OF THE MEET (ADR-034). The dispatch below is
+	// ABSENCE IS THE UNIT OF THE MEET. The dispatch below is
 	// the LEFT operand's, so `&` commutes only if it is answered here.
 	if nil != a && nil != b {
 		if x, ok := a.(*AbsentVal); ok {
@@ -500,7 +500,7 @@ func flowDoc(root Val, flows []flowAt, depth int) Val {
 	var below []flowAt
 	for _, f := range flows {
 		if depth == len(f.to) {
-			here = append(here, instanceClone(f.t, f.t.vpath()))
+			here = append(here, landedAt(f.t, f.to))
 		} else {
 			below = append(below, f)
 		}

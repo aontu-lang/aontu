@@ -169,10 +169,10 @@ are byte-for-byte interchangeable from a client's point of view.
 
 ## Editor configuration
 
-Ready-made plugins for **VS Code**, **Emacs** and **Vim/Neovim** live in
-[`editors/`](../editors/), and the manual wiring recipes for VS Code,
-Neovim and any other LSP client have moved to the
-[wire your editor](how-to/wire-your-editor.md) guide. The facts a client
+Ready-made clients for **VS Code**, **Emacs**, **Vim/Neovim**, and the
+**JetBrains IDEs** live in [`editors/`](../editors/), and the manual
+wiring recipes for VS Code, Neovim, a JetBrains IDE, and any other LSP
+client are in the [wire your editor](how-to/wire-your-editor.md) guide. The facts a client
 needs: command `aontu` with the argument `lsp`, transport stdio,
 document selector the `aontu` language (`.aontu` is the extension, and
 the only one; `.jsonic` is retired), and no configuration options.

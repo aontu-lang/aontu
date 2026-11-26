@@ -51,7 +51,7 @@ func graphWalk(root Val) ([]Edge, []string, map[string]*relDecl) {
 	decls := map[string]*relDecl{}
 	ancestors := map[Val]bool{}
 
-	// ONE WALK, with `undecided` saying which side of ADR-007 it is on:
+	// ONE WALK, with `undecided` saying which side of the disjunction it is on:
 	// below an unresolved disjunction every link is a position the
 	// document has not decided, and nothing there is an edge.
 	var visit func(node Val, path []string, hidden, undecided bool, under []string)

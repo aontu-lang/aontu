@@ -135,7 +135,7 @@ same-author, so an enterprise vendor-risk review reads the entire
 stack as bus-factor 1. Four of six README badges (Coveralls, Snyk,
 DeepScan, CodeClimate) have no backing CI and contradict the repo's
 own anti-drift doctrine. And this review's own CI runs caught the
-ADR-002 coverage gate flaking red on an untouched tree
+ADR-103 coverage gate flaking red on an untouched tree
 (`ListVal.ts:206–207` branch arms pass/fail/pass across identical
 trees) — the kind of nondeterminism that erodes exactly the trust the
 gate exists to build.

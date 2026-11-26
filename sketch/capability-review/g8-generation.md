@@ -7,8 +7,8 @@ was later REMOVED (ADR-018, 2026-08-31)**: the pipe was a second
 spelling of an ordinary call, and its precedence and atom carve-out
 cost more grammar than the reading bought; the design text below
 stands as the record of what was built and why. **`each` was
-re-founded by [ADR-026](../../ADR.md#adr-026--each-is-retired-form-carries-the-bound) and
-[ADR-027](../../ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)
+re-founded by [ADR-026](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-026--each-is-retired-form-carries-the-bound) and
+[ADR-027](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)
 (2026-09-08 and 2026-09-09, both relocated to #189)**: the template
 is required, `each(d, _ & t)` is the bound and `each(d, _)` the
 members as a list; the `each` paragraph below carries the

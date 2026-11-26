@@ -117,7 +117,7 @@ func TestCanonCallsAreDeclaredBuiltins(t *testing.T) {
 	}
 }
 
-// ADR-080: canon writes a call the document wrote, never another in its
+// Canon writes a call the document wrote, never another in its
 // place. What it may write beside one is listed: the range a count is
 // read as, the value super() answers, and move()'s default.
 func TestCanonWritesNoCallTheSourceLacks(t *testing.T) {
@@ -190,7 +190,7 @@ func TestSigMalformedDeclarationsAreErrors(t *testing.T) {
 
 func TestSigExportedAccessors(t *testing.T) {
 	// The exported render surface the LSP consumes; cross-package
-	// calls do not count toward this package's ADR-002 floor, so the
+	// calls do not count toward this package's ADR-103 floor, so the
 	// accessors are pinned here.
 	if got := FuncSignature("pack"); "pack(d: map|list, template t: any) : map" != got {
 		t.Fatalf("pack signature: %q", got)

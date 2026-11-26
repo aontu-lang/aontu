@@ -1,4 +1,4 @@
-# FIXED 2026-08-26 (pref_not_instance under ADR-004).
+# FIXED 2026-08-26 (pref_not_instance under the admission gate).
 # expected: no pref_not_instance finding -- generation yields "member",
 #           which IS an instance of the plain 'member' alternative
 #           (repeating the branch is the lint's own sanctioned fix)

@@ -49,7 +49,7 @@ class SuperFuncVal extends FuncBaseVal {
   resolve(ctx: AontuContext, args: Val[]) {
     // One argument, always a Val: funcArity pins super at [1,1]
     // before any resolve, and the parser builds arguments as Vals --
-    // a guarded fallback here is dead code under ADR-002.
+    // a guarded fallback here is dead code under ADR-103.
     return this.place(superOf(ctx, args[0]))
   }
 

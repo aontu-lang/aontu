@@ -8,7 +8,7 @@ import (
 )
 
 // metaSchemaFS is test/vectors/json-schema-spec/ as `make metaschemas`
-// stages it (ADR-064), index.tsv naming each document's URI.
+// stages it, index.tsv naming each document's URI.
 //
 //go:embed metaschemas
 var metaSchemaFS embed.FS

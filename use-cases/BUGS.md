@@ -24,15 +24,15 @@ Cross-cutting root causes, visible across families:
 
 1. **Template state is shared between destinations that need
    independent instances.** **FIXED 2026-08-26, both halves; the
-   REFERENCE half 2026-09-07 (ADR-025, §90).** The
-   clone half by template-clone isolation (ADR-005): per-child
+   REFERENCE half 2026-09-07 (§90).** The
+   clone half by template-clone isolation: per-child
    template clones no longer share inner nodes — pack/each templates,
    filter conditions and applied spread constraints are FULL
    per-destination instances (the `dup` clone in `Val.clone`'s
    subclasses / `instanceClone` in Go), with every inner path
    normalised to the destination (`repathInstance` / setPaths). The
-   unequal-spread half (§6, §7) by the spread application rework
-   (ADR-006): the combined template of two unequal spreads carried a
+   unequal-spread half (§6, §7) by the spread application rework:
+   the combined template of two unequal spreads carried a
    STATEFUL ExpectVal that tier-1 sharing handed to every destination,
    accumulating each sibling's data and meeting it into the next;
    `ExpectVal.unify` is now pure, so each child meets each template
@@ -45,7 +45,7 @@ Cross-cutting root causes, visible across families:
    incomplete-class errors**, so unresolved disjunctions vanished
    (`DisjunctVal.gen` folded members with unify and the conflict was
    filtered) and gen-time mark-skipping erased required-key findings.
-   **FIXED 2026-08-27 (ADR-007), both halves.** An unresolved
+   **FIXED 2026-08-27, both halves.** An unresolved
    disjunction is now `disjunct_no_gen`, class *incomplete* — the class
    vet keeps — instead of a scalar conflict between its own branches;
    and under `--at` the completeness probe descends through the output
@@ -56,7 +56,7 @@ Cross-cutting root causes, visible across families:
    map-argument `must()` are consumed against schema-side values and
    never re-fired against data — vet and one-document eval return
    opposite verdicts for identical compositions.
-   **FIXED 2026-08-27 (ADR-007), in two parts.** The staging half: the
+   **FIXED 2026-08-27, in two parts.** The staging half: the
    meet is now built from a FRESH PARSE of the schema, so the fixpoint
    runs once over both documents and references (§15) — and the
    `must()` audits on the write path, which is what made `aontu set`
@@ -81,8 +81,8 @@ Cross-cutting root causes, visible across families:
    settles), or unbounded CPU (stays under the per-pass budget).
    Family: refer-cycles. The mark/clone part — a reference cloning a
    still-pending `type()`/`hide()` wrapper and having the clone stamp
-   marks at the reference's site — is **FIXED 2026-08-26** (ADR-005:
-   references defer on pending mark wrappers); the refer()/fixpoint
+   marks at the reference's site — is **FIXED 2026-08-26**
+   (references defer on pending mark wrappers); the refer()/fixpoint
    part remains open.
 
 ---
@@ -104,7 +104,7 @@ common schema pattern in existence. A hidden helper key does work:
 (repro `match-helper-workaround.aontu`) — refusing `'autoo'` with
 `match_none`, at the cost of the error naming `$.chk`.
 Repros: `enum-fails-open.aontu`, `enum-vet-schema.aontu` + `out-of-enum.json`.
-Status: FIXED 2026-08-26 (the preference admission gate, ADR-004) —
+Status: FIXED 2026-08-26 (the preference admission gate) —
 `k:'autoo'` is the `|:empty` refusal in eval and vet alike; `*A|B|C`
 is a true enum-with-default (unset generates A, members override,
 `*x|top` is the deliberately-open spelling).
@@ -117,11 +117,11 @@ is bypassed. The docs' recommended disjunct spelling for
 default-with-bound (`*8080 | min(1024)`) is exactly the form that stops
 checking the bound on override; the conjunct form enforces but cannot
 default (documented phase-1 limit). Repro: `pref-disables-constraint.aontu`.
-Status: FIXED 2026-08-26 (ADR-004) — the constraint alternative is
+Status: FIXED 2026-08-26 — the constraint alternative is
 consulted on override: `port: 80` is refused (`|:empty`), `2048` is
 admitted, unset still generates 8080; the disjunct spelling now both
-defaults and validates. The conjunct form followed on 2026-08-29
-(ADR-011): `*x` is sugar for `*x | super(x)`, so the preferred value
+defaults and validates. The conjunct form followed on 2026-08-29:
+`*x` is sugar for `*x | super(x)`, so the preferred value
 answers the meet first and `port: *8080` beside `port: min(1024)`
 defaults to 8080 while the bound rides the override space. The
 phase-1 limit is closed in both spellings.
@@ -131,10 +131,10 @@ phase-1 limit is closed in both spellings.
 `mapval_no_gen`, exit 1 — the ranked default silently drops out of the
 lattice value (`--canon` shows the bare kind). Constraint conjuncts
 kill defaults of every rank (that half was the documented phase-1
-limit, closed 2026-08-29 by ADR-011); the rank≥2-vs-bare-kind loss is
+limit, closed 2026-08-29 when the star became sugar); the rank≥2-vs-bare-kind loss is
 undocumented and contradicts
 the pref section's own rule. Repro: `ranked-default-swallowed.aontu`.
-Status: FIXED 2026-08-26 (the rank-uniform meet, ADR-004) — a rank≥2
+Status: FIXED 2026-08-26 (the rank-uniform meet) — a rank≥2
 preference defends the innermost value's kind exactly as rank 1 does:
 `a:**1.5 & float` → 1.5, and `**2|integer` met by `integer` keeps the
 default 2 (the preference stands as itself, rank intact).
@@ -152,7 +152,7 @@ positive: generation produces `member`, an instance of the plain
 branch, yet the lint still fires — `effectiveDefault` unwraps exactly
 one pref layer (`ts/src/subsume.ts:136-138`). Repro:
 `lint-ranked-false-positive.aontu` + `role-admin.json`.
-Status: FIXED 2026-08-26 (ADR-004) — the ranked false positive is gone
+Status: FIXED 2026-08-26 — the ranked false positive is gone
 (the effective default unwraps every pref layer), the message says
 "…not an instance of any remaining alternative of…", and with the
 admission gate the lint is an advisory (a typo-shaped default), not a
@@ -171,7 +171,7 @@ value contradicts the generated value beside it, exit 0. The pattern
 unifies with the still-open disjunction via the same-kind override
 gate, so the first arm wins while generation picks the default.
 Repro: `match-default-crosswire.aontu`.
-Status: FIXED 2026-08-26 (the defaulted-scrutinee rule, ADR-004) —
+Status: FIXED 2026-08-26 (the defaulted-scrutinee rule) —
 match() on a settled scrutinee carrying an effective default tests
 patterns against the generation-effective value:
 `requires_approval` is false when `side_effect` is unset and true only
@@ -182,11 +182,11 @@ when it is genuinely `destructive`.
 ## sibling-crosswire — template state shared across destinations
 
 *2026-08-26: this family is closed — §8 and §9 by the template-clone
-isolation change (ADR-005), §6 and §7 by the spread application rework
-(ADR-006); see the Status lines.*
+isolation change, §6 and §7 by the spread application rework;
+see the Status lines.*
 
 ### 6. Unequal by-reference templates on one map merge sibling children with each other [critical]
-**Status: FIXED 2026-08-26 (the spread application rework, ADR-006).**
+**Status: FIXED 2026-08-26 (the spread application rework).**
 Same root as §7: the combined template of two unequal spreads baked in
 a stateful ExpectVal that tier-1 sharing handed to every destination.
 `ExpectVal.unify` is now pure, so both the id()-merged two-view form
@@ -202,7 +202,7 @@ sufficient but not necessary. Repros: `idmerge-ref-templates.aontu`,
 `oneview-ref-templates.aontu`.
 
 ### 7. Two unequal cross-statement spreads on one map cross-wire siblings [critical]
-**Status: FIXED 2026-08-26 (the spread application rework, ADR-006).**
+**Status: FIXED 2026-08-26 (the spread application rework).**
 The combined template is stateless: the 'map-self' meet of two unequal
 templates wraps a one-sided key as an ExpectVal, the combined map is
 shared across destinations when path-independent, and the expectation
@@ -220,7 +220,7 @@ vet-unequal-spread-depths. Repros: `two-spreads.aontu`,
 `two-spreads-vet-schema.aontu` + data.
 
 ### 8. `close()` around a `key()`-bearing pack template evaluates `key()` once [critical]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+**Status: FIXED 2026-08-26 (template-clone isolation).**
 Each generated child is a full per-destination instance (deep `dup`
 clone / instanceClone), so key() resolves per child; the garbled
 `$.deploy.NaN.p` on partial overrides is gone (extra keys refuse
@@ -233,7 +233,7 @@ got the first key (without `close()` it was correct).
 Repro: `close-key-pack.aontu`.
 
 ### 9. A rank-2 `key()` default evaluates once and is shared by all children [critical]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+**Status: FIXED 2026-08-26 (template-clone isolation).**
 A template instance owns its preference's inner value (PrefVal deep
 `dup` clone), so `**key(1) | string` answers per generated child and
 stays overridable through the admission gate. Pinned in both engines:
@@ -247,10 +247,10 @@ fresh pref per destination). Repro: `rankpref-key-pack.aontu`.
 ## generator-seal — call wrappers around generators
 
 *2026-08-26: this family is closed — §10, §11 and §12 are fixed by the
-template-clone isolation change (ADR-005); see the Status lines.*
+template-clone isolation change; see the Status lines.*
 
 ### 10. `close(pack(d, _ & t))` + overlay: the overlay fills the hole [critical]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+**Status: FIXED 2026-08-26 (template-clone isolation).**
 A hole belongs to its nearest enclosing generator: `hasPlace` and the
 fill walk no longer cross into a generator's template argument, so the
 outer `close()` call does not report the template's `_` as its own and
@@ -262,7 +262,7 @@ the real override was silently lost, exit 0.
 Repro: `close-pack-hole-absorb.aontu`.
 
 ### 11. `hide(pack(...))`: the hide mark leaks onto generated children [critical]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+**Status: FIXED 2026-08-26 (template-clone isolation).**
 A reference defers on a pending type()/hide() wrapper instead of
 cloning the call, so `hide(pack(...))` hides the FIELD exactly as
 `hide({literal map})` does and downstream packs over the hidden
@@ -274,7 +274,7 @@ mark-clearing walk had run — children emitted EMPTY, exit 0.
 Repro: `hide-pack-mark-leak.aontu`.
 
 ### 12. Type-alias references inside `type()` bodies silently drop records [critical]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005), all
+**Status: FIXED 2026-08-26 (template-clone isolation), all
 manifestations.** The inline three-line form emits `use` fully
 unified; the include-crossing shapes emit their records; `id(key(0))`
 resolves; the phantom `mapval_spread_required` is gone. Three
@@ -307,7 +307,7 @@ residue errors. The only spelling giving the correct triple is
 `plain-disjunct-satisfied.aontu`.
 
 
-Status: FIXED 2026-08-27 (ADR-007) — an unresolved disjunction no longer
+Status: FIXED 2026-08-27 — an unresolved disjunction no longer
 FOLDS its members together at generation. Generation answers the
 preferred alternative, or the single surviving one; more than one still
 admitted raises `disjunct_no_gen`, class **incomplete** — so vet's
@@ -329,7 +329,7 @@ enforcement** in every arrangement tried. Repro:
 `mark-drops-required.aontu`.
 
 
-Status: FIXED 2026-08-27 (ADR-007) — vet finds residue by GENERATING the
+Status: FIXED 2026-08-27 — vet finds residue by GENERATING the
 anchored meet, and generation honours the output marks. Under `--at` the
 probe now descends through them (`Ctx.probe` / `AontuContext.probe`): a
 mark is a decision about output, and `--at` names the truth to validate
@@ -348,7 +348,7 @@ never re-fired when data arrives. Repros: `stale-reference.aontu`,
 `stale-reference-branch.aontu`.
 
 
-Status: FIXED 2026-08-27 (ADR-007) — vet evaluated the schema ALONE to
+Status: FIXED 2026-08-27 — vet evaluated the schema ALONE to
 decide whether it stands up, then used that SETTLED tree as the left
 side of the meet, so every reference had already resolved against the
 schema's own values and been replaced by them. The standalone pass
@@ -464,7 +464,7 @@ checked). Repros: `refer-in-type-def.aontu`, `refer-in-type-include.aontu`,
 
 **Status: FIXED 2026-08-27** (the review's finding J). Two halves, and
 they were two defects. The `typed-refer-two-views.aontu` half fell to the
-template-clone isolation work (ADR-005) earlier in this effort. The
+template-clone isolation work earlier in this effort. The
 `inverse-pair.aontu` half — typing BOTH directions of an inverse pair,
 which every real relation has — was the type FLOW re-entering itself:
 `refer(t)` unifies `t` into the target, uniting the target drives the
@@ -753,9 +753,9 @@ hidden pref-disjunction collapses to its effective default). Trigger:
 `gen-hide-pref-self-undecided.aontu`.
 
 
-Status: FIXED 2026-08-27 — two causes, both ADR-004 leftovers. (a) The
+Status: FIXED 2026-08-27 — two causes, both admission-gate leftovers. (a) The
 walk compared a pref MEMBER of a disjunction by its KIND superior, the
-pre-gate reading: under ADR-004 a preferred branch contributes exactly
+pre-gate reading: under the admission gate a preferred branch contributes exactly
 its own value to the admitted set, so `*backward` admits `"backward"`
 and not every string. Every member of the specific side widened to
 `string`, which no general member admits, and the walk answered the
@@ -868,14 +868,14 @@ The family's cross-cutting mechanism — **a relative reference or hole
 re-anchored per clone only when it stood as a whole value or a meet
 operand; nested inside a `+` expression or a call argument it resolved
 at the template's own location** (visible as the `NaN` path segment in
-diagnostics) — is **FIXED 2026-08-26** (template-clone isolation,
-ADR-005): a per-destination instance has every inner path normalised
+diagnostics) — is **FIXED 2026-08-26** (template-clone isolation):
+a per-destination instance has every inner path normalised
 to the destination, so 33, 34, 35a and 35b are closed. §36 and the
 generator-over-spread-augmented-data failure below are closed by the
-spread application rework (ADR-006), which finishes the family.
+spread application rework, which finishes the family.
 
 **Pack over spread-augmented data** (claim C4, use-case 06 gap 6;
-repro `spread-then-pack.aontu`): **FIXED 2026-08-26 (ADR-006).** A
+repro `spread-then-pack.aontu`): **FIXED 2026-08-26.** A
 generator's data argument snapshots its source only once the source
 has SETTLED in the tree (the `argsnap` flag in
 driveStagedArgs/stagedDrive, honoured by RefVal.find), so a
@@ -890,14 +890,14 @@ argument now canons as the still-standing reference — see the notes on
 each-unfired-*/pack-unfired-canon).
 
 ### 33. Relative references in template *expressions* do not re-anchor [major]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+**Status: FIXED 2026-08-26 (template-clone isolation).**
 `b: .a + 1` and `b: upper(.a)` inside a pack template now answer for
 the child exactly as the bare `b: .a` always did. Pinned in both
 engines: `gen-pack.tsv` pack-rel-ref-in-expr, pack-key-in-expr-and-call.
 Repro: `rel-ref-in-expr.aontu`.
 
 ### 34. Nested pack: the inner template's `_` binds to the outer source child [critical]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+**Status: FIXED 2026-08-26 (template-clone isolation).**
 A hole belongs to its nearest enclosing generator: the outer pack's
 fill pass no longer descends into the inner pack's template argument,
 so the inner `_` binds the inner generator's source child
@@ -907,7 +907,7 @@ place-nested-pack-inner-meet, place-hole-as-inner-data.
 Repro: `nested-pack-hole.aontu`.
 
 ### 35. Sibling refs in expressions; hide() swallowing a failure into silent loss [critical]
-**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005), both
+**Status: FIXED 2026-08-26 (template-clone isolation), both
 halves.** (a) The in-expression sibling reference in a spread template
 (`&: {md: "|" + .side_effect}`) now answers per child — pinned by
 `spread.tsv` spread-expr-sibling-ref. Repro: `spread-expr-sibling.aontu`.
@@ -919,7 +919,7 @@ spelling's outcome — better than the minimum surface-the-failure bar)
 Repro: `hide-computed-drop.aontu`.
 
 ### 36. An expression reading the generated child's own fields cannot be merged onto it [major]
-**Status: FIXED 2026-08-26 (the spread application rework, ADR-006) —
+**Status: FIXED 2026-08-26 (the spread application rework) —
 it works: surge is 3.** An operator arriving as a peer-only key is
 CARRIED, never wrapped as an expectation (handleExpectedVal / the
 pcIsOp guard in go/mapval.go): a wrapped op froze — an expectation only
@@ -952,7 +952,7 @@ default hashed identically (use case 07's `probes/default-a.aontu` vs
 `default-b.aontu`). Generation's old member fold hid all of it by folding
 the alternatives together.
 
-Status: FIXED 2026-08-27 (ADR-007) — `(A|B) & *A` is now `*A|B`: after
+Status: FIXED 2026-08-27 — `(A|B) & *A` is now `*A|B`: after
 distribution, a surviving member equal to the preferred value is
 wrapped back as a preference of the peer's rank. `default-a.aontu`
 generates `"1.0"`, canon keeps the `*`, and the two probes hash
@@ -1063,7 +1063,7 @@ Two different fields, one path, printed twice. The sites were right and
 the paths were not, so a repair loop reading `path` — the field the
 report exists to give it — was told to rewrite the whole record, twice,
 instead of the two keys that clash. The two ports disagreed as well
-(Go named the key, TypeScript the record), which is an ADR-001
+(Go named the key, TypeScript the record), which is an ADR-102
 divergence in the user-facing half of the report.
 
 The cause is the same in both ports and older than the reference case.
@@ -1451,7 +1451,7 @@ condition is `0 < ctx.err.length || root.isNil` and the second half is
 exactly this case. All four verbs now report
 `$: id_spread [parse]` and exit 4.
 
-Found while closing the ADR-002 gate on the JSON Schema export: the
+Found while closing the ADR-103 gate on the JSON Schema export: the
 per-caller belt-and-braces guard was deleted as unreachable, which
 turned a wrong-but-safe path into a crash and made the real defect
 visible. Pinned by
@@ -1471,7 +1471,7 @@ because the numbering is cited elsewhere.**
 containing them is **undifferentiated text content**, for exactly the
 reason `port: high` is the string `"high"` — the language never assigned
 those characters a meaning, and
-[ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
+the language's choice of named constraints over operators
 settled that it never will. `port: >=1024` producing `">=1024"` is
 therefore not a silent failure; it is the bare-string rule applying
 uniformly.
@@ -1484,7 +1484,7 @@ argument `timeout: fast` would be a critical defect, which nobody would
 claim. The severity was inherited uncritically from
 `AONTUCONSTRAINTS.0.md` §6, which wrote it when bounds did not exist in
 any spelling and CUE's operators were the proposal on the table; once
-ADR-008 declines that proposal, the premise is gone and the sentence
+the language declines that proposal, the premise is gone and the sentence
 should not have outlived it.
 
 There is consequently **nothing to fix and no repair outstanding**. The
@@ -1561,7 +1561,7 @@ names, both ports:
 | `v.dat` | string | the map | refused |
 | `vnoext` | string | the map | refused |
 
-**THE RULING (ADR-012).** The extension decides, from a fixed table,
+**THE RULING.** The extension decides, from a fixed table,
 and it says which of two things the file is. `.aontu` is aontu
 source. `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`,
 `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` are configuration DATA,
@@ -1575,7 +1575,7 @@ include not readable: notes.txt (extension: .txt)
 
 Both ports run the same parsers, one per format, which is what lets
 these rows be shared at all. `.csv` is deliberately absent: the two
-ports' CSV parsers disagree about what a CSV file is, and ADR-001 does
+ports' CSV parsers disagree about what a CSV file is, and ADR-102 does
 not admit that.
 
 JSON reads as data because it IS data. That is what unblocks
@@ -1592,7 +1592,7 @@ through to multisource's default, which hands the file back as raw
 TEXT; `go/source.go`'s `msOptions` also registered the empty kind `""`,
 the fallback for an unrecognised extension, so Go parsed everything as
 aontu source. Either rule is defensible; having both is not, and
-ADR-001 says so.
+ADR-102 says so.
 
 *(b) The crash.* `.json` is the one extension with an upstream default
 processor, which returns a plain JS object where the aontu grammar
@@ -1637,7 +1637,7 @@ extension, not only `.json`.
 ## key() — the enclosing key at a generated or referenced position
 
 ### 50. A spread template's `key()`, read through a reference four levels down, refuses in TypeScript and answers in Go [FIXED 2026-08-30]
-Found by removing `.$KEY` (ADR-009): the only test covering this shape
+Found by removing `.$KEY`: the only test covering this shape
 used that spelling, which took the RefVal path and never reached the
 divergence. Translating it to `key()` surfaced this immediately.
 
@@ -1715,7 +1715,7 @@ Repro:
 [`repros/key-func/spread-key-through-deep-ref.aontu`](repros/key-func/spread-key-through-deep-ref.aontu).
 
 ### 51. `key()` is late-bound and `.$KEY` was early-bound — a translation is not always value-preserving [by design, recorded]
-Not a defect. Recorded because ADR-009 asks every `.$KEY` in an existing
+Not a defect. Recorded because the removal of `.$KEY` asks every `.$KEY` in an existing
 document to be rewritten as `key()`, and in three shapes that rewrite
 CHANGES THE VALUE — always from the wrong answer to the right one, but
 a change:
@@ -1977,7 +1977,7 @@ with nothing said: flag, no loss), `js-deprecate-msg-is-a-loss`, and
 it would require; the use-case's own eight checks are unchanged and
 still pass.
 
-Superseded 2026-10-01 by G12 phase 8 (ADR-052): the record's
+Superseded 2026-10-01 by G12 phase 8: the record's
 `msg`/`use`/`since` now cross in the extension keyword
 `x-aontu-deprecate` beside `deprecated: true`, which a validator
 ignores and the importer reads back, so nothing is lost and `--strict`
@@ -2053,7 +2053,7 @@ written INSIDE a recursive definition is evaluated at the definition
 rather than per instance, so `up: upper(.name)` in
 `hide({T: {name: string, up: upper(.name), kids?: [&: $.schema.T]}})`
 refuses with `[aontu/invalid-arg]` at `$.schema.T.up`, `.name` having
-resolved to `string`. Per-destination instantiation (ADR-005) reaches
+resolved to `string`. Per-destination instantiation reaches
 `pack` templates and `&:` spreads but not recursive expansion.
 
 Diagnosed 2026-08-30, still open. Two corrections to the account
@@ -2183,7 +2183,7 @@ exactly as before. Go does not re-meet at a position the way the
 TypeScript trace above does at `d.kids.0.kids.0` (#3, #4, #5); it
 descends straight into the synthetic `kids` chain, a new position each
 time. The change was reverted rather than landed: a guard that fixes
-one port and no-ops in the other is the divergence ADR-001 exists to
+one port and no-ops in the other is the divergence ADR-102 exists to
 prevent.
 
 What the failure buys is a sharper reading of the same diagnosis. The
@@ -2362,7 +2362,7 @@ takes no `--at` at all. So it is vet's anchor, not every anchor.
 The direction matters. Go REFUSES a document TypeScript ACCEPTS, so a
 pipeline running the Go CLI fails builds the canonical implementation
 passes — and `vet` is the verb whose whole purpose is to be that gate
-(ADR-007, and the `vet ≡ eval` differential in
+(the `vet ≡ eval` differential in
 [`docs/contributing/testing.md`](../docs/contributing/testing.md#the-vet--eval-differential)). It is in no
 debt register: not here, not
 [`test/spec/divergent.tsv`](../test/spec/divergent.tsv), not
@@ -2523,7 +2523,7 @@ with its `-2` and `-longhand` companions.
 
 ### 95. A refer residual drops the conjunct it was declared with [FIXED 2026-09-13]
 
-Found 2026-09-12, auditing the module system. **An ADR-001 divergence
+Found 2026-09-12, auditing the module system. **An ADR-102 divergence
 on the pin itself** — the first the parity ledger has carried on the
 hash form — and one defect of the pair is in BOTH ports.
 
@@ -2566,7 +2566,7 @@ it as a second `refer()`. A residual must never hold an unresolved
 call; the call drives, and the residual meets what it becomes.
 
 **Why it mattered.** The canon-hash is the module system's second pin,
-and ADR-019 makes checking it mandatory rather than optional, so a
+and ADR-110 makes checking it mandatory rather than optional, so a
 lockfile written by one port failed the other's `mod verify` over an
 untouched store — for exactly the shape a schema of ordered,
 refusal-naming steps has. Neither CI matrix saw it: `hcanon.tsv`
@@ -2639,7 +2639,7 @@ do not.
 **The fix is one line; its blast radius is not.** `go/pref.go` calls
 the same `trialUnify` three times (`:158`, `:200`, `:227`) for the
 `*x & peer` distribution, so setting the flag there changes every
-default meet in Go — ADR-004 and ADR-011 territory, with ~190 lines of
+default meet in Go — admission-gate and star-sugar territory, with ~190 lines of
 `test/spec/pref.tsv` behind it. That the suite is green today means it
 does not cover this, not that the change is small: **pref-side rows
 for a trial peer of a different length should land before the fix
@@ -2663,7 +2663,7 @@ contained, once the rows that cover it existed.
 Pins: `test/spec/pref.tsv` -- `pref-struct-list-default-shorter-peer`,
 `-longer-peer`, and `-same-length`, `-same-length-one`,
 `-spread-peer` for the boundary (same length still merges leafwise,
-which is ADR-011 R3, and a spread makes the pattern variadic so length
+and a spread makes the pattern variadic so length
 stops being the question). `test/spec/gen-match.tsv` --
 `match-list-longer-scrutinee-misses`, `-one-vs-empty-misses`,
 `-same-length-hits`, `-spread-pattern-hits`.
@@ -2722,7 +2722,7 @@ order-insensitively, so `pick` is the only observable divergence.
 projection — the primitive that turns a bag of records into an ordered
 list of generated lines, and the one a code generator leans on for
 exactly that. Two ports, two orders, means one model producing two
-different generated files: an ADR-001 break in the primitive the
+different generated files: an ADR-102 break in the primitive the
 generation story depends on.
 
 Status: FIXED 2026-08-30 — `bagChildren` sorts with `cmpCodePoint`,
@@ -3263,14 +3263,14 @@ the leading-`//` line silently converting a document into a list and
 dropping every following key (exit 0); `@"file.json"` includes yielding
 `{}` silently at top level and a raw TypeError nested; the
 `DisjunctVal` generation chimera (`({x:1}|{y:2}) & {z:3}` → merged
-map, **FIXED 2026-08-27 by ADR-007** -- see §13); canon not
+map, **FIXED 2026-08-27** -- see §13); canon not
 round-tripping constraint residuals
 (`a: min(true)` → `constraint()`); the `$KEY`-in-default and
 `$KEY`-with-referenced-shape resolution bugs that podmind's models
-carry workarounds for (**RETIRED 2026-08-28 by ADR-009**, which removed
+carry workarounds for (**RETIRED 2026-08-28**, which removed
 the spelling entirely — `key()` is the replacement, and the
 referenced-shape one was the early-binding difference §51 records);
-`why`'s tutorial mismatch; and the ADR-002
+`why`'s tutorial mismatch; and the ADR-103
 coverage gate itself flaking red on an untouched tree
 (`ListVal.ts:206-207` branch arms) during this PR's own CI runs.
 
@@ -3383,7 +3383,7 @@ comment now names this entry rather than only gap 6. Fix: settle the
 alias reference before the spread template is applied, or let the
 relative-argument constraint take one more round after it. Whichever
 port is right, they must agree — a document that generates in one and
-refuses in the other is the failure ADR-001 exists to prevent.
+refuses in the other is the failure ADR-102 exists to prevent.
 
 ### 73. An alias inside a spread template leaks into canon as `$.%Name`, and moves the hash [major]
 
@@ -3465,7 +3465,7 @@ it must stay for the resolver, hide it from the anchor walk the way a
 ### 75. An include's ROOT value gets a different site in each port [minor]
 
 Found 2026-09-03 by the per-verb include-options probe. The ports
-diverge, so this is an ADR-001 break rather than a shared defect.
+diverge, so this is an ADR-102 break rather than a shared defect.
 
 The value an `@"file"` expression produces directly — `$.doc` for
 `doc: @"./doc.md"` — is stamped differently:
@@ -3681,7 +3681,7 @@ Repro:
 ### 80. A refusal deep in an alias-of-disjunction vocabulary reports `|:trial-nil` in TypeScript and `empty` in Go [major]
 
 Found 2026-09-05 while pinning `@"aontu:code"` (RENDER.0.md P1). An
-ADR-001 divergence in the CODE of a refusal both ports agree on.
+ADR-102 divergence in the CODE of a refusal both ports agree on.
 
 ```aontu
 @"aontu:code"
@@ -3763,7 +3763,7 @@ twin), or give the knot a path spelling. `test/spec/alias.tsv` records
 the knot in prose and pins generation only; no canon row can pin it,
 because every canon row must reparse.
 
-Changed 2026-10-09 (ADR-062): every reference to a recursive alias
+Changed 2026-10-09: every reference to a recursive alias
 keeps its name now, not only the one that closes the cycle, since
 which reference closed it depended on resolution order and the ports
 resolve in different orders. The canon above is now
@@ -3849,7 +3849,7 @@ fields never sees `email` or `creditLimitCents`, and the rendered
 interface lacks them. Both ports agree (`xf-domain.aontu` renders the
 same 492 bytes from each). The rule is right for data, where an
 unfilled optional is absent by definition, and wrong for a schema
-walk, where the key IS the fact. ADR-023's answer -- a transform
+walk, where the key IS the fact. The renderer's answer -- a transform
 states its schema facts as data -- covers optionality only for keys
 the walk can reach, and these it cannot. Repro:
 `repros/hide/optional-schema-key-is-not-a-member.aontu`. Fix, if one is
@@ -3867,7 +3867,7 @@ in how the schema site's value is written.
 ### 87. A refusal site in the `aontu:code` vocabulary spells its nested aliases inline in TypeScript and by name in Go [minor]
 
 Found 2026-09-06 while landing the renderer's declaration lowering
-(RENDER.0.md P5). An ADR-001 divergence in the TEXT of a site both
+(RENDER.0.md P5). An ADR-102 divergence in the TEXT of a site both
 ports agree on. A `record` whose `check` list holds a shape no
 `%check` arm admits is refused at `$.aontu.Code.units.0.decls.0` as `empty`
 in both ports, with the same two sites -- the data at its position,
@@ -3902,7 +3902,7 @@ differently when the key is absent.
 
 Found 2026-09-06 while writing `test/system/rb-solar`'s migration
 generator. Both ports agree with each other, so this is not an
-ADR-001 divergence — it is one feature family answering one question
+ADR-102 divergence — it is one feature family answering one question
 two ways.
 
 ```
@@ -4035,8 +4035,8 @@ l: [&: $.ent.U]
 against `{"l":[{"e":"b1"},{"e":"g"},{"e":"b2"}]}`, TypeScript reported
 BOTH findings at `$.l.0.e` and Go reported both at `$.l.2.e`.
 
-**Why.** A reference's copy is a per-destination instance — ADR-005's
-rule, which the spread and the generators already obey — but the
+**Why.** A reference's copy is a per-destination instance — the
+rule which the spread and the generators already obey — but the
 ref-resolution clone was the shallow one, which shares a call's
 ARGUMENTS. So all three elements held the one `close()` argument map,
 each rebased its path as it resolved, and the constraint inside
@@ -4044,7 +4044,7 @@ carried whichever element had touched it first (TypeScript, whose
 resolution set the path once) or last (Go). Repro:
 `repros/site-attribution/refarg-list-index.aontu`.
 
-Status: FIXED 2026-09-07 (ADR-025) — a reference's copy owns its
+Status: FIXED 2026-09-07 — a reference's copy owns its
 arguments, unless the target holds a STAGED call, which has not
 decided and whose arguments are still being driven at its own site.
 `use-cases/03-api-contract` drops the gap-8 workaround and pins
@@ -4103,15 +4103,15 @@ x: { k: "a", n: ["p"] + ["q"] }
 **Why.** `ListVal.unify` (and `ScalarKindVal.unify`) refuse an op whose
 operand is a STAGED call: the op has not computed yet, and the kind
 reads it as a value it cannot admit.
-[ADR-037](../ADR.md#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent)
+List concatenation
 put every op above the kinds in the conjunct order (`cjo` 48000),
 which is what makes the top-level lines hold. A map's per-key meet
 does not go through that order, so it still reaches the kind first.
 
-**Not caused by ADR-037.** The string spelling fails identically —
+**Not caused by list concatenation.** The string spelling fails identically —
 `x: {k:"a", n:string}` against `x: {k:"a", n:"p" + join(["q"],"")}`
 is `[aontu/not-scalar-type]` — and predates list concatenation
-entirely. What ADR-037 changed is how visible the shape is: a written
+entirely. What list concatenation changed is how visible the shape is: a written
 head concatenated onto a generated tail is now the way to write a
 generated section, and `{k:"frag", n:["head"] + emit(…)}` under
 `aontu:code`'s schema is exactly this refusal. Repro:
@@ -4177,8 +4177,7 @@ at `$`; pinned by `load-root-json-list`.
 ### 94. Absence under a schema-constrained list is refused, not dropped [FIXED 2026-09-28]
 
 `maybe()` drops out of a plain list without leaving a hole, which is
-[ADR-034](../ADR.md#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made)'s
-rule. Put a spread on the same list and it is refused instead, and the
+absence's rule. Put a spread on the same list and it is refused instead, and the
 refusal differs with the SHAPE of the template:
 
 ```
@@ -4215,7 +4214,7 @@ right falls out of the decision below and cannot be settled ahead of
 it.
 
 **Why it matters.**
-[ADR-037](../ADR.md#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent)
+List concatenation
 made a sum of an absence absent so a heading would vanish with the rows
 it heads, and §92 (fixed) made that spelling reach `aontu:code`. What
 is still out of reach is the OTHER spelling: an optional member written
@@ -4227,7 +4226,7 @@ away with the tail, which is the operator rule working as decided.
 **Why.** The spread applies to a member that has not decided yet: at
 that moment the element is a pending `maybe(…)` call, not an absence,
 so the template folds into it. When the call answers absence the
-template is already there, and absence is the unit of `&` (ADR-034), so
+template is already there, and absence is the unit of `&`, so
 the template stands and a template does not generate. Marking the
 spread's per-member clone so the absence ABSORBS it fixes the scalar-
 kind case and no other: a disjunction, a map and a `close()` each reach
@@ -4236,15 +4235,14 @@ the marked clone at all. **Verified by instrumenting
 `AbsentVal.unify`** — it is never called for the disjunction case.
 
 **What it needs is a decision, not just a patch.** Absence is the unit
-of `&` by ADR-034. A spread wants it to ABSORB instead, because a
+of `&`. A spread wants it to ABSORB instead, because a
 spread narrows the members that are there and an absent one is not.
 Those two rules meet in every container template, and which one wins
-where is a language question ADR-034 did not settle. Recognising
+where is a language question nothing had settled. Recognising
 absence before the spread applies means deferring the spread until the
 member has decided, which changes when a template is folded.
 
-Status: FIXED 2026-09-28, both ports, by
-[ADR-043](../ADR.md#adr-043--a-container-template-waits-for-a-member-that-has-not-decided):
+Status: FIXED 2026-09-28, both ports:
 a container template waits while a member is a pending `maybe(...)`,
 applies once it answers a value, and never applies to an absence. Every
 shape in the table above now drops the member, the disjunction parity

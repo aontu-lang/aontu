@@ -30,6 +30,8 @@ with a real package.
 - [What pkg.aontu declares](#what-pkgaontu-declares)
 - [Names and versions](#names-and-versions)
 - [Where a module resolves from](#where-a-module-resolves-from)
+- [What a lock pins](#what-a-lock-pins)
+- [What a publish proves](#what-a-publish-proves)
 - [The caps](#the-caps)
 - [What an archive may hold](#what-an-archive-may-hold)
 - [Refusals](#refusals)
@@ -168,6 +170,54 @@ The cache directory is the first of these that applies:
 | `HOME` is set | `$HOME/.cache/aontu/pkg` |
 | Windows, and `LOCALAPPDATA` is set | `%LOCALAPPDATA%\aontu\pkg` |
 | none of those | there is no cache, and the vendor tree is the only store |
+
+## What a lock pins
+
+An entry in `aontu_meta/pkg-lock.aontu` pins one package three ways,
+and each pin catches what the other two miss:
+
+| pin | what it holds | what it catches |
+|---|---|---|
+| `canon` | the canon-hash of the module, evaluated standalone | a change of meaning, whatever the bytes |
+| `archive` | the digest of the canonical archive of the package's tree | a changed, added or removed file, whatever it means |
+| `manifest` | the digest of the signed manifest, for a package acquired from a repository | a manifest other than the one first accepted |
+
+A byte pin alone misses a change of meaning, and a meaning pin alone
+misses a tampered file. Together they check a vendored or mirrored
+tree with no network. `aontu sync` and `aontu pkg verify` check all
+three, the bytes before the meaning. An import checks the canon pin
+alone, the one pin evaluation can check by itself.
+
+The canonical archive is a zip with one form: entries sorted by path,
+stored uncompressed, dated to the zip epoch, with no attributes, extra
+fields or comments. One tree has one archive digest in both
+implementations. A consumer refuses an archive in any other form with
+`archive_not_canonical`, before extracting it.
+
+A change to the engine's canonical form changes canon-hashes without
+changing a byte. `aontu pkg refreeze` recomputes every canon pin for
+it, and changes nothing else.
+
+## What a publish proves
+
+The write path admits a publish on the forge's OpenID Connect token,
+which it verifies against the forge's published keys. It reads the
+namespace, the forge's stable identifier pair, and the trigger from the
+token, and the manifest carries the token's claims as `publisher`.
+
+On first acquiring a version, a consumer checks three things, stated
+in the package system's own terms rather than a provider's:
+
+1. A signed manifest that names the archive digest, the file list, and
+   the canon-hash of each module.
+2. A signer that the `repo.trust` entry matching the name accepts.
+3. Where that entry requires it, a proof that a transparency log in the
+   `tlog-tiles` format includes the manifest.
+
+A signature by a named Ed25519 key is one provider of that proof, and
+a signing identity the forge proves through Sigstore is another.
+Leaving a provider changes who signs, not what a consumer checks, so
+neither a build nor the verification of a stored proof stops with it.
 
 ## The caps
 

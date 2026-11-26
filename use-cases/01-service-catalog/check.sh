@@ -208,7 +208,7 @@ ok "proposal: a dangling dependsOn address refused by relate()"
 # generated `owner`; the matrix is in partition order with the closure
 # marked, so an acyclic relation is a lower triangle. The loss report
 # on stderr carries nothing but the crossing count of the emitted
-# order: since ADR-014 a node is its path, so nothing is declared
+# order: a node is its path, so nothing is declared
 # twice and no edge is collapsed.
 run graph 0 -- view graph --relation dependsOn --group-by owner "$DIR/system.aontu"
 diff -u "$DIR/expected/diagram-graph.mmd" "$WORK/graph.out" \

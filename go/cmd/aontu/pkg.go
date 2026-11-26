@@ -465,7 +465,7 @@ func modelSubAt(argv []string) int {
 	return -1
 }
 
-// One document, interrogated or edited (ADR-039 part 5).
+// One document, interrogated or edited.
 func runModel(argv []string, stdout, stderr io.Writer) int {
 	sub := ""
 	if 0 < len(argv) {

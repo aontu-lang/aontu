@@ -53,7 +53,7 @@ load-not-found-list	err	a:[ @"nope-no-such-file" ]	source not found: nope-no-suc
 load-not-found-in-loaded-member	err	@"__FIXTURES__/nest_missing.aontu"	source not found: ./no-such-child
 load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aontu"	source not found: ./no-such-child-val
 
-# TYPE-MARKED ALIASES ACROSS AN INCLUDE (ADR-005, 2026-08-26;
+# TYPE-MARKED ALIASES ACROSS AN INCLUDE (2026-08-26;
 # use-cases/BUGS.md §12, the include-alias-* repros). A type()d schema
 # referencing a type()d named alias behaved correctly inline but,
 # crossing an @"..." include, silently DROPPED the applied data record
@@ -68,7 +68,7 @@ load-alias-spread	gen	@"__FIXTURES__/alias_schema.aontu" customers:{&:$.schema.C
 load-alias-keyspread	gen	@"__FIXTURES__/alias_schema.aontu" customers:{&:{name:key()}&open($.schema.C)} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5,"name":"c1"}},"schema":{}}
 load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aontu" c1:$.C&{a:5}	{"c1":{"a":5}}
 
-# WHAT AN INCLUDE'S EXTENSION MEANS (ADR-012; use-cases/BUGS.md §49).
+# WHAT AN INCLUDE'S EXTENSION MEANS (use-cases/BUGS.md §49).
 # One rule, in both ports. The extension says which of TWO things the
 # file is:
 #
@@ -147,7 +147,7 @@ load-ext-ini	gen	x:@"__FIXTURES__/conf.ini"	{"x":{"host":"local","port":"8080"}}
 # two ports' CSV parsers disagree about what a CSV file even IS -- one
 # answers header-keyed records with string fields, the other raw rows
 # including the header, with numbers parsed -- so admitting it would
-# admit a divergence, which ADR-001 does not allow. See ADR-012.
+# admit a divergence, which ADR-102 does not allow. See the include table in docs/reference-language.md.
 load-ext-csv	err	x:@"__FIXTURES__/conf.csv"	include not readable
 load-ext-none	err	x:@"__FIXTURES__/noext"	include not readable
 # The extension is NAMED, because the extension is the whole reason.

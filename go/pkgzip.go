@@ -12,7 +12,7 @@ import (
 	"strconv"
 )
 
-// THE CANONICAL ARCHIVE (ADR-039 part 7): entries sorted by path,
+// THE CANONICAL ARCHIVE: entries sorted by path,
 // stored uncompressed, dated to the zip epoch, no attributes, extra
 // fields or comments. One tree has one digest in both ports, which a
 // compressor could not promise. The reader refuses anything the writer

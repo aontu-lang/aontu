@@ -79,7 +79,7 @@ infrastructure around the lattice, not syntax on top of it.
 > lockfile is a private memory — what makes the FIRST pinning of it
 > public and auditable? It is the one gap that admits a service the
 > project must operate, which
-> [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
+> [ADR-013](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
 > permits once and bounds.
 > [G11](g11-agent-onramp.md) was opened on 2026-09-09 and asks the
 > question [G7](g7-machine-access.md) did not: G7 settled whether an
@@ -425,7 +425,7 @@ Checked against this repository at review time (TS v0.49.0 line).
   ("Treat opening an untrusted source as reading your disk").**
 - ~~Disjunct generation has a known distribution defect, acknowledged in
   a code comment (`ts/src/val/DisjunctVal.ts`).~~ **Fixed by
-  [ADR-007](../../ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does)
+  [ADR-007](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does)
   (2026-08-27): an unresolved disjunction is not a value, so its
   members are never folded; `a: ({x:1}|{y:2}) & {z:3}` is
   `disjunct_no_gen` in both ports, and the comment is gone

@@ -20,7 +20,7 @@ the two imports to be one value: canon for canon, the root's
 annotations included, and subsuming each other both ways where their
 hashes differ. This is the round trip the
 official suite's groups pass in `ts/test/jsonschema-roundtrip.test.ts`
-and `go/jsonschema_roundtrip_test.go` (ADR-068).
+and `go/jsonschema_roundtrip_test.go` (ADR-109).
 
 `roundtrip.tsv` is the ledger: one row per schema that does not come
 back, naming the construct it waits on and the reason, in the columns

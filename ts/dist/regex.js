@@ -7,7 +7,7 @@ exports.patternMatches = patternMatches;
 exports.exportForm = exportForm;
 exports.importForm = importForm;
 exports.ecmaWhy = ecmaWhy;
-// aontu's own pattern matcher (ADR-060): an ECMA-262 u-mode parser, a
+// aontu's own pattern matcher (ADR-105): an ECMA-262 u-mode parser, a
 // compiler to a Pike VM, and the VM, which reads each code point of a
 // text once and never goes back, so a match costs at most the text's
 // length times the program's. Twin of go/regex.go.

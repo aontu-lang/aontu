@@ -178,7 +178,7 @@ grep -q 'seneca.listen({type:.sqs.,pin:.PIN.})' "$WORK/handler.aontu" \
   }
 ok "the template form renders the same thirteen units, round-trips, and parses"
 
-# 11. ADR-001: the Go port renders the same bytes, and refuses the same
+# 11. ADR-102: the Go port renders the same bytes, and refuses the same
 # template.
 if command -v go >/dev/null 2>&1; then
   GOBIN="$WORK/aontu-go"
@@ -188,7 +188,7 @@ if command -v go >/dev/null 2>&1; then
     || fail "the Go port did not build the tree"
   $AONTU model get out --trust root "$DIR/gen.aontu" 2>/dev/null > "$WORK/ts.json"
   diff -u "$WORK/ts.json" "$WORK/go.json" \
-    || fail "the two ports build different trees (ADR-001)"
+    || fail "the two ports build different trees (ADR-102)"
   "$GOBIN" "$DIR/bad/overlap.aontu" >"$WORK/go-overlap.out" 2>&1 \
     && fail "the Go port accepted the overlapping keys" || true
   grep -qF '[aontu/replace_overlap]' "$WORK/go-overlap.out" \
@@ -197,12 +197,12 @@ if command -v go >/dev/null 2>&1; then
   "$GOBIN" trace --format json "$DIR/gen.aontu" 2>/dev/null > "$WORK/trace-go.json" \
     || fail "the Go port's trace did not run"
   diff -u "$WORK/trace.json" "$WORK/trace-go.json" \
-    || fail "the two ports disagree about the trace (ADR-001)"
+    || fail "the two ports disagree about the trace (ADR-102)"
   ok "the Go port records the same trace, entry for entry"
   "$GOBIN" template --check "$DIR/handler.ts" \
     || fail "the Go port does not agree the round trip is a fixpoint"
   diff <("$GOBIN" template "$DIR/handler.ts") "$WORK/handler.aontu" \
-    || fail "the two ports desugar the template differently (ADR-001)"
+    || fail "the two ports desugar the template differently (ADR-102)"
   ok "the Go port desugars and renders the template form identically"
 else
   skip "the Go port renders the same thirteen units (no go toolchain)"

@@ -151,7 +151,7 @@ type base struct {
 	genopts map[string]any
 	// vias: the aliases this value is a copy of, written back as $ref.
 	vias []string
-	// ident: a declaration's record (ADR-056, ADR-073), which no copy carries.
+	// ident: a declaration's record, which no copy carries.
 	ident map[string][]Val
 	// decl: the graph atoms met here, which the relation checks read by key name.
 	decl    *declRecord

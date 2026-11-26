@@ -3,7 +3,7 @@
 # a constraint atom cannot share a field (probes/default-with-bounds.aontu,
 # the phase-1 conjunct limit).  Since 2026-08-26 the OTHER reason is
 # gone: a bound inside a disjunction branch is enforced on override
-# (the preference admission gate, ADR-004 -- probes/bound-bypass.aontu
+# (the preference admission gate -- probes/bound-bypass.aontu
 # now pins the refusal), so branch-spelled bounds could live in
 # platform.aontu; these stay here for the conjunct-spelled ones.
 # Against concrete rendered data the atoms compose cleanly.

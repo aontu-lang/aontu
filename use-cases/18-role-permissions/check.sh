@@ -357,7 +357,7 @@ has why out '$.roles.dev.deny.0 = "$.services.*.tier"'
 has why out 'roles.aontu:20:12'
 ok "why on the deciding entry names roles.aontu and the line"
 
-# 20. ADR-001: the Go port answers the same reports, byte for byte. The
+# 20. ADR-102: the Go port answers the same reports, byte for byte. The
 # text report, the undeclared role, the JSON report, a moved anchor and
 # a broken role model, each diffed against what the TypeScript CLI
 # printed above.

@@ -7,15 +7,14 @@ import Aontu.Admits
 in `spec/Aontu/Admits.lean`: a trial reads the branches that refuse a
 value as well as those that admit it, which the second answer of the
 one relation gives it without a negation. What the decisions say of
-them is proved here: `must(c, m)` asks what `nof(1, c)` asks (ADR-055);
+them is proved here: `must(c, m)` asks what `nof(1, c)` asks;
 `nof(0, c)` is the complement of `c`, which is how JSON Schema's `not`
-crosses into aontu (ADR-049); a conditional holds a value to the
+crosses into aontu; a conditional holds a value to the
 branch its condition picks, `when(c, nil)` refusing every value `c`
-admits (ADR-050); `contains(c, n)` counts the members `c` admits, none
-in an empty container, and refuses a scalar, which has no members
-(ADR-051); and `rest(t, c₁, …)` admits a scalar, which has no members,
-and with `nil` and no cover admits a container only where it has none
-(ADR-058).
+admits; `contains(c, n)` counts the members `c` admits, none
+in an empty container, and refuses a scalar, which has no members;
+and `rest(t, c₁, …)` admits a scalar, which has no members,
+and with `nil` and no cover admits a container only where it has none.
 -/
 
 namespace Aontu

@@ -11,7 +11,7 @@ behaviour. Each row is one test case; both `ts/test/spec.test.ts` and
 
 One file is not rows: `test/spec/signature.tsv` is the DECLARED call
 surface of the built-in functions (sketch/SIGNATURES.0.md,
-ADR-017), one signature line per builtin, parsed by both ports'
+ADR-102), one signature line per builtin, parsed by both ports'
 tabnas grammars (`ts/src/sig.ts`, `go/sig.go`). Both runners skip it;
 its gates are the round-trip suites (`ts/test/sig.test.ts`,
 `go/sig_test.go`). After editing it run `make sig` to regenerate the
@@ -53,7 +53,7 @@ they live; the trio has to keep passing its own `check.sh`, which both
 suites run.
 
 **The same arrangement, for the built-in models.** The models the
-`aontu:` scheme serves ([ADR-036](../../ADR.md#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port))
+`aontu:` scheme serves ([ADR-107](../../ADR.md#adr-107--language-supplied-models-are-aontu-modules))
 are real files under [`aontu/`](../../aontu/), each named by its path after
 the scheme — `aontu/lang/text.aontu` is `aontu:lang/text`. A
 file named after the directory holding it collapses, so
@@ -114,7 +114,7 @@ engine codes must land with a registry row in the same change.
 ## The standard run and the sampled groups
 
 Before a push, `make quick` runs the comment gate, both builds, the
-gate group and the Go suite, inside two minutes (ADR-071). Local
+gate group and the Go suite, inside two minutes. Local
 testing stops at a few minutes
 ([DEV-PROCESS.md](../../DEV-PROCESS.md#testing)): `make quick`, the
 shared rows or tests of what the change touches, in both ports
@@ -124,7 +124,7 @@ pages changed and `make spec` where `spec/` changed. The rest below
 belongs to the daily CI: it is not run locally before a push or a
 merge, and nothing waits on it.
 
-CI is two workflows (ADR-070). `build.yml`, the standard run, runs on
+CI is two workflows. `build.yml`, the standard run, runs on
 every push and pull request, on Linux, in about three minutes and
 never more than five: the
 happy path (both builds, a tree that does not change under `make
@@ -247,7 +247,7 @@ sits a check that asks whether the two SURFACES agree:
 give the same accept/reject answer. Their *reports* legitimately
 differ — vet names roles and sites across two documents, eval raises
 the first failure — but a document the gate accepts must evaluate, and
-one it refuses must not (ADR-007).
+one it refuses must not.
 
 Its corpus is the spec itself, so **adding a `vet` row adds a
 differential case for free**, and a change that makes the gate and the
@@ -333,7 +333,7 @@ design and is listed in
 [`annotations/skips.tsv`](../../test/vectors/jsonschema/annotations/skips.tsv),
 under the same three rules and its own bound.
 
-The round trip of [ADR-068](../../ADR.md#adr-068--an-import-comes-back-from-its-own-export)
+The round trip of [ADR-109](../../ADR.md#adr-109--json-schema-crosses-by-rewrite-and-comes-back-from-its-own-export)
 runs in two more pairs of runners:
 [`ts/test/jsonschema-roundtrip.test.ts`](../../ts/test/jsonschema-roundtrip.test.ts)
 and [`go/jsonschema_roundtrip_test.go`](../../go/jsonschema_roundtrip_test.go)

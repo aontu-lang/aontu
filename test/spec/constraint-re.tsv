@@ -1,5 +1,5 @@
 # The constraint algebra: pattern membership (G1 phase 2), matched by
-# aontu's own engine (ADR-060). Promoted from
+# aontu's own engine (ADR-105). Promoted from
 # test/spec/draft/constraint-re.tsv; every expectation below was probed
 # through BOTH engines, per the parity-probe rule in AGENTS.md. Normative
 # design: docs/reference-language.md, "The constraint algebra".
@@ -157,7 +157,7 @@ re-property-unclosed	errc	a:re("\\\\p{L")&"x"	constraint_pattern
 re-property-without-braces	errc	a:re("\\\\pL")&"x"	constraint_pattern
 re-property-class-in-a-range-refused	errc	a:re("[\\\\p{L}-z]")&"x"	constraint_pattern
 #
-# THE ABBREVIATIONS ARE aontu's (ADR-003). aontu DEFINES what each one
+# THE ABBREVIATIONS ARE aontu's (ADR-105). aontu DEFINES what each one
 # means, and its matcher applies the definitions, so no host's reading
 # is inherited:
 #   \\d [0-9]   \\w [0-9A-Za-z_]   \\s [ \\t\\n\\r\\f\\v]   . [^\\n]

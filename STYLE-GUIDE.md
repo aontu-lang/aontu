@@ -62,7 +62,7 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 5540 alerts across 93 files. Two of them turn on a reason
+a clean run: 5567 alerts across 94 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
@@ -125,7 +125,7 @@ published:
 | Internal | `ADR.md`, `sketch/`, `sketch/capability-review/`, `admin/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
 
 **A published page never cites an internal one.** Not as a link, not
-as a parenthetical, not as a bare token. `(ADR-004)` after a rule tells
+as a parenthetical, not as a bare token. `(ADR-104)` after a rule tells
 a reader nothing they can act on: the decision record argues a choice
 already made, and the rule it decided is what the page is for. State
 the rule and stop.

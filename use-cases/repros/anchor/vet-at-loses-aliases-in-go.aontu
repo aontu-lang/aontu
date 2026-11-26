@@ -1,5 +1,5 @@
 # 59: `vet --at <path>` loses %alias references in the GO port. An
-# ADR-001 parity break: the two engines return OPPOSITE VERDICTS and
+# ADR-102 parity break: the two engines return OPPOSITE VERDICTS and
 # opposite exit codes for the same schema and the same data.
 #
 # This file is the SCHEMA. The data is its `-data` companion.

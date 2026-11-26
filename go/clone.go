@@ -292,6 +292,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 	case *ConjunctVal:
 		out := newConjunct(nil)
 		out.dc = n.dc
+		out.own = n.own
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {
@@ -314,8 +315,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		}
 		// `narrowed` rides with it: it is the override space the meets
 		// so far have left, and resuper() reapplies it whenever the gate
-		// is recomputed. Dropping it widened a pinned default back out
-		// (ADR-011 R1).
+		// is recomputed. Dropping it widened a pinned default back out.
 		out := &PrefVal{peg: peg, superpeg: n.superpeg,
 			narrowed: n.narrowed, alone: n.alone, rank: n.rank}
 		out.dc = n.dc

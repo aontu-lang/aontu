@@ -1076,6 +1076,23 @@ one from 0.6, so Go takes the token when the pins rise. The
 difference is registered in
 [DIVERGENCE.md](../DIVERGENCE.md#structural-divergences).
 
+Progress on 2026-11-25. LS9 is built: `editors/jetbrains/` holds a
+template for LSP4IJ and a README, and nothing else. The template gives
+the command `aontu lsp`, `cmd /C aontu lsp` on Windows where the npm
+entry point is a shim, and one mapping, the pattern `*.aontu` as the
+language `aontu`. The client carries no grammar: a JetBrains IDE reads
+`editors/vscode` as a TextMate bundle, so the published grammar's one
+copy serves both. `ts/test/editors.test.ts` holds the template to the
+command and the extension the other clients use, and to the fields
+LSP4IJ reads. No JetBrains IDE runs where the client was built, so it
+was checked against the parts of one that do: the template by the
+reader of LSP4IJ 0.30.1, on Linux, macOS and Windows settings; the
+bundle by IntelliJ's TextMate library, build 261.27258.169, which
+found the grammar and coloured a sample; and both servers through
+LSP4J 1.0.0, the protocol library LSP4IJ ships, which read every
+answer of a session alike from each. Opening a file in an IDE, and
+the Windows command on Windows, are still to be tried by hand.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same
@@ -1238,6 +1255,16 @@ that. A test in each port now holds every canon row of the shared
 suite to ADR-080. The wording of a wrong count is corrected in the same change,
 since it would have said `keyed takes one to three arguments`: the
 message now words each interval the signature table declares.
+
+Progress on 2026-11-25. KP2 is written, apart from its row of the
+guide for CUE users, which waits on CG4 as the guide does. The
+reference gains a section, "Key patterns: `keyed`", after the one on
+spreads: what the call holds, its rules for `nil`, several patterns, a
+list, a call outside a spread and a seal, and what canon, the hash,
+`subsume` and the JSON Schema export make of it. A how-to,
+`docs/how-to/hold-keys-to-a-pattern.md`, solves the task in four
+steps, and the pages on spreads and on sealing point to it. Every
+example on both pages is run by the documentation tests.
 
 ### Questions for the ruling on part 4
 

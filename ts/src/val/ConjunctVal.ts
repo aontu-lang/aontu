@@ -46,6 +46,7 @@ class ConjunctVal extends JunctionVal {
   waits = false
   // One step of an `&` chain as the parser read it, no parenthesis around it yet.
   written = false
+  own = false
 
   constructor(
     spec: ValSpec,
@@ -79,6 +80,13 @@ class ConjunctVal extends JunctionVal {
 
     const carried: Val[] = []
     this.peg = norm(this.peg, carried, true === peer.isTop)
+
+    if (true === (peer as any).isData && this.peg.some(sealish)) {
+      const alone = this.apart(peer, ctx)
+      if (undefined !== alone) {
+        return alone
+      }
+    }
 
 
     // Unify each term of conjunct against peer
@@ -184,6 +192,7 @@ class ConjunctVal extends JunctionVal {
     }
     else {
       out = new ConjunctVal({ peg: outvals, mark: { type: newtype, hide: newhide } }, ctx)
+      ; (out as ConjunctVal).own = this.own
       out.site.row = this.site.row
       out.site.col = this.site.col
       out.site.url = this.site.url
@@ -194,7 +203,7 @@ class ConjunctVal extends JunctionVal {
     // A residual still waiting for its definition keeps the meet open.
     out.dc = !open && outvals.every((v: Val) => DONE === v.dc) ? DONE : this.dc + 1
 
-    // A meet flattened in leaves its riders on the whole (ADR-052).
+    // A meet flattened in leaves its riders on the whole.
     for (const c of carried) {
       out = rideOn(ctx, out, c, undefined)
     }
@@ -205,8 +214,22 @@ class ConjunctVal extends JunctionVal {
   }
 
 
+  // A directive's seal covers the place's own terms, not the data's (decision 44): they meet first.
+  apart(peer: Val, ctx: AontuContext): Val | undefined {
+    if (this.peg.some((t: Val) => t.isRef)) {
+      this.own = true
+      const out = this.place(new ConjunctVal({ peg: [this, peer] }, ctx))
+      out.dc = this.dc + 1
+      return out
+    }
+    const bags = this.peg.every((t: any) => sealish(t) || true === t.isMap || true === t.isList)
+    return bags ? unite(ctx, this.unify(top(), ctx), peer, 'cj-apart') : undefined
+  }
+
+
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, spec) as ConjunctVal)
+    out.own = this.own
     return out
   }
 
@@ -253,6 +276,10 @@ function sameTerms(cj: any, t0: Val, t1: Val): boolean {
 
 const bareDirective = (t: any): boolean =>
   (true === t.isCloseFunc || true === t.isOpenFunc) && 0 === t.peg.length
+
+// A bare directive still to fold, or a bag one sealed.
+const sealish = (t: any): boolean =>
+  true === t.isSeal || bareDirective(t) || true === t.dirSealed
 
 function holdsRef(v: any): boolean {
   let found = false
@@ -306,7 +333,7 @@ function norm(terms: Val[], carried: Val[], lift: boolean): Val[] {
 
   let expand: Val[] = []
   for (const t of terms) {
-    if (t.isConjunct) {
+    if (t.isConjunct && true !== (t as any).own) {
       if (rides(t)) {
         carried.push(t)
       }

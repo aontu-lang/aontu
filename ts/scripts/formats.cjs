@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
 // Regenerate the build-time-inlined copies of the committed format
-// grammars (ADR-059) from grammar/format/: ts/src/formatgrammars.ts and
+// grammars (ADR-105) from grammar/format/: ts/src/formatgrammars.ts and
 // go/formatgrammars/. A format is a grammar, <name>.abnf, or a directory,
 // <name>/, of grammars a string meets together, <name>.abnf first; the
 // rules under lib/ are there for any of them to name. Run via `make

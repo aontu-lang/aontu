@@ -69,7 +69,9 @@ beneath it, so children generated inside it are sealed too. Around a
 it, including how an inner `open()` holds one level open. A list
 under the seal is fixed in length unless an element template `[&: T]`
 declares its elements: see [constrain every element of a
-list](constrain-list-elements.md).
+list](constrain-list-elements.md). To let in the keys a pattern
+matches and refuse the rest, see [hold keys to a
+pattern](hold-keys-to-a-pattern.md).
 
 The semantics are specified in [Closed values: `close` /
 `open`](../reference-language.md#closed-values-close--open).

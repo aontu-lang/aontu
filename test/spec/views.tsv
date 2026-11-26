@@ -4,7 +4,7 @@
 #
 # Four columns: name, views, src, expect. The options ride
 # `expect.ask` -- `views` names the path of the map that declares the
-# figures, which is the AUTHOR's key and not the engine's (ADR-010).
+# figures, which is the AUTHOR's key and not the engine's (ADR-106).
 # The rest of `expect` is the report: {verdict, views} where each entry
 # is {name, kind, out, verdict, text, loss} on a drawn figure and
 # {name, kind, out, verdict, errors, loss: []} on a refused one, each

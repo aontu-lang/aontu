@@ -93,7 +93,7 @@ func mergeVals(a, b Val) Val {
 	return newConjunct([]Val{a, b})
 }
 
-func (m *MapVal) superior() Val { return top() } //coverage:ignore no caller: superOf lifts a bag child by child (ADR-011 R4)
+func (m *MapVal) superior() Val { return top() } //coverage:ignore no caller: superOf lifts a bag child by child
 
 func (m *MapVal) Canon() string {
 	var b strings.Builder
@@ -436,7 +436,7 @@ func withoutKey(keys []string, k string) []string {
 	return keys
 }
 
-// A written nil meets a supplied value as itself (ADR-046), keeping the
+// A written nil meets a supplied value as itself, keeping the
 // value's site for the finding a key it then leaves unmet makes.
 func literalNilMeets(n *NilVal, v Val) bool {
 	if d, ok := v.(*DisjunctVal); ok && !slices.ContainsFunc(d.peg, isPref) {
@@ -586,7 +586,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	done := true
 
-	// Combine spreads. REQUIRED WINS (ADR-045): a key is optional only
+	// Combine spreads. REQUIRED WINS: a key is optional only
 	// where every side that declares it says so.
 	if pm, ok := peer.(*MapVal); ok {
 		out.lk.relates = joinRelates(out.lk.relates, pm.lk.relates)

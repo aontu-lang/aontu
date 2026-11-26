@@ -97,8 +97,7 @@ func suiteFiles(t *testing.T, root string) []string {
 }
 
 // suiteGroups reads the official suite's shape: files of groups, each a
-// schema and its tests, read in the dialect the directory is written in
-// (ADR-061).
+// schema and its tests, read in the dialect the directory is written in.
 func suiteGroups(t *testing.T, dir, dialect string) []suiteGroup {
 	out := []suiteGroup{}
 	for _, file := range suiteFiles(t, dir) {
@@ -194,7 +193,7 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
 	problems := []string{}
 	total, passed, skipped := 0, 0, 0
 	for _, g := range groups {
-		// The suite's optional/format/ asks for format assertion (ADR-059).
+		// The suite's optional/format/ asks for format assertion (ADR-105).
 		report := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file, Documents: documents,
 			FormatAssertion: strings.HasPrefix(g.file, "optional/format/"), Dialect: g.dialect})
 		for _, c := range g.cases {

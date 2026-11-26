@@ -1,4 +1,4 @@
-# DEFAULTS -- sketch/DEFAULTS.0.md and ADR-011: the short form is
+# DEFAULTS -- sketch/DEFAULTS.0.md: the short form is
 # SUGAR and the long form is the STRUCTURE. `a: *x` means
 # `a: *x | super(x)`, and every place the two spellings disagreed is
 # resolved in favour of the long form.
@@ -67,7 +67,7 @@ defaults-kind-peg-refuses-another-kind	errc	a:*integer\na:"s"	empty
 defaults-constraint-peg-refuses-another-kind	errc	a:*min(3)\na:"s"	empty
 # A kind peg gates on the kind's PARENT, so a sibling leaf passes it:
 # `super(float)` is `number`, and 1 is a number. Not the widening
-# ADR-004 closed, which was about a peg that is a VALUE -- `*8080 &
+# the admission gate closed, which was about a peg that is a VALUE -- `*8080 &
 # 3.5` still refuses (number-tower.tsv, pref-idiom-refuses-other-leaf).
 defaults-kind-peg-admits-a-sibling-leaf	gens	a:*float\na:1	{"a":1}
 

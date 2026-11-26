@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// The port mirrors TypeScript's STRUCTURE (ADR-001 rule 1), which no
+// The port mirrors TypeScript's STRUCTURE (ADR-102), which no
 // shared row can check: a shape difference answers the same bytes, so
 // every row passes. A member with no twin is declared below and
 // registered in DIVERGENCE.md; adding one to a port fails the build.

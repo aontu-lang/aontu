@@ -49,18 +49,18 @@ pack-arity-one	errc	d:pack($.n)\n	func_arity
 pack-arity-none	errc	d:pack()\n	func_arity
 pack-arity-three	errc	d:pack([a],{x:1},{y:2})\n	func_arity
 
-# TEMPLATE-CLONE ISOLATION (ADR-005, 2026-08-26; use-cases/BUGS.md §9):
+# TEMPLATE-CLONE ISOLATION (2026-08-26; use-cases/BUGS.md §9):
 # a rank-2 default computed from key() shared its one inner key()
 # across the generated children (the pref clone shared its inner
 # value), so every child silently answered the FIRST child's key. Rank
 # 1 escaped only because its meet builds a fresh pref per destination;
 # both ranks are now full per-destination instances. The override row
-# composes with the admission gate (ADR-004): `zz` is admitted by the
+# composes with the admission gate: `zz` is admitted by the
 # string alternative. Parity-probed in both engines.
 pack-rankpref-key-per-child	gens	col:{web:{},auth:{}}\nout:pack($.col,{value:**key(1)|string})\n	{"col":{"auth":{},"web":{}},"out":{"auth":{"value":"auth"},"web":{"value":"web"}}}
 pack-rankpref-key-override	gens	col:{web:{},auth:{}}\nout:pack($.col,{value:**key(1)|string})\nout:auth:value:zz\n	{"col":{"auth":{},"web":{}},"out":{"auth":{"value":"zz"},"web":{"value":"web"}}}
 
-# EXPRESSIONS IN A TEMPLATE RE-ANCHOR PER CHILD (ADR-005, 2026-08-26;
+# EXPRESSIONS IN A TEMPLATE RE-ANCHOR PER CHILD (2026-08-26;
 # use-cases/BUGS.md §33): a relative reference or key() nested inside
 # a `+` expression or a call argument used to resolve at the
 # TEMPLATE's own location (visible as the NaN path segment in the

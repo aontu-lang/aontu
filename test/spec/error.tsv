@@ -104,7 +104,7 @@ errm-paren-group-site	err	a:(integer | biginteger)\na:"x"	--> <no-file>:1:3
 errm-paren-group-site-spaced	err	a:(  integer | biginteger  )\na:"x"	--> <no-file>:1:3
 errm-paren-group-site-nested	err	a:((integer | biginteger))\na:"x"	--> <no-file>:1:3
 #
-# THE PATH OF A MEET IS THE SLOT IT WAS DRIVEN AT (ADR-030). A schema
+# THE PATH OF A MEET IS THE SLOT IT WAS DRIVEN AT. A schema
 # reached through an INCLUDE carries a path re-based onto the referring
 # field, and the two ports corrupted it DIFFERENTLY -- TypeScript
 # reported `$.p.system.Port.direction` and Go `$.p.direction.Port.direction`

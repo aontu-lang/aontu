@@ -286,7 +286,7 @@ class ListVal extends BagVal_1.BagVal {
             }
         }
         if (!allScalarKind) {
-            // A full instance (`dup`, ADR-005), paths normalised to the
+            // A full instance (`dup`), paths normalised to the
             // destination: see Val.spreadClone and repathInstance.
             const out = this.clone(ctx, { dup: true });
             (0, Val_1.repathInstance)(out, out.path);
@@ -309,7 +309,7 @@ class ListVal extends BagVal_1.BagVal {
     }
     clone(ctx, spec) {
         let out = super.clone(ctx, spec);
-        // The instantiation flag descends with the mark (ADR-005): a
+        // The instantiation flag descends with the mark: a
         // template's elements are part of the instance.
         const childspec = spec?.mark || spec?.dup ?
             { mark: spec?.mark, dup: spec?.dup } : {};

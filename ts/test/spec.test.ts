@@ -61,7 +61,7 @@ type Row = {
 
 
 const LEDGER = Path.join(SPEC_DIR, '..', '..', 'spec', 'ledger.tsv')
-const LEDGER_BOUND = 28
+const LEDGER_BOUND = 16
 
 
 function loadLedger(): Set<string> {
@@ -528,7 +528,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       `jsonschema-import report mismatch: ${row.name}`)
   }
   else if ('jsonschema-output' === row.mode) {
-    // ADR-066: the schema imported with its source map, the data vetted
+    // The schema imported with its source map, the data vetted
     // as JSON Schema asks, and the report as basic output units.
     const golden = JSON.parse(row.expect)
     const imported = importJsonSchema(row.src, { ...golden.opts, sourceMap: true })

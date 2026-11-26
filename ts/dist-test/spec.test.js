@@ -69,7 +69,7 @@ const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec');
 // as string escapes (\t -> tab, \a -> a, ...) and corrupt the path.
 const FIXTURES_DIR = Path.join(SPEC_DIR, 'files').replaceAll('\\', '/');
 const LEDGER = Path.join(SPEC_DIR, '..', '..', 'spec', 'ledger.tsv');
-const LEDGER_BOUND = 28;
+const LEDGER_BOUND = 16;
 function loadLedger() {
     const names = new Set();
     if (!Fs.existsSync(LEDGER)) {
@@ -429,7 +429,7 @@ function runRow(row) {
         }), (0, aontu_1.exactJSON)(golden), `jsonschema-import report mismatch: ${row.name}`);
     }
     else if ('jsonschema-output' === row.mode) {
-        // ADR-066: the schema imported with its source map, the data vetted
+        // The schema imported with its source map, the data vetted
         // as JSON Schema asks, and the report as basic output units.
         const golden = JSON.parse(row.expect);
         const imported = (0, jsonschema_import_1.importJsonSchema)(row.src, { ...golden.opts, sourceMap: true });

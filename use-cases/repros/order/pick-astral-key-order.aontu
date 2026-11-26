@@ -31,7 +31,7 @@
 # WHY IT MATTERS BEYOND UNICODE: pick is the order-preserving
 # projection -- the primitive that turns a bag of records into an
 # ordered list of generated lines. Two ports, two orders, means two
-# different generated files from one model, which is an ADR-001 break
+# different generated files from one model, which is an ADR-102 break
 # in exactly the primitive a code generator depends on.
 m: {"😀": {v:"astral"}, "￰": {v:"bmp"}}
 p: pick($.m, v)

@@ -24,7 +24,7 @@
 # `a: b: c: e:` as the destination both ports agree. A threshold at
 # four is a fixpoint-pass artefact, not a rule anyone wrote.
 #
-# Found by ADR-009's removal of `.$KEY`: the only test covering this
+# Found by the removal of `.$KEY`: the only test covering this
 # shape used that spelling, which took the RefVal path and never
 # reached the divergence.
 a: b: c: d: e: $.a.b.f
