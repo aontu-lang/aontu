@@ -40,6 +40,57 @@ agreed by both. The definition states the encodings in
 `spec/Aontu/Text.lean`, and rows ec0 on of `test/spec/def-call.tsv`
 are generated from it.
 
+### The definition orders two recursions
+
+The order on two documents, `LeD`, was decided only where neither
+reading reads a name. A recursion against its unrolling had a theorem
+and no row, and two recursions of one shape under different names the
+definition left undecided. It now decides them, with a proof.
+
+```aontu
+%T = { n:integer next?:%T }
+v: %T
+```
+
+```aontu
+%E = { n:integer next?:%O }
+%O = { n:integer next?:%E }
+v: %E
+```
+
+Each of these is below the other: the second is the first's list over
+two names in turn.
+
+`leCo` in `spec/Aontu/Profiles.lean` compares two terms that read
+names, each under its own environment. Where it meets a name on each
+side it assumes the pair and compares the two bodies, and a pair met
+again below a key or an element answers by that assumption. A value is
+a finite tree, so an assumption is only read on a lighter value than
+the one it was made for, and `leCo_sound` proves the answer against
+`LeD` by induction on a value's weight. `leCoD` runs it on two
+documents and carries the proof.
+
+It reads a disjunction, a meet, a map's members and a list's elements,
+and a spread that holds no `key()`, so a recursion through a spread is
+ordered as one through a key is.
+
+346 rows in `test/spec/def-subsume-docs.tsv`, which had 310:
+
+- uw0 to uw89, the pairs of the twenty documents that had no row: 31
+  that `leCoD` decides, a recursion against its unrolling and against
+  itself among them, and 59 that one of twelve more instances refutes.
+  Every pair of the twenty now has a row.
+- ur0 to ur255, sixteen recursions compared pairwise: a list of nodes
+  under two names, over two names in turn, unrolled twice, wider and
+  narrower; a tree through a list's spread; cells that end in a sealed
+  empty map; and a map of maps through a map's spread. `leCoD` decides
+  55 pairs and an instance refutes the other 201.
+
+Both engines answer every row as the contract allows, and neither
+changes. In 59 rows both answer `undecided` where the definition
+decides: 52 it refutes, and seven it proves, two recursions of one
+shape through a spread under two names, which is #1017.
+
 ### A call in a recursive body reads its own level in TypeScript
 
 #1015, TypeScript only. A recursive name's body that holds a `match` or
