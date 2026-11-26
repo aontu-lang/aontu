@@ -2290,3 +2290,9 @@ but that means we have a dep on a third party service?
 ```text
 status
 ```
+
+## 2026-11-26 18:44:05 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+explain the comment-rule paragraphs?
+```
