@@ -8,6 +8,46 @@ each change affects.
 
 ## Unreleased
 
+### A call reads a choice settled to one arm as that arm, in the definition
+
+#1023. A disjunction that a meet narrows to one arm is that arm in both
+engines, wherever it is read. The definition's normal form keeps it as a
+disjunction of one arm, and a call didn't read through it:
+
+```aontu
+p: (integer|string) & 1
+x: .p + 1
+up: upper((integer|string) & "a")
+```
+
+| | `x` | `up` |
+|---|---|---|
+| Both engines | `2` | `"A"` |
+| The definition, before | waits | an `error` |
+| The definition, now | `2` | `"A"` |
+
+A call that reads values now takes each argument through
+`Decls.argArm`, which reads a choice with no arm still to pick as the
+arm it is left with: the functions on numbers and the folds, `+`, and
+the calls on bags and text. A bag's members read the same way
+(`Decls.memberNF`), and so does the source of `each` and `pack`
+(`Val.armRead`). Decisions 16 and 55 already read the leftover so for a
+size and a bound.
+
+A choice of two arms that differ still waits, until the data picks one:
+`p: integer | string` with `x: $.p + 1` is incomplete against `{}` and
+`valid` against `{"p": 1}`. And an address a relation holds now joins
+under `+`, since the relation kind is a disjunction: `p: relate() &
+path($.a)` with `x: $.p + "/n"` is `"$.a/n"`.
+
+102 rows, oa0 to oa101 of `test/spec/def-path.tsv`, from 34 cases
+proved in `spec/Oracle.lean`. Both engines answer every one as the
+definition does.
+
+A preferred arm isn't part of this. `(*1 | string) & integer` and a
+written `*1 | integer` read under `+` the other way round in the
+definition from both engines, which is #1026 and wants a ruling.
+
 ### The definition reads the graph atoms as terms
 
 `acyclic()` and `inverse(k)` were the last two built-in functions with
