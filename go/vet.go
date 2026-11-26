@@ -393,7 +393,8 @@ func filledFindings(generated any, unified Val, dataSrc string,
 	out := []VetFinding{}
 	prefix := anchorSegs(options.At)
 	toward := generated
-	tctx := &Ctx{root: unified, src: dataSrc, collect: true, probe: "" != options.At}
+	tctx := &Ctx{root: unified, src: dataSrc, collect: true, probe: "" != options.At,
+		plain: true}
 	if out, err := genToward(unified, tctx, ownGen); nil == err && 0 == len(tctx.err) && nil != out {
 		toward = out
 	}
