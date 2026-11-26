@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 73 built-in functions and no user-defined ones. The name set
+aontu has 75 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -247,8 +247,8 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 62 of the 73 names, and 50 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 52 of the 73 use no
+in 64 of the 75 names, and 52 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 54 of the 75 use no
 mode but `value`, and 21 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
@@ -352,11 +352,13 @@ documentation page and fails on a difference of one space.
 | `content(spec: string\|map) : map` | `1` | `value` | `map` |
 | `copy(v: any) : any` | `1` | `value` | `any` |
 | `copyfiles(spec: string\|map) : map` | `1` | `value` | `map` |
+| `decode(t: string, name: string) : string` | `2` | `value` | `string` |
 | `deprecate(v: any, r?: map) : any` | `1..2` | `value` | `any` |
 | `div(a: number, b: number) : number` | `2` | `value` | `number` |
 | `each(d: map\|list, template t: any) : list` | `2` | `value`, `template` | `list` |
 | `emit(s: map\|list, template t: map\|list) : list` | `2` | `value`, `template` | `list` |
 | `empty() : constraint` | `0` | none | `constraint` |
+| `encode(s: string, name: string) : string` | `2` | `value` | `string` |
 | `esc(s: string, variant?: string) : string` | `1..2` | `value` | `string` |
 | `file(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `filter(d: map\|list, trial c: any) : map\|list` | `2` | `value`, `trial` | `map\|list` |
@@ -425,7 +427,7 @@ schema or its default.
 
 ## Slices
 
-The same 73 names, cut by result word, by rest slot, and by optional
+The same 75 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -442,7 +444,7 @@ The eleven result words, and the names under each:
 | `map\|list\|constraint` | 1 | `parse` |
 | `number` | 9 | `add`, `div`, `greatest`, `least`, `mod`, `mul`, `rem`, `sub`, `sum` |
 | `path` | 1 | `path` |
-| `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
+| `string` | 11 | `abnf`, `decode`, `encode`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
 
 The one name that answers `annotation` is `gen`, whose record rides
@@ -460,11 +462,14 @@ as a tree that a generator walks: the tree's shape and each component's
 props are the [generation reference](reference-generation.md), and what
 the tree is turned into is
 [Generation](reference-language.md#generation). The other one is
-`pack`. Three of the nine that
+`pack`. Three of the eleven that
 answer `string` are the text verbs, `esc`, `usc`, and `rep`, together
 with `split`, which answers `list`:
 [Text: `esc` `usc` `rep`
-`split`](reference-language.md#text-esc-usc-rep-split). The one name
+`split`](reference-language.md#text-esc-usc-rep-split). Two more are
+the encodings, `encode` and `decode`:
+[Encodings: `encode` and
+`decode`](reference-language.md#encodings-encode-and-decode). The one name
 that answers `path` is `path` itself:
 [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 

@@ -44,12 +44,12 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **204** codes across
+There are seven classes, and the registry holds **206** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 59 | the text is not a document |
+| `parse` | 61 | the text is not a document |
 | `conflict` | 67 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 37 | a name or path resolves to nothing |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 204 codes have hint text. `aontu explain --list`
+**Hint text.** All 206 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -193,12 +193,14 @@ twenty rows have no such section and carry no link.
 | `alias_not_toplevel` | 0.53.0 | An alias declaration has no map root, or a key declaration sits below it. ([Aliases `%`](reference-language.md#aliases-)) |
 | `bare_punct` | 0.58.0 | A bare string holding a character outside letters, digits, `-`, and `_`. ([Errors](reference-language.md#errors)) |
 | `decimal_syntax` | 0.51.0 | A `0d` literal that is not a valid exact number. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
+| `decode_malformed` | 0.77.0 | `decode()` was given text the named encoding does not write, or text whose bytes are not UTF-8. ([Encodings: `encode` and `decode`](reference-language.md#encodings-encode-and-decode)) |
 | `each_data` | 0.53.0 | The first argument to `each()` is not a bag, so it has no children to make elements from. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |
 | `elided_value` | 0.53.0 | A key, element, or spread with no value. ([Errors](reference-language.md#errors)) |
 | `emit_body` | 0.57.0 | A template body in an `emit()` table is not a list. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
 | `emit_data` | 0.57.0 | The first argument to `emit()` is not a bag, so the selection has no children to visit. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
 | `emit_table` | 0.57.0 | The second argument to `emit()` is not a rule table. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
 | `emit_template` | 0.57.0 | A template in an `emit()` table is not a rule naming both `match` and `body`. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
+| `encode_name` | 0.77.0 | `encode()` or `decode()` was given a name that is no encoding. ([Encodings: `encode` and `decode`](reference-language.md#encodings-encode-and-decode)) |
 | `esc_variant` | 0.57.0 | `esc()`, `usc()`, or a template's `esc:` key was given a variant naming no convention. ([`esc(s, variant?)` and `usc(s, variant?)`](reference-language.md#escs-variant-and-uscs-variant)) |
 | `export_arg` | 0.69.0 | `export()` was given something other than a set of alias names. ([Publishing a name: `export`](reference-language.md#publishing-a-name-export)) |
 | `filter_data` | 0.53.0 | The first argument to `filter()` is not a bag. ([Selecting: `filter` and `match`](reference-language.md#selecting-filter-and-match)) |

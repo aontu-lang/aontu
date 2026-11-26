@@ -1672,6 +1672,29 @@ beside the nineteen JSON Schema formats of
 [ADR-059](../ADR.md#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself),
 and BT3 adds a row to ADR-012's table of extensions.
 
+Progress on 2026-11-26. BT1 is built in both engines. `encode(s,
+name)` writes a string's UTF-8 bytes in the encoding its name is, and
+`decode(t, name)` reads the string back; the three answers proposed
+above are the ones both engines give. Four things the plan left open
+were settled in the building, and each is the maintainer's to change:
+
+- `base64` is written with its padding, as RFC 4648 asks by default.
+- `base64url` is written without padding, as aontu's own hashes are
+  and as a token is.
+- `hex` is written in lowercase, and read in either case.
+- `decode` reads the text `encode` writes and no other spelling of the
+  same bytes, hex in capitals aside. A host decoder takes line breaks,
+  missing padding and stray low bits, each differently in each port,
+  so each engine spells the encodings out by hand. The cost is that
+  padded base64url, or base64 wrapped in lines, is refused.
+
+The codes are `encode_name`, for a name that is no encoding, and
+`decode_malformed`, for text the encoding doesn't write or whose bytes
+aren't UTF-8. The rows are `test/spec/encode.tsv`, the definition is
+`Encoding.encode` and `Encoding.decode` in `spec/Aontu/Text.lean`, and
+its generated rows are ec0 on of `test/spec/def-call.tsv`. The law that
+`decode(encode(s, n), n)` is `s` is held by rows, and isn't proved.
+
 ### Questions for the ruling on part 7
 
 25. **Bytes: a kind, or text.** Ruled 2026-11-21: text in a named

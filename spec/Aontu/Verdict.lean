@@ -581,6 +581,19 @@ def escOf (ds : Decls) (enc : Bool) (s : Val) (v : Option Val) : Made :=
     else ((e.usc t.toList).map fun cs => .made (.lit (.str (String.mk cs)))).getD .refused
   | _, _ => .refused
 
+/-- What `encode` (`enc`) or `decode` makes of its text and its name, each
+a string in normal form, its riders read through: the text written in
+the encoding, from its UTF-8 bytes, or read back out of it
+(`Aontu/Text.lean`); a refusal where an argument is no string, the name
+is no encoding, or `decode`'s text is none the encoding writes, or
+spells bytes that are no string. -/
+def encodeOf (ds : Decls) (enc : Bool) (s n : Val) : Made :=
+  match (normaliseD ds s).string?, ((normaliseD ds n).string?).bind Encoding.ofName? with
+  | some t, some e =>
+    if enc then .made (.lit (.str (String.mk (e.encode t.toList))))
+    else ((e.decode t.toList).map fun cs => .made (.lit (.str (String.mk cs)))).getD .refused
+  | _, _ => .refused
+
 /-- The fields `split` cuts a string into at a literal separator, the
 empty ones kept: at each occurrence from the left, the occurrences never
 overlapping, or between every two code points where the separator is
@@ -743,7 +756,7 @@ path and the names a destructure takes, a component's call as
 `Cmp.takes` reads it, and every other a range. -/
 def Fn.takes : Fn → ℕ → Bool
   | .add, n | .sub, n | .mul, n | .div, n | .mod, n | .rem, n | .plus, n | .pick, n
-  | .split, n | .each, n | .pack, n | .emit, n | .apply, n => n == 2
+  | .split, n | .each, n | .pack, n | .emit, n | .apply, n | .encode, n | .decode, n => n == 2
   | .neg, n | .sum, n | .least, n | .greatest, n | .super, n | .pref, n | .move, n
   | .abnf, n | .maybe, n | .copy, n => n == 1
   | .join, n | .esc, n | .usc, n | .parse, n => 1 ≤ n && n ≤ 2
@@ -1080,7 +1093,7 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a call on a bag or on text what
 its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
-`caseOf`, `translateOf`, `escOf`, `splitOf`, `repOf` and `nomOf`; a
+`caseOf`, `translateOf`, `escOf`, `encodeOf`, `splitOf`, `repOf` and `nomOf`; a
 component's call, with the arguments it takes, the node `cmpOf` makes; a `super` its
 argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
@@ -1118,6 +1131,8 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .esc, [s, v] => (escOf ds true s (some v)).term ds f args
   | .usc, [s] => (escOf ds false s none).term ds f args
   | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
+  | .encode, [s, n] => (encodeOf ds true s n).term ds f args
+  | .decode, [s, n] => (encodeOf ds false s n).term ds f args
   | .super, [x] => x.super
   | .pref, [x] => x.prefer
   | .move, [x] => x.prefer
@@ -3472,6 +3487,19 @@ theorem escOf_checkableA {ds : Decls} {enc : Bool} {s v : Val} {var : Option Val
       exact .lit
   · cases h
 
+theorem encodeOf_checkableA {ds : Decls} {enc : Bool} {s n v : Val}
+    (h : encodeOf ds enc s n = .made v) : v.CheckableA := by
+  unfold encodeOf at h
+  split at h
+  · split at h
+    · obtain rfl := (Made.made.injEq _ _).mp h
+      exact .lit
+    · simp only [Option.map] at h
+      split at h <;> simp at h
+      subst h
+      exact .lit
+  · cases h
+
 theorem splitOf_checkableA {ds : Decls} {s sep v : Val}
     (h : splitOf ds s sep = .made v) : v.CheckableA := by
   unfold splitOf at h
@@ -3929,6 +3957,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => encodeOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => encodeOf_checkableA hv
   · exact (h _ (by simp)).super
   · exact prefer_checkableA (h _ (by simp))
   · exact prefer_checkableA (h _ (by simp))

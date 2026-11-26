@@ -524,3 +524,11 @@ gen_conflict	errcode	conflict	0.77.0
 gen_key_clash	errcode	conflict	0.77.0
 gen_address	errcode	reference	0.77.0
 gen_custom	errcode	conflict	0.77.0
+# THE ENCODINGS (`encode`, `decode`). Two codes, both class `parse` for
+# `esc_variant`'s reason: what is wrong is the CALL as the author wrote
+# it. `encode_name` is a name that is no encoding: the names are a closed
+# set, so an unknown one is refused, not passed through. `decode_malformed`
+# is text the encoding could not have written, or text whose bytes are not
+# UTF-8: `decode` reads what `encode` writes, and a string holds characters.
+encode_name	errcode	parse	0.77.0
+decode_malformed	errcode	parse	0.77.0

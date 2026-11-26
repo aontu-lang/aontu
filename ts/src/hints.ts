@@ -368,6 +368,10 @@ const hints: Record<string, string> = {
 
   usc_malformed: 'usc() was given text the convention could not have produced,\nso there is nothing to read back out: a truncated code-point escape, an\nescape the convention does not define, or an escape character standing\nalone where the convention doubles it. `usc` is the LEFT inverse of\n`esc` and it is partial — every escaped value has an original, but not\nevery string is an escaped value.\n \nExamples:\n  usc(esc(text))     -> ...   # Whatever esc() wrote;\n  usc(text, sql)     -> ...   # ... in the same convention;\n  usc(text, shell)   -> nil   # ... but not in another one.',
 
+  encode_name: 'encode() or decode() was given a name that is no encoding.\nAn encoding writes a string as text, from its UTF-8 bytes. The names\nare a closed set: `base64`, written with its padding, `base64url`,\nwritten without it, and `hex`, written in lowercase. An unknown name\nis refused, so that a new encoding arrives by name and not as a\nchanged answer.\n \nExamples:\n  encode(text, base64)     -> ...   # RFC 4648, with its padding;\n  encode(text, base64url)  -> ...   # ... URL-safe, with none;\n  encode(text, base32)     -> nil   # ... but that is no encoding.',
+
+  decode_malformed: 'decode() was given text the encoding could not have written, or\ntext whose bytes are not UTF-8, so there is no string to answer with.\n`decode` reads what `encode` writes and nothing else: `base64` with\nits padding, `base64url` with none, neither with a line break or a\nstray low bit, and `hex` in whole bytes, in either case. A string\nholds characters, so binary data stays in its encoded form.\n \nExamples:\n  decode(encode(text, hex), hex)  -> ...   # Whatever encode() wrote;\n  decode("aGVsbG8=", base64)      -> ...   # ... in the same encoding;\n  decode("aGVsbG8", base64)       -> nil   # ... but not without its padding.',
+
   rep_pattern: 'The pattern given to rep() or split() is outside the portable subset.\nThese two run on each implementation\'s host regex engine, since they\nneed where a match falls and aontu\'s own matcher answers only whether\none does, so the pattern must mean the same to both hosts. That rules\nout a Unicode property, a named group, a backreference, a lookaround,\na repeat count above 1000, and a quantifier over a group holding a\nquantifier or an alternation, which a backtracking host runs in\nexponential time. re() itself reads all but the backreference and the\nlookaround.\n \nExamples:\n  rep(s, "[:,]", " ")     -> ...   # A class;\n  rep(s, "(a)(b)", "$2$1") -> ...   # ... a group;\n  rep(s, "(?=a)", "x")    -> nil   # ... but not a lookahead.',
 
   rep_sub: 'The substitution given to rep() names something the pattern has\nnot got. `$1` to `$9` are the numbered groups, `$&` is the whole match\nand `$$` is a literal `$`; a `$` naming anything else, or a group\nnumber the pattern does not have, is refused rather than expanded to\nnothing — a generator that writes a file with a hole in it and says\nnothing is the failure this refusal exists to close.\n \nExamples:\n  rep(s, "(a)", "[$1]")  -> ...   # A group the pattern has;\n  rep(s, "a", "$$")      -> ...   # ... a literal dollar;\n  rep(s, "a", "$1")      -> nil   # ... but not a group it has not.',
@@ -1111,6 +1115,8 @@ const codeClasses: Record<string, string> = {
 
   esc_variant: 'parse',
   usc_malformed: 'parse',
+  encode_name: 'parse',
+  decode_malformed: 'parse',
   rep_pattern: 'parse',
   rep_sub: 'parse',
   split_sep: 'parse',

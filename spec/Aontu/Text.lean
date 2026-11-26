@@ -9,6 +9,11 @@ a partial inverse, which refuses text no text escapes to: a lone quote
 where the convention doubles it, an escape it does not define, a code
 point a surrogate pair or a byte sequence does not spell.
 
+The encodings `encode` writes and `decode` reads back, on a string's
+UTF-8 bytes: base64 and base64url of RFC 4648, and hex. An encoding is
+a function from bytes to text and a partial inverse, which reads the
+text the encoding writes and no other spelling of the same bytes.
+
 The words of a name and the nine spellings `nom` writes them in.
 
 And what `rep` and `split` make of a pattern's matches. Where a match
@@ -277,6 +282,129 @@ def Escape.usc : Escape → List Char → Option (List Char)
   | .xml => uscXml
   | .uri => uscUri
   | .regex => uscRegex
+
+/-! ## Encodings -/
+
+/-- A base64 digit's character, RFC 4648: the capitals, the small
+letters and the digits, then `x` and `y`, which are `+` and `/`, or `-`
+and `_` where a URL holds the text. -/
+def b64Char (x y : Char) (d : ℕ) : Char :=
+  if d < 26 then Char.ofNat (65 + d)
+  else if d < 52 then Char.ofNat (71 + d)
+  else if d < 62 then Char.ofNat (d - 4)
+  else if d = 62 then x
+  else y
+
+/-- A base64 character's digit; none for any other character. -/
+def b64Value? (x y c : Char) : Option ℕ :=
+  if 'A' ≤ c ∧ c ≤ 'Z' then some (c.toNat - 65)
+  else if 'a' ≤ c ∧ c ≤ 'z' then some (c.toNat - 71)
+  else if '0' ≤ c ∧ c ≤ '9' then some (c.toNat + 4)
+  else if c = x then some 62
+  else if c = y then some 63
+  else none
+
+/-- Bytes written in base64: three bytes as four characters, and a last
+group of one byte as two characters or of two bytes as three, padded
+with `=` to four where `pad`. -/
+def b64Encode (x y : Char) (pad : Bool) : List ℕ → List Char
+  | a :: b :: c :: rest =>
+    b64Char x y (a / 4) :: b64Char x y (a % 4 * 16 + b / 16) ::
+      b64Char x y (b % 16 * 4 + c / 64) :: b64Char x y (c % 64) :: b64Encode x y pad rest
+  | [a, b] =>
+    [b64Char x y (a / 4), b64Char x y (a % 4 * 16 + b / 16), b64Char x y (b % 16 * 4)] ++
+      (if pad then ['='] else [])
+  | [a] => [b64Char x y (a / 4), b64Char x y (a % 4 * 16)] ++ (if pad then ['=', '='] else [])
+  | [] => []
+
+/-- The byte two base64 characters spell; none where one is no
+character of the alphabet, or the second holds bits beyond the byte. -/
+def b64Group2 (x y c0 c1 : Char) : Option (List ℕ) := do
+  let v0 ← b64Value? x y c0
+  let v1 ← b64Value? x y c1
+  if v1 % 16 = 0 then some [v0 * 4 + v1 / 16] else none
+
+/-- The two bytes three base64 characters spell; none where one is no
+character of the alphabet, or the third holds bits beyond the bytes. -/
+def b64Group3 (x y c0 c1 c2 : Char) : Option (List ℕ) := do
+  let v0 ← b64Value? x y c0
+  let v1 ← b64Value? x y c1
+  let v2 ← b64Value? x y c2
+  if v2 % 4 = 0 then some [v0 * 4 + v1 / 16, v1 % 16 * 16 + v2 / 4] else none
+
+/-- The three bytes four base64 characters spell; none where one is no
+character of the alphabet. -/
+def b64Group4 (x y c0 c1 c2 c3 : Char) : Option (List ℕ) := do
+  let v0 ← b64Value? x y c0
+  let v1 ← b64Value? x y c1
+  let v2 ← b64Value? x y c2
+  let v3 ← b64Value? x y c3
+  some [v0 * 4 + v1 / 16, v1 % 16 * 16 + v2 / 4, v2 % 4 * 64 + v3]
+
+/-- Base64 text read back, as `b64Encode` writes it and no other way:
+whole groups of four characters, and a last group of two or three,
+padded with `=` to four where `pad` and not padded otherwise; none for
+any other length, a character outside the alphabet, padding anywhere
+else, or a last character that holds bits beyond its bytes. -/
+def b64Decode (x y : Char) (pad : Bool) : List Char → Option (List ℕ)
+  | [] => some []
+  | [_] => none
+  | [c0, c1] => if pad then none else b64Group2 x y c0 c1
+  | [c0, c1, c2] => if pad then none else b64Group3 x y c0 c1 c2
+  | c0 :: c1 :: c2 :: c3 :: rest =>
+    if pad && rest.isEmpty && c3 = '=' then
+      if c2 = '=' then b64Group2 x y c0 c1 else b64Group3 x y c0 c1 c2
+    else do
+      let g ← b64Group4 x y c0 c1 c2 c3
+      let r ← b64Decode x y pad rest
+      some (g ++ r)
+
+/-- Bytes written in hex: two lowercase digits a byte. -/
+def hexEncode : List ℕ → List Char := List.flatMap (hexPad false 2)
+
+/-- Hex read back, a digit of either case: two digits a byte; none for
+half a byte, or a character that is no digit. -/
+def hexDecode : List Char → Option (List ℕ)
+  | [] => some []
+  | [_] => none
+  | h :: l :: rest =>
+    match hexValue? h, hexValue? l with
+    | some h, some l => ((h * 16 + l) :: ·) <$> hexDecode rest
+    | _, _ => none
+
+/-- The encodings `encode` and `decode` name: base64 with its padding,
+base64url, the alphabet a URL holds, with none, and hex in lowercase. -/
+inductive Encoding where
+  | base64 | base64url | hex
+  deriving DecidableEq
+
+/-- The encoding a name is; none for any other name. -/
+def Encoding.ofName? : String → Option Encoding
+  | "base64" => some .base64
+  | "base64url" => some .base64url
+  | "hex" => some .hex
+  | _ => none
+
+/-- Bytes written in an encoding. -/
+def Encoding.write : Encoding → List ℕ → List Char
+  | .base64 => b64Encode '+' '/' true
+  | .base64url => b64Encode '-' '_' false
+  | .hex => hexEncode
+
+/-- The bytes text in an encoding spells; none for text the encoding
+does not write, hex in capitals aside. -/
+def Encoding.read : Encoding → List Char → Option (List ℕ)
+  | .base64 => b64Decode '+' '/' true
+  | .base64url => b64Decode '-' '_' false
+  | .hex => hexDecode
+
+/-- A string written in an encoding: its UTF-8 bytes, written. -/
+def Encoding.encode (e : Encoding) (cs : List Char) : List Char := e.write (cs.flatMap utf8Bytes)
+
+/-- A string read back out of an encoding: the bytes the text spells,
+read as UTF-8; none where it spells none, or bytes that are no string. -/
+def Encoding.decode (e : Encoding) (cs : List Char) : Option (List Char) :=
+  (e.read cs).bind utf8Decode
 
 /-! ## Names -/
 

@@ -8,6 +8,38 @@ each change affects.
 
 ## Unreleased
 
+### `encode` and `decode`: base64, base64url and hex
+
+Task BT1 of the lang refinement plan, in both engines. Two built-ins
+convert text: `encode(s, name)` writes a string's UTF-8 bytes in a
+named encoding, and `decode(t, name)` reads the string back.
+
+```aontu
+text: encode("hello", base64)
+back: decode("aGVsbG8=", base64)
+code: encode("k", hex)
+```
+
+They answer `"aGVsbG8="`, `"hello"` and `"6b"`.
+
+- `base64` is RFC 4648 with its padding, `base64url` is its URL-safe
+  alphabet with no padding, and `hex` is lowercase.
+- `decode` reads the text `encode` writes and no other spelling of the
+  same bytes: no missing or misplaced padding, no line break, no last
+  character that holds bits beyond its bytes. `hex` is read in either
+  case. Each engine spells the encodings out itself, so no host
+  library decides what a text decodes to.
+- `decode` refuses text whose bytes are not UTF-8, since a string
+  holds characters.
+- Two codes are registered, both of class `parse`: `encode_name` for a
+  name that is no encoding, and `decode_malformed` for text that does
+  not decode.
+
+`test/spec/encode.tsv` holds both engines to 98 rows, each answer
+agreed by both. The definition states the encodings in
+`spec/Aontu/Text.lean`, and rows ec0 on of `test/spec/def-call.tsv`
+are generated from it.
+
 ### A call in a recursive body reads its own level in TypeScript
 
 #1015, TypeScript only. A recursive name's body that holds a `match` or

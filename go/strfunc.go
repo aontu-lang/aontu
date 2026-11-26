@@ -153,6 +153,34 @@ func uscFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 	return newString(out)
 }
 
+func encodeFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
+	src, okS := funcText(argAt(args, 0))
+	name, okN := funcText(argAt(args, 1))
+	if !okS || !okN {
+		return makeNilErr(ctx, "invalid-arg", f, nil)
+	}
+	if !isEncodeName(name) {
+		return makeNilErr(ctx, "encode_name", f, nil)
+	}
+	return newString(encodeText(src, name))
+}
+
+func decodeFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
+	src, okS := funcText(argAt(args, 0))
+	name, okN := funcText(argAt(args, 1))
+	if !okS || !okN {
+		return makeNilErr(ctx, "invalid-arg", f, nil)
+	}
+	if !isEncodeName(name) {
+		return makeNilErr(ctx, "encode_name", f, nil)
+	}
+	out, ok := decodeText(src, name)
+	if !ok {
+		return makeNilErr(ctx, "decode_malformed", f, nil)
+	}
+	return newString(out)
+}
+
 func repFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 	src, okS := funcText(argAt(args, 0))
 	pat, okP := funcText(argAt(args, 1))

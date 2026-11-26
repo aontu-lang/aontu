@@ -1,9 +1,10 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SplitFuncVal = exports.RepFuncVal = exports.UscFuncVal = exports.EscFuncVal = void 0;
+exports.SplitFuncVal = exports.RepFuncVal = exports.DecodeFuncVal = exports.EncodeFuncVal = exports.UscFuncVal = exports.EscFuncVal = void 0;
 const err_1 = require("../err");
 const escape_1 = require("../escape");
+const encode_1 = require("../encode");
 const StringVal_1 = require("./StringVal");
 const ListVal_1 = require("./ListVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
@@ -200,6 +201,50 @@ class UscFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
 } /* node:coverage ignore next 2 */
 exports.UscFuncVal = UscFuncVal;
+class EncodeFuncVal extends FuncBaseVal_1.FuncBaseVal {
+    constructor(spec, ctx) {
+        super(spec, ctx);
+        this.isEncodeFunc = true;
+    }
+    make(_ctx, spec) { return new EncodeFuncVal(spec); }
+    funcname() { return 'encode'; }
+    resolve(ctx, args) {
+        const src = textOf(args?.[0]);
+        const name = textOf(args?.[1]);
+        if (undefined === src || undefined === name) {
+            return (0, err_1.makeNilErr)(ctx, 'invalid-arg', this);
+        }
+        if (!(0, encode_1.isEncodeName)(name)) {
+            return (0, err_1.makeNilErr)(ctx, 'encode_name', this);
+        }
+        return this.place(new StringVal_1.StringVal({ peg: (0, encode_1.encodeText)(src, name) }, ctx));
+    }
+} /* node:coverage ignore next 2 */
+exports.EncodeFuncVal = EncodeFuncVal;
+class DecodeFuncVal extends FuncBaseVal_1.FuncBaseVal {
+    constructor(spec, ctx) {
+        super(spec, ctx);
+        this.isDecodeFunc = true;
+    }
+    make(_ctx, spec) { return new DecodeFuncVal(spec); }
+    funcname() { return 'decode'; }
+    resolve(ctx, args) {
+        const src = textOf(args?.[0]);
+        const name = textOf(args?.[1]);
+        if (undefined === src || undefined === name) {
+            return (0, err_1.makeNilErr)(ctx, 'invalid-arg', this);
+        }
+        if (!(0, encode_1.isEncodeName)(name)) {
+            return (0, err_1.makeNilErr)(ctx, 'encode_name', this);
+        }
+        const [out, ok] = (0, encode_1.decodeText)(src, name);
+        if (!ok) {
+            return (0, err_1.makeNilErr)(ctx, 'decode_malformed', this);
+        }
+        return this.place(new StringVal_1.StringVal({ peg: out }, ctx));
+    }
+} /* node:coverage ignore next 2 */
+exports.DecodeFuncVal = DecodeFuncVal;
 class RepFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -269,6 +314,6 @@ class SplitFuncVal extends FuncBaseVal_1.FuncBaseVal {
         const peg = fields.map((f, i) => new StringVal_1.StringVal({ peg: f }, ctx.descend(String(i))));
         return this.place(new ListVal_1.ListVal({ peg }, ctx));
     }
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 10 */
 exports.SplitFuncVal = SplitFuncVal;
 //# sourceMappingURL=StrFuncVal.js.map
