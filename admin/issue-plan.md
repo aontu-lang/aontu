@@ -191,9 +191,9 @@ relations workstream depends on #748 and #749 from phase 2.
 
 ### Relations
 
-18 issues (5 S, 8 M, 5 L), and no ledger row from 2026-11-26.
+19 issues (5 S, 9 M, 5 L), and no ledger row from 2026-11-26.
 
-First the relations whose range names a subtype (#771, #778, #779, #780), then the ruled range check of #777, which needs #748. #491 and #811 are where `vet` and evaluation read a relation differently, #491 built on 2026-11-26, and #878 where the graph atoms miss the edges a default brings; rulings 72 and 73 settle when the atoms judge.
+First the relations whose range names a subtype (#771, #778, #779, #780), then the ruled range check of #777, which needs #748. #491 and #811 are where `vet` and evaluation read a relation differently, #491 built on 2026-11-26, and #878 where the graph atoms missed the edges a default brings, built the same day; rulings 72 and 73 settle when the atoms judge, and #1029 asks whether `reaches` and `view` read the same edges.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -212,7 +212,8 @@ First the relations whose range names a subtype (#771, #778, #779, #780), then t
 | [#773](https://github.com/aontu-lang/aontu/issues/773) | diag | S |  | relation_cycle frame loses the edge when the member meets a waiting constraint: TS frames nil, Go whole member. |
 | [#746](https://github.com/aontu-lang/aontu/issues/746) | diag | S |  | Pattern beside `relate()` in a declaration from another source: Go paths it `$.%P`, TypeScript the member. |
 | [#491](https://github.com/aontu-lang/aontu/issues/491) | bug | M |  | vet answers valid where eval refuses with relation_cycle or relation_inverse_missing, both engines. Built in both ports on 2026-11-26, as ruling 73 asks: `vet` judges the graph of a document that generates, and 48 rows of `test/spec/relation.tsv` hold it. |
-| [#878](https://github.com/aontu-lang/aontu/issues/878) | def | M |  | acyclic() and inverse(k) don't judge the edges a default brings; ruling 72 says they judge the generated edges. |
+| [#878](https://github.com/aontu-lang/aontu/issues/878) | def | M |  | acyclic() and inverse(k) don't judge the edges a default brings; ruling 72 says they judge the generated edges. Built in both ports on 2026-11-26: the relation checks read the value as generation writes it, 52 more rows in `test/spec/relation.tsv`. |
+| [#1029](https://github.com/aontu-lang/aontu/issues/1029) | bug | M |  | `reaches`, `view` and the library's `graph` miss the edge a default writes, and `view` reports no loss for a lone default's. Asks whether they read the generated edges as the atoms do. Both ports. |
 | [#752](https://github.com/aontu-lang/aontu/issues/752) | parity | S |  | Member's relative address under an in-place template link: TypeScript refuses ..b and ...b, Go links correctly. |
 | [#819](https://github.com/aontu-lang/aontu/issues/819) | design | L |  | No subsumption rule for a relation's member template against a linked member; `breaking` stays undecided. |
 

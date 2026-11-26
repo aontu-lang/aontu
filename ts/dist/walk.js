@@ -25,6 +25,9 @@ function walkVals(v, visit, seen) {
             walkVals(c, visit, seen);
         }
     }
+    else if (true === peg?.isVal) {
+        walkVals(peg, visit, seen);
+    }
     else if (null != peg && 'object' === typeof peg) {
         for (const k in peg) {
             walkVals(peg[k], visit, seen);

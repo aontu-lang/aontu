@@ -3120,10 +3120,22 @@ until the phase that encodes it lands.
    2026-11-21 (the project's owner): the generated edges.** The
    verdict lands at generation, so the atoms judge the edges
    generation writes, defaults taken, and that document is a
-   `relation_cycle`. **Not yet built**: both ports and the definition
-   move (#878). The definition reads the atoms as terms since
-   2026-11-26, absence carrying the atom (`Rider.acyclic`,
-   `Rider.inverse`), and judges no edge yet.
+   `relation_cycle`. **Built in both ports on 2026-11-26** (#878):
+   the relation checks read the value as generation writes it
+   (`writtenOf`), through a lone preference and into the arms the
+   rank rule picks, the preference of the lowest rank or, where none
+   stands, every arm, which generation writes only alike. An arm it
+   doesn't take brings no edge and no declaration, so a mirror a
+   default writes is found, where it was refused as missing before.
+   `aontu relations` on a document whose only atom stands in an arm
+   of a disjunction that prefers none answers `error`, the document
+   not generating, where it answered `pass`. `reaches`, `view` and
+   the library's `graph` keep to the links no disjunction holds
+   (#1029). **Not yet built**: the definition, which reads the atoms
+   as terms since 2026-11-26, absence carrying the atom
+   (`Rider.acyclic`, `Rider.inverse`), and judges no edge yet. Its
+   `Val.links` already reads a link within the arms the rank rule
+   picks (decision 33), which is the same reading.
 73. **A broken graph in an incomplete document.** Raised 2026-11-21
    by P11's graph atoms. Beside an unfilled `n: integer`, the cycle
    a → b → a leaves `vet` `incomplete` and `vet --partial` `valid` in

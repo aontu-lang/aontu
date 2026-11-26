@@ -113,22 +113,16 @@ function relationFindings(decls, graph) {
     return findings;
 }
 function relationErrors(ctx, root) {
-    const decls = (0, graph_1.declsOf)(root);
+    const { decls, graph, sites } = (0, graph_1.writtenOf)(root);
     if (0 === decls.size) {
         return;
     }
-    const findings = relationFindings(decls, (0, graph_1.graphOf)(root));
-    for (const f of findings) {
-        let node = root;
-        const at = f.at.slice(2).split('.');
-        for (const seg of at) {
-            node = node?.peg?.[seg];
-        }
-        const nil = (0, err_1.makeNilErr)(ctx, f.code, node, undefined, 'relate', {
+    for (const f of relationFindings(decls, graph)) {
+        const nil = (0, err_1.makeNilErr)(ctx, f.code, sites.get(f.at), undefined, 'relate', {
             relation: f.relation,
             detail: f.detail.join(' -> '),
         });
-        nil.path = at;
+        nil.path = f.at.slice(2).split('.');
         ctx.adderr(nil);
     }
 }
@@ -150,7 +144,7 @@ function relationCheck(src, opts) {
             errors: [(0, vet_1.failureFinding)(ctx, options.path, root)],
         };
     }
-    const decls = (0, graph_1.declsOf)(root);
+    const { decls, graph } = (0, graph_1.writtenOf)(root);
     const counted = true === options.count ? { declared: decls.size } : {};
     if (0 === decls.size) {
         return { verdict: 'pass', findings: [], ...counted };
@@ -164,7 +158,7 @@ function relationCheck(src, opts) {
             errors: [(0, vet_1.failureFinding)(gctx, options.path, root)],
         };
     }
-    const findings = relationFindings(decls, (0, graph_1.graphOf)(root));
+    const findings = relationFindings(decls, graph);
     return {
         verdict: 0 === findings.length ? 'pass' : 'fail',
         findings,

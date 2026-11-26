@@ -48,14 +48,24 @@ const cut = (at: string[]): { from: string, key: string } => {
 }
 
 
-function walk(root: Val) {
+// The arms generation writes: the preference of the lowest rank, or every arm, which it writes only alike.
+const picked = (arms: any[]): any[] => {
+  const prefs = arms.filter((arm) => true === arm.isPref)
+  return 0 === prefs.length ? arms :
+    [prefs.reduce((best, p) => p.rank < best.rank ? p : best)]
+}
+
+
+function walk(root: Val, written: boolean) {
   const edges: Edge[] = []
   const disjunct: string[] = []
   const decls = new Map<string, RelDecl>()
+  const sites = new Map<string, any>()
 
   // ONE WALK, with `undecided` saying which side of the disjunction it is on:
   // below an unresolved disjunction every link is a position the
-  // document has not decided, and nothing there is an edge.
+  // document has not decided, and nothing there is an edge. Read as
+  // `written`, the arms generation picks are decided and no other is read.
   const visit = (
     node: any, path: string[], ancestors: Set<any>, hidden: boolean,
     undecided: boolean, under: string[] | undefined
@@ -90,6 +100,7 @@ function walk(root: Val) {
           edge.hidden = true
         }
         edges.push(edge)
+        sites.set(edge.at, sites.get(edge.at) ?? node)
       }
     }
 
@@ -103,9 +114,15 @@ function walk(root: Val) {
 
     if (true === node.isDisjunct && Array.isArray(node.peg)) {
       ancestors.add(node)
-      for (const arm of node.peg) {
-        visit(arm, path, ancestors, hidden, true, under)
+      for (const arm of written ? picked(node.peg) : node.peg) {
+        visit(arm, path, ancestors, hidden, undecided || !written, under)
       }
+      ancestors.delete(node)
+    }
+
+    if (written && true === node.isPref) {
+      ancestors.add(node)
+      visit(node.peg, path, ancestors, hidden, undecided, under)
       ancestors.delete(node)
     }
 
@@ -124,13 +141,13 @@ function walk(root: Val) {
   }
 
   visit(root, [], new Set(), false, false, undefined)
-  return { edges, disjunct, decls }
+  edges.sort((a, b) => cmpCodePoint(a.at, b.at))
+  return { edges, disjunct, decls, sites }
 }
 
 
 export function graphOf(root: Val): Graph {
-  const { edges, disjunct } = walk(root)
-  edges.sort((a, b) => cmpCodePoint(a.at, b.at))
+  const { edges, disjunct } = walk(root, false)
 
   if (0 < disjunct.length) {
     return { edges, disjunct: [...new Set(disjunct)].sort(cmpCodePoint) }
@@ -139,8 +156,16 @@ export function graphOf(root: Val): Graph {
 }
 
 
+export function writtenOf(root: Val): {
+  graph: Graph, decls: Map<string, RelDecl>, sites: Map<string, any>
+} {
+  const { edges, decls, sites } = walk(root, true)
+  return { graph: { edges }, decls, sites }
+}
+
+
 // The relation declarations: every graph atom the finished value holds,
 // read by the key it is met at, hidden or not.
 export function declsOf(root: Val): Map<string, RelDecl> {
-  return walk(root).decls
+  return walk(root, false).decls
 }
