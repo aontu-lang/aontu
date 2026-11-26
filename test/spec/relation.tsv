@@ -239,6 +239,8 @@ rel-spread-alias-map	errc	%M = {k: 1}\na: {dependsOn: relate() & [&: %M] & [path
 # the fill the data carries none of the schema's edges. Once the data
 # completes the document, it is judged. A refusal the data earns comes
 # first: the graph of a document that is already refused isn't read.
+# A data document that writes the edges itself is judged in every mode,
+# the fill having nothing to supply.
 vet-refuses-a-cycle	verdict	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid"}
 vet-refuses-a-cycle-no-fill	verdict	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 vet-refuses-a-cycle-partial	verdict	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"verdict":"invalid","opts":{"partial":true}}
@@ -271,3 +273,19 @@ vet-refusal-comes-before-the-graph-no-fill	verdict	n: integer\na: {dependsOn: re
 vet-refusal-comes-before-the-graph-partial	verdict	n: integer\na: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{"n": "x"}	{"verdict":"invalid","opts":{"partial":true}}
 vet-reports-the-cycle-at-its-edge	vet	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{}	{"findings":[{"class":"conflict","code":"relation_cycle","path":"$.a.dependsOn.0","pointer":"/a/dependsOn/0","severity":"error","sites":[{"col":40,"file":"schema","len":4,"role":"schema","row":1,"src":"path","value":"path($.b)"}]}],"truncated":false,"verdict":"invalid"}
 vet-reports-the-missing-inverse-at-its-edge	vet	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {}	{}	{"findings":[{"class":"conflict","code":"relation_inverse_missing","path":"$.a.dependsOn.0","pointer":"/a/dependsOn/0","severity":"error","sites":[{"col":46,"file":"schema","len":4,"role":"schema","row":1,"src":"path","value":"path($.b)"}]}],"truncated":false,"verdict":"invalid"}
+vet-judges-a-cycle-the-data-writes	verdict	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid"}
+vet-judges-a-cycle-the-data-writes-no-fill	verdict	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid","opts":{"noFill":true}}
+vet-judges-a-cycle-the-data-writes-partial	verdict	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid","opts":{"partial":true}}
+vet-passes-edges-the-data-writes	verdict	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: []	{"verdict":"valid"}
+vet-passes-edges-the-data-writes-no-fill	verdict	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: []	{"verdict":"valid","opts":{"noFill":true}}
+vet-passes-edges-the-data-writes-partial	verdict	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: []	{"verdict":"valid","opts":{"partial":true}}
+vet-judges-a-missing-inverse-the-data-writes	verdict	a: {dependsOn: relate() & inverse(usedBy)}\nb: {usedBy: relate()}	a: dependsOn: [path($.b)]\nb: usedBy: []	{"verdict":"invalid"}
+vet-judges-a-missing-inverse-the-data-writes-no-fill	verdict	a: {dependsOn: relate() & inverse(usedBy)}\nb: {usedBy: relate()}	a: dependsOn: [path($.b)]\nb: usedBy: []	{"verdict":"invalid","opts":{"noFill":true}}
+vet-judges-a-missing-inverse-the-data-writes-partial	verdict	a: {dependsOn: relate() & inverse(usedBy)}\nb: {usedBy: relate()}	a: dependsOn: [path($.b)]\nb: usedBy: []	{"verdict":"invalid","opts":{"partial":true}}
+vet-passes-an-inverse-the-data-writes	verdict	a: {dependsOn: relate() & inverse(usedBy)}\nb: {usedBy: relate()}	a: dependsOn: [path($.b)]\nb: usedBy: [path($.a)]	{"verdict":"valid"}
+vet-passes-an-inverse-the-data-writes-no-fill	verdict	a: {dependsOn: relate() & inverse(usedBy)}\nb: {usedBy: relate()}	a: dependsOn: [path($.b)]\nb: usedBy: [path($.a)]	{"verdict":"valid","opts":{"noFill":true}}
+vet-passes-an-inverse-the-data-writes-partial	verdict	a: {dependsOn: relate() & inverse(usedBy)}\nb: {usedBy: relate()}	a: dependsOn: [path($.b)]\nb: usedBy: [path($.a)]	{"verdict":"valid","opts":{"partial":true}}
+vet-judges-an-atom-the-data-writes	verdict	a: {dependsOn: relate()}\nb: {dependsOn: relate()}	a: dependsOn: acyclic() & [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid"}
+vet-judges-an-atom-the-data-writes-no-fill	verdict	a: {dependsOn: relate()}\nb: {dependsOn: relate()}	a: dependsOn: acyclic() & [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid","opts":{"noFill":true}}
+vet-judges-an-atom-the-data-writes-partial	verdict	a: {dependsOn: relate()}\nb: {dependsOn: relate()}	a: dependsOn: acyclic() & [path($.b)]\nb: dependsOn: [path($.a)]	{"verdict":"invalid","opts":{"partial":true}}
+vet-reports-a-cycle-the-data-writes	vet	a: {dependsOn: relate() & acyclic()}\nb: {dependsOn: relate()}	a: dependsOn: [path($.b)]\nb: dependsOn: [path($.a)]	{"findings":[{"class":"conflict","code":"relation_cycle","path":"$.a.dependsOn.0","pointer":"/a/dependsOn/0","severity":"error","sites":[{"col":16,"file":"data","len":4,"role":"data","row":1,"src":"path","value":"path($.b)"}]}],"truncated":false,"verdict":"invalid"}
