@@ -2830,6 +2830,13 @@ until the phase that encodes it lands.
    is still an error. `bndOf` asks `Val.choiceLeft`, as `Val.sizeIll`
    does, and reads the leftover through `Val.soleArm`; both ports read
    so already. Rows nl159 to nl185 and bd174 to bd185.
+   A call that reads a value reads the leftover so too since
+   2026-11-26 (#1023), as both ports do: `Decls.argArm` for an
+   argument of `+`, a function on numbers or a call on bags and text,
+   `Decls.memberNF` for a member of a bag one of them folds, and
+   `Val.armRead` for the source of `each` and `pack`. Rows oa0 on of
+   `test/spec/def-path.tsv`. A preferred arm left alone is not this
+   reading and waits on #1026.
 56. **An optional key an open map lacks.** Raised 2026-11-17 with
    #377: the order holds a general optional key that an open specific
    side lacks to the specific side's spread template, or to `any` with
