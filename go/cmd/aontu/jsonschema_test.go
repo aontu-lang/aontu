@@ -319,7 +319,7 @@ func TestJsonSchemaImportUsageErrorsExit2(t *testing.T) {
 	}
 }
 
-// ADR-066: the map is written beside the text, and the JSON form carries
+// The map is written beside the text, and the JSON form carries
 // it too; vet reads it back for output units, and refuses one whose text
 // has changed. Mirrors the TypeScript CLI test.
 func TestJsonSchemaImportSourceMapAndVetOutputUnits(t *testing.T) {

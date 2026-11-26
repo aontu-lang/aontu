@@ -126,7 +126,7 @@ function readOutside(forms) {
     for (const { groups, documents } of corpora()) {
         for (const g of groups) {
             for (const defaults of [false, true]) {
-                // ADR-065: the meta-schema check refuses no schema the import
+                // The meta-schema check refuses no schema the import
                 // would otherwise take here, and costs most of the run.
                 const report = (0, jsonschema_import_1.importJsonSchema)(g.schema, {
                     path: g.file, documents, dialect: g.dialect, defaults, noMetaCheck: true,

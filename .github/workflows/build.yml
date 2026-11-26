@@ -1,5 +1,5 @@
 # THE STANDARD RUN: what a pull request waits for, about three minutes
-# on Linux and never more than five (ADR-070, ADR-071). Three jobs, side by side:
+# on Linux and never more than five. Three jobs, side by side:
 #
 #   happy    both ports build; the committed TypeScript build and every
 #            generated copy are what the sources say; the comment gate;

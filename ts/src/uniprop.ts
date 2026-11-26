@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
 // The Unicode properties a pattern's \p{...} names in ECMA-262's u mode
-// (ADR-060), read from the tables ts/scripts/unicodegen.cjs writes. A
+// (ADR-105), read from the tables ts/scripts/unicodegen.cjs writes. A
 // table is decoded the first time a pattern names it. Twin of
 // go/uniprop.go.
 

@@ -2,7 +2,7 @@
 
 package aontu
 
-// Where the importer wrote each keyword, and Vet's output units (ADR-066).
+// Where the importer wrote each keyword, and Vet's output units.
 
 import (
 	"encoding/json"

@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
 // Regenerate the committed format grammars that are too large or too
-// regular to write by hand (ADR-059), into grammar/format/. A grammar
+// regular to write by hand (ADR-105), into grammar/format/. A grammar
 // transcribed from its RFC is compiled to an automaton, made
 // deterministic and minimal, and written back as ABNF one character of
 // lookahead decides; a rule an RFC leaves in prose is built as an

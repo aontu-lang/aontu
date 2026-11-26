@@ -122,7 +122,7 @@ let SCOPE_SEQ = 0;
 const MERGE_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'merge';
 const ALIAS_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'alias';
 const OPTIONAL_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'optional';
-// Keys a merged statement declared REQUIRED, so required wins (ADR-045).
+// Keys a merged statement declared REQUIRED, so required wins.
 const REQUIRED_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'required';
 // `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
@@ -628,7 +628,7 @@ help isolate the syntax error.`,
         neq: ConstraintVal_1.NeqConstraintVal,
         mulof: ConstraintVal_1.MulofConstraintVal,
         // G1 phase 2: pattern membership, read and matched by aontu's own
-        // engine (ADR-060).
+        // engine (ADR-105).
         re: ConstraintVal_1.ReConstraintVal,
         len: ConstraintVal_1.LenConstraintVal,
         empty: EmptyVal_1.EmptyVal,
@@ -1085,7 +1085,7 @@ help isolate the syntax error.`,
         ])
             .bc((r, ctx) => {
             const optionalKeys = r.u.aontu_optional_keys ?? [];
-            // REQUIRED WINS (ADR-045) between the statements of one map.
+            // REQUIRED WINS between the statements of one map.
             const requiredKeys = r.u.aontu_required_keys ?? [];
             for (const k of requiredKeys) {
                 const oi = optionalKeys.indexOf(k);
@@ -1700,7 +1700,7 @@ const textProcessor = (res) => {
     res.val = new StringVal_1.StringVal({ peg: res.src });
 };
 // ident() is the whole of a declaration's value, or of one declaration
-// of a name declared more than once, whose values meet (ADR-056).
+// of a name declared more than once, whose values meet.
 function declareIdent(v) {
     if (true === v?.isIdentFunc) {
         v.declared = true;
@@ -1888,7 +1888,7 @@ function makeModelResolver(options) {
         const modref = memCapability ? undefined : (0, mod_1.parseModuleRef)(path);
         if (null != modref) {
             // A bare `config.json` routes here now the major has left the
-            // name (ADR-022 part 4); the message says what was meant.
+            // name (ADR-111); the message says what was meant.
             const ext = (0, mod_1.localFileExt)(modref.path);
             if (undefined !== ext &&
                 undefined !== includeFormat(ext, options.textExt)) {

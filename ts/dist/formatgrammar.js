@@ -7,7 +7,7 @@ exports.recognise = recognise;
 exports.formatOf = formatOf;
 exports.isDefinedFormat = isDefinedFormat;
 exports.hex = hex;
-// A format's grammar, read and run by aontu itself (ADR-059): RFC 5234
+// A format's grammar, read and run by aontu itself (ADR-105): RFC 5234
 // with RFC 7405's case-sensitive strings, a pass that refuses what one
 // character of lookahead cannot decide, and a recognizer over the rest.
 // Twin of go/formatgrammar.go.

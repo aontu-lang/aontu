@@ -2068,7 +2068,7 @@ theorem copy_dest_verdict_exact : ∀ c ∈ copyDestCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (copyDestCases_checkable c hc).1 (copyDestCases_checkable c hc).2 v
 
-/-- One document in three orders (ADR-081): a type and a subtype of it
+/-- One document in three orders: a type and a subtype of it
 that name each other by path, with the subtype written first, with the
 type written first, and with the use written above both. -/
 def orderSchemas : List Val :=
@@ -9559,7 +9559,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
     IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
     pathRows "sr" selfReadCases
-    IO.println "# One document in three orders follows in rows od0 on (ADR-081): a type and a"
+    IO.println "# One document in three orders follows in rows od0 on: a type and a"
     IO.println "# subtype of it that name each other by path, the subtype written first, the"
     IO.println "# type written first, and the use written above both, each against no data,"
     IO.println "# data that keeps the type and data that breaks it. The definition reads the"

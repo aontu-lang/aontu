@@ -15,7 +15,7 @@ const __1 = require("..");
     (0, node_test_1.test)('is a plain semver triple', () => {
         (0, expect_1.expect)(/^\d+\.\d+\.\d+$/.test(__1.VERSION)).equal(true);
     });
-    // ADR-041: one number names a release, so this reads the other port's
+    // ADR-104: one number names a release, so this reads the other port's
     // literal.
     (0, node_test_1.test)('matches the Go module', () => {
         const src = (0, node_fs_1.readFileSync)((0, node_path_1.join)(__dirname, '..', '..', 'go', 'aontu.go'), 'utf8');

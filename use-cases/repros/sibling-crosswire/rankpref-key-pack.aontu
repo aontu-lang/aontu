@@ -1,5 +1,5 @@
 # Use-case 06 gap 2 (claim C4) -- FIXED 2026-08-26 by the
-# template-clone isolation change (ADR-005): a template instance owns
+# template-clone isolation change: a template instance owns
 # its preference's inner value (PrefVal deep `dup` clone), so a rank-2
 # default computed from key() answers per generated child.
 # Historically the double star was the trigger -- PrefVal.clone shared

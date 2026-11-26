@@ -1,4 +1,4 @@
-# The SchemaStore round-trip ledger (G12 phase 18, ADR-068): one row per
+# The SchemaStore round-trip ledger (G12 phase 18, ADR-109): one row per
 # vendored schema that does not come back from import(export(import(S)))
 # canon-equal to import(S) and subsuming both ways, the construct it waits
 # on and why. A listed schema that round-trips fails the run.

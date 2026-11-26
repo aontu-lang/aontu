@@ -1,5 +1,5 @@
 ---
-description: Connect `aontu lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
+description: Connect `aontu lsp` to VS Code, Neovim, a JetBrains IDE, or any LSP client for diagnostics as you type.
 group: run-embed
 order: 90
 ---
@@ -9,7 +9,7 @@ order: 90
 Both implementations serve the Language Server Protocol from the
 command itself, `aontu lsp`: unification problems as diagnostics
 while you type, with hover and completion beside them. Ready-made
-plugins for VS Code, Emacs and Vim/Neovim live in
+clients for VS Code, Emacs, Vim/Neovim, and the JetBrains IDEs live in
 [`editors/`](../../editors/), each a thin client that launches the
 server, with install steps in its README. The recipes below are for
 wiring a client yourself.
@@ -74,6 +74,24 @@ vim.api.nvim_create_autocmd('FileType', {
 
 The shipped [vim plugin](../../editors/vim/) registers the same
 filetype and adds syntax highlighting.
+
+## JetBrains IDEs
+
+A JetBrains IDE needs no plugin of aontu's own. The
+[LSP4IJ](https://plugins.jetbrains.com/plugin/23257-lsp4ij) plugin
+connects one to any language server, and takes a server's settings
+from a template directory. The shipped
+[template](../../editors/jetbrains/) is that directory. In `Settings`,
+open `Languages & Frameworks`, then `Language Servers (LSP4IJ)`. Click
+`+`, then `Import template...`, and select the directory.
+
+To wire it by hand, the New Language Server dialog wants two things.
+Its `Server` tab takes the command, `aontu lsp`. Its `Mappings` tab
+takes the filename pattern `*.aontu`, with the language id `aontu`.
+On Windows the command is `cmd /C aontu lsp`, since the plugin starts
+a command without a shell. The template's
+[README](../../editors/jetbrains/README.md) covers syntax
+highlighting.
 
 ## Any LSP client
 

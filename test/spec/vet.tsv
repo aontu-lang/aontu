@@ -125,7 +125,7 @@ vet-junction-site	vet	a:1|2	a:3	{"findings":[{"class":"conflict","code":"empty",
 # at row -1 there and at the enum here (the "junction values at -1:-1"
 # half of the review's finding F). The site travels whole now.
 vet-refd-disjunct-site	vet	Role: "admin" | "member" | "viewer"\nr: $.Role	r: "root"	{"findings":[{"class":"conflict","code":"empty","path":"$.r","pointer":"/r","severity":"error","sites":[{"col":4,"file":"data","len":6,"role":"data","row":1,"src":"\\"root\\"","value":"\\"root\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.Role","pointer":"/Role","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]}],"truncated":false,"verdict":"invalid"}
-# ADR-011 R1: the finding names the DEFAULT the author wrote (`*1`,
+# The finding names the DEFAULT the author wrote (`*1`,
 # sited at the star) and refuses as the emptied disjunction `*1`
 # stands for. It used to name the gate the engine computed from it
 # (`integer`), which is not text the reader can find in the schema.
@@ -177,8 +177,8 @@ vet-closed-list-surplus-each-element	vet	[integer]	[1,2,3]	{"findings":[{"class"
 vet-merged-count-refuses-at-its-len	vet	a: len(neq(2)) & re("^x")	a: "xy"	{"findings":[{"actual":"\\"xy\\"","class":"conflict","code":"constraint","expected":"re(\\"^x\\")&len(integer&min(0)&neq(2))","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":4,"file":"data","len":4,"role":"data","row":1,"src":"\\"xy\\"","value":"\\"xy\\""},{"col":4,"file":"schema","len":3,"role":"schema","row":1,"src":"len","value":"re(\\"^x\\")&len(integer&min(0)&neq(2))"}]}],"truncated":false,"verdict":"invalid"}
 vet-closed-list-exact	vet	[integer]	[1]	{"findings":[],"opts":{"closed":true},"truncated":false,"verdict":"valid"}
 #
-# A SCHEMA-INTERNAL REFERENCE SEES THE DATA (ADR-007,
-# use-cases/BUGS.md §15). `b:$.a` used to be resolved and REPLACED by
+# A SCHEMA-INTERNAL REFERENCE SEES THE DATA
+# (use-cases/BUGS.md §15). `b:$.a` used to be resolved and REPLACED by
 # the standalone pass, which decides whether the schema stands up on
 # its own -- and that settled tree was then the left side of the meet,
 # so `{a:3,b:4}` vetted valid while the same four lines as one document
@@ -188,7 +188,7 @@ vet-closed-list-exact	vet	[integer]	[1]	{"findings":[],"opts":{"closed":true},"t
 vet-schema-reference-sees-data	vet	a:integer\nb:$.a\n	a:3\nb:4\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.b","pointer":"/b","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":2,"src":"4","value":"4"},{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"3","value":"3"}]}],"truncated":false,"verdict":"invalid"}
 vet-schema-reference-agrees	vet	a:integer\nb:$.a\n	a:3\nb:3\n	{"findings":[],"truncated":false,"verdict":"valid"}
 #
-# THE MEET IS FROM A FRESH PARSE, EXCEPT UNDER `--at` (ADR-007). An
+# THE MEET IS FROM A FRESH PARSE, EXCEPT UNDER `--at`. An
 # unanchored run meets the schema as PARSED, so its references see the
 # data -- that is what makes vet(S,D) and eval(S u D) the same question
 # (use-cases/BUGS.md §15). An anchor is a SUBTREE lifted out of the
@@ -201,8 +201,8 @@ vet-schema-reference-agrees	vet	a:integer\nb:$.a\n	a:3\nb:3\n	{"findings":[],"tr
 vet-at-absolute-ref-valid	vet	Base:{k:integer}\nA:$.Base & {t:"a"}\n	t:"a"\nk:1\n	{"findings":[],"opts":{"at":"$.A"},"truncated":false,"verdict":"valid"}
 vet-at-absolute-ref-invalid	vet	Base:{k:integer}\nA:$.Base & {t:"a"}\n	t:"a"\nk:"x"\n	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.A.k","pointer":"/A/k","severity":"error","sites":[{"col":3,"file":"data","len":3,"role":"data","row":2,"src":"\\"x\\"","value":"\\"x\\""},{"col":9,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"opts":{"at":"$.A"},"truncated":false,"verdict":"invalid"}
 #
-# A MARK ABOVE THE ANCHOR IS NOT A REASON TO CHECK NOTHING (ADR-007's
-# companion, the completeness probe -- use-cases/BUGS.md §14). Vet finds
+# A MARK ABOVE THE ANCHOR IS NOT A REASON TO CHECK NOTHING (the
+# instance rule's companion, the completeness probe -- use-cases/BUGS.md §14). Vet finds
 # residue by GENERATING the anchored meet, and generation honours the
 # output marks: `type()` and `hide()` say "do not emit this". So a
 # `--at` anchor sitting under a `type()` -- the ordinary way a schema
@@ -217,8 +217,8 @@ vet-at-marked-anchor-required	vet	marked:type({R:{a:string,b:string}})	a:"x"	{"f
 vet-at-marked-anchor-complete	vet	marked:type({R:{a:string,b:string}})	a:"x"\nb:"y"	{"findings":[],"opts":{"at":"$.marked.R"},"truncated":false,"verdict":"valid"}
 vet-at-marked-anchor-conflict	vet	marked:type({R:{a:string}})	a:1	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.marked.R.a","pointer":"/marked/R/a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":19,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]}],"opts":{"at":"$.marked.R"},"truncated":false,"verdict":"invalid"}
 #
-# A MISSING REQUIRED ENUM FIELD IS INCOMPLETE, NOT VALID (ADR-007,
-# use-cases/BUGS.md §13). Generation used to FOLD an unresolved
+# A MISSING REQUIRED ENUM FIELD IS INCOMPLETE, NOT VALID
+# (use-cases/BUGS.md §13). Generation used to FOLD an unresolved
 # disjunction's members together with unify, so `'a'|'b'` with no data
 # died as a scalar CONFLICT -- the conflict of the fold, not of anything
 # the author wrote -- and the incompleteness pass, which keeps
@@ -285,7 +285,7 @@ vet-overflow-literal	vet	a: integer	a: 1e999	{"findings":[{"class":"parse","code
 vet-minted-arith-operand-unsited	vet	a: integer	a: 1+2\n"a": 5\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":2,"src":"5","value":"5"},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"3"}]}],"truncated":false,"verdict":"invalid"}
 vet-minted-concat-operand-unsited	vet	a: string	a: "x"+"y"\n"a": "z"\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":6,"file":"data","len":3,"role":"data","row":2,"src":"\\"z\\"","value":"\\"z\\""},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"\\"xy\\""}]}],"truncated":false,"verdict":"invalid"}
 
-# THE ADMISSION GATE UNDER VET (ADR-004, 2026-08-26; use-cases/BUGS.md
+# THE ADMISSION GATE UNDER VET (2026-08-26; use-cases/BUGS.md
 # §1). The enum-with-default schema now refuses an out-of-enum data
 # value: `k:*'auto'|'literal'|'data'` against `k:'autoo'` was
 # `verdict: valid` (the same-kind override replaced the default with no
@@ -390,7 +390,7 @@ vet-pack-two-holes-are-two-positions	vet	a:{t:{u:string}}\ng:pack($.a,{x:_,y:{z:
 vet-pack-hole-fill-list-is-a-position	vet	a:{t:[string]}\ng:pack($.a,{arguments:_})\n	arguments:[1]\n	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.g.t.arguments.0","pointer":"/g/t/arguments/0","severity":"error","sites":[{"col":12,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":7,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]}],"opts":{"at":"$.g.t"},"truncated":false,"verdict":"invalid"}
 vet-pack-hole-fill-from-deeper-source	vet	deep:{a:{b:{c:{t:{u:string}}}}}\ng:pack($.deep.a.b.c,{arg:_})\n	arg:1\n	{"findings":[{"class":"conflict","code":"map","path":"$.g.t.arg","pointer":"/g/t/arg","severity":"error","sites":[{"col":5,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":18,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"u\\":string}"}]}],"opts":{"at":"$.g.t"},"truncated":false,"verdict":"invalid"}
 #
-# A REFERENCE'S COPY OWNS ITS ARGUMENTS (ADR-025). The list spread
+# A REFERENCE'S COPY OWNS ITS ARGUMENTS. The list spread
 # resolves `$.ent.U` once per element, and the target is a close()
 # CALL, whose argument the shallow ref clone used to share: every
 # element then held the one inner map, each rebased its path in turn,
@@ -453,8 +453,8 @@ vet-nil-in-map-template-selected	vet	a:{a?:integer,&:match(key(0),"a",any,nil)}	
 vet-nil-in-list-template-unselected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1]	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-nil-in-list-template-selected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1,2]	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.1","pointer":"/a/1","severity":"error","sites":[{"col":6,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 
-# Required wins (ADR-045) and the written nil under an optional key
-# (ADR-046) under vet: the gate asks the evaluator's question.
+# Required wins and the written nil under an optional key
+# under vet: the gate asks the evaluator's question.
 vet-required-wins	vet	a:{x?:integer}&{x:integer}	a:{}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.a.x","pointer":"/a/x","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"truncated":false,"verdict":"incomplete"}
 vet-optional-nil-absent-passes	vet	a:{k?:nil}	a:{}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-optional-nil-supplied-refused	vet	a:{k?:nil}	a:{k:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.k","pointer":"/a/k","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":7,"file":"schema","len":3,"role":"schema","row":1,"src":"nil","value":"nil"}]}],"truncated":false,"verdict":"invalid"}

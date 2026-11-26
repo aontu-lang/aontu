@@ -53,7 +53,7 @@ class MetaFuncVal extends FuncBaseVal_1.FuncBaseVal {
 exports.MetaFuncVal = MetaFuncVal;
 // A record: a map of concrete data, under any keys, or undefined where it
 // is not one. What a key means is for the reader of the record to say;
-// the JSON Schema exporter reads its own keys (ADR-072).
+// the JSON Schema exporter reads its own keys.
 function metaRecord(r) {
     if (true !== r?.isMap || !isData(r)) {
         return undefined;

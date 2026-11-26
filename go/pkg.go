@@ -411,7 +411,7 @@ func packageSelf(dir string, opts *PkgOptions) PackageSelf {
 }
 
 // What a package may contain (REPOSITORY.0.md §9.4): an enumerated
-// allowlist, refused by default. The data half is ADR-012's table.
+// allowlist, refused by default. The data half is the include table.
 var archiveAdmittedExt = map[string]bool{
 	"aontu": true,
 	"json":  true, "jsonld": true, "jsonc": true, "json5": true, "jsonic": true,
@@ -726,7 +726,7 @@ func PkgVerify(root string, opts *PkgOptions) PkgVerifyReport {
 			continue
 		}
 
-		// BYTES BEFORE MEANING (ADR-019): the archive digest and the
+		// BYTES BEFORE MEANING (ADR-110): the archive digest and the
 		// manifest's file list first, on fixed-size reads, then the one
 		// evaluation.
 		before := len(mismatched)
@@ -1129,7 +1129,7 @@ func PkgManifestOf(root, against string, opts *PkgOptions) PkgManifestReport {
 
 	// THE PUBLISH-TIME COMPATIBILITY GATE: G3's subsumption
 	// (go/subsume.go), wired at the one place versions are minted, with
-	// no major to bump past it (ADR-022).
+	// no major to bump past it (ADR-111).
 	prior := packageSelf(against, opts)
 	priorMain := filepath.Join(against, prior.Main)
 	priorData, err := os.ReadFile(priorMain)

@@ -7,7 +7,7 @@
 # fourth figure refuses writes none of them.
 #
 # `views` is this document's own key, not a name the engine knows
-# (ADR-010): `--views` says where to look. The declaration keys are the
+# (ADR-106): `--views` says where to look. The declaration keys are the
 # view options, which are the CLI's flags without the dashes, and
 # `@"aontu:view"` is the schema for one.
 

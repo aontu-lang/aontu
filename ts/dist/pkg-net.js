@@ -92,7 +92,7 @@ function isLoopback(url) {
     return 'http:' === u.protocol &&
         ('127.0.0.1' === u.hostname || 'localhost' === u.hostname || '[::1]' === u.hostname);
 }
-// A base is https, or http on a loopback host (ADR-039 part 10).
+// A base is https, or http on a loopback host.
 function baseAdmitted(url) {
     let u;
     try {
@@ -213,7 +213,7 @@ function parseDoc(b) {
 function canonLine(obj, options, name) {
     return utf8(options.eval(JSON.stringify(obj), name).canon + '\n');
 }
-// THE KEY PROVIDER (ADR-024 part 4): an Ed25519 key signs the manifest's
+// THE KEY PROVIDER: an Ed25519 key signs the manifest's
 // digest, domain-separated by the encoding name.
 const SPKI_ED25519_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 function signedBytes(over) {
@@ -470,8 +470,8 @@ function recordSeen(ctx, pkg, version, subject) {
     (0, node_fs_1.writeFileSync)(file, canonLine({ package: pkg, version, seen: timestamp(ctx.now()), subject }, ctx.options, 'seen.aontu'));
 }
 // Selection (spec acquire step 6): the newest version outside the
-// cooldown, timed from the repository's first-seen time (ADR-039 part
-// 9), not retracted. A version named explicitly is taken as it is.
+// cooldown, timed from the repository's first-seen time,
+// not retracted. A version named explicitly is taken as it is.
 function selectVersion(ctx, pkg, list, advisory, asked, fallback) {
     if (undefined !== asked) {
         return asked;

@@ -1,4 +1,4 @@
-# aontu:profile -- THE PROFILE VOCABULARY (ADR-035; ADR-038). A profile
+# aontu:profile -- THE PROFILE VOCABULARY (ADR-108). A profile
 # is a language declared as data -- its name, its indentation, its
 # comment forms and the marker its generators carry -- and it is DATA
 # and only data. `aontu template` and `aontu fmt` vet a --profile
@@ -6,7 +6,7 @@
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #
-# BUNDLED (the aontu/ tree, ADR-036), served under the aontu: scheme,
+# BUNDLED (the aontu/ tree, ADR-107), served under the aontu: scheme,
 # pinned by `shape-hash` in both engines. The root is not type()-marked;
 # a profile document STATES a profile -- the vocabulary alone has no
 # `lang` to generate.

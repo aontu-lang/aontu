@@ -1,4 +1,4 @@
-# META -- `meta(v, ...r)` (G12 phase 8, ADR-052, ADR-072): a value-
+# META -- `meta(v, ...r)` (G12 phase 8): a value-
 # transparent rider. The value unifies exactly as v, and each record r
 # rides the result through meets, reference copies and spread
 # applications. A record is open: a map of concrete data under any keys,
@@ -116,7 +116,7 @@ meta-gens-transparent	gens	a: meta(*8080 | integer, {title: "port"})	{"a":8080}
 meta-gens-map	gens	a: meta({x: 1}, {title: "t"}) & {y: 2}	{"a":{"x":1,"y":2}}
 meta-gens-list	gens	a: [meta(1, {title: "t"}), 2]	{"a":[1,2]}
 #
-# A record is open (ADR-072): any key holds any concrete data, the keys
+# A record is open: any key holds any concrete data, the keys
 # the JSON Schema exporter reads among them, and x is a key like any
 # other. A key that names an object member in JavaScript is a key too.
 meta-canon-any-key	canon	a: meta(1, {nope: "x"})	{"a":meta(1,{"nope":"x"})}
@@ -154,7 +154,7 @@ meta-subsume-specific-record-ignored	subsume	a: number	a: meta(1, {title: "t"})	
 # annotation-only subschemas. A key JSON Schema reads is written as its
 # keyword where it holds that keyword's kind of data; any other key is a
 # keyword of its own name, unless it names a JSON Schema keyword. What is
-# not written is no loss, since a record is anyone's (ADR-074).
+# not written is no loss, since a record is anyone's.
 js-meta-inline	jsonschema	a: meta(number, {title: "n", description: "d"})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"description":"d","title":"n","type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-meta-every-key	jsonschema	a: meta(string, {comment: "c", default: "x", examples: ["x"], readOnly: true, writeOnly: false, format: "email", contentEncoding: "base64", contentMediaType: "text/plain", contentSchema: {type: "string"}})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"$comment":"c","contentEncoding":"base64","contentMediaType":"text/plain","contentSchema":{"type":"string"},"default":"x","examples":["x"],"format":"email","minLength":1,"readOnly":true,"type":"string","writeOnly":false}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-meta-other-keys-are-keywords-of-their-own-names	jsonschema	a: meta(number, {"x-custom": 1, nullable: true})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"nullable":true,"type":"number","x-custom":1}},"required":["a"],"type":"object"},"verdict":"ok"}

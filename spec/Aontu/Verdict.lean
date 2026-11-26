@@ -284,7 +284,7 @@ def plusOf (a b : Val) : Made :=
   | .lit (.num x), .lit (.num y) => ((Number.binary .add x y).map fun n => .made (.lit (.num n))).getD .refused
   | _, _ => .waits
 
-/-- Two lists concatenate under `+` (ADR-037): the left's elements, then
+/-- Two lists concatenate under `+`: the left's elements, then
 the right's. -/
 theorem plusOf_lists {xs ys : List Val} {s s' : Option Val} {c c' : Bool} :
     plusOf (.list xs s c) (.list ys s' c') = .made (.list (xs ++ ys) none false) := rfl

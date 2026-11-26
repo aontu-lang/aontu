@@ -31,7 +31,7 @@ hide-lossy-literal-arg-in-list-err	err	x:[hide(9007199254740993)]	not exactly re
 hide-unknown-func-arg-err	err	x:hide(unknownfn(1))	Cannot resolve value
 type-unknown-func-arg-err	err	x:type(unknownfn(1))	Cannot resolve value
 
-# A REFERENCE DEFERS ON A PENDING MARK WRAPPER (ADR-005, 2026-08-26;
+# A REFERENCE DEFERS ON A PENDING MARK WRAPPER (2026-08-26;
 # use-cases/BUGS.md §11, §12, §35b). A reference that found a
 # type()/hide() call still waiting for its argument used to clone the
 # CALL, and the clone resolved at the reference's site, stamping marks

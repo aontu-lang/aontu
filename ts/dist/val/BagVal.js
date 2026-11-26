@@ -267,7 +267,7 @@ function bagGenable(child) {
         || true === child.isGraphAtom
         || undefined !== sizingResidue(child);
 }
-// A container template waits for a member that has not decided (ADR-043).
+// A container template waits for a member that has not decided.
 function undecided(child) {
     return true === child.isMaybeFunc && !child.done;
 }

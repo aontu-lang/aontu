@@ -2,7 +2,7 @@
 
 package aontu
 
-// The grammar seam, ADR-033. Twin of ts/src/grammar.ts.
+// The grammar seam. Twin of ts/src/grammar.ts.
 
 import (
 	"fmt"

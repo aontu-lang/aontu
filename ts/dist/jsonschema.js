@@ -244,7 +244,7 @@ function fromConstraint(ctx, path, c, bag) {
     else if (1 < c.res.length) {
         extra.push(...c.res.map((r) => ({ pattern: r.norm })));
     }
-    // ADR-059: a committed format by its name, a grammar under
+    // ADR-105: a committed format by its name, a grammar under
     // x-aontu-format, which only aontu reads.
     for (const [key, fs, reason] of [
         ['format', c.fmts.filter((f) => f.src === f.name), FORMAT_ANNOTATES],
@@ -394,7 +394,7 @@ function containsOut(ctx, path, out, extra, k, bag) {
 const COVER_LOST = 'JSON Schema evaluates a member only by its name, a pattern of ' +
     'its name, its index in a prefix or its match of contains, so a check whose ' +
     'cover reaches past these is DROPPED and the schema admits members the model refuses';
-// ADR-058: rest() as an allOf member whose own keywords evaluate what its
+// rest() as an allOf member whose own keywords evaluate what its
 // covers do, so its unevaluated keyword sees those and no more. A
 // condition rides `not: {not: …}`, which keeps its own annotations out.
 function restCheckOut(ctx, path, extra, r, bag) {
@@ -539,7 +539,7 @@ function keyword(out, extra, key, val) {
 }
 function fromVal(ctx, path, v) {
     const out = fromValRef(ctx, path, v);
-    // ADR-057: a use read from a $dynamicRef keeps its $ref until dynamicRefs
+    // A use read from a $dynamicRef keeps its $ref until dynamicRefs
     // knows the definitions' anchors. A fragment that is no anchor never
     // asked the dynamic scope, nor did a use whose schema is written in place.
     const text = out?.$dynamicRef;
@@ -663,7 +663,7 @@ function withRiders(out, v) {
         (null == v?.deprecation && null == v?.meta) ? out : annotate(out, v);
 }
 const DEPRECATION_TEXT = ['msg', 'use', 'since'];
-// The record keys read as keywords, each with its kind; null-prototype (ADR-072).
+// The record keys read as keywords, each with its kind; null-prototype.
 const META_KEYWORD = Object.assign(Object.create(null), {
     title: ['title', 'string'], description: ['description', 'string'],
     comment: ['$comment', 'string'], default: ['default', 'data'],
@@ -707,7 +707,7 @@ function annotate(out, v) {
         for (const k of Object.keys(layer).sort(keyorder_1.cmpCodePoint)) {
             const json = generated(layer[k]);
             const known = META_KEYWORD[k];
-            // A record is anyone's: what JSON Schema cannot read is skipped (ADR-074).
+            // A record is anyone's: what JSON Schema cannot read is skipped.
             if (undefined !== known && !fitsKind(known[1], json)) {
                 continue;
             }
@@ -772,7 +772,7 @@ function fromValInner(ctx, path, v) {
         lose(ctx, path, 'gen', GEN_LOST);
     }
     if (true === v.isPref) {
-        // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
+        // A bare `*x` admits every value of x's kind and prefers x,
         // so `const: x` would refuse what the model admits.
         if (true === v.peg?.isScalar) {
             return { ...kindOfLiteral(ctx, path, v.peg), default: scalarJson(v.peg) };
@@ -1429,7 +1429,7 @@ function withDefs(ctx, schema, body) {
     }
     return lossy;
 }
-// ADR-057: the declarations of one schema read in several dynamic scopes
+// The declarations of one schema read in several dynamic scopes
 // are one definition where their schemas, $refs included, agree.
 function unclone(schema, body, used) {
     // Clones share the $defs key a clone's identity names.
@@ -1454,7 +1454,7 @@ function unclone(schema, body, used) {
         }
     }
 }
-// ADR-057: a use read from a $dynamicRef is one where its anchor names, in
+// A use read from a $dynamicRef is one where its anchor names, in
 // the schema's own resource, the schema its $ref reached; else its $ref stands.
 function dynamicRefs(schema, kept) {
     const at = new Map([['#', schema], ...kept.map((d) => [defRef(d), d.schema])]);
@@ -1469,9 +1469,9 @@ function dynamicRefs(schema, kept) {
         }
     });
 }
-// ADR-056: a definition's identity is written on it, a folded one's on the
+// A definition's identity is written on it, a folded one's on the
 // schema, but not an identifier a $ref inside would resolve against, an
-// anchor its resource holds, or a key given several values (ADR-074).
+// anchor its resource holds, or a key given several values.
 function identify(schema, folded, kept) {
     const one = (defs, key) => {
         const all = [...new Set(defs.flatMap((d) => identityTexts(d.value, key)))];
@@ -1512,7 +1512,7 @@ function identify(schema, folded, kept) {
 }
 const IDENTITY_KEYS = new Set(['id', 'anchor', 'dynamicAnchor', 'defs']);
 const isText = (v) => true === v.isScalar && 'string' === typeof v.peg;
-// The text a declaration's record holds under a key (ADR-073).
+// The text a declaration's record holds under a key.
 function identityTexts(value, key) {
     return (value.identity?.[key] ?? []).filter(isText).map((v) => v.peg);
 }

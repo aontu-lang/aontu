@@ -75,7 +75,7 @@ must-move-arg-in-disjunct	errc	b:1 a:must(move($.b)|1,"m") a:1	invalid-arg
 # node, so it is not effectful in this sense and stays admissible.
 must-hide-arg	gen	b:1 a:must(hide($.b),"m") a:1	{"a":1,"b":1}
 #
-# must asks the admission trial (ADR-055): the meet with c must add
+# must asks the admission trial: the meet with c must add
 # nothing the value lacks, but an optional member, and generate the value
 # itself, so must(c, m) asks what nof(1, c) asks, and a filled default is
 # no more admitted than a filled literal. A conflict still refuses with

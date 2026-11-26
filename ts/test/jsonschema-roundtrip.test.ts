@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
 
-// G12 phase 18 (ADR-068): every schema of the official suite, in every
+// G12 phase 18 (ADR-109): every schema of the official suite, in every
 // dialect, comes back from import(export(import(S))) as import(S), canon
 // for canon and subsuming both ways, or its group is a row of the ledger
 // test/vectors/jsonschema/roundtrip.tsv.

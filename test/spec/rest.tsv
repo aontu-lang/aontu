@@ -1,4 +1,4 @@
-# REST -- `rest(t, ...c?)` (G12 phase 12, ADR-058): each member of the
+# REST -- `rest(t, ...c?)` (G12 phase 12): each member of the
 # settled container that no applying cover evaluates must be admitted by
 # the trial schema t, `nil` admitting none. A cover is a record of trial
 # schemas: `if` over the whole container, `keys` over a member's key (a

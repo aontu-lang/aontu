@@ -108,7 +108,7 @@ cov-go:
 	cd go && go tool cover -func=coverage.out | tail -1
 	@cd go && n=$$(awk '$$NF==0' coverage.out | wc -l | tr -d ' '); \
 		if [ "$$n" != "0" ]; then \
-			echo "covcheck: $$n uncovered block(s) — ADR-002 requires 100%:"; \
+			echo "covcheck: $$n uncovered block(s) — ADR-103 requires 100%:"; \
 			awk '$$NF==0 {print "  " $$1}' coverage.out; \
 			echo; \
 			echo "Close each with a shared spec row (preferred), a Go test, or —"; \
@@ -116,7 +116,7 @@ cov-go:
 			echo "carrying its justification. See ADR.md."; \
 			exit 1; \
 		fi; \
-		echo "covcheck: 100% (ADR-002)"
+		echo "covcheck: 100% (ADR-103)"
 	cd go && rm -rf covdata bin coverage-unit.out coverage-main.out
 
 # TypeScript (canonical implementation, package lives in ts/)
@@ -135,7 +135,7 @@ aontu:
 	node ts/scripts/aontu.cjs
 
 # Regenerate the build-time-inlined copies of the committed format
-# grammars (ADR-059) from grammar/format/ into ts/src/formatgrammars.ts
+# grammars (ADR-105) from grammar/format/ into ts/src/formatgrammars.ts
 # and go/formatgrammars/. The Go half must be a committed copy:
 # //go:embed cannot read above its own package directory. Both suites
 # assert byte identity with the sources, so a stale copy fails rather
@@ -152,7 +152,7 @@ formatgen:
 	node ts/scripts/formats.cjs
 
 # Regenerate the Unicode property tables a pattern's \p{...} reads
-# (ADR-060) into ts/src/unicodeprops.ts and go/unicodeprops.txt, from
+# (ADR-105) into ts/src/unicodeprops.ts and go/unicodeprops.txt, from
 # the same pinned Unicode Character Database, and the delta that holds
 # the vendored test262 property escapes to them.
 unicodegen:
@@ -160,7 +160,7 @@ unicodegen:
 	node ts/scripts/unicodegen.cjs --delta
 
 # Stage the published JSON Schema meta-schemas the importer ships
-# (ADR-064) from test/vectors/json-schema-spec/ into ts/src/metaschemas.ts
+# from test/vectors/json-schema-spec/ into ts/src/metaschemas.ts
 # and go/metaschemas/, with their licence. The Go half must be a
 # committed copy: //go:embed cannot read above its own package directory.
 # Both suites assert byte identity with the vendored documents, so a
@@ -168,7 +168,7 @@ unicodegen:
 metaschemas:
 	node ts/scripts/metaschemas.cjs
 
-# Stage the JSON Schema vocabulary table the importer reads (ADR-063)
+# Stage the JSON Schema vocabulary table the importer reads
 # from grammar/jsonschema/vocabularies.tsv into ts/src/vocabularies.ts and
 # go/vocabularies.tsv. The Go half must be a committed copy: //go:embed
 # cannot read above its own package directory. Both suites assert byte
@@ -202,7 +202,7 @@ test-ts:
 test-group:
 	cd ts && node scripts/test-group.cjs --run $(G)
 
-# The check before a push, inside two minutes (ADR-071): the comment
+# The check before a push, inside two minutes: the comment
 # gate, both builds, the gate group and the Go suite. The other groups,
 # the other operating systems, the prose gate and the definition are
 # CI's: make test-group, make prose and make spec run them by hand.
@@ -282,14 +282,14 @@ publish:
 	  case "$(GOV)" in *+*) echo "publish: GOV=$(GOV) carries +build metadata"; exit 1 ;; esac; \
 	  $(MAKE) --no-print-directory check-go-major V=$(GOV); \
 	fi
-	@# ONE NUMBER NAMES A RELEASE (ADR-041). Both must be given and equal:
+	@# ONE NUMBER NAMES A RELEASE (ADR-104). Both must be given and equal:
 	@# comparing only a STATED pair leaves `make publish V=x` bumping one file
 	@# and not the other, which is the same split by omission. The invariant
 	@# is also a test in both ports, which is what holds the publish workflow
 	@# to it -- this guard is here to refuse BEFORE anything is written.
 	@if [ "$(V)" != "$(GOV)" ]; then \
 	  echo "publish: V='$(V)' and GOV='$(GOV)' must be given and equal:"; \
-	  echo "         one number names a release (ADR-041, since 0.70.0)."; \
+	  echo "         one number names a release (ADR-104, since 0.70.0)."; \
 	  exit 1; fi
 	@command -v gh >/dev/null 2>&1 || \
 	  (echo "publish: needs the gh CLI to dispatch the workflow" && exit 1)

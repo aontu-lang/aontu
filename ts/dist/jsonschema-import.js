@@ -366,7 +366,7 @@ const DEFAULT_BASE = DEFAULT_ROOT + 'schema';
 // The copies a root that is not a map may make before they are cut.
 const COPY_BUDGET = 4096;
 // The declarations dynamic scopes may add beyond each schema's first
-// before the import is refused (ADR-057).
+// before the import is refused.
 const SCOPE_BUDGET = 1024;
 function rowCol(src, off) {
     let row = 1;
@@ -597,7 +597,7 @@ function resolveRef(ctx, from, ref) {
     for (const tok of frag.slice(1).split('/')) {
         const key = tok.replace(/~1/g, '/').replace(/~0/g, '~');
         if ('object' === node.t) {
-            // A pointer reads the schema as written (ADR-061).
+            // A pointer reads the schema as written.
             node = node.was?.get(key) ?? node.entries.find((en) => en.key === key)?.val;
         }
         else if ('array' === node.t && /^(0|[1-9][0-9]*)$/.test(key)) {
@@ -680,7 +680,7 @@ function dialectNamed(ctx, uri, depth = 0) {
     return undefined === named ? ctx.dialect :
         'string' === named.t ? dialectNamed(ctx, named.s, depth + 1) : undefined;
 }
-// ADR-061: a schema of a legacy dialect rewritten in place, keyword by
+// A schema of a legacy dialect rewritten in place, keyword by
 // keyword, into the schema the importer reads that means the same,
 // before it is indexed. `ptr` is where the walk reads it and `was` where
 // it was written; `root` marks a document's root, and `recursive` whether
@@ -882,7 +882,7 @@ function originOf(ctx, path) {
     return path;
 }
 function targetName(ctx, node, at) {
-    // A name spells the schema as written (ADR-061).
+    // A name spells the schema as written.
     const ptr = originOf(ctx, at);
     if (ctx.docOf.get(node).root !== ctx.root) {
         return 'u_' + encodeName(ptr.replace(/#$/, ''));
@@ -966,7 +966,7 @@ function settleRefs(ctx, root) {
     }
     ctx.doc = outer;
 }
-// ADR-057: the names some $dynamicRef asks the dynamic scope for, and
+// The names some $dynamicRef asks the dynamic scope for, and
 // every schema a resource anchors by one, a target as a $ref's is.
 function bindDynamic(ctx, seen, misses) {
     for (const node of [...ctx.ptrOf.keys()]) {
@@ -1097,7 +1097,7 @@ const SCOPED = {
     array: ['prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
         'maxContains', 'uniqueItems', 'unevaluatedItems'],
 };
-// ADR-059: the grammar a format asserts, the committed one of its name
+// ADR-105: the grammar a format asserts, the committed one of its name
 // or the one the format set gives it.
 function grammarOf(ctx, name) {
     return '' === ctx.asserts || 'string' !== name?.t ? undefined :
@@ -1463,8 +1463,8 @@ function convertNode(ctx, node, ptr, asDecl, only, via) {
     ctx.frame = outer;
     return undefined === via ? out : mark(ctx, out, via.ptr, via.node, { enters: frame });
 }
-// A target is declared once for each dynamic scope it is read in
-// (ADR-057), each after the first under a name of its own.
+// A target is declared once for each dynamic scope it is read in,
+// each after the first under a name of its own.
 function declare(ctx, target) {
     const uses = usesOf(ctx, target.node);
     const key = [...enter(ctx, target.node)].filter(([n]) => uses.has(n))
@@ -1495,7 +1495,7 @@ function declare(ctx, target) {
     }
     return name;
 }
-// ADR-056: the identity a declared schema had, which its declaration
+// The identity a declared schema had, which its declaration
 // carries: the entry's own identifier as written, any other resource's
 // as its URI, absolute or under the entry's directory; its anchor; and
 // the $defs key a name that says the anchor does not say.
@@ -1506,7 +1506,7 @@ function identity(ctx, target, clone) {
     if ('string' === anchor?.t) {
         out.push({ key: 'anchor', optional: false, val: raw(quote(anchor.s)) });
     }
-    // A clone (ADR-057) names the definition its first declaration is.
+    // A clone names the definition its first declaration is.
     const defs = /^#\/\$defs\/([^/]+)$/.exec(target.ptr);
     if (null != defs && (clone || target.name.startsWith('a_'))) {
         out.push({ key: 'defs', optional: false,
@@ -1558,7 +1558,7 @@ function convertObject(ctx, node, ptr, only) {
             parts.push(convert(ctx, target, ctx.targets.get(target).ptr, false, undefined, { ptr: at('$ref'), node }));
         }
     }
-    // ADR-057: the binding the dynamic scope gives its name, or the
+    // The binding the dynamic scope gives its name, or the
     // initial target, read as a $ref; the use keeps the reference's text.
     const dref = get('$dynamicRef');
     if (null != dref) {
@@ -1711,8 +1711,7 @@ function annotate(ctx, node, ptr, e) {
             entries.push({ key, optional: false, val });
         }
     };
-    // A keyword the schema's dialect does not define is an annotation
-    // (ADR-061).
+    // A keyword the schema's dialect does not define is an annotation.
     for (const en of node.unknown ?? []) {
         const val = data(ctx, child(ptr, en.key), en.key, en.val);
         if (undefined !== val) {
@@ -2239,7 +2238,7 @@ function emit(ctx, root) {
     place(w, start, root.marks);
     return w;
 }
-// ADR-066: the spans the import wrote, carried to the agreed form, each
+// The spans the import wrote, carried to the agreed form, each
 // frame numbered by where its own text first appears, the root 0.
 function sourceMapOf(ctx, out, text) {
     const placed = [...out.placed].sort((a, b) => a.start - b.start || b.end - a.end || a.depth - b.depth);
@@ -2311,7 +2310,7 @@ function begin(text, options) {
             base.doc = doc;
         }
     }
-    // ADR-064: the published meta-schemas, each at its own URI where the
+    // The published meta-schemas, each at its own URI where the
     // set gives none there.
     for (const [key, meta] of Object.entries(metaschemas_1.META_SCHEMAS)) {
         if (!base.documents.has(key)) {
@@ -2366,7 +2365,7 @@ function importJsonSchema(text, options) {
     if (undefined === coreMap(body)) {
         [ctx, body] = run(base, false);
     }
-    // An identity rides only a declaration (ADR-056).
+    // An identity rides only a declaration.
     for (const [node, ptr] of base.ptrOf) {
         const target = ctx.targets.get(node);
         const declared = ctx.mapRoot && undefined !== target && ctx.decls.has(target.name);
@@ -2402,7 +2401,7 @@ function importJsonSchema(text, options) {
         ...(true === options?.sourceMap ? { map: sourceMapOf(ctx, out, agreed) } : {}),
     };
 }
-// ADR-065: the meta-schema each dialect's schemas are checked against.
+// The meta-schema each dialect's schemas are checked against.
 const META_URIS = {
     'draft-04': 'http://json-schema.org/draft-04/schema#',
     'draft-06': 'http://json-schema.org/draft-06/schema#',
@@ -2422,7 +2421,7 @@ function metaOf(ctx, root) {
     const named = entry(root, '$schema');
     return 'string' === named?.t ? (0, uri_1.resolveUri)(ctx.doc.uri, named.s) : META_URIS[ctx.dialect];
 }
-// ADR-065: an input that stands is read against its meta-schema through a
+// An input that stands is read against its meta-schema through a
 // wrapper whose map root declares the meta-schema's recursion. A number past
 // the exactness budget, or anything inside a resource of another dialect,
 // refuses nothing; a meta-schema whose model does not stand, or that vet
@@ -2482,7 +2481,7 @@ function written(node, segs, ptr) {
     }
     return best;
 }
-// ADR-061: the upgrade stage alone: the schema the import reads in place
+// The upgrade stage alone: the schema the import reads in place
 // of one in a legacy dialect.
 function upgradeJsonSchema(text, options) {
     const [ctx, parsed] = begin(text, options);
@@ -2530,7 +2529,7 @@ function metaVocabulary(ctx, uri) {
     const vocabulary = undefined === meta || 'why' in meta ? undefined : entry(meta, '$vocabulary');
     return 'object' === vocabulary?.t ? vocabulary : undefined;
 }
-// ADR-063: the keywords a resource reads under the vocabularies its
+// The keywords a resource reads under the vocabularies its
 // meta-schema lists, the core vocabulary's always among them, or
 // undefined where it lists none and every vocabulary is read. Only a
 // listed `false` makes a vocabulary aontu does not read optional.

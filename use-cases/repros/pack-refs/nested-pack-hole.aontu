@@ -1,5 +1,5 @@
 # Claim C2 (use-case 02) -- FIXED 2026-08-26 by the template-clone
-# isolation change (ADR-005): a `_` hole belongs to its NEAREST
+# isolation change: a `_` hole belongs to its NEAREST
 # ENCLOSING GENERATOR. The outer pack's fill pass no longer descends
 # into the inner pack's template argument, so the inner `_` binds the
 # inner generator's source child: deploy.dev.services.web.v is the

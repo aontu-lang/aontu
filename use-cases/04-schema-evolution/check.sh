@@ -76,7 +76,7 @@ run 1 "$TMP/vet-closed" $AONTU vet --at '$.profile' profile-v2.aontu data/custom
 has "[aontu/closed]" "$TMP/vet-closed"
 
 say "vet: a missing required literal-enum key (tier) is incomplete (exit 3)"
-# GAP CLOSED 2026-08-27 (ADR-007). tier is
+# GAP CLOSED 2026-08-27. tier is
 # 'standard'|'premium'|'enterprise' with no default and the instance
 # omits it. The verdict used to be valid / exit 0: generation FOLDED
 # the alternatives together, and the resulting scalar CONFLICT was
@@ -158,7 +158,7 @@ say "profiles: under gen, v2 subsumes ITSELF (gap closed 2026-08-27)"
 # The documented aontu_policy idiom (hide + *pref|...) used to make
 # gen-profile self-comparison undecided. README, gap 5. Two causes,
 # both closed: a pref MEMBER was compared by its kind superior (the
-# pre-ADR-004 reading, which the walk kept after the engine stopped
+# pre-admission-gate reading, which the walk kept after the engine stopped
 # using it), and the gen profile's mark rule fired inside a
 # DISTRIBUTION TRIAL, comparing a whole marked disjunction against a
 # member extracted out of one.

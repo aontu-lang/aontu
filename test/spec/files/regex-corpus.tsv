@@ -1,4 +1,4 @@
-# Differential regex corpus (ADR-003). GENERATED, then committed.
+# Differential regex corpus (ADR-105). GENERATED, then committed.
 #
 # Columns: pattern <TAB> verdict
 #   verdict = the NORMALISED pattern, or "!" followed by the refusal

@@ -22,6 +22,9 @@ const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js')
 // a sampled group (groups.tsv). A DOCS_PAGES run names its own pages.
 export const SHARDS = 3
 const SHARD = Number(process.env.AONTU_DOCS_SHARD ?? 1) - 1
+// docs-style.test.ts sets this to run the style rules and the link
+// check alone, fast enough for the gate group.
+const STYLE = '1' === process.env.AONTU_DOCS_STYLE
 const sharded = (files: string[]) => files.filter((_, i) => SHARD === i % SHARDS)
 // A corpus-wide floor, as this shard's share of it.
 const floor = (n: number) => Math.ceil(n / SHARDS)
@@ -325,7 +328,7 @@ function runStep(file: string, dir: string, cache: string, step: Step):
 
 // ---------------------------------------------------------------------
 
-describe('docs', () => {
+;(STYLE ? describe.skip : describe)('docs', () => {
 
   if (0 === SHARD) {
     test('every-shard-has-its-file', () => {
@@ -908,12 +911,13 @@ function stylePaths(): { file: string, abs: string }[] {
 
 
 // The page suite above is what a shard runs; the corpus-wide checks
-// below run once, in the primary file, so a sampled shard does not
-// repeat them.
-const corpusDescribe = 0 === SHARD ? describe : describe.skip
-const corpusTest = 0 === SHARD ? test : test.skip
+// below run once, in the primary file, and the style rules once, in
+// docs-style.test.ts, so a sampled shard does not repeat them.
+const corpusTest = 0 === SHARD && !STYLE ? test : test.skip
+const styleDescribe = STYLE ? describe : describe.skip
+const styleTest = STYLE ? test : test.skip
 
-corpusDescribe('docs-style', () => {
+styleDescribe('docs-style', () => {
 
   test('the-gated-set-covers-more-than-docs', () => {
     if (narrowed()) {
@@ -1174,7 +1178,7 @@ corpusDescribe('docs-style', () => {
 
 
   // The register's status column, held to it below, plus the markers it
-  // and ADR.md write in prose. A published page states what holds now,
+  // writes in prose. A published page states what holds now,
   // so one of these on it is a status its reader cannot act on.
   const PHASE_WORDS =
     /\b(LANDED|PARTIAL|NOT STARTED|RETIRED|SUPERSEDED|AMENDED)\b/g
@@ -1352,7 +1356,7 @@ corpusDescribe('docs-style', () => {
     claim(!phase('Nothing landed yet'), 'the lower-case word is ordinary prose')
 
     claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase')
-    claim(cites('ADR-018 removed the pipe'), 'a numbered decision record')
+    claim(cites('ADR-101 holds the definition'), 'a numbered decision record')
     claim(!cites('a G8 grammar'), 'a phase needs its number')
     claim(cites('the steps in admin/scripts'), 'the admin folder')
     claim(cites('[the gate](../admin/scripts/comment-gate.cjs)'),
@@ -1517,7 +1521,7 @@ corpusTest('the-error-catalogue-is-the-registry', () => {
 
 
 // trust.md spells its extension count in prose beside the list it
-// counts, so the two drift apart under ADR-042 exactly as the error
+// counts, so the two drift apart exactly as the error
 // totals above do. The page's own list is the subject: every extension
 // it names must be read by an include, and the stated count must be how
 // many it names.
@@ -1980,7 +1984,7 @@ function markdownFiles(): string[] {
 }
 
 
-corpusTest('every-internal-link-resolves', () => {
+styleTest('every-internal-link-resolves', () => {
   const cache = new Map<string, Set<string> | null>()
   const anchorsOf = (abs: string): Set<string> | null => {
     if (!cache.has(abs)) {

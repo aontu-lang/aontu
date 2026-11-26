@@ -26,7 +26,7 @@ class MaybeFuncVal extends FuncBaseVal {
   forgives = true
 
   // A reference that has not resolved YET is not a reference to
-  // nothing (ADR-034).
+  // nothing.
   staged = true
 
   constructor(

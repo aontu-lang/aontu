@@ -1,5 +1,5 @@
 # The disjoined bound ENFORCES on override (fixed 2026-08-26 by the
-# preference admission gate, ADR-004).  This probe used to pin the
+# preference admission gate).  This probe used to pin the
 # fail-open behaviour of README gap 2: 40 is far above max(24), yet the
 # concrete peer replaced the *2 default by KIND alone, was never tested
 # against the constrained branch, and the file evaluated with exit 0.

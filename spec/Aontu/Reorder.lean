@@ -4,8 +4,8 @@ import Aontu.Names
 /-!
 # Order independence
 
-A document's meaning does not depend on the order it is written in
-(ADR-081). `Val.Reordered v w` says that `v` and `w` are one value
+A document's meaning does not depend on the order it is written in.
+`Val.Reordered v w` says that `v` and `w` are one value
 written in two orders: the members of a map, the two sides of a meet,
 the arms of a disjunction, the branches of `nof` and the ends of `neq`
 in any order, at each depth the relation reaches. `Val.Reordered.judge`

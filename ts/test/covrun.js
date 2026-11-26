@@ -1,6 +1,6 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-// ADR-002 gate driver: run the compiled suite under V8 coverage and
+// ADR-103 gate driver: run the compiled suite under V8 coverage and
 // check the lcov report with test/covcheck.js, retrying if — and only
 // if — the run came up short.
 //

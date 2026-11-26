@@ -1,5 +1,5 @@
 # Use-case 10 gap 6 (claim C4, silent half) -- FIXED 2026-08-26 by the
-# template-clone isolation change (ADR-005): including a type()d
+# template-clone isolation change: including a type()d
 # schema that references a type()d named alias now emits the applied
 # data record, identical to the same statements in one file.
 # Historically the record was silently DROPPED from generation (exit

@@ -110,7 +110,7 @@ class PlusOpVal extends OpBaseVal {
     const av: any = operand(args[0])
     const bv: any = operand(args[1])
 
-    // ABSENCE PROPAGATES (ADR-034).
+    // ABSENCE PROPAGATES.
     if (true === av?.isAbsent) {
       return av
     }
@@ -118,7 +118,7 @@ class PlusOpVal extends OpBaseVal {
       return bv
     }
 
-    // Lists concatenate (ADR-037).
+    // Lists concatenate.
     if (true === av?.isList && true === bv?.isList) {
       const peg: Val[] = [...av.peg, ...bv.peg].map(
         (v: Val, i: number) => v.clone(ctx.descend(String(i))))

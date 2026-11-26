@@ -10,7 +10,7 @@
 # generates a full copy of the auth node where the author meant a name;
 # `link-not-embedding`, one line different, generates the address.
 #
-# An address is a PATH and nothing else (ADR-014): `$.a.b` from the
+# An address is a PATH and nothing else: `$.a.b` from the
 # document root, `.b` from the link's own sibling scope. There is no
 # second namespace, so a model can be instantiated more than once and
 # each instance resolves its own relative links -- the row
@@ -189,7 +189,7 @@ spread-over-a-list-relative	gens	services: {\n  auth: {port:8080}\n  billing: {d
 # --- Canon and the hash ----------------------------------------------
 #
 # The residual renders reparseably, and a RESOLVED relate is the call
-# before its path (ADR-080), so the hash form tells a link from a path
+# before its path, so the hash form tells a link from a path
 # value that is only data.
 canon-residual	canon	b: relate()	{"b":relate()}
 canon-residual-typed	canon	b: relate({kind:service})	{"b":relate({"kind":"service"})}

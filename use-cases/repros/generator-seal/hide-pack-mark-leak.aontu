@@ -1,5 +1,5 @@
 # Use-case 06 pinned bug (claim C2) -- FIXED 2026-08-26 by the
-# template-clone isolation change (ADR-005): a reference DEFERS on a
+# template-clone isolation change: a reference DEFERS on a
 # pending type()/hide() wrapper instead of cloning the call, so
 # hide(pack(...)) hides the FIELD m exactly as hide({literal map})
 # does, and a downstream pack sourcing from the hidden children emits

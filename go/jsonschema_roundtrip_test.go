@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// G12 phase 18 (ADR-068): every schema of the official suite, in every
+// G12 phase 18 (ADR-109): every schema of the official suite, in every
 // dialect, comes back from import(export(import(S))) as import(S), canon
 // for canon and subsuming both ways, or its group is a row of the ledger
 // test/vectors/jsonschema/roundtrip.tsv, mirroring
@@ -24,7 +24,7 @@ func roundTrip(g suiteGroup, documents map[string]string) string {
 }
 
 // schemaRoundTrip is why a schema does not come back from the round trip
-// of ADR-068 as its first import, or "" where it does.
+// of ADR-109 as its first import, or "" where it does.
 func schemaRoundTrip(schema, path, dialect string, formatAssertion bool, documents map[string]string) string {
 	opts := &ImportOptions{Documents: documents, NoMetaCheck: true, FormatAssertion: formatAssertion}
 	first := ImportJSONSchema(schema, &ImportOptions{Path: path, Documents: documents,

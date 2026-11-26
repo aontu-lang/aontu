@@ -80,7 +80,7 @@ theorem no_meet_with_string_admits_empty (env : Env) (root : Data) (b : Val) :
 
 /-! ## Two declarations of one key -/
 
-/-- ADR-045: `{k?: a} & {k: b}` is `{k: a & b}`. Two declarations of one
+/-- Required wins: `{k?: a} & {k: b}` is `{k: a & b}`. Two declarations of one
 key admit what one declaration of their meet admits, and the key is
 optional only where every declaration says so. -/
 theorem merge_exact (env : Env) (root : Data) (k : String) (o₁ o₂ : Bool) (v₁ v₂ : Val)

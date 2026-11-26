@@ -5,8 +5,8 @@
 # and runs on no push of its own: a documentation pull request does not
 # wait on Vale, and `make prose` runs the same gate locally, which is
 # where a word is cheapest to change. It was a push and pull_request
-# workflow with path filters until ADR-070 moved every gate that is not
-# the happy path or a sampled group to the daily run. Its two scars
+# workflow with path filters until every gate that is not
+# the happy path or a sampled group moved to the daily run. Its two scars
 # stand in the record: GitHub Actions has no YAML anchors, so a path
 # list shared between two triggers never ran at all; and this
 # repository's pull_request events do not fire reliably on a

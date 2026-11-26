@@ -2,7 +2,7 @@
 
 aontu holds **100 % coverage in both implementations** (Go statement
 coverage, TypeScript line, branch and function coverage) as a
-[recorded decision](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations),
+[recorded decision](../ADR.md#adr-103--coverage-stays-at-100--in-both-implementations),
 not an aspiration. This page explains how that is measured, what the
 suites actually exercise, and (because 100 % is only meaningful if the
 exclusions are justified) every place where code is excluded from the
@@ -19,7 +19,7 @@ make cov-go     # Go only
 ```
 
 Each target ends in a **gate**: `make cov` exits non-zero and names
-the offending lines if anything is uncovered. That is the ADR-002
+the offending lines if anything is uncovered. That is the ADR-103
 floor made checkable.
 
 Equivalently, by hand:
@@ -133,7 +133,7 @@ the `return` never executed, in any test, in the whole suite.
 The Go gate is not fooled by that shape: it counts coverage BLOCKS,
 and the twin of the same guard came back as three uncovered blocks.
 The two ports being held to parity is what surfaced it, which is the
-second-order argument for ADR-001 that no design document makes. Treat
+second-order argument for ADR-102 that no design document makes. Treat
 Go's block count as the sharper of the two instruments where they
 disagree, and read a TypeScript line count as evidence that the
 *statement* ran rather than that every arm of it did.
@@ -144,7 +144,7 @@ disagree, and read a TypeScript line count as evidence that the
 
 `test/spec/*.tsv` (**6329 cases across 121 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
-([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
+([ADR-102](../ADR.md#adr-102--two-implementations-held-at-parity-by-shared-rows)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
@@ -241,7 +241,7 @@ marker (`fmt-template`, `fmt-template-lint`). The full encoding of each is in
 
 ### Per-port tests
 
-Only what a shared row cannot express gets a per-port test: ADR-001
+Only what a shared row cannot express gets a per-port test: ADR-102
 prefers a row precisely because one row lifts both engines:
 
 **TypeScript** (`ts/test/*.test.ts`, 2688 tests, 2257 of them shared
@@ -280,7 +280,7 @@ all: the arm is either reachable and tested, or it is deleted. Several
 were, when the JSON Schema export landed. Every marker states, in the
 source, what state would be required and why nothing can produce it: a
 marker without that justification is a defect
-([ADR-002](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations),
+([ADR-103](../ADR.md#adr-103--coverage-stays-at-100--in-both-implementations),
 rule 3).
 
 `make cov-go` prints what it actually dropped (`covmerge: dropped N
@@ -331,7 +331,7 @@ marker stopped working.
 | `cmp.go` × 1 | `each component declares its arity; a bad count is refused at parse` |
 | `conjunct.go` × 1 | `a fold over >=1 term always appends` |
 | `constraint.go` × 2 | `parse-time arity guarantees two; see above`; `no Val kind reaches this arm; see above` |
-| `disjunct.go` × 3 | `no caller: the preference gate asks superOf (ADR-011 R4)`; `unite drives a rider call before a disjunction meets it, where TypeScript's pass shortcut can leave it undriven`; `the meet returns the preference itself; see above` |
+| `disjunct.go` × 3 | `no caller: the preference gate asks superOf`; `unite drives a rider call before a disjunction meets it, where TypeScript's pass shortcut can leave it undriven`; `the meet returns the preference itself; see above` |
 | `format.go` × 1 | `a spelling the formatter wrote that does not parse is its defect, and the syntactic check catches those first` |
 | `formatgrammar.go` × 1 | `only a refusal is raised above; anything else is a fault` |
 | `func.go` × 10 | `no resolve arm returns nil`; `resolve never returns the func itself`; `arity {2,2} is refused at parse` (× 2); `arity {1,1} is refused at parse` (× 2); `arity {1,3} is refused at parse`; `arity is refused at parse`; `the 1-arg form returns from Unify`; `arity {1,2} is refused at parse` |
@@ -339,8 +339,8 @@ marker stopped working.
 | `graphatom.go` × 1 | `a string-kind scalar always holds a string` |
 | `jsonschema.go` × 2 | `a bag never holds a nil child`; `every scalar kind has a JSON type` |
 | `lang.go` × 10 | `makeLang cannot fail: see mustMakeLang`; `plugin registration cannot fail` (× 4); `allDigits above already vetted the run`; `the literal regex already vetted the digits`; `both callers pass a signed digit run`; `both callers pass unsigned digit runs`; `langForBase cannot fail: see makeLang` |
-| `listval.go` × 1 | `no caller: superOf lifts a bag child by child (ADR-011 R4)` |
-| `mapval.go` × 1 | `no caller: superOf lifts a bag child by child (ADR-011 R4)` |
+| `listval.go` × 1 | `no caller: superOf lifts a bag child by child` |
+| `mapval.go` × 1 | `no caller: superOf lifts a bag child by child` |
 | `maybe.go` × 1 | `the interface requires it; nothing asks an absence for a supertype` |
 | `mod.go` × 1 | `Unify always answers a Val` |
 | `nom.go` × 2 | `arity {1,3} is refused at parse`; `a name with words styles in every style` |
@@ -353,7 +353,7 @@ marker stopped working.
 | `query.go` × 3 | `a generated value is always encodable` (× 2); `the arm for a root that is nil-the-INTERFACE rather than nil-the-value, which unifyRoot cannot return: every caller's guard is nil != uerr \|\| nil == root \|\| root.Nil(), and Nil() is true of *NilVal alone, so a root reaching here carries no code and the caller's generic one stands (the same last resort failureFinding keeps in go/vet.go)` |
 | `refer.go` × 1 | `pegs are pre-validated by the capture` |
 | `regex.go` × 2 | `only a refusal is raised above; anything else is a fault` (× 2) |
-| `scalar.go` × 1 | `no caller: superOf answers for a kind peg (ADR-011 R4)` |
+| `scalar.go` × 1 | `no caller: superOf answers for a kind peg` |
 | `sig.go` × 2 | `the grammar is static; registration failure is a build defect`; `the embedded text is suite-gated; a parse failure is a build defect` |
 | `source.go` × 8 | `a plugin that cannot install is a broken dependency, not an input`; `Abs fails only on an unreadable cwd`; `an include's string always follows its @`; `parseBase always seats the sink`; `a resolution always carries its full path`; `jsonic hands back a Val or a map, never a raw`; `the readers cannot nest deeper than their own parser allows`; `a JSON-shaped value has no other kind` |
 | `trace.go` × 1 | `a resolved tree holds no nil, and keys may outlive peg` |
@@ -395,7 +395,7 @@ more sites are excluded, each with its ruling in the source:
 | `regex.ts` × 2 | only a refusal is raised above; anything else is a fault (× 2) |
 
 Everything else that was unreachable is **gone rather than excused**,
-per ADR-002 rule 4. The round deleted: a `null == resolved` branch that
+per ADR-103. The round deleted: a `null == resolved` branch that
 `?? this` had already made impossible (`RefVal`), the same shape in
 `OpBaseVal`, a `null == ctx` guard nine lines after `ctx` was
 dereferenced, an `undefined === child` guard after `propagateMarks`

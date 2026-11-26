@@ -1,5 +1,5 @@
-# The sampled groups of the TypeScript suite (scripts/test-group.cjs,
-# ADR-070): group<TAB>file. Group 0 is the gate group the happy path
+# The sampled groups of the TypeScript suite (scripts/test-group.cjs):
+# group<TAB>file. Group 0 is the gate group the happy path
 # runs on every push; the standard CI samples one of the others per
 # run, and `npm test` runs every file regardless. A group is sized to
 # finish in about two minutes on the hosted runner, so a file longer
@@ -11,6 +11,7 @@
 0	aontumodel.test.ts
 0	capability-review.test.ts
 0	comments.test.ts
+0	docs-style.test.ts
 0	covcheck.test.ts
 0	formatgrammar.test.ts
 0	groups.test.ts
@@ -41,6 +42,7 @@
 2	lang.test.ts
 2	unify.test.ts
 2	grammar.test.ts
+2	editors.test.ts
 2	func.test.ts
 2	bignum.test.ts
 2	exactjson.test.ts

@@ -24,7 +24,7 @@ test/cue/** text eol=lf
 # SIGNATURES.0.md): byte-compared with it by go/sig_test.go, so it
 # keeps the same line endings on every platform.
 go/sigdecl.txt text eol=lf
-# The Unicode property tables (ADR-060), embedded verbatim by
+# The Unicode property tables (ADR-105), embedded verbatim by
 # go/uniprop.go and held identical with ts/src/unicodeprops.ts.
 go/unicodeprops.txt text eol=lf
 # The embedded teaching pack (G11 phase 1): copies of docs/skill/*.md
@@ -42,7 +42,7 @@ go/cmd/aontu/helpdoc/** text eol=lf
 # script, and a scaffold that arrived with CRLF would be written back
 # out that way by a command whose two ports must write the same bytes.
 docs/skill/init/** text eol=lf
-# The built-in aontu: models (ADR-036). aontu/ is the source and
+# The built-in aontu: models (ADR-107). aontu/ is the source and
 # go/aontumodel/ its committed mirror, because //go:embed cannot read
 # above its own directory. THE BYTES ARE EMBEDDED VERBATIM, so a CRLF
 # checkout would put CRLF in the binary, and `aontu fmt` -- which

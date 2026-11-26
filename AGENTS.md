@@ -6,9 +6,9 @@ kept in parity**: **TypeScript** in `ts/` — the **canonical** one — and
 **Go** in `go/`, a port that mirrors its semantics.
 
 Three decisions govern everything below and are recorded in
-[`ADR.md`](ADR.md): **ADR-001** (the two implementations stay at full
-parity, proved by the shared spec), **ADR-002** (coverage stays at 100 %
-in both, with every exclusion justified in the source), and **ADR-003**
+[`ADR.md`](ADR.md): **ADR-102** (the two implementations stay at full
+parity, proved by the shared spec), **ADR-103** (coverage stays at 100 %
+in both, with every exclusion justified in the source), and **ADR-105**
 (where a host subsystem supplies semantics, aontu defines the meaning and
 rewrites the input rather than trusting the host). Read those before
 proposing a change that touches one implementation only, that adds code
@@ -48,7 +48,7 @@ belongs in the pages below; add it there, not here.
 ├── admin/               # notes, trackers, scripts
 ├── docs/                # only valid, up-to-date documentation
 ├── sketch/              # working files, to be ignored
-├── editors/             # editor plugins (VS Code, Emacs, Vim) → aontu-lsp
+├── editors/             # editor clients (VS Code, Emacs, Vim, JetBrains) → aontu-lsp
 ├── test/spec/           # shared test cases — *.tsv (language-agnostic)
 ├── ts/                  # canonical TypeScript implementation
 │   ├── src/  test/      # source and tests
@@ -68,14 +68,17 @@ make test       # test-ts  + test-go       make prose    # the Vale gate
 make comments   # the code-comment gate    make hooks    # install .githooks
 ```
 
+`make comments` is `node admin/scripts/comment-gate.cjs`; `make prose`
+is `vale --minAlertLevel=error $(node ts/scripts/gated-docs.cjs)` and
+`node ts/scripts/vale-counts.cjs`.
+
 Per language: `cd ts && npm install && npm run build && npm test`;
 `cd go && go build ./... && go vet ./... && go test ./...`.
 
 `ts/dist` and `ts/dist-test` are **committed**, so rebuild after changing
-`ts/src` or `ts/test`. One consequence: a static analyser sees the
-compiled JS as well as the source and reports every `ts/src` finding
-twice — for DeepScan this is excluded in its dashboard settings
-(`/ts/dist`, `/ts/dist-test`), which no pull request can set.
+`ts/src` or `ts/test`. A static analyser therefore reports every
+`ts/src` finding twice; DeepScan excludes `/ts/dist` and `/ts/dist-test`
+in its dashboard settings, which no pull request can set.
 
 `ts/src/tsconfig.json` carries `noUnusedLocals`, `noUnusedParameters`,
 `noImplicitReturns` and `noFallthroughCasesInSwitch`, so an unused import
@@ -89,15 +92,14 @@ few minutes at most**: `make test`, `make cov` and the use cases belong
 to the daily CI, never run locally ([DEV-PROCESS.md](DEV-PROCESS.md#testing)).
 
 `make hooks` points git at [`.githooks/`](.githooks), whose `pre-push`
-runs the comment gate. It is a convenience, not the enforcement: the gate
-that decides is `ts/test/comments.test.ts`, inside `npm test` and so
-inside CI on every push.
+runs the comment gate. CI's gate group enforces it and the style rules
+through `ts/test/comments.test.ts` and `ts/test/docs-style.test.ts`.
 
 Two failures are found in CI rather than locally: a generated copy or
 `ts/dist` not rebuilt (the happy path refuses a tree `make build-ts`
 changes), and a use case broken by a language change.
 
-CI is two workflows (ADR-070, ADR-071).
+CI is two workflows.
 [`build.yml`](.github/workflows/build.yml), on every push and pull
 request, Linux only, five minutes at most: the happy path and **one
 sampled group** of the TypeScript suite from
@@ -125,9 +127,9 @@ without `gh`".
   Writing it from one engine baselines a divergence as the contract, and
   nothing in the suite can warn you. See
   [the parity probe](docs/contributing/testing.md#the-parity-probe).
-- **A behaviour is shared only once it passes in both ports** (ADR-001).
+- **A behaviour is shared only once it passes in both ports** (ADR-102).
   TypeScript alone is *partial*.
-- **A structural divergence registers like any other** (ADR-001): two
+- **A structural divergence registers like any other** (ADR-102): two
   shapes that answer the same bytes pass every shared row, so nothing
   but [`ts/test/parity.test.ts`](ts/test/parity.test.ts) and
   [`DIVERGENCE.md`](DIVERGENCE.md) can catch them. Recording one in a

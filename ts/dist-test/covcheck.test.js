@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// The ADR-002 gate's own union rule: a gate that clears a gap fails
+// The ADR-103 gate's own union rule: a gate that clears a gap fails
 // silently. `test/covrun.js` calls the same checker.
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));

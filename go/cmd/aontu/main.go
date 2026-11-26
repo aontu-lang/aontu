@@ -1157,7 +1157,7 @@ func colorFor(w io.Writer) *bool {
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int {
 	aontu.SetColor(colorFor(stderr))
 
-	// One spelling throughout the tools (ADR-042): every verb, one gate.
+	// One spelling throughout the tools: every verb, one gate.
 	for _, a := range args {
 		if !strings.HasPrefix(a, "-") && strings.EqualFold(".aon", filepath.Ext(a)) {
 			fmt.Fprintln(stderr, withdrawnMsg(a))

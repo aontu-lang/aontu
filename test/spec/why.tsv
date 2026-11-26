@@ -70,7 +70,7 @@ why-spread-list	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k	{"conjuncts":[{"canon":"[in
 # opening token, not the whole call -- see the round-trip note in
 # patch.tsv. (An UNSITED conjunct row stood here while the pipe
 # existed: `x |> upper` synthesised a call the parser never sited.
-# ADR-018 removed the pipe, and with it the one spelling that could
+# The pipe is gone, and with it the one spelling that could
 # put an unsited conjunct in a document.)
 why-written-call-sites-its-name	why	x: upper("hello")	$.x	{"conjuncts":[{"canon":"upper(\\"hello\\")","role":"literal","site":{"col":4,"file":"","len":5,"row":1},"src":"upper"}],"value":"\\"HELLO\\""}
 

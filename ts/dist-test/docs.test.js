@@ -52,6 +52,9 @@ const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js');
 // a sampled group (groups.tsv). A DOCS_PAGES run names its own pages.
 exports.SHARDS = 3;
 const SHARD = Number(process.env.AONTU_DOCS_SHARD ?? 1) - 1;
+// docs-style.test.ts sets this to run the style rules and the link
+// check alone, fast enough for the gate group.
+const STYLE = '1' === process.env.AONTU_DOCS_STYLE;
 const sharded = (files) => files.filter((_, i) => SHARD === i % exports.SHARDS);
 // A corpus-wide floor, as this shard's share of it.
 const floor = (n) => Math.ceil(n / exports.SHARDS);
@@ -291,7 +294,8 @@ function runStep(file, dir, cache, step) {
     }
 }
 // ---------------------------------------------------------------------
-(0, node_test_1.describe)('docs', () => {
+;
+(STYLE ? node_test_1.describe.skip : node_test_1.describe)('docs', () => {
     if (0 === SHARD) {
         (0, node_test_1.test)('every-shard-has-its-file', () => {
             const files = Fs.readdirSync(__dirname)
@@ -778,11 +782,12 @@ function stylePaths() {
         .map((f) => ({ file: f, abs: Path.join(REPO, f) }));
 }
 // The page suite above is what a shard runs; the corpus-wide checks
-// below run once, in the primary file, so a sampled shard does not
-// repeat them.
-const corpusDescribe = 0 === SHARD ? node_test_1.describe : node_test_1.describe.skip;
-const corpusTest = 0 === SHARD ? node_test_1.test : node_test_1.test.skip;
-corpusDescribe('docs-style', () => {
+// below run once, in the primary file, and the style rules once, in
+// docs-style.test.ts, so a sampled shard does not repeat them.
+const corpusTest = 0 === SHARD && !STYLE ? node_test_1.test : node_test_1.test.skip;
+const styleDescribe = STYLE ? node_test_1.describe : node_test_1.describe.skip;
+const styleTest = STYLE ? node_test_1.test : node_test_1.test.skip;
+styleDescribe('docs-style', () => {
     (0, node_test_1.test)('the-gated-set-covers-more-than-docs', () => {
         if (narrowed()) {
             return;
@@ -1005,7 +1010,7 @@ corpusDescribe('docs-style', () => {
             '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
     // The register's status column, held to it below, plus the markers it
-    // and ADR.md write in prose. A published page states what holds now,
+    // writes in prose. A published page states what holds now,
     // so one of these on it is a status its reader cannot act on.
     const PHASE_WORDS = /\b(LANDED|PARTIAL|NOT STARTED|RETIRED|SUPERSEDED|AMENDED)\b/g;
     const REGISTER = Path.join(REPO, 'sketch', 'capability-review', 'progress.md');
@@ -1145,7 +1150,7 @@ corpusDescribe('docs-style', () => {
         claim(phase('PARTIAL'), 'a status the register uses and nothing else did');
         claim(!phase('Nothing landed yet'), 'the lower-case word is ordinary prose');
         claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase');
-        claim(cites('ADR-018 removed the pipe'), 'a numbered decision record');
+        claim(cites('ADR-101 holds the definition'), 'a numbered decision record');
         claim(!cites('a G8 grammar'), 'a phase needs its number');
         claim(cites('the steps in admin/scripts'), 'the admin folder');
         claim(cites('[the gate](../admin/scripts/comment-gate.cjs)'), 'the admin folder climbed to from a page');
@@ -1267,7 +1272,7 @@ corpusTest('the-error-catalogue-is-the-registry', () => {
     Assert.deepEqual(wrong, [], 'catalogue rows disagreeing with the registry');
 });
 // trust.md spells its extension count in prose beside the list it
-// counts, so the two drift apart under ADR-042 exactly as the error
+// counts, so the two drift apart exactly as the error
 // totals above do. The page's own list is the subject: every extension
 // it names must be read by an include, and the stated count must be how
 // many it names.
@@ -1623,7 +1628,7 @@ function markdownFiles() {
         .filter((f) => '' !== f && (!f.startsWith('sketch/') ||
         FROZEN_DIRS.some((d) => f.startsWith(d))));
 }
-corpusTest('every-internal-link-resolves', () => {
+styleTest('every-internal-link-resolves', () => {
     const cache = new Map();
     const anchorsOf = (abs) => {
         if (!cache.has(abs)) {

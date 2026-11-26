@@ -25,7 +25,7 @@ func newDisjunct(members []Val) *DisjunctVal {
 
 func (d *DisjunctVal) cjo() int { return 35000 }
 
-func (d *DisjunctVal) superior() Val { return top() } //coverage:ignore no caller: the preference gate asks superOf (ADR-011 R4)
+func (d *DisjunctVal) superior() Val { return top() } //coverage:ignore no caller: the preference gate asks superOf
 
 func (d *DisjunctVal) Canon() string {
 	parts := make([]string, len(d.peg))
@@ -473,7 +473,7 @@ func dedup(vals []Val, ranked bool) []Val {
 }
 
 // keepRiders gives a dedup's survivor the dropped member's riders, at
-// every depth, so the join is as order-free as the meet (ADR-052), and
+// every depth, so the join is as order-free as the meet, and
 // its links' templates where the output takes both twins alike.
 func keepRiders(keep, drop Val, sends bool) Val {
 	if !ridden(drop) {

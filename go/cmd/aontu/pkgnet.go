@@ -102,7 +102,7 @@ func isPackageVerb(verb string) bool {
 	return false
 }
 
-// The top-level package verbs (ADR-039 part 5). Every one but `why`
+// The top-level package verbs. Every one but `why`
 // reaches a repository, so every one runs behind the seam.
 func runPackageVerb(verb string, argv []string, srv servers, stdout, stderr io.Writer) int {
 	argv, trust, trustOK := takeTrust(argv, stderr, noHost)

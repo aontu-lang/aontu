@@ -18,7 +18,7 @@ import { FeatureVal } from './FeatureVal'
 import { repathInstance } from './Val'
 
 
-// Top with one difference (ADR-034): absence is GENERABLE, and
+// Top with one difference: absence is GENERABLE, and
 // generates nothing, so a bag drops it at a required key too.
 class AbsentVal extends FeatureVal {
   isAbsent = true

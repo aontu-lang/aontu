@@ -5,7 +5,7 @@ exports.AbsentVal = void 0;
 const type_1 = require("../type");
 const FeatureVal_1 = require("./FeatureVal");
 const Val_1 = require("./Val");
-// Top with one difference (ADR-034): absence is GENERABLE, and
+// Top with one difference: absence is GENERABLE, and
 // generates nothing, so a bag drops it at a required key too.
 class AbsentVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {

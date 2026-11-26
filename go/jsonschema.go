@@ -415,7 +415,7 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		}
 	}
 
-	// ADR-059: a committed format by its name, a grammar under
+	// ADR-105: a committed format by its name, a grammar under
 	// x-aontu-format, which only aontu reads.
 	for _, kind := range []struct {
 		key    string
@@ -629,7 +629,7 @@ const schemaCoverLost = "JSON Schema evaluates a member only by its name, a patt
 	"its name, its index in a prefix or its match of contains, so a check whose " +
 	"cover reaches past these is DROPPED and the schema admits members the model refuses"
 
-// schemaRest writes rest() (ADR-058) as an allOf member whose own keywords
+// schemaRest writes rest() as an allOf member whose own keywords
 // evaluate what its covers do, so its unevaluated keyword sees those and
 // no more. A condition rides `not: {not: …}`, which keeps its own
 // annotations out.
@@ -870,7 +870,7 @@ var schemaDeprecationText = []string{"msg", "use", "since"}
 
 // schemaFromVal is a schema object, or false where a value admits nothing.
 // A use read from a $dynamicRef keeps its $ref until schemaDynamicRefs knows
-// the definitions' anchors (ADR-057). A fragment that is no anchor never
+// the definitions' anchors. A fragment that is no anchor never
 // asked the dynamic scope, nor did a use whose schema is written in place.
 func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
 	out := schemaFromValRef(sc, path, v)
@@ -1149,9 +1149,9 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 }
 
 // schemaIdentify writes a definition's identity on it, and a folded
-// one's on the schema (ADR-056). An identifier a $ref inside would
+// one's on the schema. An identifier a $ref inside would
 // resolve against is not written, nor is an anchor its resource already
-// holds, nor a key the declarations gave several values (ADR-074).
+// holds, nor a key the declarations gave several values.
 func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) {
 	one := func(defs []*schemaDef, key string) (string, bool) {
 		all := []string{}
@@ -1253,7 +1253,7 @@ func schemaHasOtherKeys(v Val) bool {
 
 // schemaDeclared writes the keys of the definitions' records beyond their
 // identity on the schema they are written as, each a keyword of its own
-// name (ADR-073), unless it names a JSON Schema keyword, the schema writes
+// name, unless it names a JSON Schema keyword, the schema writes
 // it already or the declarations gave it several values.
 func schemaDeclared(defs []*schemaDef, out map[string]any) {
 	recs := []map[string][]Val{}
@@ -1276,7 +1276,7 @@ func schemaDeclared(defs []*schemaDef, out map[string]any) {
 
 // schemaUnclone makes the declarations of one schema read in several
 // dynamic scopes one definition where their schemas agree, the $refs of
-// their uses included, so the scopes read the same there (ADR-057).
+// their uses included, so the scopes read the same there.
 func schemaUnclone(schema map[string]any, body any, used []*schemaDef) {
 	// Clones share the $defs key a clone's identity names.
 	twins := func(u, d *schemaDef) bool {
@@ -1315,7 +1315,7 @@ func schemaUnclone(schema map[string]any, body any, used []*schemaDef) {
 // schemaDynamicRefs writes a use read from a $dynamicRef as one where its
 // anchor names, in the export, the schema its $ref reached, in the
 // resource of the schema, so the dynamic scope reads it as the import did;
-// otherwise its $ref stands (ADR-057).
+// otherwise its $ref stands.
 func schemaDynamicRefs(schema map[string]any, kept []*schemaDef) {
 	at := map[string]any{"#": schema}
 	for _, d := range kept {
@@ -1378,8 +1378,8 @@ func schemaEach(v any, fn func(map[string]any)) {
 }
 
 // schemaMetaKeyword is the record keys JSON Schema reads, each as its
-// keyword and the kind of value that keyword holds. A record is open
-// (ADR-072): these are the exporter's conventions, and any other key is
+// keyword and the kind of value that keyword holds. A record is open:
+// these are the exporter's conventions, and any other key is
 // written under its own name.
 var schemaMetaKeyword = map[string][2]string{
 	"title": {"title", "string"}, "description": {"description", "string"},
@@ -1450,7 +1450,7 @@ func schemaAnnotate(obj map[string]any, v Val) {
 			json, _ := schemaGenerated(layer[k])
 			known, isKnown := schemaMetaKeyword[k]
 			// The record is anyone's, so what JSON Schema does not read in it
-			// is not written, and is no loss (ADR-074).
+			// is not written, and is no loss.
 			if isKnown && !schemaFitsKind(known[1], json) {
 				continue
 			}
@@ -1562,7 +1562,7 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 
 	switch t := v.(type) {
 	case *PrefVal:
-		// A bare `*x` admits every value of x's kind and prefers x (ADR-004),
+		// A bare `*x` admits every value of x's kind and prefers x,
 		// so const: x would refuse what the model admits.
 		if sv, ok := t.peg.(*ScalarVal); ok {
 			inner := schemaKindOfLiteral(sc, path, sv)

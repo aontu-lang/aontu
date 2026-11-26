@@ -58,7 +58,7 @@ func templateExtension(path string) string {
 
 // MarkerFor is the marker for a file, by its extension, or the
 // C-family default. The extension decides, exactly as it decides what
-// an include is (ADR-012).
+// an include is.
 func MarkerFor(path string) string {
 	if m, has := templateMarkers[templateExtension(path)]; has {
 		return m

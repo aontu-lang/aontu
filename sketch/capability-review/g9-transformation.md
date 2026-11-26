@@ -2,8 +2,8 @@
 
 *Status: implemented — phases 0, 1, 2, 3, 6, 7 and 9 landed in both
 ports, and phases 4, 5 and 8 were retired
-(ADR-023, [ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages));
-`aontu render` ships under [ADR-040](../../ADR.md#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports).
+(ADR-023, [ADR-038](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages));
+`aontu render` ships under [ADR-040](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports).
 Per-phase status is in the [progress register](progress.md), which is
 authoritative for status; this document is authoritative for design.
 Part of the
@@ -27,9 +27,9 @@ drafting of this document.*
 decided when it was written, and it is not rewritten as the language
 moves. Two names have since changed meaning. The list generator it
 calls `form` is named `each` today
-([ADR-027](../../ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)),
+([ADR-027](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)),
 and the `each` it describes as the bound was retired first
-([ADR-026](../../ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
+([ADR-026](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
 bound now being spelled `each(d, _ & t)`. The
 [progress register](progress.md) carries the current status, and
 `test/spec/signature.tsv` is the call surface.
@@ -767,7 +767,7 @@ VERIFIED, and each is a spec row rather than a paragraph of advice.
    note goes in docs/reference-language.md, because every schema
    author reaching for the obvious spelling will hit it.
 5. **`code:` is a CONVENTION of the vocabulary, not a magic key.**
-   [ADR-010](../../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)
+   [ADR-010](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)
    is unconditional — "a plain, spellable key name never carries
    engine- or verb-assigned meaning, at any depth, the root
    included" — and its one grandfathered exception, `relations:`, was
@@ -2826,7 +2826,7 @@ the template surface as P8.
 
 **Decided 2026-09-05 (the owner), after the plan was read:** phases 5,
 7 and 8 are RETIRED by
-[ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
+[ADR-023](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
 — the sidecar outright, not kept as its own note — so G9 completes at
 RENDER P8; and the next release is cut only after the plan's validation
 system, `test/system/rb-solar` (RENDER.0.md §10: a Rails 8

@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// The official suite's output tests (ADR-066), mirroring
+// The official suite's output tests, mirroring
 // ts/test/jsonschema-output.test.ts: each schema is imported with its
 // source map, each instance vetted as JSON Schema asks, and the basic
 // output units checked against the schema the test gives for them.

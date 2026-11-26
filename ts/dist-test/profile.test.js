@@ -30,7 +30,7 @@ const profile_1 = require("../dist/profile");
             node_assert_1.default.strictEqual(refused.errors?.[0].path, path, src);
         }
     });
-    // THE LOWERING HALF IS NOT HERE (ADR-038). `lowering`, `str`,
+    // THE LOWERING HALF IS NOT HERE (ADR-108). `lowering`, `str`,
     // `ident`, `types` and `banner` were the renderer's, and the
     // vocabulary is closed, so each is an unknown key now.
     (0, node_test_1.test)('the-lowering-keys-are-unknown', () => {

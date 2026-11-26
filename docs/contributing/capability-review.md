@@ -30,7 +30,7 @@ never gone stale. Two further rules from the register, worth knowing
 before you write a phase entry:
 
 - **A phase is landed only when both ports have it and shared rows pin
-  it** (ADR-001). Implemented in TypeScript alone is *partial*, and the
+  it** (ADR-102). Implemented in TypeScript alone is *partial*, and the
   entry names what is missing.
 - **A phase that lands differently from its design says so**, in the
   register and in the gap document, in that commit. G1 phase 6 is the

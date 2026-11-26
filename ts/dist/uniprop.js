@@ -5,7 +5,7 @@ exports.unicodeProperty = unicodeProperty;
 exports.union = union;
 exports.complement = complement;
 // The Unicode properties a pattern's \p{...} names in ECMA-262's u mode
-// (ADR-060), read from the tables ts/scripts/unicodegen.cjs writes. A
+// (ADR-105), read from the tables ts/scripts/unicodegen.cjs writes. A
 // table is decoded the first time a pattern names it. Twin of
 // go/uniprop.go.
 const unicodeprops_1 = require("./unicodeprops");

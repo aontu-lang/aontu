@@ -81,7 +81,7 @@ type ReAtom = {
                   // never the normalised form, because canon round-trips
                   // source and G6's hash will be taken over canon
   norm: string    // the export's pattern, in ECMA-262's syntax, meaning the same
-  prog: Inst[]    // compiled by aontu's own matcher (ADR-060)
+  prog: Inst[]    // compiled by aontu's own matcher (ADR-105)
 }
 
 type MustAtom = {
@@ -102,7 +102,7 @@ type ContainsAtom = {
 }
 
 // A format: the argument as written, the name a refusal gives, and the
-// grammars it is, which regex alone has none of (ADR-059).
+// grammars it is, which regex alone has none of (ADR-105).
 type FormatAtom = {
   v: any
   src: string
@@ -297,7 +297,7 @@ function normaliseEscape(
 }
 
 
-// Why the format refuses s, or undefined where it admits it (ADR-059).
+// Why the format refuses s, or undefined where it admits it (ADR-105).
 function formatWhy(f: FormatAtom, s: string): string | undefined {
   const head = 'format ' + f.name + ': '
   if (undefined === f.gs) {
@@ -487,7 +487,7 @@ function sameScalar(a: any, b: any): boolean {
     return towerRank(a) === towerRank(b) && 0 === cmpNumeric(a, b)
   }
   if (true === a?.isPath || true === b?.isPath) {
-    // Path identity is kind AND spelling (ADR-016): `neq(path($.x))`
+    // Path identity is kind AND spelling: `neq(path($.x))`
     // excludes exactly that address, and never a plain string that
     // happens to spell it.
     return true === a?.isPath && true === b?.isPath && a.peg === b.peg
@@ -563,7 +563,7 @@ class ConstraintVal extends FeatureVal {
   nonEmpty?: boolean
   emptyOk?: boolean
   pathKind?: boolean
-  // The call each part of a merged residual was written as (ADR-066).
+  // The call each part of a merged residual was written as.
   sites: Map<any, Site> = new Map()
 
   constructor(
@@ -756,7 +756,7 @@ class ConstraintVal extends FeatureVal {
       return
     }
 
-    // A committed name or a grammar, read and checked once (ADR-059).
+    // A committed name or a grammar, read and checked once (ADR-105).
     if ('format' === atom) {
       if (!stringLeaf(a)) {
         return bad('invalid-arg')
@@ -888,7 +888,7 @@ class ConstraintVal extends FeatureVal {
     if (settled) {
       // The residual the atom always meant, at this atom's site: a bound's
       // stands against the top unless it reads a choice, and another atom's
-      // over written nils alone, refusing as one written does (ADR-046).
+      // over written nils alone, refusing as one written does.
       const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx)
       built.path = this.path
       built.site.row = this.site.row
@@ -974,7 +974,7 @@ class ConstraintVal extends FeatureVal {
   }
 
 
-  // ADR-058: a member no applying cover evaluates must be admitted by the
+  // A member no applying cover evaluates must be admitted by the
   // atom's own schema.
   private checkRests(peer: any, ctx: AontuContext): Val | undefined {
     const own = 0 === this.rests.length ? undefined : ownJson(peer, ctx)

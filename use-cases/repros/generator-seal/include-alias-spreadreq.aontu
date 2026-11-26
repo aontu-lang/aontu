@@ -1,5 +1,5 @@
 # Claim C4, third manifestation -- FIXED 2026-08-26 by the
-# template-clone isolation change (ADR-005): with the type()d alias
+# template-clone isolation change: with the type()d alias
 # pair at the TOP LEVEL of the included file, the pattern now emits
 # the record. Historically it died with a bogus
 # [aontu/mapval_spread_required] "The value for key T is required

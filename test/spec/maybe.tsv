@@ -74,8 +74,8 @@ maybe-meets-top-left	canon	x:maybe($.gone)\ny:$.x & any	{"x":maybe(),"y":maybe()
 maybe-meets-top-right	canon	x:maybe($.gone)\ny:any & $.x	{"x":maybe(),"y":maybe()}
 maybe-meets-absence	canon	b:maybe($.gone) & maybe($.gone)	{"b":maybe()}
 maybe-referenced-meets-value	canon	x:maybe($.gone)\ny:$.x & 1	{"x":maybe(),"y":1}
-# A CONTAINER TEMPLATE WAITS FOR A MEMBER THAT HAS NOT DECIDED
-# (ADR-043): an absent member is dropped as it is with no template, a
+# A CONTAINER TEMPLATE WAITS FOR A MEMBER THAT HAS NOT DECIDED:
+# an absent member is dropped as it is with no template, a
 # present one meets the template like any member, and a key a schema
 # DECLARES is still refused.
 maybe-template-list-kind-drops	gens	x: [&: string]\nx: ["a", maybe($.gone)]	{"x":["a"]}

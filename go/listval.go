@@ -25,7 +25,7 @@ func newList(elems []Val) *ListVal {
 	return l
 }
 
-func (l *ListVal) superior() Val { return top() } //coverage:ignore no caller: superOf lifts a bag child by child (ADR-011 R4)
+func (l *ListVal) superior() Val { return top() } //coverage:ignore no caller: superOf lifts a bag child by child
 
 func (l *ListVal) Canon() string {
 	var b strings.Builder
@@ -382,7 +382,7 @@ func placedAt(l *ListVal, kept []Val) []Val {
 	return out
 }
 
-// A container template waits for a member that has not decided (ADR-043).
+// A container template waits for a member that has not decided.
 func undecided(v Val) bool {
 	f, ok := v.(*FuncVal)
 	return ok && "maybe" == f.name && DONE != f.Dc()

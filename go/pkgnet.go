@@ -136,7 +136,7 @@ func IsLoopback(raw string) bool {
 	return "127.0.0.1" == h || "localhost" == h || "::1" == h
 }
 
-// BaseAdmitted: https, or http on a loopback host (ADR-039 part 10).
+// BaseAdmitted: https, or http on a loopback host.
 func BaseAdmitted(raw string) bool {
 	u, err := url.Parse(raw)
 	if nil != err {
@@ -315,7 +315,7 @@ func canonLine(obj any, opts *PkgOptions, name string) []byte {
 	return []byte(evalPkg(string(src), name, opts).canon + "\n")
 }
 
-// THE KEY PROVIDER (ADR-024 part 4): an Ed25519 key signs the manifest's
+// THE KEY PROVIDER: an Ed25519 key signs the manifest's
 // digest, domain-separated by the encoding name.
 func signedBytes(over string) []byte {
 	return []byte(SignatureEncoding + "\n" + over + "\n")
@@ -730,8 +730,8 @@ func cooldownEnd(seen string) (time.Time, bool) {
 }
 
 // selectVersion (spec acquire step 6): the newest version outside the
-// cooldown, timed from the repository's first-seen time (ADR-039 part
-// 9), not retracted. A version named explicitly is taken as it is.
+// cooldown, timed from the repository's first-seen time,
+// not retracted. A version named explicitly is taken as it is.
 func selectVersion(ctx *acquireCtx, pkg string, list []versionEntry,
 	advisory map[string]string, asked, fallback string) string {
 	if "" != asked {

@@ -10,11 +10,11 @@ This file is the short version and the pointers.
 Recorded in [ADR.md](ADR.md); do not reverse them without a new ADR
 entry:
 
-- **ADR-001** — the TypeScript (`ts/`, canonical) and Go (`go/`)
+- **ADR-102** — the TypeScript (`ts/`, canonical) and Go (`go/`)
   implementations stay at full parity, proved by the shared spec suite.
-- **ADR-002** — test coverage stays at 100 % in both implementations,
+- **ADR-103** — test coverage stays at 100 % in both implementations,
   with every exclusion justified in the source.
-- **ADR-003** — where a host subsystem supplies semantics, Aontu
+- **ADR-105** — where a host subsystem supplies semantics, Aontu
   defines the meaning and rewrites the input rather than trusting the
   host.
 
@@ -36,7 +36,7 @@ then in the Go port — it is only "shared" once both pass. `ts/dist` and
 ```sh
 make build   # build both implementations (rebuilds ts/dist)
 make test    # run both suites against the shared spec
-make cov     # check the ADR-002 coverage floor
+make cov     # check the ADR-103 coverage floor
 make comments # check the comment gate (also run by pre-push)
 ```
 
@@ -52,7 +52,7 @@ as the contract ([docs/contributing/testing.md](docs/contributing/testing.md#the
 
 ## Releasing
 
-Two artifacts, one version series (ADR-041), one workflow file — and
+Two artifacts, one version series (ADR-104), one workflow file — and
 half of it is irreversible, so the process has guards rather than steps
 to remember.
 [`docs/release-and-tag.md`](docs/release-and-tag.md) is the whole story;
@@ -76,7 +76,7 @@ in [use-cases/BUGS.md](use-cases/BUGS.md), with minimal reproductions
 under [use-cases/repros/](use-cases/repros/). Those repros are **candidates
 for `test/spec/` rows** — each documents a behaviour that, once fixed
 (or confirmed as designed), should be pinned by a probed shared row.
-They exercise the TypeScript implementation only, so ADR-001 applies:
+They exercise the TypeScript implementation only, so ADR-102 applies:
 a repro becomes a spec row via the parity probe, not by copying.
 
 Security reports go through [SECURITY.md](SECURITY.md), not the issue

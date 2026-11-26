@@ -17,10 +17,10 @@
 # Not wrapped in type(): historically a type()-marked schema
 # referencing $.aontu.System.* failed with [aontu/mapval_no_gen] once included
 # (README, gap 1).  2026-08-26: fixed by the template-clone isolation
-# change (ADR-005), so type() would work here now; hide() is kept as
+# change, so type() would work here now; hide() is kept as
 # an equally-correct arrangement that also keeps the bag out of
 # output.
-# Where a dependency may live. An address is a TREE PATH (ADR-014), so
+# Where a dependency may live. An address is a TREE PATH, so
 # this says a service may only depend on a catalog entry, never on a
 # workload.
 %CatalogAddr = re("^\\$[.]catalog[.]")
@@ -66,7 +66,7 @@ spec: hide({
     # `relations:` block used to -- acyclic dependencies, and a
     # written-out inverse. Data documents stay plain lists.
     #
-    # An address is a TREE PATH (ADR-014), so the re() says where
+    # An address is a TREE PATH, so the re() says where
     # a dependency may live rather than how it must be named: a service
     # may only depend on a catalog entry, never on a workload.
     # (Gap 8's history -- relate($.aontu.System.Service) dying of unify_cycle,

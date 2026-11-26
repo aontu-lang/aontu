@@ -444,7 +444,7 @@ theorem lookup_eq_of_perm {l₁ l₂ : List (String × Data)} (hn : (l₁.map Pr
       rw [lookup_eq_some_of_nodup hn hmem] at hl
       exact nomatch hl
 
-/-! ## ADR-007: the output is an instance -/
+/-! ## The output is an instance -/
 
 mutual
 theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env root v j

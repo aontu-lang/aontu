@@ -406,7 +406,7 @@ class RelateFuncVal extends FuncBaseVal {
 
 
 // The address machinery itself (Address, parseAddress, prefixMeet)
-// lives in PathVal, its home since ADR-016 -- import it from there.
+// lives in PathVal -- import it from there.
 export {
   addressPath,
   PendingLinkVal,

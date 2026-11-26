@@ -420,7 +420,7 @@ function armsVal(ctx, home, arms) {
 // Generated output with the number KINDS the JSON loses: `1` and
 // `1.0` generate the same digits, and are still different values.
 // A member dropped as a duplicate leaves its riders on the survivor, at
-// every depth, so the join is as order-free as the meet (ADR-052).
+// every depth, so the join is as order-free as the meet.
 function keepRiders(ctx, keep, drop, sends = true) {
     if (!ridden(drop)) {
         return keep;

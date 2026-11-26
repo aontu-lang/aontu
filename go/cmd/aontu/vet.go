@@ -56,7 +56,7 @@ type vetArgs struct {
 	coverage       bool
 	strictCoverage bool
 	coverageAt     string
-	// ADR-066: the report as output units, and the importer's source map
+	// The report as output units, and the importer's source map
 	// of the schema they are located through.
 	output    string
 	sourceMap string
@@ -368,7 +368,7 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 		}
 		sources = append(sources, source{file: file, src: string(src)})
 	}
-	// ADR-066: a map whose text has changed would place a finding at the
+	// A map whose text has changed would place a finding at the
 	// wrong keyword.
 	var sourceMap *aontu.SourceMap
 	if "" != args.sourceMap {

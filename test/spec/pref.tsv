@@ -12,13 +12,13 @@ pref-disjunct-fold-canon	canon	a:*{x:1} | *{y:2}	{"a":*{"x":1,"y":2}}
 pref-top-dropped	gen	K:*any	{}
 pref-top-dropped-canon	canon	K:*any	{"K":*any}
 pref-top-list-dropped	gen	l:[*any]	{"l":[]}
-# FLIPPED by the rank-uniform meet (ADR-004; was pref-nested-concrete-wins,
+# FLIPPED by the rank-uniform meet (was pref-nested-concrete-wins,
 # expecting `false`): a rank>=2 preference now defends the INNERMOST
 # value's kind exactly as rank 1 does, so `**hello & false` is the same
 # kind conflict `*hello & false` always was. The old expectation pinned
 # the inconsistency of use-cases/BUGS.md §3 (a bare conjunct silently
 # swallowing a ranked default). Parity-probed 2026-08-26.
-# The CODE moved to `empty` with ADR-011 R1 (the refusal belongs to
+# The CODE moved to `empty` when the star became sugar (the refusal belongs to
 # the disjunction `*x` stands for, at every rank); the refusal itself
 # is the same one this row has always pinned.
 pref-nested-concrete-wins	errc	k1:**hello&false	empty
@@ -36,7 +36,7 @@ pref-nested-concrete-wins	errc	k1:**hello&false	empty
 # member, and the kind gate then replaces a scalar preference BY the
 # concrete member it met -- so the preference simply vanished, and the
 # enum-with-default written this way round held no default at all. The
-# old generation fold hid it; ADR-007 does not. A preference naming no
+# old generation fold hid it; generating an instance does not. A preference naming no
 # alternative is dropped: it has nothing to prefer, and the
 # default-validity lint is what reports that shape.
 pref-conjunct-distributes-canon	canon	a:("1.0"|"1.1") & *"1.0"	{"a":*"1.0"|"1.1"}
@@ -106,7 +106,7 @@ pref-override-within-kind-gens	gens	a:{&:*1, b:2}	{"a":{"b":2}}
 #
 # They were recorded "so that change cannot be made by accident, in
 # one port only, or without noticing which of the two behaviours
-# moved". ADR-011 is that change, made on purpose, in both ports.
+# moved". Making the star sugar is that change, made on purpose, in both ports.
 # `super({x:1})` is `{x:integer}`, and the meet asks the two questions
 # the long form asks: does the preferred value ITSELF admit the peer
 # (maps merge, so `x` survives), and if not does its type? A string
@@ -126,7 +126,7 @@ pref-struct-list-default-refuses-number	errc	a:*[1]\na:5	empty
 # used a peer of the same length, so the length gate the two ports
 # share was never exercised from the preference distribution.
 # TypeScript refused and Go answered `*[1]` / `*[1,2]` at exit 0, which
-# is the silent-wrong-output class in the operator ADR-004 and ADR-011
+# is the silent-wrong-output class in the operator the admission gate and the star's sugar
 # are built on (BUGS.md §61).
 pref-struct-list-default-shorter-peer	errc	a:*[]\na:[1]	empty
 pref-struct-list-default-longer-peer	errc	a:*[1]\na:[1,2]	empty
@@ -139,11 +139,11 @@ pref-struct-list-default-same-length-one	gens	a:*[1]\na:[integer]	{"a":[1]}
 pref-struct-list-default-spread-peer	gens	a:*[1]\na:[&:integer]	{"a":[1]}
 # The scalar direction of the same pairing, for contrast: a scalar
 # default refuses a map, and says so as the emptied disjunction it is
-# (ADR-011 R1; it read `not-scalar-type`, the code of the gate's own
+# (it read `not-scalar-type`, the code of the gate's own
 # inner meet rather than of anything the author wrote).
 pref-scalar-default-refuses-map	errc	a:*1\na:{x:2}	empty
 pref-override-ref-clone-gens	gens	x:*1 y:$.x&2	{"x":1,"y":2}
-# THE ADMISSION GATE (ADR-004, 2026-08-26). A peer that meets a scalar
+# THE ADMISSION GATE (2026-08-26). A peer that meets a scalar
 # preference INSIDE a disjunction must be admitted by the disjunction:
 # by some sibling alternative, or by the preferred value itself. The
 # old rule let the pref's kind gate alone decide, so a same-kind
@@ -198,7 +198,7 @@ pref-implicit-bag-refused-two	errc	*a: 1, b: 2	pref_implicit_bag
 # THE BRACED FORMS ARE UNTOUCHED, which is the whole of the distinction:
 # these are the real spelling, and `*{x:1}|*{y:2}` is what a defaulted
 # map alternative needs. Pinned here so the guard above cannot widen.
-# They keep their WRITTEN shape under ADR-011 too (R6): a container
+# They keep their WRITTEN shape as sugar too: a container
 # default is leafwise in what it ADMITS, not in how it is spelled.
 pref-braced-map-canon	canon	*{a: 1}	*{"a":1}
 pref-braced-list-canon	canon	*[1]	*[1]

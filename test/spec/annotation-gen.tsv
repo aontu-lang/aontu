@@ -248,7 +248,7 @@ gen-does-not-ride-arithmetic	gens	x: 1.2345 & gen({significant: 3}), y: add($.x,
 gen-does-not-ride-text	gens	x: 1.2345 & gen({significant: 3}), y: "v" + $.x	{"x":1.23,"y":"v1.2345"}
 gen-a-bound-reads-the-value	gens	v: 1.2345 & gen({significant: 2}) & max(1.24)	{"v":1.2}
 gen-alone-generates-nothing	errc	v: gen({significant: 2})	mapval_no_gen
-# The statements of one document in three orders (ADR-081).
+# The statements of one document in three orders.
 gen-order-annotation-first	gens	a: float & gen({significant: 2}), a: min(1), a: 1.2345, b: $.a	{"a":1.2,"b":1.2}
 gen-order-annotation-last	gens	b: $.a, a: 1.2345, a: min(1), a: float & gen({significant: 2})	{"a":1.2,"b":1.2}
 gen-order-annotation-between	gens	a: 1.2345, b: $.a, a: gen({significant: 2}) & float, a: min(1)	{"a":1.2,"b":1.2}

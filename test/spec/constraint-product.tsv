@@ -9,7 +9,7 @@
 # same meet differently and still each be internally lawful. This file
 # is the cross-port half -- the observable for every cell, run by both
 # runners, so a normalisation that drifts in one port fails the shared
-# suite (ADR-001).
+# suite (ADR-102).
 #
 # Every row's expectation was PROBED through both engines and compared
 # byte-for-byte before being pinned; all 256 agreed. The atom
