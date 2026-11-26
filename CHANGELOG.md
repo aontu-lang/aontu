@@ -40,6 +40,25 @@ agreed by both. The definition states the encodings in
 `spec/Aontu/Text.lean`, and rows ec0 on of `test/spec/def-call.tsv`
 are generated from it.
 
+### The axiom gate judges every theorem of the definition
+
+#1021. `spec/README.md` says no theorem of the definition rests on an
+axiom beyond `propext` and `Quot.sound`. Five did, of 3,059:
+`Decls.alias_self_admits_nothing`, `joinFields_distinct`,
+`Data.term_filled`, `termMembers_filled` and `termElems_filled`. The
+gate in `spec/Aontu/Axioms.lean` holds a list of theorems by name, and
+none of the five was on it.
+
+The cause was one step in two proofs. `simp` closes `(k == k) = true`
+for a string with `beq_self_eq_true`, which rests on `Classical.choice`
+there. `beq_iff_eq.mpr rfl` proves the same with no axiom, and the two
+proofs now go by it, which clears all five.
+
+`Axioms.lean` keeps its list and gains a check that judges every
+theorem under `Aontu`, each constant it reaches once, and fails the
+build at one that rests on more than the two. It takes a few seconds.
+No definition changes its meaning, and no generated row moves.
+
 ### The definition orders two recursions
 
 The order on two documents, `LeD`, was decided only where neither
