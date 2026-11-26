@@ -127,6 +127,24 @@ list-elements-name-each-other-use-first	gens	doc: $.xs.0 & {v: 1, next: {v: 2}}\
 # A residual above its definition expands at its own place, and says so.
 expansion-path-from-a-deeper-definition-use-first	errc	doc: $.s.N & {v: 1}\ns: hide({N: {v: number, next: $.s.N}})	recursion_unexpanded
 expansion-path-from-a-deeper-definition-use-first-path	err	doc: $.s.N & {v: 1}\ns: hide({N: {v: number, next: $.s.N}})	Cannot recurse value at path $.doc.next
+# A path inside a definition that names nothing is no recursion: the walk
+# stops at a list's end, at a key into a list, at a scalar and at a missing
+# member, and the path is refused where it stands.
+path-in-a-definition-past-a-list-end	errc	xs: [1]\nb: {c?: $.xs.5}\ndoc: $.b	no_path
+path-in-a-definition-past-a-list-end-path	err	xs: [1]\nb: {c?: $.xs.5}\ndoc: $.b	Cannot resolve value at path $.b.c
+path-in-a-definition-through-a-list-by-a-key	errc	xs: [1]\nb: {v: 2, c?: $.xs.k}\ndoc: $.b	no_path
+path-in-a-definition-through-a-list-by-a-key-path	err	xs: [1]\nb: {v: 2, c?: $.xs.k}\ndoc: $.b	Cannot resolve value at path $.b.c
+path-in-a-definition-through-a-scalar	errc	a: 1\nb: {v: 2, c?: $.a.x}\ndoc: $.b	no_path
+path-in-a-definition-through-a-scalar-path	err	a: 1\nb: {v: 2, c?: $.a.x}\ndoc: $.b	Cannot resolve value at path $.b.c
+path-in-a-definition-to-nothing	errc	b: {v: 2, c?: $.zz.y}\ndoc: $.b	no_path
+path-in-a-definition-to-nothing-path	err	b: {v: 2, c?: $.zz.y}\ndoc: $.b	Cannot resolve value at path $.b.c
+# Where the use is written first, the copy's place refuses it.
+path-in-a-definition-past-a-list-end-use-first	errc	doc: $.b\nxs: [1]\nb: {c?: $.xs.5}	no_path
+path-in-a-definition-past-a-list-end-use-first-path	err	doc: $.b\nxs: [1]\nb: {c?: $.xs.5}	Cannot resolve value at path $.doc.c
+path-in-a-definition-through-a-list-by-a-key-use-first	errc	doc: $.b\nxs: [1]\nb: {v: 2, c?: $.xs.k}	no_path
+path-in-a-definition-through-a-list-by-a-key-use-first-path	err	doc: $.b\nxs: [1]\nb: {v: 2, c?: $.xs.k}	Cannot resolve value at path $.doc.c
+path-in-a-definition-through-a-scalar-use-first	errc	doc: $.b\na: 1\nb: {v: 2, c?: $.a.x}	no_path
+path-in-a-definition-through-a-scalar-use-first-path	err	doc: $.b\na: 1\nb: {v: 2, c?: $.a.x}	Cannot resolve value at path $.doc.c
 #
 # --- JSON itself, as a guarded alias ---------------------------------
 json-alias	gens	%json = null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}

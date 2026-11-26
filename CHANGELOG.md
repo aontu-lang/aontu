@@ -82,7 +82,7 @@ Two answers change for a document that was accepted:
   every generated row as the definition does.
 - `test/spec/def-path.tsv` gains rows mp0 to mp104, 35 cases the
   definition proves, each in three modes.
-- `test/spec/recursion.tsv` gains 68 rows, and row `mutual-pair` no
+- `test/spec/recursion.tsv` gains 82 rows, and row `mutual-pair` no
   longer expects the employer.
 
 ### A name whose body links back to it stays residual when used alone
