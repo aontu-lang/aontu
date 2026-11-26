@@ -4996,6 +4996,53 @@ theorem scope_verdict_exact : ∀ c ∈ scopeCases, ∀ (m : Mode) (v : Verdict)
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (scopeCases_checkable c hc).1 (scopeCases_checkable c hc).2 v
 
+/-- A source that declares a name, loaded below the root, where no
+declaration may stand: under a key, required and optional, in a list,
+under two keys, and met with a map under a key, each an error; in an
+arm of a disjunction, which fails alone, beside data the other arm
+admits and data it refuses; a source that loads one at its own top,
+at the root and under a key; a source that loads one under a key of its
+own, at the root; a source that declares nothing, under a key; a
+destructure under a key, which takes the source's names where it
+stands, and a plain load of the same source there; and a load in a
+declaration's body, of a source that declares and of one that doesn't,
+the body used and not. -/
+def belowRootCases : List (Decls × Val × Data) :=
+  let take (s : String) (names : List String) : Val := .call .load (.lit (.str (fx s)) :: names.map str)
+  let files : Decls :=
+    Decls.ofSource (fx "alias_declares_u.aontu") [("u", int 7)] (m [("y", int 1)]) ++
+    Decls.ofSource (fx "alias_reexport.aontu") [] (ld "./alias_declares_u.aontu") ["u"] ++
+    Decls.ofSource (fx "alias_keys_u.aontu") [] (m [("k", ld "./alias_declares_u.aontu")]) ++
+    Decls.ofSource (fx "alias_exports.aontu") [("uint8", int 255), ("secret", str "shh")]
+      (m [("defaults", m [("retries", int 3)])]) ["uint8"] ++
+    [("@" ++ fx "foo.aontu", m [("f", int 11)])]
+  let u : Val := ld (fx "alias_declares_u.aontu")
+  [(files, m [("x", u)], dm []),
+    (files, .map [("x", true, u)] none false, dm []),
+    (files, m [("x", lst [u])], dm []),
+    (files, m [("x", m [("y", u)])], dm []),
+    (files, m [("x", .meet (m [("a", int 1)]) u)], dm []),
+    (files, m [("x", .or [(0, u), (0, int 1)])], dm []),
+    (files, m [("x", .or [(0, u), (0, int 1)])], dm [("x", j 1)]),
+    (files, m [("x", .or [(0, u), (0, int 1)])], dm [("x", j 2)]),
+    (files, m [("x", ld (fx "alias_reexport.aontu"))], dm []),
+    (files, ld (fx "alias_keys_u.aontu"), dm []),
+    (files, m [("x", ld (fx "alias_keys_u.aontu"))], dm []),
+    (files, m [("x", ld (fx "foo.aontu"))], dm []),
+    (files, m [("x", take "alias_exports.aontu" ["uint8", "uint8"]), ("q", .alias "uint8")], dm []),
+    (files, m [("x", take "alias_exports.aontu" ["uint8", "uint8"]), ("q", .alias "uint8")], dm [("q", j 254)]),
+    (files, m [("x", ld (fx "alias_exports.aontu"))], dm []),
+    (("m", u) :: files, m [("w", .alias "m")], dm []),
+    (("m", u) :: files, m [("w", int 1)], dm []),
+    (("m", ld (fx "foo.aontu")) :: files, m [("w", .alias "m")], dm [])]
+
+theorem belowRootCases_checkable : ∀ c ∈ belowRootCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem below_root_verdict_exact : ∀ c ∈ belowRootCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (belowRootCases_checkable c hc).1 (belowRootCases_checkable c hc).2 v
+
 /-- Names a source publishes, `export({ %a })`, and the destructures
 that take them, `{ %a } = @"p"`: a name taken by its own name, all of a
 source's names at once, and under another name; at the top and under a
@@ -10070,6 +10117,39 @@ theorem grammar_verdict_exact : ∀ c ∈ grammarCases, ∀ (m : Mode) (v : Verd
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (grammarCases_checkable c hc)) v
 
+/-- The later fragments of the `paths` rows, an action of their own so
+that no one action nests deeper than the C compiler reads. -/
+def pathRowsLate : IO Unit := do
+  IO.println "# The graph atoms `acyclic()` and `inverse(k)`, in rows ga0 on, as they read:"
+  IO.println "# an atom rides the value it meets and leaves it as it is, one alone is no"
+  IO.println "# member of the output, a template still flows through one, and an `inverse`"
+  IO.println "# whose argument is no name is the schema's error. Every document here keeps"
+  IO.println "# what its atoms ask; rows gj0 on hold those that don't."
+  pathRows "ga" graphAtomCases
+  IO.println "# `+` over an address, in rows ap0 on, which reads as the text that spells it."
+  pathRows "ap" addrPlusCases
+  IO.println "# A choice the meet or a dead arm settles to one arm is that arm for a call,"
+  IO.println "# in rows oa0 on: an operand of `+`, `upper`, `lower` and `add`, a bag a fold,"
+  IO.println "# `join`, `pick` or `sort` reads and an element of one, and the source of"
+  IO.println "# `each` and `pack`, where the schema settles the choice and where the data does."
+  pathRows "oa" oneArmCases
+  IO.println "# What the graph atoms ask, in rows gj0 on, with the one class `vetG` gives,"
+  IO.println "# which `vetG_iff` makes the definition's own: `invalid` where the document"
+  IO.println "# generates and the graph it writes breaks an atom, and `vetP`'s class anywhere"
+  IO.println "# else. `acyclic()` asks that its relation hold no cycle, and `inverse(k)` that"
+  IO.println "# each of its edges be mirrored under `k`. A declaration holds for its key"
+  IO.println "# wherever an edge of it is written, a document that waits isn't judged, and a"
+  IO.println "# default's edges are edges, where an arm generation doesn't take brings none."
+  pathRows "gj" graphJudgeCases (verdict := vetG)
+  IO.println "# A source that declares a name, loaded below the root, in rows lu0 on. A"
+  IO.println "# declaration stands only at the root, so a plain load of such a source"
+  IO.println "# under a key, in a list or in a declaration's body is a conflict where it"
+  IO.println "# stands: the schema's error, or the end of its arm alone in a disjunction."
+  IO.println "# A source it's loaded through at that source's own top brings it too. A"
+  IO.println "# destructure takes the names where it stands, so it loads anywhere, as does"
+  IO.println "# a source that declares nothing."
+  pathRows "lu" belowRootCases
+
 set_option maxRecDepth 2048 in
 def main (args : List String) : IO UInt32 := do
   match args with
@@ -10463,27 +10543,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# ring of three, a list's elements, and a relation to a subtype of the type"
     IO.println "# that declares it, by name and by path."
     pathRows "mp" mutualPathCases
-    IO.println "# The graph atoms `acyclic()` and `inverse(k)`, in rows ga0 on, as they read:"
-    IO.println "# an atom rides the value it meets and leaves it as it is, one alone is no"
-    IO.println "# member of the output, a template still flows through one, and an `inverse`"
-    IO.println "# whose argument is no name is the schema's error. Every document here keeps"
-    IO.println "# what its atoms ask; rows gj0 on hold those that don't."
-    pathRows "ga" graphAtomCases
-    IO.println "# `+` over an address, in rows ap0 on, which reads as the text that spells it."
-    pathRows "ap" addrPlusCases
-    IO.println "# A choice the meet or a dead arm settles to one arm is that arm for a call,"
-    IO.println "# in rows oa0 on: an operand of `+`, `upper`, `lower` and `add`, a bag a fold,"
-    IO.println "# `join`, `pick` or `sort` reads and an element of one, and the source of"
-    IO.println "# `each` and `pack`, where the schema settles the choice and where the data does."
-    pathRows "oa" oneArmCases
-    IO.println "# What the graph atoms ask, in rows gj0 on, with the one class `vetG` gives,"
-    IO.println "# which `vetG_iff` makes the definition's own: `invalid` where the document"
-    IO.println "# generates and the graph it writes breaks an atom, and `vetP`'s class anywhere"
-    IO.println "# else. `acyclic()` asks that its relation hold no cycle, and `inverse(k)` that"
-    IO.println "# each of its edges be mirrored under `k`. A declaration holds for its key"
-    IO.println "# wherever an edge of it is written, a document that waits isn't judged, and a"
-    IO.println "# default's edges are edges, where an arm generation doesn't take brings none."
-    pathRows "gj" graphJudgeCases (verdict := vetG)
+    pathRowsLate
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

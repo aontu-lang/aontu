@@ -11258,14 +11258,28 @@ def loadPath (src p : String) : Option String :=
 
 Before anything else reads the document, each load reads in its
 source's term, whose own loads read in from there, `seen` holding the
-chain of sources the load stands in:
+chain of sources the load stands in and `top` whether the term stands
+at a root:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.loadIn (ds : Decls) : ℕ → List String → String → Val → Val
-  | 0, _, _, v => v
-  | n + 1, seen, src, v => v.mapLoads fun p => (loadPath src p).bind fun q =>
-    if q ∈ seen then none else (ds.source? q).map (ds.loadIn n (q :: seen) q)
+def Decls.loadIn (ds : Decls) : ℕ → List String → String → Bool → Val → Val
+  | 0, _, _, _, v => v
+  | n + 1, seen, src, top, v =>
+    v.mapLoadsTop (ds.readLoad (fun q t => ds.loadIn n (q :: seen) q t) seen src top)
+      (ds.readLoad (fun q t => ds.loadIn n (q :: seen) q t) seen src false)
+```
+
+`Decls.readLoad` reads one load:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.readLoad (ds : Decls) (rd : String → Bool → Val → Val) (seen : List String) (src : String)
+    (atTop : Bool) (p : String) (plain : Bool) : Option Val :=
+  (loadPath src p).bind fun q =>
+    if q ∈ seen then none
+    else if plain && !atTop && ds.brings (ds.sourceCount + 1) [q] q then some .nil
+    else (ds.source? q).map (rd q (atTop || !plain))
 ```
 
 A source the document declares no term for, one whose extension no
@@ -11340,10 +11354,47 @@ nothing makes an error only of a document that loads it. A document
 that loads a source at the root and declares a name the source declares
 too holds two names, as two sources do: its own stays its own and never
 meets the source's. Rows from ls0 on hold these readings, and both
-engines answer every one as the definition does. Both engines refuse a
-source that declares a name when a document loads it under a key, which
-the definition reads as it reads one at the root, and no row holds
-that.
+engines answer every one as the definition does.
+
+A declaration stands only at the root of a document, and a load reads
+its source in place. So a source that declares a name loads at the root and
+nowhere below it: under a key its declaration would land where none may
+stand. That's the middle line of `Decls.readLoad`: a plain load below
+the root of a source that brings a declaration (`Decls.brings`) reads
+as `nil`, a conflict where it stands. Write a source that declares a
+name, `unit.aontu`:
+
+<!-- test: scenario load-below-root -->
+<!-- test: file unit.aontu -->
+```aontu
+%port = 8080
+
+listen: %port
+```
+
+and `nested.aontu`, which loads it in one arm of a disjunction:
+
+<!-- test: file nested.aontu -->
+```aontu
+server: @"./unit.aontu"|"none"
+```
+
+<!-- test: run -->
+```sh
+$ aontu nested.aontu
+{
+  "server": "none"
+}
+```
+
+The arm that holds the load fails alone, and the other one stands.
+With no second arm, `server: @"./unit.aontu"`, the conflict is the
+schema's and the document is an `error`, which both engines report as
+`alias_not_toplevel`. A source that loads such a source at its own top
+brings the declaration with it. A destructure takes the names where it
+stands, so it loads anywhere, as the next passage shows, and so does a
+source that declares nothing. Rows from lu0 on hold these readings, and
+both engines answer every one as the definition does.
 
 The last argument of `Decls.ofSource` holds the names a source
 publishes, `export({ %a })`. The definition declares each under a third

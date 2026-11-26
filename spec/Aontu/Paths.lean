@@ -589,10 +589,18 @@ def loadArg? : List Val → Option String
   | .lit (.str p) :: _ => some p
   | _ => none
 
+/-- Whether a load's arguments write a plain load, `@"p"`, and not a
+destructure, `{ %a } = @"p"`, which writes the names it takes after the
+path. -/
+def plainLoad : List Val → Bool
+  | [_] => true
+  | _ => false
+
 mutual
 /-- The term with each `@"p"` it writes, at any depth, read as the term
-`k` gives `p`, and left as written where `k` gives none. -/
-def Val.mapLoads (k : String → Option Val) : Val → Val
+`k` gives `p`, told whether the load is a plain one (`plainLoad`), and
+left as written where `k` gives none. -/
+def Val.mapLoads (k : String → Bool → Option Val) : Val → Val
   | .len c => .len (c.mapLoads k)
   | .map fs spread closed => .map (mlFields k fs) (mlSpread k spread) closed
   | .list items spread closed => .list (mlItems k items) (mlSpread k spread) closed
@@ -608,33 +616,33 @@ def Val.mapLoads (k : String → Option Val) : Val → Val
   | .filter s c => .filter (s.mapLoads k) (c.mapLoads k)
   | .call f args =>
     match f, loadArg? args with
-    | .load, some p => (k p).getD (.call f args)
+    | .load, some p => (k p (plainLoad args)).getD (.call f args)
     | _, _ => .call f (mlItems k args)
   | .ride rd v r => .ride rd (v.mapLoads k) r
   | .link v lt => .link (v.mapLoads k) lt
   | v => v
 
-def mlPairs (k : String → Option Val) : List (Val × Val) → List (Val × Val)
+def mlPairs (k : String → Bool → Option Val) : List (Val × Val) → List (Val × Val)
   | [] => []
   | (p, r) :: ps => (p.mapLoads k, r.mapLoads k) :: mlPairs k ps
 
-def mlCovers (k : String → Option Val) : List Cover → List Cover
+def mlCovers (k : String → Bool → Option Val) : List Cover → List Cover
   | [] => []
   | (c, ky, m) :: cs => (mlSpread k c, mlSpread k ky, mlSpread k m) :: mlCovers k cs
 
-def mlFields (k : String → Option Val) : List (String × Bool × Val) → List (String × Bool × Val)
+def mlFields (k : String → Bool → Option Val) : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
   | (ky, o, v) :: fs => (ky, o, v.mapLoads k) :: mlFields k fs
 
-def mlItems (k : String → Option Val) : List Val → List Val
+def mlItems (k : String → Bool → Option Val) : List Val → List Val
   | [] => []
   | v :: vs => v.mapLoads k :: mlItems k vs
 
-def mlSpread (k : String → Option Val) : Option Val → Option Val
+def mlSpread (k : String → Bool → Option Val) : Option Val → Option Val
   | none => none
   | some s => some (s.mapLoads k)
 
-def mlArms (k : String → Option Val) : List (ℕ × Val) → List (ℕ × Val)
+def mlArms (k : String → Bool → Option Val) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: as => (r, a.mapLoads k) :: mlArms k as
 end
@@ -798,26 +806,79 @@ def Decls.takesLeftIn (ds : Decls) (src : String) (v : Val) : Bool :=
         | none => true
 
 
-/-- A term written in the source named `src` with the sources it loads
-read in, `n` deep, `seen` the sources it's being read into: each `@"p"`
-read as the term the document declares for the source it names
-(`loadPath`, `Decls.source?`), that term's own sources read in from
-there. A source the document declares no term for, one no source may be
-loaded with, and one `seen` holds, a cycle, stays as written: a load the
-reading can't make, which makes the document an `error`. Each step of a
-chain reads a source not yet seen, so a depth past the number of
-sources reads every chain to its end. -/
-def Decls.loadIn (ds : Decls) : ℕ → List String → String → Val → Val
-  | 0, _, _, v => v
-  | n + 1, seen, src, v => v.mapLoads fun p => (loadPath src p).bind fun q =>
-    if q ∈ seen then none else (ds.source? q).map (ds.loadIn n (q :: seen) q)
-
 /-- Whether a declaration's name is a source's: `@` and the name it's
 loaded by. -/
 def sourceName (n : String) : Bool := n.toList.head? == some '@'
 
 /-- How many sources a document declares. -/
 def Decls.sourceCount (ds : Decls) : ℕ := (ds.filter fun d => sourceName d.1).length
+
+/-- Whether a term is a load, plain or a destructure. -/
+def Val.isLoad : Val → Bool
+  | .call .load _ => true
+  | _ => false
+
+/-- The term with the loads at its top read as `kt` gives and every load
+below as `k` gives (`Val.mapLoads`): the top is the term itself and each
+side of a meet there, where a document writes a load beside its
+members. -/
+def Val.mapLoadsTop (kt k : String → Bool → Option Val) : Val → Val
+  | .meet a b => .meet (a.mapLoadsTop kt k) (b.mapLoadsTop kt k)
+  | v => if v.isLoad then v.mapLoads kt else v.mapLoads k
+
+/-- The loads a term writes at its top, each its path and whether it is
+a plain one (`plainLoad`). -/
+def Val.topLoads : Val → List (String × Bool)
+  | .meet a b => a.topLoads ++ b.topLoads
+  | .call .load args => ((loadArg? args).map fun p => (p, plainLoad args)).toList
+  | _ => []
+
+/-- Whether reading the source named `q` in brings a declaration to the
+place that loads it, `n` deep: a name the source declares; a
+destructure at its top, which binds one; or a source it loads plainly
+at its top that brings one in turn. -/
+def Decls.brings (ds : Decls) : ℕ → List String → String → Bool
+  | 0, _, _ => false
+  | n + 1, seen, q =>
+    (ds.any fun d => d.1.toList.head? == some '%' && scopeOf d.1 == some q) ||
+      match ds.source? q with
+      | none => false
+      | some t => t.topLoads.any fun l =>
+          !l.2 || match loadPath q l.1 with
+            | none => false
+            | some q' => !seen.contains q' && ds.brings n (q' :: seen) q'
+
+/-- What a load written `p` in the source named `src` reads as, `rd`
+reading a source's term in: the term the document declares for the
+source it names (`loadPath`, `Decls.source?`), read in by `rd`, told
+whether that term stands at a root. A declaration stands only at the
+root of a document, so a plain load below it of a source that brings
+one (`Decls.brings`) reads as `nil`, a conflict where it stands, as
+both ports refuse it there: it makes the document an `error` under a
+key, and fails its arm alone in a disjunction. A source read in at the
+root keeps its declarations at the root, and a destructure takes them
+where it stands, so the term of either stands at a root. None, a load
+the reading can't make, for a source the document declares no term
+for, one no source may be loaded with, and one `seen` holds, a cycle. -/
+def Decls.readLoad (ds : Decls) (rd : String → Bool → Val → Val) (seen : List String) (src : String)
+    (atTop : Bool) (p : String) (plain : Bool) : Option Val :=
+  (loadPath src p).bind fun q =>
+    if q ∈ seen then none
+    else if plain && !atTop && ds.brings (ds.sourceCount + 1) [q] q then some .nil
+    else (ds.source? q).map (rd q (atTop || !plain))
+
+/-- A term written in the source named `src` with the sources it loads
+read in, `n` deep, `seen` the sources it's being read into, `top`
+whether the term stands at a root: each `@"p"` read as
+`Decls.readLoad` reads it, that term's own sources read in from there.
+A load the reading can't make stays as written, which makes the
+document an `error`. Each step of a chain reads a source not yet seen,
+so a depth past the number of sources reads every chain to its end. -/
+def Decls.loadIn (ds : Decls) : ℕ → List String → String → Bool → Val → Val
+  | 0, _, _, _, v => v
+  | n + 1, seen, src, top, v =>
+    v.mapLoadsTop (ds.readLoad (fun q t => ds.loadIn n (q :: seen) q t) seen src top)
+      (ds.readLoad (fun q t => ds.loadIn n (q :: seen) q t) seen src false)
 
 mutual
 /-- The arguments of each load a term writes, at any depth. -/
@@ -912,7 +973,8 @@ def Decls.takesLeft (ds : Decls) (S : Val) : Bool :=
 /-- A document with the sources it loads read in where it loads them, as
 both ports read a source in place: as deep as it declares sources, so
 that a chain of loads reads to its end and a cycle never does. Its
-schema and its own bodies read in from the document itself, each body a
+schema and its own bodies read in from the document itself, the schema
+at the root and a body below it, each body a
 source declares from that source, a load of the source itself a cycle,
 and the sources no longer declared, so that a source nothing loads is
 no part of the document, nor are the names it declares
@@ -920,9 +982,9 @@ no part of the document, nor are the names it declares
 def Decls.loaded (ds : Decls) (S : Val) : Decls × Val :=
   let read := ds.readSources S
   ((ds.filter fun d => !sourceName d.1 && (scopeOf d.1).all read.contains).map (fun d =>
-      (d.1, ds.loadIn (ds.sourceCount + 1) (scopeOf d.1).toList ((scopeOf d.1).getD "") d.2))
+      (d.1, ds.loadIn (ds.sourceCount + 1) (scopeOf d.1).toList ((scopeOf d.1).getD "") false d.2))
       ++ ds.takeBinds S,
-    ds.loadIn (ds.sourceCount + 1) [] "" S)
+    ds.loadIn (ds.sourceCount + 1) [] "" true S)
 
 /-- Whether a term holds a load, at any depth: once the sources are read
 in, one the reading couldn't make. -/
@@ -3546,23 +3608,23 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
       exact ihd e₀ he₀ pos
   | _ => intro pos; simp only [Val.placed]; constructor
 
-theorem mem_mlFields {ld : String → Option Val} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+theorem mem_mlFields {ld : String → Bool → Option Val} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ mlFields ld fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.mapLoads ld :=
   mem_mapFields rfl fun _ _ _ _ => rfl
 
-theorem mem_mlPairs {ld : String → Option Val} {ps : List (Val × Val)} {p r : Val} :
+theorem mem_mlPairs {ld : String → Bool → Option Val} {ps : List (Val × Val)} {p r : Val} :
     (p, r) ∈ mlPairs ld ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.mapLoads ld ∧ r = r₀.mapLoads ld :=
   mem_mapPairs rfl fun _ _ _ => rfl
 
-theorem mem_mlItems {ld : String → Option Val} {items : List Val} {w : Val} :
+theorem mem_mlItems {ld : String → Bool → Option Val} {items : List Val} {w : Val} :
     w ∈ mlItems ld items ↔ ∃ v, v ∈ items ∧ w = v.mapLoads ld :=
   mem_mapItems rfl fun _ _ => rfl
 
-theorem mlSpread_eq {ld : String → Option Val} {spread : Option Val} {t : Val} :
+theorem mlSpread_eq {ld : String → Bool → Option Val} {spread : Option Val} {t : Val} :
     mlSpread ld spread = some t ↔ ∃ s, spread = some s ∧ t = s.mapLoads ld :=
   mapSpread_eq rfl fun _ => rfl
 
-theorem mem_mlCovers {ld : String → Option Val} {cs : List Cover} {c' : Cover} :
+theorem mem_mlCovers {ld : String → Bool → Option Val} {cs : List Cover} {c' : Cover} :
     c' ∈ mlCovers ld cs ↔ ∃ c, c ∈ cs ∧ c' = (mlSpread ld c.1, mlSpread ld c.2.1, mlSpread ld c.2.2) := by
   induction cs with
   | nil => simp [mlCovers]
@@ -3577,12 +3639,12 @@ theorem mem_mlCovers {ld : String → Option Val} {cs : List Cover} {c' : Cover}
       · exact .inl rfl
       · exact .inr ⟨d, hd, rfl⟩
 
-theorem mem_mlArms {ld : String → Option Val} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+theorem mem_mlArms {ld : String → Bool → Option Val} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
     (r, b) ∈ mlArms ld arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.mapLoads ld :=
   mem_mapArms rfl fun _ _ _ => rfl
 
 /-- A term the checker can read, its paths read as names, is one it can read. -/
-theorem mapLoads_checkableA {ld : String → Option Val} (hk : ∀ p w, ld p = some w → w.CheckableA)
+theorem mapLoads_checkableA {ld : String → Bool → Option Val} (hk : ∀ p b w, ld p b = some w → w.CheckableA)
     {v : Val} (h : v.CheckableA) : (v.mapLoads ld).CheckableA := by
   induction h with
   | len _ ih => exact .len ih
@@ -3618,9 +3680,9 @@ theorem mapLoads_checkableA {ld : String → Option Val} (hk : ∀ p w, ld p = s
     simp only [Val.mapLoads]
     split
     · next p _ =>
-      cases hkp : ld p with
+      cases hkp : ld p (plainLoad args) with
       | none => exact .call hargs
-      | some w => exact hk p w hkp
+      | some w => exact hk p _ w hkp
     · refine .call fun w hm => ?_
       obtain ⟨a, ha, rfl⟩ := mem_mlItems.mp hm
       exact ih a ha
@@ -3668,18 +3730,47 @@ theorem Decls.source?_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Chec
   obtain ⟨d, hd, rfl⟩ := h
   exact hb d (List.mem_of_find?_eq_some hd)
 
-theorem Decls.loadIn_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
-    ∀ (n : ℕ) (seen : List String) (src : String) {v : Val}, v.CheckableA → (ds.loadIn n seen src v).CheckableA
-  | 0, _, _, _, h => h
-  | n + 1, seen, src, _, h => by
-    simp only [Decls.loadIn]
-    refine mapLoads_checkableA (fun p w hw => ?_) h
-    simp only [Option.bind_eq_some_iff] at hw
-    obtain ⟨q, -, hq⟩ := hw
-    split at hq
-    · exact nomatch hq
+theorem mapLoadsTop_checkableA {kt k : String → Bool → Option Val}
+    (hkt : ∀ p b w, kt p b = some w → w.CheckableA) (hk : ∀ p b w, k p b = some w → w.CheckableA)
+    {v : Val} (h : v.CheckableA) : (v.mapLoadsTop kt k).CheckableA := by
+  have h0 := h
+  induction h with
+  | meet ha hb iha ihb =>
+    simp only [Val.mapLoadsTop]
+    exact .meet (iha ha) (ihb hb)
+  | _ =>
+    simp only [Val.mapLoadsTop]
+    first
+      | exact mapLoads_checkableA hk h0
+      | (split
+         · exact mapLoads_checkableA hkt h0
+         · exact mapLoads_checkableA hk h0)
+
+theorem Decls.readLoad_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    {rd : String → Bool → Val → Val} (hrd : ∀ q t {v : Val}, v.CheckableA → (rd q t v).CheckableA)
+    {seen : List String} {src : String} {atTop : Bool} {p : String} {plain : Bool} {w : Val}
+    (hw : ds.readLoad rd seen src atTop p plain = some w) : w.CheckableA := by
+  simp only [Decls.readLoad, Option.bind_eq_some_iff] at hw
+  obtain ⟨q, -, hq⟩ := hw
+  split at hq
+  · exact nomatch hq
+  · split at hq
+    · cases hq
+      exact .nil
     · obtain ⟨t, ht, rfl⟩ := Option.map_eq_some_iff.mp hq
-      exact Decls.loadIn_checkableA hb n (q :: seen) q (Decls.source?_checkableA hb ht)
+      exact hrd q _ (Decls.source?_checkableA hb ht)
+
+theorem Decls.loadIn_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ (n : ℕ) (seen : List String) (src : String) (top : Bool) {v : Val},
+      v.CheckableA → (ds.loadIn n seen src top v).CheckableA
+  | 0, _, _, _, _, h => h
+  | n + 1, seen, src, top, v, h => by
+    simp only [Decls.loadIn]
+    exact mapLoadsTop_checkableA
+      (fun _ _ _ hw => Decls.readLoad_checkableA hb
+        (fun q t _ hv => Decls.loadIn_checkableA hb n (q :: seen) q t hv) hw)
+      (fun _ _ _ hw => Decls.readLoad_checkableA hb
+        (fun q t _ hv => Decls.loadIn_checkableA hb n (q :: seen) q t hv) hw) h
 
 theorem Decls.takeBindsIn_alias {ds : Decls} {src : String} {v : Val} {d : String × Val}
     (h : d ∈ ds.takeBindsIn src v) : ∃ n, d.2 = .alias n := by
@@ -3702,14 +3793,14 @@ theorem Decls.loaded_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈
   intro d hd
   simp only [Decls.loaded, List.mem_append, List.mem_map, List.mem_filter] at hd
   rcases hd with ⟨d', ⟨hd', -⟩, rfl⟩ | hd
-  · exact Decls.loadIn_checkableA hb _ _ _ (hb d' hd')
+  · exact Decls.loadIn_checkableA hb _ _ _ _ (hb d' hd')
   · obtain ⟨n, hn⟩ := Decls.takeBinds_alias hd
     rw [hn]
     exact .alias
 
 theorem Decls.loaded_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (ds.loaded S).2.CheckableA :=
-  Decls.loadIn_checkableA hb _ _ _ hS
+  Decls.loadIn_checkableA hb _ _ _ _ hS
 
 theorem mem_ptdFields {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ ptdFields pos fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.placedT (pos ++ [.key k]) := by

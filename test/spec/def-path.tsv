@@ -6202,3 +6202,64 @@ gj149	verdict	"a": {"deps": [((relate()) & (acyclic())) & (path($.b))]}, "b": {"
 gj150	verdict	"a": {"dependsOn"?: ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid"}
 gj151	verdict	"a": {"dependsOn"?: ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 gj152	verdict	"a": {"dependsOn"?: ((relate()) & (acyclic())) & ([path($.b)])}, "b": {"dependsOn": (relate()) & ([path($.a)])}	{}	{"verdict":"invalid","opts":{"partial":true}}
+# A source that declares a name, loaded below the root, in rows lu0 on. A
+# declaration stands only at the root, so a plain load of such a source
+# under a key, in a list or in a declaration's body is a conflict where it
+# stands: the schema's error, or the end of its arm alone in a disjunction.
+# A source it's loaded through at that source's own top brings it too. A
+# destructure takes the names where it stands, so it loads anywhere, as does
+# a source that declares nothing.
+lu0	verdict	"x": @"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"error"}
+lu1	verdict	"x": @"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lu2	verdict	"x": @"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lu3	verdict	"x"?: @"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"error"}
+lu4	verdict	"x"?: @"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lu5	verdict	"x"?: @"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lu6	verdict	"x": [@"__FIXTURES__/alias_declares_u.aontu"]	{}	{"verdict":"error"}
+lu7	verdict	"x": [@"__FIXTURES__/alias_declares_u.aontu"]	{}	{"verdict":"error","opts":{"noFill":true}}
+lu8	verdict	"x": [@"__FIXTURES__/alias_declares_u.aontu"]	{}	{"verdict":"error","opts":{"partial":true}}
+lu9	verdict	"x": {"y": @"__FIXTURES__/alias_declares_u.aontu"}	{}	{"verdict":"error"}
+lu10	verdict	"x": {"y": @"__FIXTURES__/alias_declares_u.aontu"}	{}	{"verdict":"error","opts":{"noFill":true}}
+lu11	verdict	"x": {"y": @"__FIXTURES__/alias_declares_u.aontu"}	{}	{"verdict":"error","opts":{"partial":true}}
+lu12	verdict	"x": ({"a": 1}) & (@"__FIXTURES__/alias_declares_u.aontu")	{}	{"verdict":"error"}
+lu13	verdict	"x": ({"a": 1}) & (@"__FIXTURES__/alias_declares_u.aontu")	{}	{"verdict":"error","opts":{"noFill":true}}
+lu14	verdict	"x": ({"a": 1}) & (@"__FIXTURES__/alias_declares_u.aontu")	{}	{"verdict":"error","opts":{"partial":true}}
+lu15	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{}	{"verdict":"valid"}
+lu16	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lu17	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+lu18	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{"x": 1}	{"verdict":"valid"}
+lu19	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+lu20	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+lu21	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{"x": 2}	{"verdict":"invalid"}
+lu22	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{"x": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+lu23	verdict	"x": (@"__FIXTURES__/alias_declares_u.aontu") | (1)	{"x": 2}	{"verdict":"invalid","opts":{"partial":true}}
+lu24	verdict	"x": @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error"}
+lu25	verdict	"x": @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lu26	verdict	"x": @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lu27	verdict	@"__FIXTURES__/alias_keys_u.aontu"	{}	{"verdict":"error"}
+lu28	verdict	@"__FIXTURES__/alias_keys_u.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lu29	verdict	@"__FIXTURES__/alias_keys_u.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lu30	verdict	"x": @"__FIXTURES__/alias_keys_u.aontu"	{}	{"verdict":"error"}
+lu31	verdict	"x": @"__FIXTURES__/alias_keys_u.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lu32	verdict	"x": @"__FIXTURES__/alias_keys_u.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lu33	verdict	"x": @"__FIXTURES__/foo.aontu"	{}	{"verdict":"valid"}
+lu34	verdict	"x": @"__FIXTURES__/foo.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lu35	verdict	"x": @"__FIXTURES__/foo.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lu36	verdict	"x": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "q": %uint8	{}	{"verdict":"valid"}
+lu37	verdict	"x": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "q": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lu38	verdict	"x": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "q": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lu39	verdict	"x": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "q": %uint8	{"q": 254}	{"verdict":"invalid"}
+lu40	verdict	"x": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "q": %uint8	{"q": 254}	{"verdict":"invalid","opts":{"noFill":true}}
+lu41	verdict	"x": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "q": %uint8	{"q": 254}	{"verdict":"invalid","opts":{"partial":true}}
+lu42	verdict	"x": @"__FIXTURES__/alias_exports.aontu"	{}	{"verdict":"error"}
+lu43	verdict	"x": @"__FIXTURES__/alias_exports.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lu44	verdict	"x": @"__FIXTURES__/alias_exports.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lu45	verdict	%m = @"__FIXTURES__/alias_declares_u.aontu"\n"w": %m	{}	{"verdict":"error"}
+lu46	verdict	%m = @"__FIXTURES__/alias_declares_u.aontu"\n"w": %m	{}	{"verdict":"error","opts":{"noFill":true}}
+lu47	verdict	%m = @"__FIXTURES__/alias_declares_u.aontu"\n"w": %m	{}	{"verdict":"error","opts":{"partial":true}}
+lu48	verdict	%m = @"__FIXTURES__/alias_declares_u.aontu"\n"w": 1	{}	{"verdict":"error"}
+lu49	verdict	%m = @"__FIXTURES__/alias_declares_u.aontu"\n"w": 1	{}	{"verdict":"error","opts":{"noFill":true}}
+lu50	verdict	%m = @"__FIXTURES__/alias_declares_u.aontu"\n"w": 1	{}	{"verdict":"error","opts":{"partial":true}}
+lu51	verdict	%m = @"__FIXTURES__/foo.aontu"\n"w": %m	{}	{"verdict":"valid"}
+lu52	verdict	%m = @"__FIXTURES__/foo.aontu"\n"w": %m	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lu53	verdict	%m = @"__FIXTURES__/foo.aontu"\n"w": %m	{}	{"verdict":"valid","opts":{"partial":true}}

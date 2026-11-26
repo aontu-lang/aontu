@@ -6330,9 +6330,15 @@ section describes. A source the document declares no term for, a module the
 tools can't resolve among them, an extension the table refuses, and a
 source the chain of loads already holds, a cycle, each leave the load
 unmade, which makes the document an `error` wherever the load stands,
-even in an arm a selection leaves out. Rows from lf0 on of
+even in an arm a selection leaves out. A source that declares a name
+loads only at the root, since a declaration stands nowhere else: a
+plain load of one below the root reads as a conflict where it stands
+(`Decls.readLoad`), which both engines report as `alias_not_toplevel`,
+and in a disjunction it fails its arm alone. A destructure takes the
+names where it stands, so it loads anywhere. Rows from lf0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it, and rows from lm0 on to module imports. The definition doesn't
+to these, rows from lu0 on to the root rule, and rows from lm0 on to
+module imports. The definition doesn't
 yet read an extension `--text-ext` adds to those read as text.
 
 ### Modules

@@ -108,7 +108,7 @@ How both engines read a preference, a lone preference and a live disjunction arm
 | [#714](https://github.com/aontu-lang/aontu/issues/714) | def | L |  | Meeting preferences of different ranks drops the higher rank's constraint and default; rulings 41, 42, decision 43. |
 | [#482](https://github.com/aontu-lang/aontu/issues/482) | def | M |  | A made default clash (`pref(1 \| 2)`, meets) reads invalid under vet, where a written clash is error. Built in both ports 2026-11-24. |
 | [#719](https://github.com/aontu-lang/aontu/issues/719) | diag | S |  | TypeScript leaks the internal trial-nil sentinel, unsited, where Go answers `pref_rank_clash`. |
-| [#349](https://github.com/aontu-lang/aontu/issues/349) | bug | S |  | `*(` before a literal container reads as an implicit bag: an error alone, silently dropped in a disjunction. |
+| [#349](https://github.com/aontu-lang/aontu/issues/349) | bug | S |  | `*(` before a literal container reads as an implicit bag: an error alone, silently dropped in a disjunction. A load after `*` takes the same path: `x: *@"./p.aontu" \| 1` generates `{"x": 1}`, and `pref()` over a load loses the preference. |
 | [#348](https://github.com/aontu-lang/aontu/issues/348) | parity | M |  | Disjunction arms written differently but generating the same value: Go generates it, TypeScript answers disjunct_no_gen. |
 | [#832](https://github.com/aontu-lang/aontu/issues/832) | parity | S |  | A made default's pref_rank_clash: Go sites $, TypeScript loses the position. |
 | [#431](https://github.com/aontu-lang/aontu/issues/431) | bug | S |  | A concrete value lost to a default by declaration order (`**default`, value, `*default`). |
@@ -273,7 +273,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 
 ### Declarations, loads, includes and built-in models
 
-18 issues (4 S, 13 M, 1 L).
+19 issues (4 S, 14 M, 1 L).
 
 Faults at an include or a built-in model's boundary, which lose structure or a site, and the declaration questions #738 rules on. Five of the newer ones are one question, the file a value from an include is sited in (#841, #845, #876, #887, with #734 and #658 above), and #889 is a file that is not valid UTF-8.
 
@@ -284,6 +284,7 @@ Faults at an include or a built-in model's boundary, which lose structure or a s
 | [#514](https://github.com/aontu-lang/aontu/issues/514) | parity | M |  | Go leaks a document alias into output or meets it with a root-loaded file's alias |
 | [#517](https://github.com/aontu-lang/aontu/issues/517) | bug | M |  | Spaced name set in export publishes nothing, and as destructure head fails with no_path |
 | [#518](https://github.com/aontu-lang/aontu/issues/518) | diag | S |  | Destructure as a list element: TS refuses alias_not_toplevel, Go fails to parse |
+| [#1032](https://github.com/aontu-lang/aontu/issues/1032) | bug | M |  | A declaration inside a spread's template, written there or loaded: TypeScript's `vet` answers `valid` for a document that doesn't generate, Go's `error`, and neither refuses it as `alias_not_toplevel`. A source that only binds a name by a destructure, loaded under a key, gets a different code in each port. |
 | [#658](https://github.com/aontu-lang/aontu/issues/658) | diag | S |  | A site in a built-in model frames the entry document's lines in TypeScript; Go frames the model. |
 | [#730](https://github.com/aontu-lang/aontu/issues/730) | parity | M |  | Including a file that holds a destructure head makes the whole document nil in Go; TypeScript reads it. |
 | [#731](https://github.com/aontu-lang/aontu/issues/731) | bug | M |  | An included file whose root is a list is silently dropped at a map root; parity faults too. |
