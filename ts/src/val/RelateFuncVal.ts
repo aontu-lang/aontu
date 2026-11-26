@@ -387,7 +387,11 @@ class RelateFuncVal extends FuncBaseVal {
   }
 
   prepare(_ctx: AontuContext, args: Val[]) {
-    args.slice(0, 1).forEach((t: Val) => landPaths(t, this.path))
+    args.slice(0, 1).forEach((t: any) => {
+      landPaths(t, this.path)
+      // A path that is the whole template reaches itself through other links' templates too.
+      t.template = true === t.isRef
+    })
     return args
   }
 

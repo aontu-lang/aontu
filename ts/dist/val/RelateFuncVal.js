@@ -306,7 +306,11 @@ class RelateFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return 'relate';
     }
     prepare(_ctx, args) {
-        args.slice(0, 1).forEach((t) => (0, RefVal_1.landPaths)(t, this.path));
+        args.slice(0, 1).forEach((t) => {
+            (0, RefVal_1.landPaths)(t, this.path);
+            // A path that is the whole template reaches itself through other links' templates too.
+            t.template = true === t.isRef;
+        });
         return args;
     }
     argReady(arg) {

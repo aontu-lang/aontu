@@ -21,7 +21,7 @@ import {
 import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
-import { RecurseVal, containsRecurseOf, declaration, throughRider } from './RecurseVal'
+import { RecurseVal, containsRecurseOf, declaration, throughRider, throughWrap } from './RecurseVal'
 import { fixSeals, sealTree, unsealTree } from './SealVal'
 import { rereadTerms, unite } from '../unify'
 
@@ -163,17 +163,6 @@ function ownArgs(ctx: AontuContext, v: Val): Val {
       a.clone(ctx, { path: [...(true === val.folds ? val.path : a.path)] }))
     return out
   })
-}
-
-
-// A seal's value is its argument, as a rider's is: a path reads a member through one that waits.
-function throughWrap(v: any): any {
-  v = throughRider(v)
-  while (true === v?.isFunc && (true === v.isCloseFunc || true === v.isOpenFunc) && !v.done &&
-    null != v.peg?.[0]) {
-    v = throughRider(v.peg[0])
-  }
-  return v
 }
 
 
@@ -322,6 +311,7 @@ class RefVal extends FeatureVal {
 
   // A relative path in a link's template, which reads where the template lands (ruling 50).
   lands: boolean = false
+  template: boolean = false
   prefix: boolean = false
   copyFound: boolean = false
 
@@ -742,7 +732,7 @@ class RefVal extends FeatureVal {
           !out.done) {
           out = undefined
         }
-        else if (null != out && !snap && containsRecurseOf(out, this.peg as any, 0, ctx.root)) {
+        else if (null != out && !snap && containsRecurseOf(out, this.peg as any, 0, ctx.root, new Set(), this.template)) {
           const rec: any = new RecurseVal(
             { target: [...this.peg], xc: this.rxc } as any, ctx)
           rec.site = this.site

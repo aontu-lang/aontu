@@ -48,7 +48,7 @@ list-alternative-still-merges	gens	a: [] a: [1]	{"a":[1]}
 # After $.Company expands once inside Person, its $.Person is a prefix
 # reference at its landed position and residuates by the same rule.
 # (employer? partially generates by the pinned optional-partial rule.)
-mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}	{"acme":{"staff":{"sam":{"employer":{"staff":{}},"name":"Sam"}},"title":"Acme"}}
+mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}	{"acme":{"staff":{"sam":{"name":"Sam"}},"title":"Acme"}}
 #
 # --- JSON itself, as a guarded alias ---------------------------------
 json-alias	gens	%json = null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}

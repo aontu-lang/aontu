@@ -15,6 +15,7 @@ declare class RefVal extends FeatureVal {
     expansion: Val | undefined;
     rxc: number;
     lands: boolean;
+    template: boolean;
     prefix: boolean;
     copyFound: boolean;
     constructor(spec: {
