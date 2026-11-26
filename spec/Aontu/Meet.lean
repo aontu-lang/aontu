@@ -904,7 +904,7 @@ theorem admits_unparent : ∀ (v : Val) (j : Data), Admits env root v.unparent j
     exact judge_ride_iff.symm
   | .ride .metadata _ _, _ | .ride .deprecate _ _, _ | .ride .ident _ _, _ | .ride .type _ _, _
   | .ride .hide _ _, _ | .ride .opened _ _, _ | .ride .lifts _ _, _ | .ride .seals _ _, _
-  | .ride (.move _) _ _, _ | .ride .void _ _, _ => Iff.rfl
+  | .ride (.move _) _ _, _ | .ride .void _ _, _ | .ride .acyclic _ _, _ | .ride (.inverse _) _ _, _ => Iff.rfl
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _ | .anyString, _
   | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .lit _, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _ | .re _, _

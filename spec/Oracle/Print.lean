@@ -135,6 +135,8 @@ def Rider.name : Rider → String
   | .move _ => "move"
   | .void => "nil"
   | .parent => "parent"
+  | .acyclic => "acyclic"
+  | .inverse _ => "inverse"
 
 /-! `close()` seals every level, so a sealed container prints as
 `close(…)` only where no open container sits beneath it, and a reference
@@ -227,6 +229,8 @@ def Fn.name : Fn → String
   | .emit => "emit"
   | .apply => "apply"
   | .maybe => "maybe"
+  | .acyclic => "acyclic"
+  | .inverse => "inverse"
   | .bnd .min => "min"
   | .bnd .max => "max"
   | .bnd .above => "above"
@@ -321,9 +325,11 @@ def Val.src : Val → Option String
   | .ride .opened v [] => do pure s!"open({← v.src})"
   | .ride .lifts .any [] => some "open()"
   | .ride .seals .any [] => some "close()"
+  | .ride .acyclic .absent [] => some "acyclic()"
+  | .ride (.inverse k) .absent [] => some s!"inverse({quote k})"
   | .ride .void .nil [] => some "nil"
   | .ride .type _ _ | .ride .hide _ _ | .ride .opened _ _ | .ride .lifts _ _ | .ride .seals _ _
-  | .ride (.move _) _ _ | .ride .void _ _ => none
+  | .ride (.move _) _ _ | .ride .void _ _ | .ride .acyclic _ _ | .ride (.inverse _) _ _ => none
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
   | .link v t => do pure s!"(relate({← t.src})) & ({← v.src})"
 
