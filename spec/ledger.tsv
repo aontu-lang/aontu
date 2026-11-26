@@ -3,9 +3,8 @@
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, both where the ruled answer is neither side's, and the
 # cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 16.
+# A listed case that comes to agree fails the run. Bounded at 15.
 # name	src	instance	definition	ports	moves	cause
-j210	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": %T	{}	incomplete	valid	ports	#762: a recursive name used alone stays residual where no data reaches it, as one whose body holds no link does, so the schema generates nothing there; both ports expand it because its body links to its own member, and answer valid
 od9	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{}	valid	incomplete	ports	A document reads alike in whatever order it is written, and the definition reads these three orders alike (order_verdicts_agree); the ports leave a subtype met over its type by path unresolved where the type is written first (#778)
 od12	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	valid	incomplete	ports	A document reads alike in whatever order it is written, and the definition reads these three orders alike (order_verdicts_agree); the ports leave a subtype met over its type by path unresolved where the type is written first (#778)
 od13	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	valid	incomplete	ports	A document reads alike in whatever order it is written, and the definition reads these three orders alike (order_verdicts_agree); the ports leave a subtype met over its type by path unresolved where the type is written first (#778)

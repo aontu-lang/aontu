@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### A name whose body links back to it stays residual when used alone
+
+#762 in both engines. A recursive name used alone generates nothing:
+it is a residual that unfolds against data, or against a map it meets.
+Each engine found a name recursive by looking for the name in its own
+body, but not inside a link's template. So a body whose only use of
+the name is a template, `relate(%T)`, wasn't recursive to them, and a
+use of the name alone expanded:
+
+- With `%T = {m: {}, n: relate(%T) & path(.m)}`, `x: %T` evaluated to
+  `{"x": {"m": {}, "n": ".m"}}`. It is `recursion_unexpanded` at `$.x`
+  now, as `%T = {m: {}, o?: %T}` always was, and `vet` against `{}`
+  answers `incomplete` where it answered `valid`.
+- `x: {} & %T` unfolds as before, and so does data that reaches `x`:
+  `{"x": {}}` is `valid`.
+
+The same holds for the name deeper in the template, `relate({k?: %T})`,
+and for two names that reach each other through one. A template that
+holds a name that isn't recursive still expands where it's used.
+
+A document that used such a name alone and relied on the expansion
+needs `{} & %T`, or data at that place.
+
+- `ts/src/val/RecurseVal.ts`; `go/recurse.go`.
+- Row j210 of `test/spec/def-path.tsv` leaves `spec/ledger.tsv`, whose
+  bound falls from 16 to 15, and #762 closes.
+- `test/spec/def-path.tsv` gains rows rx0 to rx47, 16 cases the
+  definition proves, each in three modes. `test/spec/vet.tsv` gains 18
+  rows for a name that is the template of a set of links in its own
+  body, each answer the definition's too.
+
 ### A JetBrains client for the language server
 
 Task LS9 of the lang refinement plan. `editors/jetbrains/` is a fourth

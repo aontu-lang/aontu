@@ -3845,6 +3845,45 @@ theorem linkRead_verdict_exact : ∀ c ∈ linkReadCases, ∀ (m : Mode) (v : Ve
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (linkReadCases_checkable c hc).1 (linkReadCases_checkable c hc).2 v
 
+/-- A recursive name whose body links back to it, by a link's template:
+the name is recursive as any is, so a use of it alone stays residual
+and generates nothing, and a use met with a map, the data's or the
+schema's, unfolds. The name deeper in the template, two names that
+reach each other through a template, an optional use, a spread's and a
+list's template, a use beside another member and one marked as a type;
+and a template that holds a name that isn't recursive, which expands
+where it's used. -/
+def recursiveLinkCases : List (Decls × Val × Data) :=
+  let rf (t : Val) : Val := .meet (.call .relate [t]) (.addr ⟨1, ["m"]⟩)
+  let T : Val := .alias "T"
+  let dT : Decls := [("T", m [("m", m []), ("n", rf T)])]
+  let dDeep : Decls := [("T", m [("m", m []), ("n", rf (mo [("k", true, T)]))])]
+  let dTwo : Decls := [("A", m [("m", m []), ("n", rf (.alias "B"))]), ("B", mo [("a", true, .alias "A")])]
+  let dPlain : Decls := [("U", m [("k", int 1)]), ("T", m [("m", m []), ("n", rf (.alias "U"))])]
+  [(dDeep, m [("x", T)], .map []),
+    (dDeep, m [("x", T)], .map [("x", .map [])]),
+    (dDeep, m [("x", .meet (m []) T)], .map []),
+    (dTwo, m [("x", .alias "A")], .map []),
+    (dTwo, m [("x", .alias "A")], .map [("x", .map [])]),
+    (dTwo, m [("x", .meet (m []) (.alias "A"))], .map []),
+    (dT, mo [("x", true, T)], .map []),
+    (dT, mo [("x", true, T)], .map [("x", .map [])]),
+    (dT, m [("xs", tmpl T)], .map [("xs", .map [("a", .map [])])]),
+    (dT, m [("xs", tmpl T)], .map [("xs", .map [("a", .map [("m", j 1)])])]),
+    (dT, m [("xs", tmpl T)], .map []),
+    (dPlain, m [("x", T)], .map []),
+    (dPlain, m [("x", T)], .map [("x", .map [("m", .map [("k", j 2)])])]),
+    (dT, m [("x", .list [] (some T) false)], .map [("x", .list [.map []])]),
+    (dT, m [("x", T), ("y", int 1)], .map []),
+    (dT, m [("x", .ride .type T [])], .map [])]
+
+theorem recursiveLinkCases_checkable : ∀ c ∈ recursiveLinkCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem recursiveLink_verdict_exact : ∀ c ∈ recursiveLinkCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (recursiveLinkCases_checkable c hc).1 (recursiveLinkCases_checkable c hc).2 v
+
 /-- Ruling 26 for a recursion: a use of a recursive name whose body reads
 its own place reads as a copy of the body placed where the use stands,
 at each level the data or the schema reaches. A sibling path read at
@@ -9477,6 +9516,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# over such a path, a member the target doesn't declare, and two links into"
     IO.println "# one target."
     pathRows "lr" linkReadCases
+    IO.println "# A recursive name whose body links back to it follows in rows rx0 on: a use"
+    IO.println "# of it alone stays residual, and one met with a map unfolds."
+    pathRows "rx" recursiveLinkCases
     IO.println "# A use of a recursive name whose body reads its own place reads as a copy"
     IO.println "# of the body placed where it stands, at each level the data or the schema"
     IO.println "# reaches (ruling 26), in rows rr0 on."

@@ -4631,6 +4631,56 @@ lr38	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (r
 lr39	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{"x": {"m": {"w": 3}}}	{"verdict":"invalid"}
 lr40	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{"x": {"m": {"w": 3}}}	{"verdict":"invalid","opts":{"noFill":true}}
 lr41	verdict	"x": {"m": {"k": 2}, "n": (relate({"v": .k})) & (path(.m)), "o": (relate({"w": .v})) & (path(.m))}	{"x": {"m": {"w": 3}}}	{"verdict":"invalid","opts":{"partial":true}}
+# A recursive name whose body links back to it follows in rows rx0 on: a use
+# of it alone stays residual, and one met with a map unfolds.
+rx0	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": %T	{}	{"verdict":"incomplete"}
+rx1	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx2	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": %T	{}	{"verdict":"valid","opts":{"partial":true}}
+rx3	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": %T	{"x": {}}	{"verdict":"valid"}
+rx4	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": %T	{"x": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx5	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": %T	{"x": {}}	{"verdict":"valid","opts":{"partial":true}}
+rx6	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": ({}) & (%T)	{}	{"verdict":"valid"}
+rx7	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx8	verdict	%T = {"m": {}, "n": (relate({"k"?: %T})) & (path(.m))}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+rx9	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": %A	{}	{"verdict":"incomplete"}
+rx10	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": %A	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx11	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": %A	{}	{"verdict":"valid","opts":{"partial":true}}
+rx12	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": %A	{"x": {}}	{"verdict":"valid"}
+rx13	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": %A	{"x": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx14	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": %A	{"x": {}}	{"verdict":"valid","opts":{"partial":true}}
+rx15	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": ({}) & (%A)	{}	{"verdict":"valid"}
+rx16	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": ({}) & (%A)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx17	verdict	%A = {"m": {}, "n": (relate(%B)) & (path(.m))}\n%B = {"a"?: %A}\n"x": ({}) & (%A)	{}	{"verdict":"valid","opts":{"partial":true}}
+rx18	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x"?: %T	{}	{"verdict":"valid"}
+rx19	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x"?: %T	{}	{"verdict":"valid","opts":{"noFill":true}}
+rx20	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x"?: %T	{}	{"verdict":"valid","opts":{"partial":true}}
+rx21	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x"?: %T	{"x": {}}	{"verdict":"valid"}
+rx22	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x"?: %T	{"x": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx23	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x"?: %T	{"x": {}}	{"verdict":"valid","opts":{"partial":true}}
+rx24	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{"xs": {"a": {}}}	{"verdict":"valid"}
+rx25	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{"xs": {"a": {}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx26	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{"xs": {"a": {}}}	{"verdict":"valid","opts":{"partial":true}}
+rx27	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{"xs": {"a": {"m": 1}}}	{"verdict":"invalid"}
+rx28	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{"xs": {"a": {"m": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rx29	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{"xs": {"a": {"m": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+rx30	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{}	{"verdict":"valid"}
+rx31	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx32	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"xs": {&: %T}	{}	{"verdict":"valid","opts":{"partial":true}}
+rx33	verdict	%U = {"k": 1}\n%T = {"m": {}, "n": (relate(%U)) & (path(.m))}\n"x": %T	{}	{"verdict":"valid"}
+rx34	verdict	%U = {"k": 1}\n%T = {"m": {}, "n": (relate(%U)) & (path(.m))}\n"x": %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx35	verdict	%U = {"k": 1}\n%T = {"m": {}, "n": (relate(%U)) & (path(.m))}\n"x": %T	{}	{"verdict":"valid","opts":{"partial":true}}
+rx36	verdict	%U = {"k": 1}\n%T = {"m": {}, "n": (relate(%U)) & (path(.m))}\n"x": %T	{"x": {"m": {"k": 2}}}	{"verdict":"invalid"}
+rx37	verdict	%U = {"k": 1}\n%T = {"m": {}, "n": (relate(%U)) & (path(.m))}\n"x": %T	{"x": {"m": {"k": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rx38	verdict	%U = {"k": 1}\n%T = {"m": {}, "n": (relate(%U)) & (path(.m))}\n"x": %T	{"x": {"m": {"k": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+rx39	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": [&: %T]	{"x": [{}]}	{"verdict":"valid"}
+rx40	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": [&: %T]	{"x": [{}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx41	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": [&: %T]	{"x": [{}]}	{"verdict":"valid","opts":{"partial":true}}
+rx42	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": %T, "y": 1	{}	{"verdict":"incomplete"}
+rx43	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": %T, "y": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rx44	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": %T, "y": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+rx45	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": type(%T)	{}	{"verdict":"valid"}
+rx46	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": type(%T)	{}	{"verdict":"valid","opts":{"noFill":true}}
+rx47	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": type(%T)	{}	{"verdict":"valid","opts":{"partial":true}}
 # A use of a recursive name whose body reads its own place reads as a copy
 # of the body placed where it stands, at each level the data or the schema
 # reaches (ruling 26), in rows rr0 on.

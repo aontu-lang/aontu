@@ -270,7 +270,10 @@ function containsRecurseOf(v: any, target: string[], d: number, root?: any,
   if (null != v.spread?.cj && containsRecurseOf(v.spread.cj, target, d + 1, root, seen)) {
     return true
   }
-  return false
+  const named = 1 === target.length && ALIAS_NAME_RE.test(aliasBareName(target[0]))
+  const linkTemplates: any[] = !named ? [] :
+    true === v.isRelateFunc ? v.peg : [v.tval, ...(v.relates ?? [])]
+  return linkTemplates.some((t: any) => containsRecurseOf(t, target, d + 1, root, seen))
 } /* node:coverage ignore next 8 */
 
 
