@@ -881,7 +881,9 @@ theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Da
 
 theorem Decls.alias_self_admits_nothing {root : Data} {n : String} {j : Data} :
     ¬ Admits (Decls.env [(n, .alias n)]) root (.alias n) j :=
-  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, Val.unident, Val.unmark])
+  Aontu.alias_self_admits_nothing (by
+    have hn : (n == n) = true := beq_iff_eq.mpr rfl
+    simp only [Decls.env, Decls.bodies, List.filter, hn, List.map, List.foldl, Val.unident, Val.unmark])
 
 /-! ## The paths a term writes -/
 

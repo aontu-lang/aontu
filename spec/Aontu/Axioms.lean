@@ -1,3 +1,4 @@
+import Lean
 import Aontu.Order
 import Aontu.Names
 import Aontu.Trial
@@ -15,11 +16,12 @@ import Aontu.Written
 /-!
 # The axioms
 
-Every named theorem of the definition rests on `propext` and
-`Quot.sound` alone, and never on `Classical.choice`: each proof is
-constructive. The build fails here if one of these comes to rest on
-more, since `#guard_msgs` holds what `#print axioms` reports to the
-line each comment states.
+Every theorem of the definition rests on `propext` and `Quot.sound`
+alone, and never on `Classical.choice`: each proof is constructive. The
+build fails here if a theorem the pages name comes to rest on more,
+since `#guard_msgs` holds what `#print axioms` reports to the line each
+comment states, and if any other does, since the check at the end
+judges every theorem.
 -/
 
 /-- info: 'Aontu.check_iff' depends on axioms: [propext, Quot.sound] -/
@@ -473,3 +475,51 @@ line each comment states.
 /-- info: 'Aontu.Number.rounded_isSome' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Number.rounded_isSome
+
+/-! ## Every theorem
+
+The list above holds the theorems the pages name, each to the axioms it
+reports. The check below judges every theorem of the definition, each
+constant it reaches once, and fails the build at one that rests on an
+axiom beyond the two. -/
+
+open Lean in
+/-- Whether a constant rests on an axiom beyond `propext` and
+`Quot.sound`, each constant judged once. -/
+private partial def restsOnMore (env : Environment) (c : Name) : StateM (NameMap Bool) Bool := do
+  if let some b := (← get).find? c then return b
+  modify (·.insert c false)
+  let anyOf (e : Expr) : StateM (NameMap Bool) Bool := do
+    for d in e.getUsedConstants do
+      if ← restsOnMore env d then return true
+    return false
+  let b ← match env.find? c with
+    | some (.axiomInfo _) => pure (c != ``propext && c != ``Quot.sound)
+    | some (.defnInfo v) => do if ← anyOf v.type then pure true else anyOf v.value
+    | some (.thmInfo v) => do if ← anyOf v.type then pure true else anyOf v.value
+    | some (.opaqueInfo v) => do if ← anyOf v.type then pure true else anyOf v.value
+    | some (.ctorInfo v) => anyOf v.type
+    | some (.recInfo v) => anyOf v.type
+    | some (.inductInfo v) => do
+      if ← anyOf v.type then pure true else
+        let mut r := false
+        for k in v.ctors do
+          if ← restsOnMore env k then r := true
+        pure r
+    | _ => pure false
+  modify (·.insert c b)
+  return b
+
+open Lean Elab Command in
+run_cmd do
+  let env ← getEnv
+  let mut memo : NameMap Bool := {}
+  let mut more : Array Name := #[]
+  for (name, ci) in env.constants.toList do
+    if name.getRoot == `Aontu && !name.isInternal then
+      if let .thmInfo _ := ci then
+        let (b, m) := (restsOnMore env name).run memo
+        memo := m
+        if b then more := more.push name
+  unless more.isEmpty do
+    throwError "theorems that rest on an axiom beyond propext and Quot.sound: {more}"
