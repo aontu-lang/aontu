@@ -9551,9 +9551,68 @@ Nothing names `tags`, so the sum is absence and the map leaves `of`
 out, the literal `"tags:"` with it. Absence on the left does the same, and so
 does one beside a string or a number.
 
+### A template and a member that isn't there
+
+A spread's template is for a member, and absence is none. Write
+`labels.aontu`:
+
+<!-- test: file labels.aontu -->
+```aontu
+labels: { &: string app:"web" tier:maybe($.tier) note:"n:" + maybe($.note) }
+```
+
+<!-- test: run -->
+```sh
+$ aontu labels.aontu
+{
+  "labels": {
+    "app": "web"
+  }
+}
+```
+
+Nothing names `tier` or `note`, so both members are absence, and the
+template never reaches them. Were it to, the unit rule would leave
+`string` standing at each key, a member the document can't generate.
+The map's meet folds its spread into each member through `underSpread`,
+which leaves an absence alone:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+/-- A declared value under the term a spread holds for its key: their
+meet, but a value that is absence on its own stays absence. A template
+applies to a member, and absence is none, so the map leaves the member
+out as it would with no template. `any` stands where the map has no
+spread. -/
+def underSpread (m : Val → Val → Val) (v t : Val) : Val :=
+  if !t.isAny && (m v .any).isAbsent then m v .any else m v t
+```
+
+The test is on the member's own normal form, `m v .any`, so it holds
+for an absence a sum or a call computes, as `note` is here, for a meet
+of two absences and for one under a mark. The key stays declared: a
+sealed map beside this one still refuses it. The map also holds what
+the data gives at the key to the template, as it holds every member,
+so `vet` answers `invalid` against `{"labels": {"tier": 5}}`. That's
+why the fold changes nothing a map admits:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+theorem admits_foldSpread {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    {sp : Option Val} {fs : List (String × Bool × Val)} {c : Bool} {jfs : List (String × Data)} :
+    Admits env root (.map (foldSpread m sp fs) sp c) (.map jfs) ↔
+      Admits env root (.map fs sp c) (.map jfs) := by
+```
+
+A key the schema declares is another matter. `{ a:string b:string }`
+met with `{ a:"p" b:maybe($.gone) }` holds `string` at `b`, by the unit
+rule, and generates nothing there.
+
 Rows from mb0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, rows la0 on a list's absent element, which holds
-no position, rows su0 on a sum of an absence, and rows hl0 on
+no position, rows su0 on a sum of an absence, rows ab0 on an absent
+member under a template, and rows hl0 on
 of `test/spec/def-verdict.tsv` a list's marked element. Both engines
 answer every row as the definition does. Where the engines read
 absence otherwise, no row holds the case, which #479 tracks: they

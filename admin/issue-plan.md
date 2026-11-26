@@ -217,7 +217,7 @@ First the relations whose range names a subtype (#771, #778, #779, #780), then t
 
 ### Path steps and path values
 
-5 issues (2 S, 2 M, 1 L).
+6 issues (2 S, 3 M, 1 L).
 
 Path steps carried as text: a structural step closes #471, #472 and #475 together. #474 is ruled (decision 23), and #479 is narrowed to five items.
 
@@ -228,6 +228,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 | [#475](https://github.com/aontu-lang/aontu/issues/475) | bug | S |  | `path()` capture splits a quoted key holding a dot into two steps, in both ports. |
 | [#474](https://github.com/aontu-lang/aontu/issues/474) | def | M |  | A path value met with a string constraint answers by meet order; ruled, ports must move. |
 | [#479](https://github.com/aontu-lang/aontu/issues/479) | def | L |  | `maybe()`: both ports read absence unlike the definition in several shapes (conflicts, missing arms, negation). |
+| [#1010](https://github.com/aontu-lang/aontu/issues/1010) | bug | M |  | A path to an absent member under a template: generation leaves the copy out, and `vet` finds the document's own output incomplete, in both ports. Waiting for every path costs a pass a link. |
 
 ### Generators, folds and trials
 
@@ -421,7 +422,7 @@ These can run at any point. #826 and #828 are already in phase 1.
 | [#829](https://github.com/aontu-lang/aontu/issues/829) | spec | L |  | Tracking list of remaining definition and proof redundancy left after the first review pass, #827. |
 | [#403](https://github.com/aontu-lang/aontu/issues/403) | spec | M |  | Definition: a selection in a recursive body over an open scrutinee lacks a VetP theorem and rows. |
 | [#432](https://github.com/aontu-lang/aontu/issues/432) | spec | M |  | Definition read a waiting `+` inside a trial as refusing; both ports wait (incomplete). Built in the definition 2026-11-25 for `match`, `nof`, `must` and `when`, its 2 rows gone; #977 holds the forms both ports read another way. |
-| [#1008](https://github.com/aontu-lang/aontu/issues/1008) | spec | M |  | The definition holds a map's absent member to the spread's template, as a required member; both ports leave the member out. The definition moves. |
+| [#1008](https://github.com/aontu-lang/aontu/issues/1008) | spec | M |  | The definition holds a map's absent member to the spread's template, as a required member; both ports leave the member out. Built 2026-11-26: the map's meet leaves a member that is absence on its own alone under a spread, and both ports hold the template back from a computed absence too. |
 
 ### Repository process
 
