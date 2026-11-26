@@ -75,6 +75,8 @@ sort(d: map|list, projector k?: string|integer, dir?: string) : list
 join(d: map|list, sep?: string) : string
 esc(s: string, variant?: string) : string
 usc(s: string, variant?: string) : string
+encode(s: string, name: string) : string
+decode(t: string, name: string) : string
 rep(s: string, text p: string, text sub: string) : string
 split(s: string, sep: string|constraint) : list
 emit(s: map|list, template t: map|list) : list

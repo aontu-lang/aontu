@@ -4772,3 +4772,281 @@ dr101	verdict	v: super([upper("a", _)])	v: [3]	{"verdict":"error","opts":{"parti
 dr102	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"error"}
 dr103	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"error","opts":{"noFill":true}}
 dr104	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"error","opts":{"partial":true}}
+# encode(s, name) writes a string's UTF-8 bytes in the encoding its name is, and
+# decode(t, name) reads them back, in rows ec0 on: base64 with its padding,
+# base64url with none, hex in lowercase and read in either case, and an error
+# of the schema for a name that is no encoding and for text the encoding does
+# not write or whose bytes are no string.
+ec0	verdict	v: encode("hello", "base64")	v: "aGVsbG8="	{"verdict":"valid"}
+ec1	verdict	v: encode("hello", "base64")	v: "aGVsbG8="	{"verdict":"valid","opts":{"noFill":true}}
+ec2	verdict	v: encode("hello", "base64")	v: "aGVsbG8="	{"verdict":"valid","opts":{"partial":true}}
+ec3	verdict	v: encode("hello", "base64")	v: "aGVsbG8"	{"verdict":"invalid"}
+ec4	verdict	v: encode("hello", "base64")	v: "aGVsbG8"	{"verdict":"invalid","opts":{"noFill":true}}
+ec5	verdict	v: encode("hello", "base64")	v: "aGVsbG8"	{"verdict":"invalid","opts":{"partial":true}}
+ec6	verdict	v: encode("hey", "base64")	v: "aGV5"	{"verdict":"valid"}
+ec7	verdict	v: encode("hey", "base64")	v: "aGV5"	{"verdict":"valid","opts":{"noFill":true}}
+ec8	verdict	v: encode("hey", "base64")	v: "aGV5"	{"verdict":"valid","opts":{"partial":true}}
+ec9	verdict	v: encode("h", "base64")	v: "aA=="	{"verdict":"valid"}
+ec10	verdict	v: encode("h", "base64")	v: "aA=="	{"verdict":"valid","opts":{"noFill":true}}
+ec11	verdict	v: encode("h", "base64")	v: "aA=="	{"verdict":"valid","opts":{"partial":true}}
+ec12	verdict	v: encode("", "base64")	v: ""	{"verdict":"valid"}
+ec13	verdict	v: encode("", "base64")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+ec14	verdict	v: encode("", "base64")	v: ""	{"verdict":"valid","opts":{"partial":true}}
+ec15	verdict	v: encode("~~~", "base64")	v: "fn5+"	{"verdict":"valid"}
+ec16	verdict	v: encode("~~~", "base64")	v: "fn5+"	{"verdict":"valid","opts":{"noFill":true}}
+ec17	verdict	v: encode("~~~", "base64")	v: "fn5+"	{"verdict":"valid","opts":{"partial":true}}
+ec18	verdict	v: encode("???", "base64")	v: "Pz8/"	{"verdict":"valid"}
+ec19	verdict	v: encode("???", "base64")	v: "Pz8/"	{"verdict":"valid","opts":{"noFill":true}}
+ec20	verdict	v: encode("???", "base64")	v: "Pz8/"	{"verdict":"valid","opts":{"partial":true}}
+ec21	verdict	v: encode("hello", "base64url")	v: "aGVsbG8"	{"verdict":"valid"}
+ec22	verdict	v: encode("hello", "base64url")	v: "aGVsbG8"	{"verdict":"valid","opts":{"noFill":true}}
+ec23	verdict	v: encode("hello", "base64url")	v: "aGVsbG8"	{"verdict":"valid","opts":{"partial":true}}
+ec24	verdict	v: encode("h", "base64url")	v: "aA"	{"verdict":"valid"}
+ec25	verdict	v: encode("h", "base64url")	v: "aA"	{"verdict":"valid","opts":{"noFill":true}}
+ec26	verdict	v: encode("h", "base64url")	v: "aA"	{"verdict":"valid","opts":{"partial":true}}
+ec27	verdict	v: encode("~~~", "base64url")	v: "fn5-"	{"verdict":"valid"}
+ec28	verdict	v: encode("~~~", "base64url")	v: "fn5-"	{"verdict":"valid","opts":{"noFill":true}}
+ec29	verdict	v: encode("~~~", "base64url")	v: "fn5-"	{"verdict":"valid","opts":{"partial":true}}
+ec30	verdict	v: encode("???", "base64url")	v: "Pz8_"	{"verdict":"valid"}
+ec31	verdict	v: encode("???", "base64url")	v: "Pz8_"	{"verdict":"valid","opts":{"noFill":true}}
+ec32	verdict	v: encode("???", "base64url")	v: "Pz8_"	{"verdict":"valid","opts":{"partial":true}}
+ec33	verdict	v: encode("", "base64url")	v: ""	{"verdict":"valid"}
+ec34	verdict	v: encode("", "base64url")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+ec35	verdict	v: encode("", "base64url")	v: ""	{"verdict":"valid","opts":{"partial":true}}
+ec36	verdict	v: encode("k", "hex")	v: "6b"	{"verdict":"valid"}
+ec37	verdict	v: encode("k", "hex")	v: "6b"	{"verdict":"valid","opts":{"noFill":true}}
+ec38	verdict	v: encode("k", "hex")	v: "6b"	{"verdict":"valid","opts":{"partial":true}}
+ec39	verdict	v: encode("k", "hex")	v: "6B"	{"verdict":"invalid"}
+ec40	verdict	v: encode("k", "hex")	v: "6B"	{"verdict":"invalid","opts":{"noFill":true}}
+ec41	verdict	v: encode("k", "hex")	v: "6B"	{"verdict":"invalid","opts":{"partial":true}}
+ec42	verdict	v: encode("hello", "hex")	v: "68656c6c6f"	{"verdict":"valid"}
+ec43	verdict	v: encode("hello", "hex")	v: "68656c6c6f"	{"verdict":"valid","opts":{"noFill":true}}
+ec44	verdict	v: encode("hello", "hex")	v: "68656c6c6f"	{"verdict":"valid","opts":{"partial":true}}
+ec45	verdict	v: encode("", "hex")	v: ""	{"verdict":"valid"}
+ec46	verdict	v: encode("", "hex")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+ec47	verdict	v: encode("", "hex")	v: ""	{"verdict":"valid","opts":{"partial":true}}
+ec48	verdict	v: encode("é", "base64")	v: "w6k="	{"verdict":"valid"}
+ec49	verdict	v: encode("é", "base64")	v: "w6k="	{"verdict":"valid","opts":{"noFill":true}}
+ec50	verdict	v: encode("é", "base64")	v: "w6k="	{"verdict":"valid","opts":{"partial":true}}
+ec51	verdict	v: encode("û", "hex")	v: "c3bb"	{"verdict":"valid"}
+ec52	verdict	v: encode("û", "hex")	v: "c3bb"	{"verdict":"valid","opts":{"noFill":true}}
+ec53	verdict	v: encode("û", "hex")	v: "c3bb"	{"verdict":"valid","opts":{"partial":true}}
+ec54	verdict	v: encode("日", "hex")	v: "e697a5"	{"verdict":"valid"}
+ec55	verdict	v: encode("日", "hex")	v: "e697a5"	{"verdict":"valid","opts":{"noFill":true}}
+ec56	verdict	v: encode("日", "hex")	v: "e697a5"	{"verdict":"valid","opts":{"partial":true}}
+ec57	verdict	v: encode("😀", "base64url")	v: "8J-YgA"	{"verdict":"valid"}
+ec58	verdict	v: encode("😀", "base64url")	v: "8J-YgA"	{"verdict":"valid","opts":{"noFill":true}}
+ec59	verdict	v: encode("😀", "base64url")	v: "8J-YgA"	{"verdict":"valid","opts":{"partial":true}}
+ec60	verdict	v: encode("a", "base32")	v: "a"	{"verdict":"error"}
+ec61	verdict	v: encode("a", "base32")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec62	verdict	v: encode("a", "base32")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec63	verdict	v: encode("a", "Base64")	v: "YQ=="	{"verdict":"error"}
+ec64	verdict	v: encode("a", "Base64")	v: "YQ=="	{"verdict":"error","opts":{"noFill":true}}
+ec65	verdict	v: encode("a", "Base64")	v: "YQ=="	{"verdict":"error","opts":{"partial":true}}
+ec66	verdict	v: encode("a", "")	v: "a"	{"verdict":"error"}
+ec67	verdict	v: encode("a", "")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec68	verdict	v: encode("a", "")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec69	verdict	v: encode(1, "hex")	v: "31"	{"verdict":"error"}
+ec70	verdict	v: encode(1, "hex")	v: "31"	{"verdict":"error","opts":{"noFill":true}}
+ec71	verdict	v: encode(1, "hex")	v: "31"	{"verdict":"error","opts":{"partial":true}}
+ec72	verdict	v: encode("a", 1)	v: "a"	{"verdict":"error"}
+ec73	verdict	v: encode("a", 1)	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec74	verdict	v: encode("a", 1)	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec75	verdict	v: encode(string, "hex")	v: "a"	{"verdict":"error"}
+ec76	verdict	v: encode(string, "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec77	verdict	v: encode(string, "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec78	verdict	v: encode("a", string)	v: "a"	{"verdict":"error"}
+ec79	verdict	v: encode("a", string)	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec80	verdict	v: encode("a", string)	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec81	verdict	v: encode("a")	v: "a"	{"verdict":"error"}
+ec82	verdict	v: encode("a")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec83	verdict	v: encode("a")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec84	verdict	v: encode("a", "hex", "x")	v: "61"	{"verdict":"error"}
+ec85	verdict	v: encode("a", "hex", "x")	v: "61"	{"verdict":"error","opts":{"noFill":true}}
+ec86	verdict	v: encode("a", "hex", "x")	v: "61"	{"verdict":"error","opts":{"partial":true}}
+ec87	verdict	v: encode()	v: "a"	{"verdict":"error"}
+ec88	verdict	v: encode()	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec89	verdict	v: encode()	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec90	verdict	v: encode(meta("k", {}), "hex")	v: "6b"	{"verdict":"valid"}
+ec91	verdict	v: encode(meta("k", {}), "hex")	v: "6b"	{"verdict":"valid","opts":{"noFill":true}}
+ec92	verdict	v: encode(meta("k", {}), "hex")	v: "6b"	{"verdict":"valid","opts":{"partial":true}}
+ec93	verdict	v: encode("k", meta("hex", {}))	v: "6b"	{"verdict":"valid"}
+ec94	verdict	v: encode("k", meta("hex", {}))	v: "6b"	{"verdict":"valid","opts":{"noFill":true}}
+ec95	verdict	v: encode("k", meta("hex", {}))	v: "6b"	{"verdict":"valid","opts":{"partial":true}}
+ec96	verdict	v: encode(*("k"), "hex")	v: "6b"	{"verdict":"error"}
+ec97	verdict	v: encode(*("k"), "hex")	v: "6b"	{"verdict":"error","opts":{"noFill":true}}
+ec98	verdict	v: encode(*("k"), "hex")	v: "6b"	{"verdict":"error","opts":{"partial":true}}
+ec99	verdict	v: decode("aGVsbG8=", "base64")	v: "hello"	{"verdict":"valid"}
+ec100	verdict	v: decode("aGVsbG8=", "base64")	v: "hello"	{"verdict":"valid","opts":{"noFill":true}}
+ec101	verdict	v: decode("aGVsbG8=", "base64")	v: "hello"	{"verdict":"valid","opts":{"partial":true}}
+ec102	verdict	v: decode("aGVsbG8=", "base64")	v: "hellO"	{"verdict":"invalid"}
+ec103	verdict	v: decode("aGVsbG8=", "base64")	v: "hellO"	{"verdict":"invalid","opts":{"noFill":true}}
+ec104	verdict	v: decode("aGVsbG8=", "base64")	v: "hellO"	{"verdict":"invalid","opts":{"partial":true}}
+ec105	verdict	v: decode("aGV5", "base64")	v: "hey"	{"verdict":"valid"}
+ec106	verdict	v: decode("aGV5", "base64")	v: "hey"	{"verdict":"valid","opts":{"noFill":true}}
+ec107	verdict	v: decode("aGV5", "base64")	v: "hey"	{"verdict":"valid","opts":{"partial":true}}
+ec108	verdict	v: decode("aA==", "base64")	v: "h"	{"verdict":"valid"}
+ec109	verdict	v: decode("aA==", "base64")	v: "h"	{"verdict":"valid","opts":{"noFill":true}}
+ec110	verdict	v: decode("aA==", "base64")	v: "h"	{"verdict":"valid","opts":{"partial":true}}
+ec111	verdict	v: decode("", "base64")	v: ""	{"verdict":"valid"}
+ec112	verdict	v: decode("", "base64")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+ec113	verdict	v: decode("", "base64")	v: ""	{"verdict":"valid","opts":{"partial":true}}
+ec114	verdict	v: decode("fn5+", "base64")	v: "~~~"	{"verdict":"valid"}
+ec115	verdict	v: decode("fn5+", "base64")	v: "~~~"	{"verdict":"valid","opts":{"noFill":true}}
+ec116	verdict	v: decode("fn5+", "base64")	v: "~~~"	{"verdict":"valid","opts":{"partial":true}}
+ec117	verdict	v: decode("Pz8/", "base64")	v: "???"	{"verdict":"valid"}
+ec118	verdict	v: decode("Pz8/", "base64")	v: "???"	{"verdict":"valid","opts":{"noFill":true}}
+ec119	verdict	v: decode("Pz8/", "base64")	v: "???"	{"verdict":"valid","opts":{"partial":true}}
+ec120	verdict	v: decode("aGVsbG8", "base64url")	v: "hello"	{"verdict":"valid"}
+ec121	verdict	v: decode("aGVsbG8", "base64url")	v: "hello"	{"verdict":"valid","opts":{"noFill":true}}
+ec122	verdict	v: decode("aGVsbG8", "base64url")	v: "hello"	{"verdict":"valid","opts":{"partial":true}}
+ec123	verdict	v: decode("aA", "base64url")	v: "h"	{"verdict":"valid"}
+ec124	verdict	v: decode("aA", "base64url")	v: "h"	{"verdict":"valid","opts":{"noFill":true}}
+ec125	verdict	v: decode("aA", "base64url")	v: "h"	{"verdict":"valid","opts":{"partial":true}}
+ec126	verdict	v: decode("fn5-", "base64url")	v: "~~~"	{"verdict":"valid"}
+ec127	verdict	v: decode("fn5-", "base64url")	v: "~~~"	{"verdict":"valid","opts":{"noFill":true}}
+ec128	verdict	v: decode("fn5-", "base64url")	v: "~~~"	{"verdict":"valid","opts":{"partial":true}}
+ec129	verdict	v: decode("Pz8_", "base64url")	v: "???"	{"verdict":"valid"}
+ec130	verdict	v: decode("Pz8_", "base64url")	v: "???"	{"verdict":"valid","opts":{"noFill":true}}
+ec131	verdict	v: decode("Pz8_", "base64url")	v: "???"	{"verdict":"valid","opts":{"partial":true}}
+ec132	verdict	v: decode("", "base64url")	v: ""	{"verdict":"valid"}
+ec133	verdict	v: decode("", "base64url")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+ec134	verdict	v: decode("", "base64url")	v: ""	{"verdict":"valid","opts":{"partial":true}}
+ec135	verdict	v: decode("68656c6c6f", "hex")	v: "hello"	{"verdict":"valid"}
+ec136	verdict	v: decode("68656c6c6f", "hex")	v: "hello"	{"verdict":"valid","opts":{"noFill":true}}
+ec137	verdict	v: decode("68656c6c6f", "hex")	v: "hello"	{"verdict":"valid","opts":{"partial":true}}
+ec138	verdict	v: decode("", "hex")	v: ""	{"verdict":"valid"}
+ec139	verdict	v: decode("", "hex")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+ec140	verdict	v: decode("", "hex")	v: ""	{"verdict":"valid","opts":{"partial":true}}
+ec141	verdict	v: decode("6B", "hex")	v: "k"	{"verdict":"valid"}
+ec142	verdict	v: decode("6B", "hex")	v: "k"	{"verdict":"valid","opts":{"noFill":true}}
+ec143	verdict	v: decode("6B", "hex")	v: "k"	{"verdict":"valid","opts":{"partial":true}}
+ec144	verdict	v: decode("C3bB", "hex")	v: "û"	{"verdict":"valid"}
+ec145	verdict	v: decode("C3bB", "hex")	v: "û"	{"verdict":"valid","opts":{"noFill":true}}
+ec146	verdict	v: decode("C3bB", "hex")	v: "û"	{"verdict":"valid","opts":{"partial":true}}
+ec147	verdict	v: decode("00", "hex")	v: "\\u0000"	{"verdict":"valid"}
+ec148	verdict	v: decode("00", "hex")	v: "\\u0000"	{"verdict":"valid","opts":{"noFill":true}}
+ec149	verdict	v: decode("00", "hex")	v: "\\u0000"	{"verdict":"valid","opts":{"partial":true}}
+ec150	verdict	v: decode("aGVsbG8", "base64")	v: "hello"	{"verdict":"error"}
+ec151	verdict	v: decode("aGVsbG8", "base64")	v: "hello"	{"verdict":"error","opts":{"noFill":true}}
+ec152	verdict	v: decode("aGVsbG8", "base64")	v: "hello"	{"verdict":"error","opts":{"partial":true}}
+ec153	verdict	v: decode("a", "base64")	v: "a"	{"verdict":"error"}
+ec154	verdict	v: decode("a", "base64")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec155	verdict	v: decode("a", "base64")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec156	verdict	v: decode("aA=", "base64")	v: "h"	{"verdict":"error"}
+ec157	verdict	v: decode("aA=", "base64")	v: "h"	{"verdict":"error","opts":{"noFill":true}}
+ec158	verdict	v: decode("aA=", "base64")	v: "h"	{"verdict":"error","opts":{"partial":true}}
+ec159	verdict	v: decode("aA===", "base64")	v: "h"	{"verdict":"error"}
+ec160	verdict	v: decode("aA===", "base64")	v: "h"	{"verdict":"error","opts":{"noFill":true}}
+ec161	verdict	v: decode("aA===", "base64")	v: "h"	{"verdict":"error","opts":{"partial":true}}
+ec162	verdict	v: decode("a===", "base64")	v: "a"	{"verdict":"error"}
+ec163	verdict	v: decode("a===", "base64")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec164	verdict	v: decode("a===", "base64")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec165	verdict	v: decode("====", "base64")	v: ""	{"verdict":"error"}
+ec166	verdict	v: decode("====", "base64")	v: ""	{"verdict":"error","opts":{"noFill":true}}
+ec167	verdict	v: decode("====", "base64")	v: ""	{"verdict":"error","opts":{"partial":true}}
+ec168	verdict	v: decode("aA==aA==", "base64")	v: "hh"	{"verdict":"error"}
+ec169	verdict	v: decode("aA==aA==", "base64")	v: "hh"	{"verdict":"error","opts":{"noFill":true}}
+ec170	verdict	v: decode("aA==aA==", "base64")	v: "hh"	{"verdict":"error","opts":{"partial":true}}
+ec171	verdict	v: decode("aGV5====", "base64")	v: "hey"	{"verdict":"error"}
+ec172	verdict	v: decode("aGV5====", "base64")	v: "hey"	{"verdict":"error","opts":{"noFill":true}}
+ec173	verdict	v: decode("aGV5====", "base64")	v: "hey"	{"verdict":"error","opts":{"partial":true}}
+ec174	verdict	v: decode("aGVs!G8=", "base64")	v: "a"	{"verdict":"error"}
+ec175	verdict	v: decode("aGVs!G8=", "base64")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec176	verdict	v: decode("aGVs!G8=", "base64")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec177	verdict	v: decode("aGVs bG8=", "base64")	v: "hello"	{"verdict":"error"}
+ec178	verdict	v: decode("aGVs bG8=", "base64")	v: "hello"	{"verdict":"error","opts":{"noFill":true}}
+ec179	verdict	v: decode("aGVs bG8=", "base64")	v: "hello"	{"verdict":"error","opts":{"partial":true}}
+ec180	verdict	v: decode("aGVs\\u000abG8=", "base64")	v: "hello"	{"verdict":"error"}
+ec181	verdict	v: decode("aGVs\\u000abG8=", "base64")	v: "hello"	{"verdict":"error","opts":{"noFill":true}}
+ec182	verdict	v: decode("aGVs\\u000abG8=", "base64")	v: "hello"	{"verdict":"error","opts":{"partial":true}}
+ec183	verdict	v: decode("aGVé", "base64")	v: "a"	{"verdict":"error"}
+ec184	verdict	v: decode("aGVé", "base64")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec185	verdict	v: decode("aGVé", "base64")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec186	verdict	v: decode("fn5-", "base64")	v: "~~~"	{"verdict":"error"}
+ec187	verdict	v: decode("fn5-", "base64")	v: "~~~"	{"verdict":"error","opts":{"noFill":true}}
+ec188	verdict	v: decode("fn5-", "base64")	v: "~~~"	{"verdict":"error","opts":{"partial":true}}
+ec189	verdict	v: decode("fn5+", "base64url")	v: "~~~"	{"verdict":"error"}
+ec190	verdict	v: decode("fn5+", "base64url")	v: "~~~"	{"verdict":"error","opts":{"noFill":true}}
+ec191	verdict	v: decode("fn5+", "base64url")	v: "~~~"	{"verdict":"error","opts":{"partial":true}}
+ec192	verdict	v: decode("aGVsbG8=", "base64url")	v: "hello"	{"verdict":"error"}
+ec193	verdict	v: decode("aGVsbG8=", "base64url")	v: "hello"	{"verdict":"error","opts":{"noFill":true}}
+ec194	verdict	v: decode("aGVsbG8=", "base64url")	v: "hello"	{"verdict":"error","opts":{"partial":true}}
+ec195	verdict	v: decode("aGVsb", "base64url")	v: "a"	{"verdict":"error"}
+ec196	verdict	v: decode("aGVsb", "base64url")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec197	verdict	v: decode("aGVsb", "base64url")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec198	verdict	v: decode("aG==", "base64")	v: "h"	{"verdict":"error"}
+ec199	verdict	v: decode("aG==", "base64")	v: "h"	{"verdict":"error","opts":{"noFill":true}}
+ec200	verdict	v: decode("aG==", "base64")	v: "h"	{"verdict":"error","opts":{"partial":true}}
+ec201	verdict	v: decode("aGV=", "base64")	v: "he"	{"verdict":"error"}
+ec202	verdict	v: decode("aGV=", "base64")	v: "he"	{"verdict":"error","opts":{"noFill":true}}
+ec203	verdict	v: decode("aGV=", "base64")	v: "he"	{"verdict":"error","opts":{"partial":true}}
+ec204	verdict	v: decode("aB", "base64url")	v: "h"	{"verdict":"error"}
+ec205	verdict	v: decode("aB", "base64url")	v: "h"	{"verdict":"error","opts":{"noFill":true}}
+ec206	verdict	v: decode("aB", "base64url")	v: "h"	{"verdict":"error","opts":{"partial":true}}
+ec207	verdict	v: decode("6", "hex")	v: "a"	{"verdict":"error"}
+ec208	verdict	v: decode("6", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec209	verdict	v: decode("6", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec210	verdict	v: decode("6g", "hex")	v: "a"	{"verdict":"error"}
+ec211	verdict	v: decode("6g", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec212	verdict	v: decode("6g", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec213	verdict	v: decode("g6", "hex")	v: "a"	{"verdict":"error"}
+ec214	verdict	v: decode("g6", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec215	verdict	v: decode("g6", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec216	verdict	v: decode("é6", "hex")	v: "a"	{"verdict":"error"}
+ec217	verdict	v: decode("é6", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec218	verdict	v: decode("é6", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec219	verdict	v: decode("0x6b", "hex")	v: "k"	{"verdict":"error"}
+ec220	verdict	v: decode("0x6b", "hex")	v: "k"	{"verdict":"error","opts":{"noFill":true}}
+ec221	verdict	v: decode("0x6b", "hex")	v: "k"	{"verdict":"error","opts":{"partial":true}}
+ec222	verdict	v: decode("/w==", "base64")	v: "a"	{"verdict":"error"}
+ec223	verdict	v: decode("/w==", "base64")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec224	verdict	v: decode("/w==", "base64")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec225	verdict	v: decode("_w", "base64url")	v: "a"	{"verdict":"error"}
+ec226	verdict	v: decode("_w", "base64url")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec227	verdict	v: decode("_w", "base64url")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec228	verdict	v: decode("ff", "hex")	v: "a"	{"verdict":"error"}
+ec229	verdict	v: decode("ff", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec230	verdict	v: decode("ff", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec231	verdict	v: decode("e6", "hex")	v: "a"	{"verdict":"error"}
+ec232	verdict	v: decode("e6", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec233	verdict	v: decode("e6", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec234	verdict	v: decode("c080", "hex")	v: "a"	{"verdict":"error"}
+ec235	verdict	v: decode("c080", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec236	verdict	v: decode("c080", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec237	verdict	v: decode("eda080", "hex")	v: "a"	{"verdict":"error"}
+ec238	verdict	v: decode("eda080", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec239	verdict	v: decode("eda080", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec240	verdict	v: decode("f4908080", "hex")	v: "a"	{"verdict":"error"}
+ec241	verdict	v: decode("f4908080", "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec242	verdict	v: decode("f4908080", "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec243	verdict	v: decode("a", "base32")	v: "a"	{"verdict":"error"}
+ec244	verdict	v: decode("a", "base32")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec245	verdict	v: decode("a", "base32")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec246	verdict	v: decode(1, "hex")	v: "a"	{"verdict":"error"}
+ec247	verdict	v: decode(1, "hex")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+ec248	verdict	v: decode(1, "hex")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+ec249	verdict	v: decode("6b")	v: "k"	{"verdict":"error"}
+ec250	verdict	v: decode("6b")	v: "k"	{"verdict":"error","opts":{"noFill":true}}
+ec251	verdict	v: decode("6b")	v: "k"	{"verdict":"error","opts":{"partial":true}}
+ec252	verdict	v: decode(meta("6b", {}), "hex")	v: "k"	{"verdict":"valid"}
+ec253	verdict	v: decode(meta("6b", {}), "hex")	v: "k"	{"verdict":"valid","opts":{"noFill":true}}
+ec254	verdict	v: decode(meta("6b", {}), "hex")	v: "k"	{"verdict":"valid","opts":{"partial":true}}
+ec255	verdict	v: decode(encode("日本語 😀 é", "base64"), "base64")	v: "日本語 😀 é"	{"verdict":"valid"}
+ec256	verdict	v: decode(encode("日本語 😀 é", "base64"), "base64")	v: "日本語 😀 é"	{"verdict":"valid","opts":{"noFill":true}}
+ec257	verdict	v: decode(encode("日本語 😀 é", "base64"), "base64")	v: "日本語 😀 é"	{"verdict":"valid","opts":{"partial":true}}
+ec258	verdict	v: decode(encode("日本語 😀 é", "base64url"), "base64url")	v: "日本語 😀 é"	{"verdict":"valid"}
+ec259	verdict	v: decode(encode("日本語 😀 é", "base64url"), "base64url")	v: "日本語 😀 é"	{"verdict":"valid","opts":{"noFill":true}}
+ec260	verdict	v: decode(encode("日本語 😀 é", "base64url"), "base64url")	v: "日本語 😀 é"	{"verdict":"valid","opts":{"partial":true}}
+ec261	verdict	v: decode(encode("日本語 😀 é", "hex"), "hex")	v: "日本語 😀 é"	{"verdict":"valid"}
+ec262	verdict	v: decode(encode("日本語 😀 é", "hex"), "hex")	v: "日本語 😀 é"	{"verdict":"valid","opts":{"noFill":true}}
+ec263	verdict	v: decode(encode("日本語 😀 é", "hex"), "hex")	v: "日本語 😀 é"	{"verdict":"valid","opts":{"partial":true}}
+ec264	verdict	v: encode(decode("aGVsbG8=", "base64"), "base64")	v: "aGVsbG8="	{"verdict":"valid"}
+ec265	verdict	v: encode(decode("aGVsbG8=", "base64"), "base64")	v: "aGVsbG8="	{"verdict":"valid","opts":{"noFill":true}}
+ec266	verdict	v: encode(decode("aGVsbG8=", "base64"), "base64")	v: "aGVsbG8="	{"verdict":"valid","opts":{"partial":true}}
+ec267	verdict	v: encode(decode("6B", "hex"), "hex")	v: "6b"	{"verdict":"valid"}
+ec268	verdict	v: encode(decode("6B", "hex"), "hex")	v: "6b"	{"verdict":"valid","opts":{"noFill":true}}
+ec269	verdict	v: encode(decode("6B", "hex"), "hex")	v: "6b"	{"verdict":"valid","opts":{"partial":true}}
+ec270	verdict	v: upper(encode("k", "hex"))	v: "6B"	{"verdict":"valid"}
+ec271	verdict	v: upper(encode("k", "hex"))	v: "6B"	{"verdict":"valid","opts":{"noFill":true}}
+ec272	verdict	v: upper(encode("k", "hex"))	v: "6B"	{"verdict":"valid","opts":{"partial":true}}

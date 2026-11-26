@@ -1,0 +1,142 @@
+# THE ENCODINGS: encode(s, name) writes a string's UTF-8 bytes as text,
+# and decode(t, name) reads them back as a string. The names are a closed
+# set: base64 and base64url of RFC 4648, the first with its padding and
+# the second without, and hex in lowercase.
+#
+# Every expectation below is what BOTH engines answer. A host library
+# would answer most of these differently in each port: one decoder skips
+# line breaks, another takes missing padding or stray low bits, and one
+# writes base64url with padding where the other writes none. So both
+# ports spell each encoding out by hand, and these rows hold them to the
+# same answer. Columns: name<TAB>mode<TAB>src<TAB>expect.
+# base64 is RFC 4648 section 4: three bytes to four characters, and a
+# last group of one or two bytes padded with `=` to four.
+encode-base64	gens	o: encode("hello", base64)	{"o":"aGVsbG8="}
+encode-base64-whole-groups	gens	o: encode("hey", base64)	{"o":"aGV5"}
+encode-base64-one-byte	gens	o: encode("h", base64)	{"o":"aA=="}
+encode-base64-plus	gens	o: encode("~~~", base64)	{"o":"fn5+"}
+encode-base64-slash	gens	o: encode("???", base64)	{"o":"Pz8/"}
+encode-base64-empty	gens	o: encode("", base64)	{"o":""}
+# base64url is section 5: `-` and `_` where base64 writes `+` and `/`,
+# and no padding, as a token and aontu's own hashes are written.
+encode-base64url	gens	o: encode("hello", base64url)	{"o":"aGVsbG8"}
+encode-base64url-one-byte	gens	o: encode("h", base64url)	{"o":"aA"}
+encode-base64url-minus	gens	o: encode("~~~", base64url)	{"o":"fn5-"}
+encode-base64url-underscore	gens	o: encode("???", base64url)	{"o":"Pz8_"}
+encode-base64url-empty	gens	o: encode("", base64url)	{"o":""}
+# hex is two lowercase digits a byte.
+encode-hex	gens	o: encode("k", hex)	{"o":"6b"}
+encode-hex-word	gens	o: encode("hello", hex)	{"o":"68656c6c6f"}
+encode-hex-empty	gens	o: encode("", hex)	{"o":""}
+# An encoding acts on the UTF-8 bytes, so a character is one to four of
+# them.
+encode-two-byte	gens	o: encode("é", base64)	{"o":"w6k="}
+encode-two-byte-hex	gens	o: encode("û", hex)	{"o":"c3bb"}
+encode-three-byte	gens	o: encode("日", hex)	{"o":"e697a5"}
+encode-four-byte	gens	o: encode("😀", base64url)	{"o":"8J-YgA"}
+# The arguments are values like any other: computed, referenced, or
+# quoted.
+encode-computed-source	gens	o: encode("a" + "b", hex)	{"o":"6162"}
+encode-referenced-source	gens	s: "k"\no: encode($.s, hex)	{"o":"6b","s":"k"}
+encode-referenced-name	gens	n: hex\no: encode("k", $.n)	{"n":"hex","o":"6b"}
+encode-quoted-name	gens	o: encode("k", "hex")	{"o":"6b"}
+encode-meets-its-text	gens	o: "aGVsbG8=" & encode("hello", base64)	{"o":"aGVsbG8="}
+# decode reads what encode writes.
+decode-base64	gens	o: decode("aGVsbG8=", base64)	{"o":"hello"}
+decode-base64-whole-groups	gens	o: decode("aGV5", base64)	{"o":"hey"}
+decode-base64-one-byte	gens	o: decode("aA==", base64)	{"o":"h"}
+decode-base64-plus	gens	o: decode("fn5+", base64)	{"o":"~~~"}
+decode-base64-slash	gens	o: decode("Pz8/", base64)	{"o":"???"}
+decode-base64-empty	gens	o: decode("", base64)	{"o":""}
+decode-base64url	gens	o: decode("aGVsbG8", base64url)	{"o":"hello"}
+decode-base64url-one-byte	gens	o: decode("aA", base64url)	{"o":"h"}
+decode-base64url-minus	gens	o: decode("fn5-", base64url)	{"o":"~~~"}
+decode-base64url-underscore	gens	o: decode("Pz8_", base64url)	{"o":"???"}
+decode-base64url-empty	gens	o: decode("", base64url)	{"o":""}
+decode-hex	gens	o: decode("68656c6c6f", hex)	{"o":"hello"}
+decode-hex-empty	gens	o: decode("", hex)	{"o":""}
+# hex is read in either case, the one place decode takes more than
+# encode writes.
+decode-hex-uppercase	gens	o: decode("6B", hex)	{"o":"k"}
+decode-hex-mixed-case	gens	o: decode("C3bB", hex)	{"o":"û"}
+# decode(encode(s, n), n) is s, for every string and each name.
+decode-round-trip-base64	gens	o: decode(encode("日本語 😀 é", base64), base64)	{"o":"日本語 😀 é"}
+decode-round-trip-base64url	gens	o: decode(encode("日本語 😀 é", base64url), base64url)	{"o":"日本語 😀 é"}
+decode-round-trip-hex	gens	o: decode(encode("日本語 😀 é", hex), hex)	{"o":"日本語 😀 é"}
+# And encode(decode(t, n), n) is t wherever decode answers, hex in
+# uppercase aside: base64 text has one spelling for its bytes.
+encode-of-decode-base64	gens	o: encode(decode("aGVsbG8=", base64), base64)	{"o":"aGVsbG8="}
+encode-of-decode-base64url	gens	o: encode(decode("8J-YgA", base64url), base64url)	{"o":"8J-YgA"}
+encode-of-decode-hex-lowers	gens	o: encode(decode("6B", hex), hex)	{"o":"6b"}
+# A byte below U+0080 is a character, the first of them too.
+decode-nul-byte	gens	o: decode("00", hex)	{"o":"\\u0000"}
+# A NAME THAT IS NO ENCODING IS REFUSED, `encode_name`: the set is
+# closed, and a name is matched as it is written.
+encode-name-unknown	errc	o: encode("a", base32)	encode_name
+decode-name-unknown	errc	o: decode("a", base32)	encode_name
+encode-name-case	errc	o: encode("a", Base64)	encode_name
+encode-name-empty	errc	o: encode("a", "")	encode_name
+encode-name-msg	err	o: encode("a", base32)	was given a name that is no encoding
+# An argument that is no string is the signature's refusal, and a
+# count other than two is the count's.
+encode-source-not-a-string	errc	o: encode(1, hex)	func_arg
+encode-name-not-a-string	errc	o: encode("a", 1)	func_arg
+decode-source-not-a-string	errc	o: decode(true, hex)	func_arg
+encode-source-preference	errc	o: encode(*1|integer, hex)	invalid-arg
+encode-name-preference	errc	o: encode("a", *1|integer)	invalid-arg
+decode-source-preference	errc	o: decode(*1|integer, hex)	invalid-arg
+decode-name-preference	errc	o: decode("a", *1|integer)	invalid-arg
+encode-arity-one	errc	o: encode("a")	func_arity
+encode-arity-three	errc	o: encode("a", hex, 1)	func_arity
+decode-arity-none	errc	o: decode()	func_arity
+encode-arity-msg	err	o: encode("a")	encode takes exactly two arguments, but was given 1
+# TEXT THE ENCODING COULD NOT HAVE WRITTEN IS REFUSED,
+# `decode_malformed`. base64 without its padding, with too much, or
+# with it anywhere but the end.
+decode-base64-padding-missing	errc	o: decode("aGVsbG8", base64)	decode_malformed
+decode-base64-one-character	errc	o: decode("a", base64)	decode_malformed
+decode-base64-padding-short	errc	o: decode("aA=", base64)	decode_malformed
+decode-base64-padding-long	errc	o: decode("aA===", base64)	decode_malformed
+decode-base64-padding-three	errc	o: decode("a===", base64)	decode_malformed
+decode-base64-padding-only	errc	o: decode("====", base64)	decode_malformed
+decode-base64-padding-inside	errc	o: decode("aA==aA==", base64)	decode_malformed
+decode-base64-padding-after-whole-group	errc	o: decode("aGV5====", base64)	decode_malformed
+# A character outside the alphabet, a space and a line break among
+# them, and the other alphabet's two.
+decode-base64-bad-character	errc	o: decode("aGVs!G8=", base64)	decode_malformed
+decode-base64-space	errc	o: decode("aGVs bG8=", base64)	decode_malformed
+decode-base64-line-break	errc	o: decode("aGVs\\nbG8=", base64)	decode_malformed
+decode-base64-non-ascii	errc	o: decode("aGVé", base64)	decode_malformed
+decode-base64-url-alphabet	errc	o: decode("fn5-", base64)	decode_malformed
+decode-base64url-std-alphabet	errc	o: decode("fn5+", base64url)	decode_malformed
+decode-base64url-padded	errc	o: decode("aGVsbG8=", base64url)	decode_malformed
+decode-base64url-one-over	errc	o: decode("aGVsb", base64url)	decode_malformed
+# Low bits a last character holds beyond its bytes: `aA==` is the one
+# spelling of its byte, and `aG==` is not one.
+decode-base64-stray-bits-one-byte	errc	o: decode("aG==", base64)	decode_malformed
+decode-base64-stray-bits-two-bytes	errc	o: decode("aGV=", base64)	decode_malformed
+decode-base64url-stray-bits	errc	o: decode("aB", base64url)	decode_malformed
+# hex with half a byte, or a character that is no digit.
+decode-hex-odd	errc	o: decode("6", hex)	decode_malformed
+decode-hex-bad-digit	errc	o: decode("6g", hex)	decode_malformed
+decode-hex-bad-first-digit	errc	o: decode("g6", hex)	decode_malformed
+decode-hex-non-ascii	errc	o: decode("é6", hex)	decode_malformed
+decode-hex-prefixed	errc	o: decode("0x6b", hex)	decode_malformed
+# And text whose bytes are not UTF-8: a string holds characters, so
+# binary data stays in its encoded form.
+decode-not-utf8-base64	errc	o: decode("/w==", base64)	decode_malformed
+decode-not-utf8-base64url	errc	o: decode("_w", base64url)	decode_malformed
+decode-not-utf8-hex	errc	o: decode("ff", hex)	decode_malformed
+decode-truncated-sequence	errc	o: decode("e6", hex)	decode_malformed
+decode-overlong	errc	o: decode("c080", hex)	decode_malformed
+decode-encoded-surrogate	errc	o: decode("eda080", hex)	decode_malformed
+decode-malformed-msg	err	o: decode("aGVsbG8", base64)	was given text the encoding could not have written
+# Canon writes each call under its own name while an argument is
+# unsettled, and the text once it has answered.
+encode-unsettled-source-canon	canon	o: encode(1 + true, hex)	{"o":encode(1+true,"hex")}
+decode-unsettled-source-canon	canon	o: decode(1 + true, hex)	{"o":decode(1+true,"hex")}
+encode-settled-canon	canon	o: encode("k", hex)	{"o":"6b"}
+decode-settled-canon	canon	o: decode("6b", hex)	{"o":"k"}
+# vet reads a call in a schema as the text it answers.
+encode-vet-valid	vet	a: encode("k", hex)	a: "6b"	{"findings":[],"truncated":false,"verdict":"valid"}
+encode-vet-conflict	vet	a: encode("k", hex)	a: "6c"	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":4,"file":"data","len":4,"role":"data","row":1,"src":"\\"6c\\"","value":"\\"6c\\""},{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"encode","value":"\\"6b\\""}]}],"truncated":false,"verdict":"invalid"}

@@ -5,6 +5,9 @@ exports.ESC_VARIANTS = void 0;
 exports.isEscVariant = isEscVariant;
 exports.escapeText = escapeText;
 exports.unescapeText = unescapeText;
+exports.hexDigit = hexDigit;
+exports.utf8Bytes = utf8Bytes;
+exports.utf8Text = utf8Text;
 // The variant names, in the order the reference lists them. `none` is
 // not here: it is the absent argument, and the absent argument is the
 // C/JSON convention.
@@ -406,5 +409,5 @@ function unescapeText(src, variant) {
         return unescRegex(src);
     }
     return unescC(src, '"');
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 11 */
 //# sourceMappingURL=escape.js.map

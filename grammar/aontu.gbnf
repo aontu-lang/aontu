@@ -71,8 +71,8 @@ element ::= spread | value
 func ::= name "(" ws ( value ( ws "," ws value )* ws )? ")"
 
 name ::=
-    "content" | "file" | "folder" | "format" | "fragment" | "inject" | "line" | "nom" | "project" | "slot" | "translate" | "abnf" | "above" | "acyclic" | "add" | "apply" | "below" | "close" | "contains" | "copyfiles" | "copy" | "deprecate" | "div"
-  | "each" | "emit" | "empty" | "esc" | "filter" | "gen" | "greatest"
+    "content" | "file" | "folder" | "format" | "fragment" | "inject" | "line" | "nom" | "project" | "slot" | "translate" | "abnf" | "above" | "acyclic" | "add" | "apply" | "below" | "close" | "contains" | "copyfiles" | "copy" | "decode" | "deprecate" | "div"
+  | "each" | "emit" | "empty" | "encode" | "esc" | "filter" | "gen" | "greatest"
   | "hide" | "ident"
   | "inverse" | "join" | "keyed" | "key" | "least"
   | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "meta" | "min" | "mod" | "move"

@@ -314,7 +314,7 @@ function unescapeText(src: string, variant: string): [string, boolean] {
   if ('uri' === variant) { return unescUri(src) }
   if ('regex' === variant) { return unescRegex(src) }
   return unescC(src, '"')
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 11 */
 
 
 export {
@@ -322,4 +322,7 @@ export {
   isEscVariant,
   escapeText,
   unescapeText,
+  hexDigit,
+  utf8Bytes,
+  utf8Text,
 }

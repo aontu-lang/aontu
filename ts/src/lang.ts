@@ -144,7 +144,7 @@ import { FilterFuncVal } from './val/FilterFuncVal'
 import { MatchFuncVal, KeyedFuncVal } from './val/MatchFuncVal'
 import { EmitFuncVal } from './val/EmitFuncVal'
 import {
-  EscFuncVal, UscFuncVal, RepFuncVal, SplitFuncVal,
+  EscFuncVal, UscFuncVal, EncodeFuncVal, DecodeFuncVal, RepFuncVal, SplitFuncVal,
 } from './val/StrFuncVal'
 import {
   AddFuncVal, SubFuncVal, MulFuncVal, DivFuncVal, ModFuncVal, RemFuncVal,
@@ -912,6 +912,8 @@ help isolate the syntax error.`,
 
     esc: EscFuncVal,
     usc: UscFuncVal,
+    encode: EncodeFuncVal,
+    decode: DecodeFuncVal,
     rep: RepFuncVal,
     split: SplitFuncVal,
 
