@@ -191,9 +191,9 @@ relations workstream depends on #748 and #749 from phase 2.
 
 ### Relations
 
-18 issues (5 S, 8 M, 5 L), and no ledger row from 2026-11-26.
+19 issues (5 S, 9 M, 5 L), and no ledger row from 2026-11-26.
 
-First the relations whose range names a subtype (#771, #778, #779, #780), then the ruled range check of #777, which needs #748. #491 and #811 are where `vet` and evaluation read a relation differently, and #878 where the graph atoms miss the edges a default brings; rulings 72 and 73 settle when the atoms judge.
+First the relations whose range names a subtype (#771, #778, #779, #780), then the ruled range check of #777, which needs #748. #491 and #811 are where `vet` and evaluation read a relation differently, #491 built on 2026-11-26, and #878 where the graph atoms missed the edges a default brings, built the same day; rulings 72 and 73 settle when the atoms judge, and #1029 asks whether `reaches` and `view` read the same edges.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -211,8 +211,9 @@ First the relations whose range names a subtype (#771, #778, #779, #780), then t
 | [#815](https://github.com/aontu-lang/aontu/issues/815) | diag | S |  | `relation_cycle` finding names the first edge out of the cycle's first node, possibly off the cycle. |
 | [#773](https://github.com/aontu-lang/aontu/issues/773) | diag | S |  | relation_cycle frame loses the edge when the member meets a waiting constraint: TS frames nil, Go whole member. |
 | [#746](https://github.com/aontu-lang/aontu/issues/746) | diag | S |  | Pattern beside `relate()` in a declaration from another source: Go paths it `$.%P`, TypeScript the member. |
-| [#491](https://github.com/aontu-lang/aontu/issues/491) | bug | M |  | vet answers valid where eval refuses with relation_cycle or relation_inverse_missing, both engines |
-| [#878](https://github.com/aontu-lang/aontu/issues/878) | def | M |  | acyclic() and inverse(k) don't judge the edges a default brings; ruling 72 says they judge the generated edges. |
+| [#491](https://github.com/aontu-lang/aontu/issues/491) | bug | M |  | vet answers valid where eval refuses with relation_cycle or relation_inverse_missing, both engines. Built in both ports on 2026-11-26, as ruling 73 asks: `vet` judges the graph of a document that generates, and 48 rows of `test/spec/relation.tsv` hold it. |
+| [#878](https://github.com/aontu-lang/aontu/issues/878) | def | M |  | acyclic() and inverse(k) don't judge the edges a default brings; ruling 72 says they judge the generated edges. Built in both ports on 2026-11-26: the relation checks read the value as generation writes it, 52 more rows in `test/spec/relation.tsv`. |
+| [#1029](https://github.com/aontu-lang/aontu/issues/1029) | bug | M |  | `reaches`, `view` and the library's `graph` miss the edge a default writes, and `view` reports no loss for a lone default's. Asks whether they read the generated edges as the atoms do. Both ports. |
 | [#752](https://github.com/aontu-lang/aontu/issues/752) | parity | S |  | Member's relative address under an in-place template link: TypeScript refuses ..b and ...b, Go links correctly. |
 | [#819](https://github.com/aontu-lang/aontu/issues/819) | design | L |  | No subsumption rule for a relation's member template against a linked member; `breaking` stays undecided. |
 
@@ -414,9 +415,9 @@ These can run at any point. #826 and #828 are already in phase 1.
 
 ### The definition
 
-9 issues (4 S, 4 M, 1 L).
+10 issues (4 S, 5 M, 1 L).
 
-#403 and #432 are proof and reading gaps in `spec/`, #829 lists the redundancy the first review pass left, #1021 is the axiom gate, and #1023 and #1024 are two readings of a call's operand.
+#403 and #432 are proof and reading gaps in `spec/`, #829 lists the redundancy the first review pass left, #1021 is the axiom gate, and #1023, #1024 and #1026 are readings of a call's operand.
 
 | # | kind | effort | ledger rows | what it is |
 |---|---|---|---|---|
@@ -427,7 +428,8 @@ These can run at any point. #826 and #828 are already in phase 1.
 | [#432](https://github.com/aontu-lang/aontu/issues/432) | spec | M |  | Definition read a waiting `+` inside a trial as refusing; both ports wait (incomplete). Built in the definition 2026-11-25 for `match`, `nof`, `must` and `when`, its 2 rows gone; #977 holds the forms both ports read another way. |
 | [#1008](https://github.com/aontu-lang/aontu/issues/1008) | spec | M |  | The definition holds a map's absent member to the spread's template, as a required member; both ports leave the member out. Built 2026-11-26: the map's meet leaves a member that is absence on its own alone under a spread, and both ports hold the template back from a computed absence too. |
 | [#1021](https://github.com/aontu-lang/aontu/issues/1021) | spec | S |  | Five theorems rest on `Classical.choice`, by `beq_self_eq_true` on a string, and the axiom gate holds only the theorems on its list. Fixed 2026-11-26: the two root proofs go by `beq_iff_eq`, and `spec/Aontu/Axioms.lean` judges every theorem. |
-| [#1023](https://github.com/aontu-lang/aontu/issues/1023) | spec | M |  | The definition doesn't read a call's operand that a meet settles to one arm of a disjunction, `(integer \| string) & 1`: `+` waits and `upper` or `add` is an error, where both ports compute. Decisions 16 and 55 read the leftover as its arm for a size and a bound. |
+| [#1023](https://github.com/aontu-lang/aontu/issues/1023) | spec | M |  | The definition doesn't read a call's operand that a meet settles to one arm of a disjunction, `(integer \| string) & 1`: `+` waits and `upper` or `add` is an error, where both ports compute. Decisions 16 and 55 read the leftover as its arm for a size and a bound. Built 2026-11-26 for every call that reads a value, a bag's members and the source of `each` and `pack` (`Decls.argArm`), rows oa0 on. |
+| [#1026](https://github.com/aontu-lang/aontu/issues/1026) | spec | M |  | A preference under `+`: the definition reads a written `*1 \| integer` as a lone `*1` and doesn't read `(*1 \| string) & integer` as one, each the other way round from both ports. Wants a ruling. |
 | [#1024](https://github.com/aontu-lang/aontu/issues/1024) | spec | S |  | The definition's `+` waits beside an address, where both ports join the address's text. Built 2026-11-26: an operand that is an address reads as its text (`Val.plusOperand`), rows ap0 on. |
 
 ### Repository process

@@ -15,4 +15,9 @@ export type RelDecl = {
     inverses: Set<string>;
 };
 export declare function graphOf(root: Val): Graph;
+export declare function writtenOf(root: Val): {
+    graph: Graph;
+    decls: Map<string, RelDecl>;
+    sites: Map<string, any>;
+};
 export declare function declsOf(root: Val): Map<string, RelDecl>;

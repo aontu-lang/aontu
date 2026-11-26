@@ -2830,6 +2830,13 @@ until the phase that encodes it lands.
    is still an error. `bndOf` asks `Val.choiceLeft`, as `Val.sizeIll`
    does, and reads the leftover through `Val.soleArm`; both ports read
    so already. Rows nl159 to nl185 and bd174 to bd185.
+   A call that reads a value reads the leftover so too since
+   2026-11-26 (#1023), as both ports do: `Decls.argArm` for an
+   argument of `+`, a function on numbers or a call on bags and text,
+   `Decls.memberNF` for a member of a bag one of them folds, and
+   `Val.armRead` for the source of `each` and `pack`. Rows oa0 on of
+   `test/spec/def-path.tsv`. A preferred arm left alone is not this
+   reading and waits on #1026.
 56. **An optional key an open map lacks.** Raised 2026-11-17 with
    #377: the order holds a general optional key that an open specific
    side lacks to the specific side's spread template, or to `any` with
@@ -3113,10 +3120,22 @@ until the phase that encodes it lands.
    2026-11-21 (the project's owner): the generated edges.** The
    verdict lands at generation, so the atoms judge the edges
    generation writes, defaults taken, and that document is a
-   `relation_cycle`. **Not yet built**: both ports and the definition
-   move (#878). The definition reads the atoms as terms since
-   2026-11-26, absence carrying the atom (`Rider.acyclic`,
-   `Rider.inverse`), and judges no edge yet.
+   `relation_cycle`. **Built in both ports on 2026-11-26** (#878):
+   the relation checks read the value as generation writes it
+   (`writtenOf`), through a lone preference and into the arms the
+   rank rule picks, the preference of the lowest rank or, where none
+   stands, every arm, which generation writes only alike. An arm it
+   doesn't take brings no edge and no declaration, so a mirror a
+   default writes is found, where it was refused as missing before.
+   `aontu relations` on a document whose only atom stands in an arm
+   of a disjunction that prefers none answers `error`, the document
+   not generating, where it answered `pass`. `reaches`, `view` and
+   the library's `graph` keep to the links no disjunction holds
+   (#1029). **Not yet built**: the definition, which reads the atoms
+   as terms since 2026-11-26, absence carrying the atom
+   (`Rider.acyclic`, `Rider.inverse`), and judges no edge yet. Its
+   `Val.links` already reads a link within the arms the rank rule
+   picks (decision 33), which is the same reading.
 73. **A broken graph in an incomplete document.** Raised 2026-11-21
    by P11's graph atoms. Beside an unfilled `n: integer`, the cycle
    a → b → a leaves `vet` `incomplete` and `vet --partial` `valid` in
@@ -3124,9 +3143,14 @@ until the phase that encodes it lands.
    2026-11-21 (the project's owner): the atoms wait for generation.**
    An incomplete document's graph is not judged, so `--partial` passes
    it, and a document that generates is judged, `vet` reading a broken
-   atom as a refusal at generation, `invalid` (decision 8). **Not yet
-   built**: `vet` in both ports (#491), and the definition, which
-   reads the atoms as terms since 2026-11-26 and holds rows ga0 on of
+   atom as a refusal at generation, `invalid` (decision 8). **Built in
+   both ports on 2026-11-26** (#491): `vet` reads `relationErrors`
+   where the document generates and no finding is an error, and never
+   under `--at`, with 48 rows in `test/spec/relation.tsv`. A data
+   document written in aontu that writes the edges itself is judged
+   in every mode, `--no-fill` among them, since the fill has nothing
+   to supply. **Not yet built**: the definition, which reads the atoms
+   as terms since 2026-11-26 and holds rows ga0 on of
    `test/spec/def-path.tsv` for documents whose graphs keep what their
    atoms ask.
 74. **A conflict below the top of an argument read against a value.**

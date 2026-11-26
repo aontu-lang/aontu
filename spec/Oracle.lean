@@ -3939,6 +3939,75 @@ theorem addr_plus_verdict_exact : ∀ c ∈ addrPlusCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (addrPlusCases_checkable c hc).1 (addrPlusCases_checkable c hc).2 v
 
+/-- A choice the meet or a dead arm settles to one arm is that arm for
+a call (decisions 16 and 55 of the design note's §7, for every call
+that reads a value): `+` over a number, a string and a list a path
+reads, and one written in place; `upper`, `lower` and `add` over one;
+an address a relation holds, under `+`; a fold, `join`, `pick` and
+`sort` over a bag that is one, and over a bag whose element is one;
+`each` and `pack` over a source that is one, and `apply` over one;
+a choice the data settles, to either arm, beside data that takes the
+sum and data that refuses it; arms written alike, which are one; a
+choice of two arms that differ, which still waits, and the data
+settling it; a written `nil` beside an arm and a conflict beside one;
+and a settled choice under `hide()`. -/
+def oneArmCases : List (Decls × Val × Data) :=
+  let pl (a b : Val) : Val := .call .plus [a, b]
+  let lsp (t : Val) : Val := .list [] (some t) false
+  let lst (vs : List Val) : Val := .list vs none false
+  let is : Val := .or [(0, .integer), (0, .string)]
+  let mi : Val := .or [(0, m [("a", .integer)]), (0, .string)]
+  let li : Val := .or [(0, lsp .integer), (0, .string)]
+  let ls : Val := .or [(0, lsp .string), (0, .integer)]
+  let one : Val := .meet is (int 1)
+  let src : Val := .meet li (lst [int 7, int 8])
+  let px : Val := p ["p"]
+  let open1 : Val := m [("p", is), ("x", pl px (int 1))]
+  let two : Val := m [("p", .or [(0, int 1), (0, int 2)]), ("x", pl px (int 1))]
+  [([], m [("p", one), ("x", pl px (int 1))], .map []),
+    ([], m [("x", pl one (int 1))], .map []),
+    ([], m [("p", .meet is (str "a")), ("x", pl px (str "b"))], .map []),
+    ([], m [("p", .meet li (lst [int 1])), ("x", pl px (lst [int 2]))], .map []),
+    ([], m [("x", .call .upper [.meet is (str "a")])], .map []),
+    ([], m [("p", .meet is (str "a")), ("x", .call .upper [px])], .map []),
+    ([], m [("p", .meet is (str "AB")), ("x", .call .lower [px])], .map []),
+    ([], m [("p", .meet is (int 2)), ("x", .call .add [px, int 1])], .map []),
+    ([], m [("a", m []), ("p", .meet (.call .relate []) (ad 0 ["a"])), ("x", pl px (str "/n"))], .map []),
+    ([], m [("a", m []), ("x", pl (.meet (.call .relate []) (ad 0 ["a"])) (str "/n"))], .map []),
+    ([], m [("a", m []), ("p", .meet (.or [(0, .pathKind), (0, .string)]) (ad 0 ["a"])), ("x", pl px (str "/n"))],
+      .map []),
+    ([], m [("p", src), ("x", .call .sum [px])], .map []),
+    ([], m [("p", .meet ls (lst [str "a", str "b"])), ("x", .call .join [px, str "-"])], .map []),
+    ([], m [("p", .meet mi (m [("a", int 1)])), ("x", .call .pick [lst [px], str "a"])], .map []),
+    ([], m [("p", one), ("x", .call .sum [lst [px, int 2]])], .map []),
+    ([], m [("p", .meet is (str "a")), ("x", .call .join [lst [px, str "b"]])], .map []),
+    ([], m [("p", .meet is (int 3)), ("x", .call .sort [lst [px, int 2]])], .map []),
+    ([], m [("p", one), ("x", .call .sum [lst [px, px]])], .map []),
+    ([], m [("p", src), ("x", .call .each [px, .hole])], .map []),
+    ([], m [("p", .meet ls (lst [str "a", str "b"])), ("x", .call .pack [px, int 1])], .map []),
+    ([], m [("p", one), ("x", .call .apply [px, .call .add [.hole, int 1]])], .map []),
+    ([], m [("p", one), ("x", .call .each [lst [px, int 2], .call .add [.hole, int 1]])], .map []),
+    ([], open1, .map []),
+    ([], open1, .map [("p", j 1)]),
+    ([], open1, .map [("p", .str "a")]),
+    ([], open1, .map [("p", j 1), ("x", j 2)]),
+    ([], open1, .map [("p", j 1), ("x", j 3)]),
+    ([], m [("p", .meet (.or [(0, .integer), (0, .number), (0, .string)]) (int 1)), ("x", pl px (int 1))], .map []),
+    ([], m [("p", .meet (.or [(0, int 1), (0, int 1)]) .integer), ("x", pl px (int 1))], .map []),
+    ([], two, .map []),
+    ([], two, .map [("p", j 2)]),
+    ([], m [("x", .call .add [.or [(0, Val.void), (0, int 1)], int 1])], .map []),
+    ([], m [("x", .call .upper [.or [(0, .meet (int 1) (int 2)), (0, str "a")]])], .map []),
+    ([], m [("p", hide one), ("x", pl px (int 1))], .map [])]
+
+set_option maxRecDepth 8192 in
+theorem oneArmCases_checkable : ∀ c ∈ oneArmCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem one_arm_verdict_exact : ∀ c ∈ oneArmCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (oneArmCases_checkable c hc).1 (oneArmCases_checkable c hc).2 v
+
 /-- Links read where they land: a `relate` in a `type()` that a path
 reference copies, beside a target the template admits, one it refuses,
 one that names nothing and data that refuses the template; a `relate` in
@@ -10307,6 +10376,11 @@ def main (args : List String) : IO UInt32 := do
     pathRows "ga" graphAtomCases
     IO.println "# `+` over an address, in rows ap0 on, which reads as the text that spells it."
     pathRows "ap" addrPlusCases
+    IO.println "# A choice the meet or a dead arm settles to one arm is that arm for a call,"
+    IO.println "# in rows oa0 on: an operand of `+`, `upper`, `lower` and `add`, a bag a fold,"
+    IO.println "# `join`, `pick` or `sort` reads and an element of one, and the source of"
+    IO.println "# `each` and `pack`, where the schema settles the choice and where the data does."
+    pathRows "oa" oneArmCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

@@ -6909,9 +6909,13 @@ there for its flow to read:
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
-      else if f.holdsArg then callTerm ds f (resolveItems ds b here args)
-      else (callTerm ds f (resolveItems ds b here args)).rideMoves ((resolveItems ds b here args).flatMap Val.moves)
+      else if f.holdsArg then callTerm ds f (ds.argArms f (resolveItems ds b here args))
+      else (callTerm ds f (ds.argArms f (resolveItems ds b here args))).rideMoves
+        ((resolveItems ds b here args).flatMap Val.moves)
 ```
+
+`argArms` is step 21's reading of a choice settled to one arm, for a
+call that reads values.
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -7769,7 +7773,7 @@ def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
   if f.folds then
     match args with
     | [b] => ((normaliseD ds b).members ds).bind fun ms =>
-        (ms.mapM fun m => (normaliseD ds m).number?).bind (Number.fold f)
+        (ms.mapM fun m => (ds.memberNF m).number?).bind (Number.fold f)
     | _ => none
   else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 ```
@@ -8007,6 +8011,47 @@ concatenate, the left's elements then the right's: `plusOf_lists` and
 `plusOf_nil_list` say so, the empty list adding nothing, and
 `plusOf_list_lit` says that a list beside a scalar is no sum.
 
+A choice the meet settles to one arm is that arm. `(integer | string)`
+met with `1` has one arm left, and a call reads it as `1`. Write
+`settled.aontu`:
+
+<!-- test: scenario plus-settled -->
+<!-- test: file settled.aontu -->
+```aontu
+p: (integer|string) & 1
+x: .p + 1
+up: upper((integer|string) & "a")
+```
+
+<!-- test: run -->
+```sh
+$ aontu settled.aontu
+{
+  "p": 1,
+  "up": "A",
+  "x": 2
+}
+```
+
+The definition's normal form keeps the leftover as a disjunction of one
+arm, so a call that reads values takes each argument through
+`Decls.argArm` first:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.argArm (ds : Decls) (a : Val) : Val :=
+  if !(normaliseD ds a).choiceLeft && (normaliseD ds a).unride.isArms then (normaliseD ds a).settledArm
+  else a
+```
+
+`Val.choiceLeft` holds while two arms that differ are still live, so
+`(1 | 2) + 1` waits until the data picks one. A bag's members read the
+same way, and so does the source of `each` and `pack`. Rows from oa0 on
+of `test/spec/def-path.tsv` hold these, and both engines answer every
+one as the definition does. A preferred arm is another matter: what
+`(*1 | string) & integer` and a written `*1 | integer` are under `+`
+is #1026.
+
 An address under `+` is the text that spells it, so it joins as a
 string does. Write `join.aontu`:
 
@@ -8154,7 +8199,7 @@ def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
   match (normaliseD ds b).members ds with
   | none => .refused
   | some ms =>
-    let ms' := ms.map (normaliseD ds)
+    let ms' := ms.map ds.memberNF
     if sep'.any (fun s => !s.settled) || ms'.any (fun m => !m.settled) then .waits
     else
       let t? : Option String := match sep' with
@@ -8867,7 +8912,7 @@ and an `each` reads its template once for each member of its data:
 ```lean
     | .each, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
-      match (normaliseD ds (resolveD ds b here d)).members ds with
+      match (normaliseD ds (resolveD ds b here d)).armRead.members ds with
       | some ms =>
         if (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).any
             (fun e => (normaliseD ds e).marked && ds.markClashes none e) then .nil else
@@ -9093,7 +9138,7 @@ each member, but into an open map:
 ```lean
     | .pack, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
-      match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
+      match (normaliseD ds (resolveD ds b here d)).armRead.keyedMembers ds with
       | some ms =>
         (Val.map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false).rideMoves (resolveD ds b here d).moves
@@ -10578,8 +10623,8 @@ def inverseOf : Val → Val
 
 So much for how the atoms read. What they ask has no rule in the
 definition yet. Both engines refuse to generate a document whose graph breaks an
-atom, as `relation_cycle` or `relation_inverse_missing`, and `vet`
-passes it, which #491 tracks. So rows from ga0 on of
+atom, as `relation_cycle` or `relation_inverse_missing`, and their `vet`
+answers `invalid` for it. So rows from ga0 on of
 `test/spec/def-path.tsv` hold only documents whose graphs keep what
 their atoms ask, and both engines answer every one as the definition
 does.

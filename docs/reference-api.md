@@ -248,6 +248,14 @@ the rows from n0 on of
 [`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) hold both
 engines to them.
 
+**`vet` judges a relation's graph where the document generates.** A graph
+that breaks [`acyclic()` or `inverse(name)`](reference-language.md#declared-relations)
+is `invalid`, with the finding generation gives, `relation_cycle` or
+`relation_inverse_missing`, at the offending edge. `vet` judges no
+graph of a document that waits or already refuses, so `--partial`
+passes an unfinished document whatever its edges, and none under
+`--at`, since the graph belongs to the whole document.
+
 **A data file that will not parse is the data's fault**, and is
 reported as one `parse`-class finding with a site in that file: not as
 a broken schema. The distinction matters to the loop the verb exists
@@ -939,7 +947,10 @@ $ echo $?
   [`relate(t)` and the graph atoms](reference-language.md#declared-relations):
   `acyclic()` and `inverse(name)` ride the value they meet as a
   declaration, and the verb reads the declarations and the edge set
-  from the finished model. There is no reserved `relations:` key: a document
+  from the finished model. It reads the model as generation writes it,
+  so a default's edges count and an arm generation doesn't take brings
+  none, where [`reaches`](#aontu-reaches) and [`view`](#aontu-view)
+  count no link under a disjunction. There is no reserved `relations:` key: a document
   that writes one has written ordinary data.
 - **These are not lattice constraints, deliberately.** Both properties
   are global and non-monotone (one more edge makes an acyclic graph

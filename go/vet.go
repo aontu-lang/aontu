@@ -880,6 +880,17 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		}, d.path))
 	}
 
+	// A graph atom judges the document generation writes, so one that refuses or waits isn't judged.
+	if nil != generated && "" == options.At && !slices.ContainsFunc(findings, func(f VetFinding) bool {
+		return "error" == f.Severity
+	}) {
+		relCtx := &Ctx{root: unified, src: dataSrc, collect: true}
+		relationErrors(relCtx, unified)
+		for _, e := range relCtx.err {
+			findings = append(findings, pointed(findingOf(e, prov, sources), e.pathSegments()))
+		}
+	}
+
 	keys := make([]string, len(findings))
 	idx := make([]int, len(findings))
 	for i, f := range findings {

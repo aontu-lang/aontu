@@ -6,7 +6,7 @@ import { Aontu } from './aontu'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
-import { declsOf, graphOf } from './graph'
+import { writtenOf } from './graph'
 import type { Edge, Graph, RelDecl } from './graph'
 import { cmpCodePoint } from './keyorder'
 import { makeNilErr } from './err'
@@ -169,22 +169,16 @@ export function relationFindings(
 
 
 export function relationErrors(ctx: any, root: any): void {
-  const decls = declsOf(root)
+  const { decls, graph, sites } = writtenOf(root)
   if (0 === decls.size) {
     return
   }
-  const findings = relationFindings(decls, graphOf(root))
-  for (const f of findings) {
-    let node: any = root
-    const at = f.at.slice(2).split('.')
-    for (const seg of at) {
-      node = node?.peg?.[seg]
-    }
-    const nil = makeNilErr(ctx, f.code, node, undefined, 'relate', {
+  for (const f of relationFindings(decls, graph)) {
+    const nil = makeNilErr(ctx, f.code, sites.get(f.at), undefined, 'relate', {
       relation: f.relation,
       detail: f.detail.join(' -> '),
     })
-    nil.path = at
+    nil.path = f.at.slice(2).split('.')
     ctx.adderr(nil)
   }
 }
@@ -211,7 +205,7 @@ export function relationCheck(
     }
   }
 
-  const decls = declsOf(root)
+  const { decls, graph } = writtenOf(root)
   const counted = true === options.count ? { declared: decls.size } : {}
   if (0 === decls.size) {
     return { verdict: 'pass', findings: [], ...counted }
@@ -227,7 +221,7 @@ export function relationCheck(
     }
   }
 
-  const findings = relationFindings(decls, graphOf(root))
+  const findings = relationFindings(decls, graph)
   return {
     verdict: 0 === findings.length ? 'pass' : 'fail',
     findings,

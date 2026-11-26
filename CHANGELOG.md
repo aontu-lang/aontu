@@ -40,6 +40,140 @@ agreed by both. The definition states the encodings in
 `spec/Aontu/Text.lean`, and rows ec0 on of `test/spec/def-call.tsv`
 are generated from it.
 
+### The graph atoms judge the edges generation writes
+
+#878. Both engines read `acyclic()` and `inverse(k)` on the value
+evaluation ends with, before generation takes a default. So a document
+generated a graph that breaks its own atom:
+
+```aontu
+a: { dependsOn: relate() & acyclic() & (*[path($.b)] | []) }
+b: { dependsOn: relate() & [path($.a)] }
+```
+
+| | `aontu` | `aontu relations` | `aontu vet` against `{}` |
+|---|---|---|---|
+| Both engines, before | the cycle a → b → a | `pass` | `valid` |
+| Both engines, now | `relation_cycle` | `fail` | `invalid` |
+
+**A verdict changes**, as ruling 72 asks: the atoms judge the edges
+generation writes, defaults taken. The relation checks read the value
+as generation writes it (`writtenOf` in `ts/src/graph.ts` and
+`go/graph.go`):
+
+- A default's edges are edges, and an atom in a default declares: a
+  lone `*x`, `pref(x)`, the default among several arms, the lowest
+  rank where more than one stands, one default inside another.
+- An arm generation doesn't take brings no edge and no declaration.
+- **A refusal goes away too.** A mirror that a default writes is found:
+  `b: { usedBy: relate() & (*[path($.a)] | []) }` beside
+  `inverse(usedBy)` was refused as `relation_inverse_missing` though
+  the document generation would write held the mirror. It generates
+  now.
+- Arms that prefer nothing generate only where they write alike, and
+  then each is read. `close([path($.b)]) | [path($.b)]` closed a cycle
+  that nothing judged.
+
+One answer of `aontu relations` moves with it. `x: {n: acyclic()} | 1`
+beside a cycle under `n` answered `pass`, the atom read by nothing. The
+atom is read now, so the verb asks generation first, and the answer is
+`error` with `disjunct_no_gen`, as for any document that can't be
+generated. Generation and `vet` answer as before.
+
+`reaches`, `view` and the library's `graph` are unchanged and count no
+link under a disjunction. Whether they should read the generated edges
+too is #1029, which also holds a fault found on the way: they miss a
+lone default's edge and `view` reports no loss for it.
+
+TypeScript only: the value walker reads into a preference's value, as
+Go's does, so a finding sited inside a default carries its file where
+`vet` is called with no paths.
+
+52 more rows in `test/spec/relation.tsv`, 53 new and one replaced: 26
+for `aontu relations`, 6 for generation, 18 for `vet`'s verdict in its
+three modes and 3 for its whole report. Among them is the row #1028
+promised, a graph judged beside a deprecation.
+
+### `vet` judges the graph atoms of a document that generates
+
+#491. A document whose graph breaks `acyclic()` or `inverse(k)` was
+`valid` under `vet` in both engines, while both refused to generate it:
+
+```aontu
+a: { dependsOn: relate() & acyclic() & [path($.b)] }
+b: { dependsOn: relate() & [path($.a)] }
+```
+
+| `aontu vet` against `{}` | default | `--no-fill` | `--partial` |
+|---|---|---|---|
+| Both engines, before | `valid` | `incomplete` | `valid` |
+| Both engines, now | `invalid` | `incomplete` | `invalid` |
+
+**A verdict changes.** `vet` now reads the verdict generation gives, as
+ruling 73 asks: the finding is generation's own, `relation_cycle` or
+`relation_inverse_missing`, class `conflict`, at the offending edge,
+and the exit code is 1. The library's `vet` answers the same, and so
+does the MCP server's `vet` tool, which calls it. Both ports.
+
+`vet` judges the graph only where the document generates:
+
+- A document that waits isn't judged, so beside an unfilled
+  `n: integer` the same cycle is `incomplete`, and `--partial` passes
+  it. Once the data gives `n`, it's `invalid`.
+- A document the data already refuses isn't judged either: the
+  refusal is the report, and the graph adds nothing to it.
+- Under `--no-fill`, JSON data carries none of the schema's edges, so
+  the verdict stays `incomplete`. A data document written in aontu that
+  writes the edges itself is judged in every mode.
+- Under `--at` no graph is judged: the graph belongs to the whole
+  document.
+
+48 rows in `test/spec/relation.tsv` hold both engines to it, 45 for the
+verdict in its three modes and 3 for the whole report.
+
+The definition has no rule yet for what the atoms ask, and neither
+engine judges an edge only a default brings (#878).
+
+### A call reads a choice settled to one arm as that arm, in the definition
+
+#1023. A disjunction that a meet narrows to one arm is that arm in both
+engines, wherever it is read. The definition's normal form keeps it as a
+disjunction of one arm, and a call didn't read through it:
+
+```aontu
+p: (integer|string) & 1
+x: .p + 1
+up: upper((integer|string) & "a")
+```
+
+| | `x` | `up` |
+|---|---|---|
+| Both engines | `2` | `"A"` |
+| The definition, before | waits | an `error` |
+| The definition, now | `2` | `"A"` |
+
+A call that reads values now takes each argument through
+`Decls.argArm`, which reads a choice with no arm still to pick as the
+arm it is left with: the functions on numbers and the folds, `+`, and
+the calls on bags and text. A bag's members read the same way
+(`Decls.memberNF`), and so does the source of `each` and `pack`
+(`Val.armRead`). Decisions 16 and 55 already read the leftover so for a
+size and a bound.
+
+A choice of two arms that differ still waits, until the data picks one:
+`p: integer | string` with `x: $.p + 1` is incomplete against `{}` and
+`valid` against `{"p": 1}`. And an address a relation holds now joins
+under `+`, since the relation kind is a disjunction: `p: relate() &
+path($.a)` with `x: $.p + "/n"` is `"$.a/n"`.
+
+102 rows, oa0 to oa101 of `test/spec/def-path.tsv`, from 34 cases
+proved in `spec/Oracle.lean`. Both engines answer every one as the
+definition does.
+
+A preferred arm isn't part of this. `(*1 | string) & integer` and a
+written `*1 | integer` read under `+` the other way round in the
+definition from both engines, which is #1026 and wants a ruling.
+
 ### The definition reads the graph atoms as terms
 
 `acyclic()` and `inverse(k)` were the last two built-in functions with

@@ -28,6 +28,7 @@ const query_1 = require("./query");
 const admit_1 = require("./admit");
 const admission_1 = require("./val/admission");
 const genwrite_1 = require("./val/genwrite");
+const relation_1 = require("./relation");
 const keyorder_1 = require("./keyorder");
 const sourcemap_1 = require("./sourcemap");
 // The default cap, exported because the CLI applies it to the WHOLE
@@ -712,6 +713,15 @@ function vet(schemaSrc, dataSrc, opts) {
                     value: v.canon,
                 }],
         }, path));
+    }
+    // A graph atom judges the document generation writes, so one that refuses or waits isn't judged.
+    if (undefined !== generated && null == options.at && !findings.some((f) => 'error' === f.severity)) {
+        const relCtx = aontu.ctx({ collect: true });
+        (0, relation_1.relationErrors)(relCtx, unified);
+        for (const err of relCtx.err) {
+            materialise(err, relCtx);
+            findings.push(pointed(findingOf(err, prov), err.path));
+        }
     }
     const keyed = findings.map((f, i) => ({ key: orderKey(f, i), finding: f }));
     keyed.sort((a, b) => a.key < b.key ? -1 : 1);

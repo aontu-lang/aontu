@@ -4,7 +4,6 @@ package aontu
 
 import (
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -163,30 +162,20 @@ func relationFindings(decls map[string]*relDecl, graph Graph) []RelationFinding 
 }
 
 func relationErrors(ctx *Ctx, root Val) error {
-	decls := declsOf(root)
+	graph, decls, sites := writtenOf(root)
 	if nil == ctx || 0 == len(decls) {
 		return nil
 	}
-	findings := relationFindings(decls, GraphOf(root))
+	findings := relationFindings(decls, graph)
 	if 0 == len(findings) {
 		return nil
 	}
 	for _, f := range findings {
-		node := root
 		var at []string
 		if 2 < len(f.At) {
 			at = strings.Split(f.At[2:], ".")
-			for _, seg := range at {
-				switch n := node.(type) {
-				case *MapVal:
-					node = n.peg[seg]
-				case *ListVal:
-					ix, _ := strconv.Atoi(seg)
-					node = n.peg[ix]
-				}
-			}
 		}
-		n := makeNilErrFull(ctx, f.Code, node, nil, "relate", map[string]string{
+		n := makeNilErrFull(ctx, f.Code, sites[f.At], nil, "relate", map[string]string{
 			"relation": f.Relation,
 			"detail":   strings.Join(f.Detail, " -> "),
 		})
@@ -224,7 +213,7 @@ func (a *Aontu) RelationCheckOpts(
 			Errors: []VetFinding{failureFinding(ctx, a.File, src, root)}}
 	}
 
-	decls := declsOf(root)
+	graph, decls, _ := writtenOf(root)
 	var declared *int
 	if options.Count {
 		n := len(decls)
@@ -247,7 +236,7 @@ func (a *Aontu) RelationCheckOpts(
 			Errors: []VetFinding{failureFinding(gctx, a.File, src, root)}}
 	}
 
-	findings := relationFindings(decls, GraphOf(root))
+	findings := relationFindings(decls, graph)
 	verdict := "pass"
 	if 0 < len(findings) {
 		verdict = "fail"

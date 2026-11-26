@@ -2,6 +2,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.graphOf = graphOf;
+exports.writtenOf = writtenOf;
 exports.declsOf = declsOf;
 const keyorder_1 = require("./keyorder");
 const formatPath = (path) => 0 === path.length ? '$' : '$.' + path.join('.');
@@ -16,13 +17,21 @@ const cut = (at) => {
         ? { from: formatPath([]), key: '' }
         : { from: formatPath(at.slice(0, i)), key: at[i] };
 };
-function walk(root) {
+// The arms generation writes: the preference of the lowest rank, or every arm, which it writes only alike.
+const picked = (arms) => {
+    const prefs = arms.filter((arm) => true === arm.isPref);
+    return 0 === prefs.length ? arms :
+        [prefs.reduce((best, p) => p.rank < best.rank ? p : best)];
+};
+function walk(root, written) {
     const edges = [];
     const disjunct = [];
     const decls = new Map();
+    const sites = new Map();
     // ONE WALK, with `undecided` saying which side of the disjunction it is on:
     // below an unresolved disjunction every link is a position the
-    // document has not decided, and nothing there is an edge.
+    // document has not decided, and nothing there is an edge. Read as
+    // `written`, the arms generation picks are decided and no other is read.
     const visit = (node, path, ancestors, hidden, undecided, under) => {
         if (null == node || true !== node.isVal || ancestors.has(node)) {
             return;
@@ -51,6 +60,7 @@ function walk(root) {
                     edge.hidden = true;
                 }
                 edges.push(edge);
+                sites.set(edge.at, sites.get(edge.at) ?? node);
             }
         }
         if (true === node.isConjunct && Array.isArray(node.peg)) {
@@ -62,9 +72,14 @@ function walk(root) {
         }
         if (true === node.isDisjunct && Array.isArray(node.peg)) {
             ancestors.add(node);
-            for (const arm of node.peg) {
-                visit(arm, path, ancestors, hidden, true, under);
+            for (const arm of written ? picked(node.peg) : node.peg) {
+                visit(arm, path, ancestors, hidden, undecided || !written, under);
             }
+            ancestors.delete(node);
+        }
+        if (written && true === node.isPref) {
+            ancestors.add(node);
+            visit(node.peg, path, ancestors, hidden, undecided, under);
             ancestors.delete(node);
         }
         if ((true === node.isMap || true === node.isList) && null != node.peg) {
@@ -81,19 +96,23 @@ function walk(root) {
         }
     };
     visit(root, [], new Set(), false, false, undefined);
-    return { edges, disjunct, decls };
+    edges.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.at, b.at));
+    return { edges, disjunct, decls, sites };
 }
 function graphOf(root) {
-    const { edges, disjunct } = walk(root);
-    edges.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.at, b.at));
+    const { edges, disjunct } = walk(root, false);
     if (0 < disjunct.length) {
         return { edges, disjunct: [...new Set(disjunct)].sort(keyorder_1.cmpCodePoint) };
     }
     return { edges };
 }
+function writtenOf(root) {
+    const { edges, decls, sites } = walk(root, true);
+    return { graph: { edges }, decls, sites };
+}
 // The relation declarations: every graph atom the finished value holds,
 // read by the key it is met at, hidden or not.
 function declsOf(root) {
-    return walk(root).decls;
+    return walk(root, false).decls;
 }
 //# sourceMappingURL=graph.js.map

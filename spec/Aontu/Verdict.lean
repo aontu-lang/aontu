@@ -307,6 +307,60 @@ theorem plusOf_list_lit {xs : List Val} {s : Option Val} {c : Bool} {x : Scalar}
     plusOf (.list xs s c) (.lit x) = .waits ∧ plusOf (.lit x) (.list xs s c) = .waits := by
   cases x <;> exact ⟨rfl, rfl⟩
 
+/-- A term without the riders around it. -/
+def Val.unride : Val → Val
+  | .ride _ v _ => v.unride
+  | .link v _ => v.unride
+  | v => v
+
+/-- Whether two arms are written alike: the same literal, the same
+numeric kind or the same bound, which both ports read as one arm, so
+that `1 | 1` and `min(1) | min(1)` are each one size. -/
+def Val.sameArm : Val → Val → Bool
+  | .lit a, .lit b => decide (a = b)
+  | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
+  | .number, .number => true
+  | .min a, .min b | .max a, .max b | .above a, .above b | .beneath a, .beneath b => decide (a = b)
+  | .neq a, .neq b => decide (a = b)
+  | .mulof a, .mulof b => decide (a = b)
+  | _, _ => false
+
+/-- Whether a term in normal form still holds a choice: a disjunction
+whose arms aren't one arm of rank `0` written alike, or a preference,
+through `&` and the riders. -/
+def Val.choiceLeft : Val → Bool
+  | .or ((0, a) :: arms) => arms.any fun p => p.1 != 0 || !a.sameArm p.2
+  | .or _ => true
+  | .pref _ _ => true
+  | .meet a b => a.choiceLeft || b.choiceLeft
+  | .ride _ v _ => v.choiceLeft
+  | .link v _ => v.choiceLeft
+  | _ => false
+
+/-- A term in normal form with a choice the meet or a dead arm settled
+to one arm read as that arm, the riders around the choice kept. -/
+def Val.settledArm : Val → Val
+  | .ride k v r => .ride k v.settledArm r
+  | .link v t => .link v.settledArm t
+  | .or ((0, a) :: _) => a
+  | v => v
+
+/-- Whether a term is a disjunction. -/
+def Val.isArms : Val → Bool
+  | .or _ => true
+  | _ => false
+
+/-- A term in normal form as a call reads it: where it holds no choice
+still to make (`Val.choiceLeft`) and is a disjunction under its riders,
+the arm that disjunction is left with (`Val.settledArm`); any other
+term as it is. Both ports read a choice the meet or a dead arm settles
+to one arm as that arm, wherever it stands. -/
+def Val.armRead (w : Val) : Val :=
+  if !w.choiceLeft && w.unride.isArms then w.settledArm else w
+
+/-- A bag's member in normal form, as a call reads it (`Val.armRead`). -/
+def Decls.memberNF (ds : Decls) (m : Val) : Val := (normaliseD ds m).armRead
+
 /-- Whether a term in normal form is settled for `join`, its riders and a
 lone preference read through: a scalar, a map or a list. -/
 def Val.settled (v : Val) : Bool :=
@@ -331,7 +385,7 @@ def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
   match (normaliseD ds b).members ds with
   | none => .refused
   | some ms =>
-    let ms' := ms.map (normaliseD ds)
+    let ms' := ms.map ds.memberNF
     if sep'.any (fun s => !s.settled) || ms'.any (fun m => !m.settled) then .waits
     else
       let t? : Option String := match sep' with
@@ -342,12 +396,6 @@ def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
       match t?, ms'.mapM Val.joinText? with
       | some t, some ps => .made (.lit (.str (t.intercalate ps)))
       | _, _ => .refused
-
-/-- A term without the riders around it. -/
-def Val.unride : Val → Val
-  | .ride _ v _ => v.unride
-  | .link v _ => v.unride
-  | v => v
 
 /-- A projector in normal form, its riders read through: a string or an
 integer. -/
@@ -393,7 +441,7 @@ def pickOf (ds : Decls) (b k : Val) : Made :=
   match (normaliseD ds b).members ds, (normaliseD ds k).projector? with
   | _, some (.inl "") => .refused
   | some ms, some p =>
-    match (ms.map (normaliseD ds)).mapM (fun m => m.project? p) with
+    match (ms.map ds.memberNF).mapM (fun m => m.project? p) with
     | some vs => .made (.list vs none false)
     | none => .refused
   | _, _ => .refused
@@ -452,10 +500,10 @@ numbers or all strings. -/
 def sortOf (ds : Decls) (b : Val) (p d : Option Val) : Made :=
   match (normaliseD ds b).members ds, sortProjector? ds p, sortDesc? ds d with
   | some ms, some q, some desc =>
-    match (ms.map (normaliseD ds)).mapM fun m => (q.elim (some m) m.project?).bind Val.sortKey? with
+    match (ms.map ds.memberNF).mapM fun m => (q.elim (some m) m.project?).bind Val.sortKey? with
     | some ks =>
       if sortable ks then
-        .made (.list (((ks.zip (ms.map (normaliseD ds))).mergeSort (sortLe desc)).map Prod.snd)
+        .made (.list (((ks.zip (ms.map ds.memberNF)).mergeSort (sortLe desc)).map Prod.snd)
           none false)
       else .refused
     | none => .refused
@@ -889,7 +937,7 @@ def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
   if f.folds then
     match args with
     | [b] => ((normaliseD ds b).members ds).bind fun ms =>
-        (ms.mapM fun m => (normaliseD ds m).number?).bind (Number.fold f)
+        (ms.mapM fun m => (ds.memberNF m).number?).bind (Number.fold f)
     | _ => none
   else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 
@@ -962,36 +1010,37 @@ def Val.noEnd : Val → Bool
   | .re _ | .format _ | .grammar _ | .meet _ _ | .nothing => true
   | _ => false
 
-/-- Whether two arms are written alike: the same literal, the same
-numeric kind or the same bound, which both ports read as one arm, so
-that `1 | 1` and `min(1) | min(1)` are each one size. -/
-def Val.sameArm : Val → Val → Bool
-  | .lit a, .lit b => decide (a = b)
-  | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
-  | .number, .number => true
-  | .min a, .min b | .max a, .max b | .above a, .above b | .beneath a, .beneath b => decide (a = b)
-  | .neq a, .neq b => decide (a = b)
-  | .mulof a, .mulof b => decide (a = b)
-  | _, _ => false
-
-/-- Whether a term in normal form still holds a choice: a disjunction
-whose arms aren't one arm of rank `0` written alike, or a preference,
-through `&` and the riders. -/
-def Val.choiceLeft : Val → Bool
-  | .or ((0, a) :: arms) => arms.any fun p => p.1 != 0 || !a.sameArm p.2
-  | .or _ => true
-  | .pref _ _ => true
-  | .meet a b => a.choiceLeft || b.choiceLeft
-  | .ride _ v _ => v.choiceLeft
-  | .link v _ => v.choiceLeft
-  | _ => false
-
 /-- A disjunction in normal form whose arms are one arm of rank `0`
 written alike, as the meet or a dead arm leaves it, read as that arm,
 its riders read through; any other term as it is. -/
 def Val.soleArm : Val → Val
   | .or ((0, a) :: _) => a.unride
   | v => v
+
+/-- Whether a call reads its arguments' values, so that a choice the
+meet or a dead arm settles to one arm is that arm for it, as it is for
+a size and a bound (decisions 16 and 55 of the design note's §7): the
+functions on numbers and the folds, `+`, and the calls on bags and
+text. -/
+def Fn.readsArms : Fn → Bool
+  | .add | .sub | .mul | .div | .mod | .rem | .neg | .sum | .least | .greatest
+  | .plus | .join | .pick | .sort | .upper | .lower | .translate | .esc | .usc | .split | .rep
+  | .nom => true
+  | _ => false
+
+/-- A call's argument as the call reads it: where its normal form holds
+no choice still to make (`Val.choiceLeft`) and is a disjunction under
+its riders, the arm that disjunction is left with (`Val.settledArm`),
+as both ports read `(integer | string) & 1` as `1`; any other argument
+as it stands. -/
+def Decls.argArm (ds : Decls) (a : Val) : Val :=
+  if !(normaliseD ds a).choiceLeft && (normaliseD ds a).unride.isArms then (normaliseD ds a).settledArm
+  else a
+
+/-- A call's arguments as the call reads them (`Decls.argArm`), for a
+call that reads values (`Fn.readsArms`). -/
+def Decls.argArms (ds : Decls) (f : Fn) (args : List Val) : List Val :=
+  if f.readsArms then args.map ds.argArm else args
 
 /-- What a bound written over terms makes of them: the bound itself,
 `min($.lo)` being `min(2)` where `lo` is `2`, once each argument's normal
@@ -2361,7 +2410,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     match f, args with
     | .each, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
-      match (normaliseD ds (resolveD ds b here d)).members ds with
+      match (normaliseD ds (resolveD ds b here d)).armRead.members ds with
       | some ms =>
         if (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).any
             (fun e => (normaliseD ds e).marked && ds.markClashes none e) then .nil else
@@ -2374,7 +2423,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         else .nil
     | .pack, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
-      match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
+      match (normaliseD ds (resolveD ds b here d)).armRead.keyedMembers ds with
       | some ms =>
         (Val.map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false).rideMoves (resolveD ds b here d).moves
@@ -2411,8 +2460,9 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
-      else if f.holdsArg then callTerm ds f (resolveItems ds b here args)
-      else (callTerm ds f (resolveItems ds b here args)).rideMoves ((resolveItems ds b here args).flatMap Val.moves)
+      else if f.holdsArg then callTerm ds f (ds.argArms f (resolveItems ds b here args))
+      else (callTerm ds f (ds.argArms f (resolveItems ds b here args))).rideMoves
+        ((resolveItems ds b here args).flatMap Val.moves)
   | .len c =>
     if ds.clashes (resolveD ds b here c) then .nil
     else if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c)
@@ -3098,6 +3148,32 @@ theorem mapM_some_forall {α β : Type} {f : α → Option β} {P : β → Prop}
 
 /-- The members a fold reads in a bag the checker can read are ones it
 can read. -/
+theorem Val.settledArm_checkableA : ∀ {v : Val}, v.CheckableA → v.settledArm.CheckableA
+  | .ride _ _ _, h => by
+    cases h with | ride hv => exact .ride (Val.settledArm_checkableA hv)
+  | .link _ _, h => by
+    cases h with | link hv ht => exact .link (Val.settledArm_checkableA hv) ht
+  | .or ((0, _) :: _), h => by
+    cases h with | or ha => exact ha 0 _ List.mem_cons_self
+  | .or [], h | .or ((_ + 1, _) :: _), h => h
+  | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h | .anyString, h
+  | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h | .min _, h | .max _, h
+  | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h | .unique _, h | .re _, h
+  | .format _, h | .grammar _, h | .any, h | .nil, h | .absent, h | .nothing, h | .map _ _ _, h
+  | .list _ _ _, h | .pref _ _, h | .meet _ _, h | .alias _, h | .path _, h | .addr _, h | .nof _ _, h
+  | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h | .filter _ _, h
+  | .key, h | .keyUp _, h | .hole, h | .call _ _, h => h
+
+theorem Val.armRead_checkableA {w : Val} (h : w.CheckableA) : w.armRead.CheckableA := by
+  unfold Val.armRead
+  split
+  · exact Val.settledArm_checkableA h
+  · exact h
+
+theorem Decls.memberNF_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {m : Val}
+    (h : m.CheckableA) : (ds.memberNF m).CheckableA :=
+  Val.armRead_checkableA (normaliseD_checkableA hd h)
+
 theorem Val.members_checkableA {ds : Decls} :
     ∀ {lifted : Bool} {v : Val} {ms : List Val}, v.CheckableA → v.members ds lifted = some ms →
       ∀ m, m ∈ ms → m.CheckableA
@@ -3479,7 +3555,7 @@ theorem pickOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA)
       refine .list (fun w hw => ?_) (fun _ hs => absurd hs (by simp))
       refine mapM_some_forall (fun m hm w' hw' => ?_) hvs w hw
       obtain ⟨m₀, hm₀, rfl⟩ := List.mem_map.mp hm
-      exact Val.project?_checkableA (normaliseD_checkableA hd
+      exact Val.project?_checkableA (Decls.memberNF_checkableA hd
         (Val.members_checkableA (normaliseD_checkableA hd hb) hms m₀ hm₀)) hw'
     · cases h
   · cases h
@@ -3686,7 +3762,7 @@ theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA)
         refine .list (fun w hw => ?_) (fun _ hs => absurd hs (by simp))
         obtain ⟨⟨kw, mw⟩, hx, rfl⟩ := List.mem_map.mp hw
         obtain ⟨m₀, hm₀, rfl⟩ := List.mem_map.mp (List.of_mem_zip (List.mem_mergeSort.mp hx)).2
-        exact normaliseD_checkableA hd
+        exact Decls.memberNF_checkableA hd
           (Val.members_checkableA (normaliseD_checkableA hd hb) hms m₀ hm₀)
       · cases h
     · cases h
@@ -3969,6 +4045,22 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
   | selectLit hp hr hd _ _ _ => simp only [Val.prefer]; exact .selectLit hp hr hd
   | _ => simp only [Val.prefer]; constructor
 
+
+theorem Decls.argArm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {a : Val}
+    (h : a.CheckableA) : (ds.argArm a).CheckableA := by
+  unfold Decls.argArm
+  split
+  · exact Val.settledArm_checkableA (normaliseD_checkableA hd h)
+  · exact h
+
+theorem Decls.argArms_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
+    {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : ∀ a, a ∈ ds.argArms f args → a.CheckableA := by
+  intro a ha
+  unfold Decls.argArms at ha
+  split at ha
+  · obtain ⟨a₀, ha₀, rfl⟩ := List.mem_map.mp ha
+    exact Decls.argArm_checkableA hd (h a₀ ha₀)
+  · exact h a ha
 
 theorem inverseOf_checkableA : ∀ k : Val, (inverseOf k).CheckableA
   | .lit (.str k) => by
@@ -4314,7 +4406,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
         refine rideMoves_checkableA (.list (fun w hw => ?_) (fun _ hs => by cases hs))
         obtain ⟨m, hm, rfl⟩ := List.mem_map.mp (List.mem_filter.mp hw).1
         have hn := normaliseD_checkableA hd (ih1 d (by simp) (here := here) hb)
-        have hmc : m.1.CheckableA := Val.members_checkableA hn hms _ (List.fst_mem_of_mem_zipIdx hm)
+        have hmc : m.1.CheckableA := Val.members_checkableA (Val.armRead_checkableA hn) hms _ (List.fst_mem_of_mem_zipIdx hm)
         exact ih1 t (by simp) (b := some m.1) fun m' hm' => by
           obtain rfl := Option.some.inj hm'
           exact hmc
@@ -4343,7 +4435,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
         have hn := normaliseD_checkableA hd (ih1 d (by simp) (here := here) hb)
         refine mergeKeys_checkableA (fun _ h => absurd h List.not_mem_nil) (fun p hp => ?_) m hm
         obtain ⟨m', hm', rfl⟩ := List.mem_map.mp hp
-        have hmc : m'.2.CheckableA := Val.keyedMembers_checkableA hn hms m' hm'
+        have hmc : m'.2.CheckableA := Val.keyedMembers_checkableA (Val.armRead_checkableA hn) hms m' hm'
         exact ih1 t (by simp) (b := some m'.2) fun m'' hm'' => by
           obtain rfl := Option.some.inj hm''
           exact hmc
@@ -4440,8 +4532,8 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
       · refine .call fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih1 a₀ ha₀ hb
-      have hct : (callTerm ds f (resolveItems ds b here args)).CheckableA := by
-        refine callTerm_checkableA hd fun a ha => ?_
+      have hct : (callTerm ds f (ds.argArms f (resolveItems ds b here args))).CheckableA := by
+        refine callTerm_checkableA hd (Decls.argArms_checkableA hd fun a ha => ?_)
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih1 a₀ ha₀ hb
       split
