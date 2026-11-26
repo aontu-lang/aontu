@@ -8,6 +8,60 @@ each change affects.
 
 ## Unreleased
 
+### The graph atoms judge the edges generation writes
+
+#878. Both engines read `acyclic()` and `inverse(k)` on the value
+evaluation ends with, before generation takes a default. So a document
+generated a graph that breaks its own atom:
+
+```aontu
+a: { dependsOn: relate() & acyclic() & (*[path($.b)] | []) }
+b: { dependsOn: relate() & [path($.a)] }
+```
+
+| | `aontu` | `aontu relations` | `aontu vet` against `{}` |
+|---|---|---|---|
+| Both engines, before | the cycle a → b → a | `pass` | `valid` |
+| Both engines, now | `relation_cycle` | `fail` | `invalid` |
+
+**A verdict changes**, as ruling 72 asks: the atoms judge the edges
+generation writes, defaults taken. The relation checks read the value
+as generation writes it (`writtenOf` in `ts/src/graph.ts` and
+`go/graph.go`):
+
+- A default's edges are edges, and an atom in a default declares: a
+  lone `*x`, `pref(x)`, the default among several arms, the lowest
+  rank where more than one stands, one default inside another.
+- An arm generation doesn't take brings no edge and no declaration.
+- **A refusal goes away too.** A mirror that a default writes is found:
+  `b: { usedBy: relate() & (*[path($.a)] | []) }` beside
+  `inverse(usedBy)` was refused as `relation_inverse_missing` though
+  the document generation would write held the mirror. It generates
+  now.
+- Arms that prefer nothing generate only where they write alike, and
+  then each is read. `close([path($.b)]) | [path($.b)]` closed a cycle
+  that nothing judged.
+
+One answer of `aontu relations` moves with it. `x: {n: acyclic()} | 1`
+beside a cycle under `n` answered `pass`, the atom read by nothing. The
+atom is read now, so the verb asks generation first, and the answer is
+`error` with `disjunct_no_gen`, as for any document that can't be
+generated. Generation and `vet` answer as before.
+
+`reaches`, `view` and the library's `graph` are unchanged and count no
+link under a disjunction. Whether they should read the generated edges
+too is #1029, which also holds a fault found on the way: they miss a
+lone default's edge and `view` reports no loss for it.
+
+TypeScript only: the value walker reads into a preference's value, as
+Go's does, so a finding sited inside a default carries its file where
+`vet` is called with no paths.
+
+52 more rows in `test/spec/relation.tsv`, 53 new and one replaced: 26
+for `aontu relations`, 6 for generation, 18 for `vet`'s verdict in its
+three modes and 3 for its whole report. Among them is the row #1028
+promised, a graph judged beside a deprecation.
+
 ### `vet` judges the graph atoms of a document that generates
 
 #491. A document whose graph breaks `acyclic()` or `inverse(k)` was

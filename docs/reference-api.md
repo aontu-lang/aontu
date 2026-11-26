@@ -947,7 +947,10 @@ $ echo $?
   [`relate(t)` and the graph atoms](reference-language.md#declared-relations):
   `acyclic()` and `inverse(name)` ride the value they meet as a
   declaration, and the verb reads the declarations and the edge set
-  from the finished model. There is no reserved `relations:` key: a document
+  from the finished model. It reads the model as generation writes it,
+  so a default's edges count and an arm generation doesn't take brings
+  none, where [`reaches`](#aontu-reaches) and [`view`](#aontu-view)
+  count no link under a disjunction. There is no reserved `relations:` key: a document
   that writes one has written ordinary data.
 - **These are not lattice constraints, deliberately.** Both properties
   are global and non-monotone (one more edge makes an acyclic graph

@@ -4874,11 +4874,14 @@ and leave it unchanged: a path into the value, or a `+` over an
 address, reads what it would read without them. Canon writes them
 after the value, `acyclic()` first and then each `inverse()` in name
 order, and writes an atom given twice once. The relation checks read
-the declarations from the finished value, taking the predicate from
-the key where each atom meets the value, so an atom met with nothing
-declares as one met with a relation does, and one in an alternative
-the document refused, or below an unresolved disjunction, declares
-nothing. The verdict lands at
+the declarations and the edges from the value generation writes,
+taking the predicate from the key where each atom meets the value, so
+an atom met with nothing declares as one met with a relation does.
+Generation takes a default, so a default's edges are edges and an atom
+in it declares, and an arm generation doesn't take brings neither, as
+an alternative the document refused doesn't. A disjunction that
+prefers no arm generates only where its arms write alike, and then the
+checks read each arm. The verdict lands at
 GENERATION (where no more information can arrive) as a located
 `relation_cycle` or `relation_inverse_missing` at the offending edge,
 exactly as an unmet sizing atom refuses. `aontu vet` reads the same
@@ -4900,9 +4903,7 @@ definition reads `acyclic()` and `inverse(k)` as absence carrying the
 atom, `callTerm` and `inverseOf` in `spec/Aontu/Verdict.lean`, so each
 rides the value it meets and changes nothing in it, and an
 `inverse` whose argument is no name is an `error`. It has no rule yet
-for what the atoms ask of the edges, and neither engine judges an edge
-only a default brings
-([#878](https://github.com/aontu-lang/aontu/issues/878)). Rows from rl0 on of
+for what the atoms ask of the edges. Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it, and rows from rh0 on to a constraint met with `relate()` and to a
 spread over the value's addresses. Data writes no address, so whatever
