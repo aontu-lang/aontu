@@ -2260,3 +2260,9 @@ How much of the aontu language does the lean spec now cover?
 ```text
 Merge prs
 ```
+
+## 2026-11-26 08:32:40 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+File the aontu issue
+```
