@@ -10117,6 +10117,39 @@ theorem grammar_verdict_exact : ∀ c ∈ grammarCases, ∀ (m : Mode) (v : Verd
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (grammarCases_checkable c hc)) v
 
+/-- The later fragments of the `paths` rows, an action of their own so
+that no one action nests deeper than the C compiler reads. -/
+def pathRowsLate : IO Unit := do
+  IO.println "# The graph atoms `acyclic()` and `inverse(k)`, in rows ga0 on, as they read:"
+  IO.println "# an atom rides the value it meets and leaves it as it is, one alone is no"
+  IO.println "# member of the output, a template still flows through one, and an `inverse`"
+  IO.println "# whose argument is no name is the schema's error. Every document here keeps"
+  IO.println "# what its atoms ask; rows gj0 on hold those that don't."
+  pathRows "ga" graphAtomCases
+  IO.println "# `+` over an address, in rows ap0 on, which reads as the text that spells it."
+  pathRows "ap" addrPlusCases
+  IO.println "# A choice the meet or a dead arm settles to one arm is that arm for a call,"
+  IO.println "# in rows oa0 on: an operand of `+`, `upper`, `lower` and `add`, a bag a fold,"
+  IO.println "# `join`, `pick` or `sort` reads and an element of one, and the source of"
+  IO.println "# `each` and `pack`, where the schema settles the choice and where the data does."
+  pathRows "oa" oneArmCases
+  IO.println "# What the graph atoms ask, in rows gj0 on, with the one class `vetG` gives,"
+  IO.println "# which `vetG_iff` makes the definition's own: `invalid` where the document"
+  IO.println "# generates and the graph it writes breaks an atom, and `vetP`'s class anywhere"
+  IO.println "# else. `acyclic()` asks that its relation hold no cycle, and `inverse(k)` that"
+  IO.println "# each of its edges be mirrored under `k`. A declaration holds for its key"
+  IO.println "# wherever an edge of it is written, a document that waits isn't judged, and a"
+  IO.println "# default's edges are edges, where an arm generation doesn't take brings none."
+  pathRows "gj" graphJudgeCases (verdict := vetG)
+  IO.println "# A source that declares a name, loaded below the root, in rows lu0 on. A"
+  IO.println "# declaration stands only at the root, so a plain load of such a source"
+  IO.println "# under a key, in a list or in a declaration's body is a conflict where it"
+  IO.println "# stands: the schema's error, or the end of its arm alone in a disjunction."
+  IO.println "# A source it's loaded through at that source's own top brings it too. A"
+  IO.println "# destructure takes the names where it stands, so it loads anywhere, as does"
+  IO.println "# a source that declares nothing."
+  pathRows "lu" belowRootCases
+
 set_option maxRecDepth 2048 in
 def main (args : List String) : IO UInt32 := do
   match args with
@@ -10510,35 +10543,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# ring of three, a list's elements, and a relation to a subtype of the type"
     IO.println "# that declares it, by name and by path."
     pathRows "mp" mutualPathCases
-    IO.println "# The graph atoms `acyclic()` and `inverse(k)`, in rows ga0 on, as they read:"
-    IO.println "# an atom rides the value it meets and leaves it as it is, one alone is no"
-    IO.println "# member of the output, a template still flows through one, and an `inverse`"
-    IO.println "# whose argument is no name is the schema's error. Every document here keeps"
-    IO.println "# what its atoms ask; rows gj0 on hold those that don't."
-    pathRows "ga" graphAtomCases
-    IO.println "# `+` over an address, in rows ap0 on, which reads as the text that spells it."
-    pathRows "ap" addrPlusCases
-    IO.println "# A choice the meet or a dead arm settles to one arm is that arm for a call,"
-    IO.println "# in rows oa0 on: an operand of `+`, `upper`, `lower` and `add`, a bag a fold,"
-    IO.println "# `join`, `pick` or `sort` reads and an element of one, and the source of"
-    IO.println "# `each` and `pack`, where the schema settles the choice and where the data does."
-    pathRows "oa" oneArmCases
-    IO.println "# What the graph atoms ask, in rows gj0 on, with the one class `vetG` gives,"
-    IO.println "# which `vetG_iff` makes the definition's own: `invalid` where the document"
-    IO.println "# generates and the graph it writes breaks an atom, and `vetP`'s class anywhere"
-    IO.println "# else. `acyclic()` asks that its relation hold no cycle, and `inverse(k)` that"
-    IO.println "# each of its edges be mirrored under `k`. A declaration holds for its key"
-    IO.println "# wherever an edge of it is written, a document that waits isn't judged, and a"
-    IO.println "# default's edges are edges, where an arm generation doesn't take brings none."
-    pathRows "gj" graphJudgeCases (verdict := vetG)
-    IO.println "# A source that declares a name, loaded below the root, in rows lu0 on. A"
-    IO.println "# declaration stands only at the root, so a plain load of such a source"
-    IO.println "# under a key, in a list or in a declaration's body is a conflict where it"
-    IO.println "# stands: the schema's error, or the end of its arm alone in a disjunction."
-    IO.println "# A source it's loaded through at that source's own top brings it too. A"
-    IO.println "# destructure takes the names where it stands, so it loads anywhere, as does"
-    IO.println "# a source that declares nothing."
-    pathRows "lu" belowRootCases
+    pathRowsLate
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
