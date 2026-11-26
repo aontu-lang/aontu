@@ -2702,6 +2702,14 @@ rl158	verdict	"later": path($.a), "a": {}, "s": (relate({"k": 1})) & ([$.later])
 rl159	verdict	"later": path($.a), "a": {}, "s": (relate({"k": 1})) & ([$.later])	{"a": {"k": 2}}	{"verdict":"invalid"}
 rl160	verdict	"later": path($.a), "a": {}, "s": (relate({"k": 1})) & ([$.later])	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 rl161	verdict	"later": path($.a), "a": {}, "s": (relate({"k": 1})) & ([$.later])	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+# A string is never a path: the path kind met with a string, and a relation
+# over a list of strings, are each the schema's error, in rows sn0 on.
+sn0	verdict	"p": (path) & ("$.a")	{}	{"verdict":"error"}
+sn1	verdict	"p": (path) & ("$.a")	{}	{"verdict":"error","opts":{"noFill":true}}
+sn2	verdict	"p": (path) & ("$.a")	{}	{"verdict":"error","opts":{"partial":true}}
+sn3	verdict	"a": {"k": 1}, "l": (relate()) & (["$.a"])	{}	{"verdict":"error"}
+sn4	verdict	"a": {"k": 1}, "l": (relate()) & (["$.a"])	{}	{"verdict":"error","opts":{"noFill":true}}
+sn5	verdict	"a": {"k": 1}, "l": (relate()) & (["$.a"])	{}	{"verdict":"error","opts":{"partial":true}}
 rh0	verdict	"a": {}, "r": ((relate()) & (path)) & ([path($.a)])	{}	{"verdict":"error"}
 rh1	verdict	"a": {}, "r": ((relate()) & (path)) & ([path($.a)])	{}	{"verdict":"error","opts":{"noFill":true}}
 rh2	verdict	"a": {}, "r": ((relate()) & (path)) & ([path($.a)])	{}	{"verdict":"error","opts":{"partial":true}}

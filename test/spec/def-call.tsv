@@ -2664,6 +2664,26 @@ et266	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missi
 et267	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error"}
 et268	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"noFill":true}}
 et269	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"partial":true}}
+# An emit template's match takes a node whose bound sits inside the match's
+# looser bound, as a filter's condition does, in rows eo0 on.
+eo0	verdict	v: emit([(integer) & (min(3))], {"match": (_) & (min(1)), "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+eo1	verdict	v: emit([(integer) & (min(3))], {"match": (_) & (min(1)), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+eo2	verdict	v: emit([(integer) & (min(3))], {"match": (_) & (min(1)), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+eo3	verdict	v: emit([min(3)], {"match": (_) & (number), "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+eo4	verdict	v: emit([min(3)], {"match": (_) & (number), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+eo5	verdict	v: emit([min(3)], {"match": (_) & (number), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+eo6	verdict	v: emit([{"p": (integer) & (min(2))}], {"match": (_) & ({"p": min(1)}), "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+eo7	verdict	v: emit([{"p": (integer) & (min(2))}], {"match": (_) & ({"p": min(1)}), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+eo8	verdict	v: emit([{"p": (integer) & (min(2))}], {"match": (_) & ({"p": min(1)}), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+eo9	verdict	v: emit([integer], {"match": (_) & (min(1)), "body": ["x"]})	v: ["x"]	{"verdict":"error"}
+eo10	verdict	v: emit([integer], {"match": (_) & (min(1)), "body": ["x"]})	v: ["x"]	{"verdict":"error","opts":{"noFill":true}}
+eo11	verdict	v: emit([integer], {"match": (_) & (min(1)), "body": ["x"]})	v: ["x"]	{"verdict":"error","opts":{"partial":true}}
+eo12	verdict	v: emit([min(3)], [{"match": (_) & (string), "body": ["s"]}, {"match": (_) & (min(1)), "body": ["n"]}])	v: ["n"]	{"verdict":"valid"}
+eo13	verdict	v: emit([min(3)], [{"match": (_) & (string), "body": ["s"]}, {"match": (_) & (min(1)), "body": ["n"]}])	v: ["n"]	{"verdict":"valid","opts":{"noFill":true}}
+eo14	verdict	v: emit([min(3)], [{"match": (_) & (string), "body": ["s"]}, {"match": (_) & (min(1)), "body": ["n"]}])	v: ["n"]	{"verdict":"valid","opts":{"partial":true}}
+eo15	verdict	v: emit([min(3)], [{"match": (_) & (string), "body": ["s"]}, {"match": (_) & (min(1)), "body": ["n"]}])	v: ["s"]	{"verdict":"invalid"}
+eo16	verdict	v: emit([min(3)], [{"match": (_) & (string), "body": ["s"]}, {"match": (_) & (min(1)), "body": ["n"]}])	v: ["s"]	{"verdict":"invalid","opts":{"noFill":true}}
+eo17	verdict	v: emit([min(3)], [{"match": (_) & (string), "body": ["s"]}, {"match": (_) & (min(1)), "body": ["n"]}])	v: ["s"]	{"verdict":"invalid","opts":{"partial":true}}
 ek0	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "1"]	{"verdict":"valid"}
 ek1	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
 ek2	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "1"]	{"verdict":"valid","opts":{"partial":true}}

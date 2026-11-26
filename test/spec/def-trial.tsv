@@ -1252,6 +1252,53 @@ tf29	verdict	"a": ({&: match(_, 1, "one", "other")}) & ({"x": 1})	{}	{"verdict":
 tf30	verdict	%M = match(_, 1, "one", "other")\n"xs": each([1, 2], %M)	{}	{"verdict":"error"}
 tf31	verdict	%M = match(_, 1, "one", "other")\n"xs": each([1, 2], %M)	{}	{"verdict":"error","opts":{"noFill":true}}
 tf32	verdict	%M = match(_, 1, "one", "other")\n"xs": each([1, 2], %M)	{}	{"verdict":"error","opts":{"partial":true}}
+# A filter takes a member where its condition narrows nothing in it, read by
+# the order: a bound inside the condition's looser bound stays, in rows tb0 on.
+tb0	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{}	{"verdict":"incomplete"}
+tb1	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+tb2	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{}	{"verdict":"valid","opts":{"partial":true}}
+tb3	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 4, "c": 5}}	{"verdict":"valid"}
+tb4	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 4, "c": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+tb5	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 4, "c": 5}}	{"verdict":"valid","opts":{"partial":true}}
+tb6	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 2, "c": 5}}	{"verdict":"invalid"}
+tb7	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 2, "c": 5}}	{"verdict":"invalid","opts":{"noFill":true}}
+tb8	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 2, "c": 5}}	{"verdict":"invalid","opts":{"partial":true}}
+tb9	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 4, "b": "s", "c": 5}}	{"verdict":"valid"}
+tb10	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 4, "b": "s", "c": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+tb11	verdict	"x": filter({"a": (integer) & (min(3)), "b": integer, "c": 5}, min(1))	{"x": {"a": 4, "b": "s", "c": 5}}	{"verdict":"valid","opts":{"partial":true}}
+tb12	verdict	"x": filter({"a": min(3), "b": integer, "c": 5}, number)	{"x": {"a": 3, "b": 1, "c": 5}}	{"verdict":"valid"}
+tb13	verdict	"x": filter({"a": min(3), "b": integer, "c": 5}, number)	{"x": {"a": 3, "b": 1, "c": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+tb14	verdict	"x": filter({"a": min(3), "b": integer, "c": 5}, number)	{"x": {"a": 3, "b": 1, "c": 5}}	{"verdict":"valid","opts":{"partial":true}}
+tb15	verdict	"x": filter({"a": min(3), "b": integer, "c": 5}, number)	{"x": {"a": 2, "b": 1, "c": 5}}	{"verdict":"invalid"}
+tb16	verdict	"x": filter({"a": min(3), "b": integer, "c": 5}, number)	{"x": {"a": 2, "b": 1, "c": 5}}	{"verdict":"invalid","opts":{"noFill":true}}
+tb17	verdict	"x": filter({"a": min(3), "b": integer, "c": 5}, number)	{"x": {"a": 2, "b": 1, "c": 5}}	{"verdict":"invalid","opts":{"partial":true}}
+tb18	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"b": {"p": 1}, "c": {"p": 2}}}	{"verdict":"valid"}
+tb19	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"b": {"p": 1}, "c": {"p": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+tb20	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"b": {"p": 1}, "c": {"p": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+tb21	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"b": {"p": 1}, "c": {"p": 1}}}	{"verdict":"invalid"}
+tb22	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"b": {"p": 1}, "c": {"p": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+tb23	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"b": {"p": 1}, "c": {"p": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+tb24	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"a": {"p": "s"}, "b": {"p": 1}, "c": {"p": 2}}}	{"verdict":"valid"}
+tb25	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"a": {"p": "s"}, "b": {"p": 1}, "c": {"p": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+tb26	verdict	"x": filter({"a": {"p": integer}, "b": {"p": 1}, "c": {"p": (integer) & (min(2))}}, {"p": min(1)})	{"x": {"a": {"p": "s"}, "b": {"p": 1}, "c": {"p": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+tb27	verdict	"x": filter([(integer) & (min(3)), integer, 5], min(1))	{"x": [4, 5]}	{"verdict":"valid"}
+tb28	verdict	"x": filter([(integer) & (min(3)), integer, 5], min(1))	{"x": [4, 5]}	{"verdict":"valid","opts":{"noFill":true}}
+tb29	verdict	"x": filter([(integer) & (min(3)), integer, 5], min(1))	{"x": [4, 5]}	{"verdict":"valid","opts":{"partial":true}}
+tb30	verdict	"x": filter([(integer) & (min(3)), integer, 5], min(1))	{"x": [2, 5]}	{"verdict":"invalid"}
+tb31	verdict	"x": filter([(integer) & (min(3)), integer, 5], min(1))	{"x": [2, 5]}	{"verdict":"invalid","opts":{"noFill":true}}
+tb32	verdict	"x": filter([(integer) & (min(3)), integer, 5], min(1))	{"x": [2, 5]}	{"verdict":"invalid","opts":{"partial":true}}
+tb33	verdict	"x": filter({"a": (min(3)) & (max(5)), "c": 5}, (min(1)) & (max(9)))	{"x": {"a": 4, "c": 5}}	{"verdict":"valid"}
+tb34	verdict	"x": filter({"a": (min(3)) & (max(5)), "c": 5}, (min(1)) & (max(9)))	{"x": {"a": 4, "c": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+tb35	verdict	"x": filter({"a": (min(3)) & (max(5)), "c": 5}, (min(1)) & (max(9)))	{"x": {"a": 4, "c": 5}}	{"verdict":"valid","opts":{"partial":true}}
+tb36	verdict	"x": filter({"a": (min(3)) & (max(5)), "c": 5}, (min(1)) & (max(9)))	{"x": {"a": 7, "c": 5}}	{"verdict":"invalid"}
+tb37	verdict	"x": filter({"a": (min(3)) & (max(5)), "c": 5}, (min(1)) & (max(9)))	{"x": {"a": 7, "c": 5}}	{"verdict":"invalid","opts":{"noFill":true}}
+tb38	verdict	"x": filter({"a": (min(3)) & (max(5)), "c": 5}, (min(1)) & (max(9)))	{"x": {"a": 7, "c": 5}}	{"verdict":"invalid","opts":{"partial":true}}
+tb39	verdict	"x": filter({"a": min(1), "c": 5}, min(3))	{"x": {"a": 0, "c": 5}}	{"verdict":"valid"}
+tb40	verdict	"x": filter({"a": min(1), "c": 5}, min(3))	{"x": {"a": 0, "c": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+tb41	verdict	"x": filter({"a": min(1), "c": 5}, min(3))	{"x": {"a": 0, "c": 5}}	{"verdict":"valid","opts":{"partial":true}}
+tb42	verdict	"x": filter({"a": number, "c": 5}, integer)	{"x": {"a": "s", "c": 5}}	{"verdict":"valid"}
+tb43	verdict	"x": filter({"a": number, "c": 5}, integer)	{"x": {"a": "s", "c": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+tb44	verdict	"x": filter({"a": number, "c": 5}, integer)	{"x": {"a": "s", "c": 5}}	{"verdict":"valid","opts":{"partial":true}}
 yk0	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid"}
 yk1	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 yk2	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
