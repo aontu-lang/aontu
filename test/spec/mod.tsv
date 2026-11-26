@@ -1,7 +1,7 @@
-# MODULES (G6 phase 2, sketch/capability-review/g6-distribution.md; the
-# shapes of ADR-039). An import is still just `@"…"`; the string's SHAPE
+# MODULES (G6 phase 2, sketch/capability-review/g6-distribution.md).
+# An import is still just `@"…"`; the string's SHAPE
 # routes it, so the grammar is untouched -- a package path is
-# `<domain>/<path>` with no major (ADR-022), and a local file carries
+# `<domain>/<path>` with no major (ADR-111), and a local file carries
 # `./`, `../` or `/`.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #
@@ -35,7 +35,7 @@ mod-lock-pin-mismatch	errc	x: @"__FIXTURES__/modbad/main.aontu"	module_integrity
 # import is found and refused as what it is -- a source cannot be its
 # own ancestor.
 mod-nested-has-its-own-root	errc	x: @"__FIXTURES__/modself/main.aontu"	syntax
-# THE ROUTING GUARD (ADR-022 part 4, ADR-039 part 4). A path routes to
+# THE ROUTING GUARD (ADR-111). A path routes to
 # the module resolver when it is domain-shaped -- a first segment with a
 # dot, lowercase, no major -- or spells an alias; a local file says so
 # with `./`, `../` or `/`, and anything else falls through the chain
@@ -65,7 +65,7 @@ mod-unknown-extension-is-a-package	err	x: @"corp.example/schemas/v2.beta"	module
 mod-alias-resolves	gens	x: @"__FIXTURES__/modalias/main.aontu"	{"x":{"legacy":{"name":"auth","port":8080},"svc":{"name":"auth","port":9090}}}
 mod-alias-undeclared	errc	x: @"alias:nobody"	module_missing
 mod-alias-undeclared-message	err	x: @"alias:nobody"	alias not declared: alias:nobody (declare it under dep in pkg.aontu)
-# A MOVED PACKAGE REFUSES AND NEVER REDIRECTS (ADR-020 part 6): its own
+# A MOVED PACKAGE REFUSES AND NEVER REDIRECTS (ADR-111): its own
 # pkg.aontu declares the destination, and a name that quietly meant
 # something else is the failure the convention exists to prevent.
 mod-moved-refuses	errc	x: @"__FIXTURES__/modmoved/main.aontu"	module_moved

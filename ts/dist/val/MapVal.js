@@ -61,7 +61,7 @@ function snapshotRefSpread(cj, ctx) {
     }
     return snap;
 }
-// A written `nil` meets a supplied value as itself (ADR-046), keeping the
+// A written `nil` meets a supplied value as itself, keeping the
 // value's site for the finding a key it then leaves unmet makes.
 function literalNilMeets(n, v) {
     return 'literal_nil' === n.why && true === v.isGenable && !v.isTop && !v.isNil &&
@@ -233,7 +233,7 @@ class MapVal extends BagVal_1.BagVal {
                         }
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }
-                    // REQUIRED WINS (ADR-045): a key is optional only where every
+                    // REQUIRED WINS: a key is optional only where every
                     // side that declares it says so.
                     const oi = out.optionalKeys.indexOf(peerkey);
                     if (upeer.optionalKeys.includes(peerkey)) {
@@ -349,7 +349,7 @@ class MapVal extends BagVal_1.BagVal {
             }
         }
         if (!allScalarKind) {
-            // A full instance (`dup`, ADR-005), paths normalised to the
+            // A full instance (`dup`), paths normalised to the
             // destination: see Val.spreadClone and repathInstance.
             const out = this.clone(ctx, { dup: true });
             (0, Val_1.repathInstance)(out, out.path);
@@ -381,7 +381,7 @@ class MapVal extends BagVal_1.BagVal {
                     entry[1].clone(ctx, {
                         mark: spec?.mark ?? {},
                         path: [...out.path, entry[0]],
-                        // The instantiation flag descends (ADR-005): a template's
+                        // The instantiation flag descends: a template's
                         // children are part of the instance.
                         dup: spec?.dup,
                     }) :

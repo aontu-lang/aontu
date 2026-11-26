@@ -476,7 +476,7 @@ func TestDisjunctSingleMemberGenerates(t *testing.T) {
 }
 
 // recordNotFound guards: no context, and a meta bag without the sink.
-// recordExtension has the same two, for the same reason (ADR-012).
+// recordExtension has the same two, for the same reason.
 func TestSourceSinkGuards(t *testing.T) {
 	recordNotFound(nil, "x")
 	recordNotFound(&jsonic.Context{Meta: map[string]any{}}, "x")

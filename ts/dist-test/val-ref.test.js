@@ -424,7 +424,7 @@ const TOP = (0, top_1.top)();
         (0, expect_1.expect)(v1.canon).equal('{"a":{"b":{"c":1}}&{"d":{"e":...a.b.c}}}');
         (0, expect_1.expect)(G(s1)).equal({ a: { b: { c: 1 }, d: { e: 1 } } });
     });
-    // TRANSLATED FROM `key()`, which is gone (ADR-009). Every reading
+    // TRANSLATED FROM `key()`, which is gone. Every reading
     // below is unchanged except s4, and that one is the whole reason the
     // removal is an improvement rather than a rename -- see its note.
     (0, node_test_1.test)('key', () => {

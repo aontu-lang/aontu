@@ -25,7 +25,7 @@ function cells(row: string): string[] {
 
 
 // The status vocabulary the register uses, in the order a row must be
-// read: a row that says "LANDED, RESHAPED by ADR-014" is landed, one
+// read: a row that says "LANDED, RESHAPED by …" is landed, one
 // that says "RETIRED as designed" is retired, and "NOT STARTED" must be
 // tested before "STARTED" could ever match anything.
 type Bucket = 'landed' | 'partial' | 'notStarted' | 'retired'

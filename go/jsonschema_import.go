@@ -19,7 +19,7 @@ import (
 )
 
 // JSON Schema to aontu (G12). The importer owns the meaning of
-// every keyword it carries (ADR-003) and rewrites the schema into aontu
+// every keyword it carries (ADR-105) and rewrites the schema into aontu
 // text that generates nothing on its own. A keyword it does not yet
 // carry is a reported loss, never a silent drop. Mirrors
 // ts/src/jsonschema-import.ts rule for rule, so both print one text.
@@ -27,8 +27,7 @@ import (
 // ImportOptions names where the schema came from, for the report's sites.
 type ImportOptions struct {
 	Path string
-	// Defaults makes an optional property's default a preference
-	// (ADR-052).
+	// Defaults makes an optional property's default a preference.
 	Defaults bool
 	// URI is the schema's retrieval URI, the base of its relative
 	// identifiers.
@@ -38,19 +37,18 @@ type ImportOptions struct {
 	Documents map[string]string
 	// FormatAssertion makes every format with a grammar also format(g),
 	// as a meta-schema whose $vocabulary lists format-assertion asks
-	// (ADR-059).
+	// (ADR-105).
 	FormatAssertion bool
 	// Formats is the grammar of each format JSON Schema does not define,
 	// by name; a format it defines keeps its committed grammar.
 	Formats map[string]string
 	// Dialect is the dialect of a resource that names none, one of
-	// importDialects; absent, the last of them (ADR-061).
+	// importDialects; absent, the last of them.
 	Dialect string
 	// NoMetaCheck skips checking the input against its meta-schema,
-	// which a trusted input does without (ADR-065).
+	// which a trusted input does without.
 	NoMetaCheck bool
-	// SourceMap makes the report carry the source map of the aontu text
-	// (ADR-066).
+	// SourceMap makes the report carry the source map of the aontu text.
 	SourceMap bool
 }
 
@@ -69,7 +67,7 @@ type ImportReport struct {
 // ImportVetFlags is ImportReport.Vet on every import that stands.
 var ImportVetFlags = []string{"--no-fill", "--exact-numbers"}
 
-// UpgradeReport is what the upgrade stage made of a schema (ADR-061): the
+// UpgradeReport is what the upgrade stage made of a schema: the
 // dialect its root is read in, the schema in the dialect the importer
 // reads that it wrote, each number as it was written, and each pointer
 // it moved, with where to, or "" where that schema holds nothing. Schema
@@ -90,7 +88,7 @@ type jnode struct {
 	entries  []jentry
 	items    []*jnode
 	s        string // a string's value, or a number's text
-	// ADR-061: each key the upgrade moved, with its value as written,
+	// Each key the upgrade moved, with its value as written,
 	// which a pointer into the schema as written still reaches; the
 	// keywords the schema's dialect does not define; and those it
 	// ignores beside a $ref.
@@ -359,8 +357,8 @@ type idecl struct {
 	body *ixpr
 }
 
-// A mark is the keyword an expression or entry was written for
-// (ADR-066): a frame is the schema a reference reached, whose keywords
+// A mark is the keyword an expression or entry was written for:
+// a frame is the schema a reference reached, whose keywords
 // are located against it, and a reference enters the frame of its
 // target.
 type iframe struct {
@@ -694,7 +692,7 @@ type importCtx struct {
 	// the index met it.
 	seen  map[*jnode]bool
 	order []*jnode
-	// ADR-057: each resource's dynamic anchors, the names a $dynamicRef
+	// Each resource's dynamic anchors, the names a $dynamicRef
 	// asks the dynamic scope for, the scope a conversion is in, the scopes
 	// each target was declared in, the names each target's declarations
 	// differ by, and the declarations the scopes added.
@@ -704,12 +702,12 @@ type importCtx struct {
 	clones     map[*importTarget][]string
 	uses       map[*jnode]map[string]bool
 	cloned     int
-	// ADR-061: the dialect a resource names none of, the dialect each
+	// The dialect a resource names none of, the dialect each
 	// schema is read in, and where each pointer the upgrade moved was
 	// written.
 	dialect  string
 	dialects map[*jnode]string
-	// ADR-063: the keywords each schema reads, where its meta-schema lists
+	// The keywords each schema reads, where its meta-schema lists
 	// vocabularies.
 	reads     map[*jnode]map[string]bool
 	origin    map[string]string
@@ -725,7 +723,7 @@ const importDefaultBase = importDefaultRoot + "schema"
 const importCopyBudget = 4096
 
 // importScopeBudget is the declarations dynamic scopes may add beyond
-// each schema's first before the import is refused (ADR-057).
+// each schema's first before the import is refused.
 const importScopeBudget = 1024
 
 func (ctx *importCtx) fail(code, path, message string, off, end int) {
@@ -994,7 +992,7 @@ func (ctx *importCtx) resolveRef(from *jnode, ref string) *jnode {
 		key := pointerUnescaper.Replace(tok)
 		switch {
 		case "object" == node.t && nil != node.was[key]:
-			// A pointer reads the schema as written (ADR-061).
+			// A pointer reads the schema as written.
 			node = node.was[key]
 		case "object" == node.t:
 			node = jentryOf(node, key)
@@ -1024,8 +1022,7 @@ func (ctx *importCtx) resolveRef(from *jnode, ref string) *jnode {
 	return node
 }
 
-// importDialects are the dialects a schema may name, earliest first
-// (ADR-061).
+// importDialects are the dialects a schema may name, earliest first.
 var importDialects = []string{"draft-04", "draft-06", "draft-07", "2019-09", "2020-12"}
 
 // importDialectURIs is each dialect by its meta-schema's URI, in every
@@ -1077,7 +1074,7 @@ var importDialectKeys = func() map[string]map[string]bool {
 }()
 
 // vocabularyTable is grammar/jsonschema/vocabularies.tsv as `make
-// vocabularies` stages it (ADR-063).
+// vocabularies` stages it.
 //
 //go:embed vocabularies.tsv
 var vocabularyTable string
@@ -1165,7 +1162,7 @@ func withString(n *jnode, s string) *jnode {
 
 // upgrade rewrites a schema of a legacy dialect in place, keyword by
 // keyword, into the schema the importer reads that means the same,
-// before it is indexed (ADR-061). ptr is where the walk reads it and was
+// before it is indexed. ptr is where the walk reads it and was
 // where it was written; root marks a document's root, and recursive
 // whether the resource around it holds a true $recursiveAnchor.
 func (ctx *importCtx) upgrade(node *jnode, ptr, was, dialect string, root, recursive bool,
@@ -1400,7 +1397,7 @@ func (ctx *importCtx) originOf(path string) string {
 var defsPtrRe = regexp.MustCompile(`^#/(\$defs|definitions)/([^/]+)$`)
 
 func (ctx *importCtx) targetName(node *jnode, at string) string {
-	// A name spells the schema as written (ADR-061).
+	// A name spells the schema as written.
 	ptr := ctx.originOf(at)
 	if ctx.docOf[node].root != ctx.root {
 		return "u_" + encodeAliasName(strings.TrimSuffix(ptr, "#"))
@@ -1499,7 +1496,7 @@ func (ctx *importCtx) settleRefs(root *jnode) {
 
 // bindDynamic finds the names some $dynamicRef asks the dynamic scope
 // for, and makes every schema a resource anchors by one a target as a
-// $ref's is (ADR-057).
+// $ref's is.
 func (ctx *importCtx) bindDynamic(seen map[*jnode]bool, misses *[]importMiss) {
 	for _, node := range append([]*jnode{}, ctx.order...) {
 		if dref := jentryOf(node, "$dynamicRef"); nil != dref && "string" == dref.t {
@@ -1672,7 +1669,7 @@ var importScoped = map[string][]string{
 		"maxContains", "uniqueItems", "unevaluatedItems"},
 }
 
-// grammarOf is ADR-059's grammar a format asserts, the committed one of
+// grammarOf is ADR-105's grammar a format asserts, the committed one of
 // its name or the one the format set gives it.
 func (ctx *importCtx) grammarOf(name *jnode) (string, bool) {
 	if "" == ctx.asserts || nil == name || "string" != name.t {
@@ -1742,7 +1739,7 @@ func (ctx *importCtx) metaVocabulary(uri string) *jnode {
 
 // listedKeys are the keywords a resource reads under the vocabularies its
 // meta-schema lists, the core vocabulary's always among them, or nil
-// where it lists none and every vocabulary is read (ADR-063). Only a
+// where it lists none and every vocabulary is read. Only a
 // listed false makes a vocabulary aontu does not read optional.
 func (ctx *importCtx) listedKeys(meta *jnode, ptr, d string) map[string]bool {
 	listed := ctx.metaVocabulary(meta.s)
@@ -2347,8 +2344,8 @@ func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []s
 	return out
 }
 
-// declare declares a target once for each dynamic scope it is read in
-// (ADR-057), each after the first under a name of its own.
+// declare declares a target once for each dynamic scope it is read in,
+// each after the first under a name of its own.
 func (ctx *importCtx) declare(target *importTarget) string {
 	env := ctx.enter(target.node)
 	uses := ctx.usesOf(target.node)
@@ -2400,7 +2397,7 @@ func (ctx *importCtx) declare(target *importTarget) string {
 }
 
 // identity is the identity a declared schema had, which its declaration
-// carries (ADR-056): the entry's own identifier as written, any other
+// carries: the entry's own identifier as written, any other
 // resource's as its URI, absolute or under the entry's directory; its
 // anchor; and the $defs key a name that says the anchor does not say.
 func (ctx *importCtx) identity(target *importTarget, clone bool) []ientry {
@@ -2409,7 +2406,7 @@ func (ctx *importCtx) identity(target *importTarget, clone bool) []ientry {
 	if anchor := jentryOf(node, "$anchor"); nil != anchor && "string" == anchor.t {
 		out = append(out, ientry{key: "anchor", val: iraw(importQuote(anchor.s))})
 	}
-	// A clone (ADR-057) names the definition its first declaration is.
+	// A clone names the definition its first declaration is.
 	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && "$defs" == m[1] &&
 		(clone || strings.HasPrefix(target.name, "a_")) {
 		out = append(out, ientry{key: "defs", val: iraw(importQuote(pointerUnescaper.Replace(m[2])))})
@@ -2473,7 +2470,7 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		}
 	}
 
-	// ADR-057: the binding the dynamic scope gives its name, or the
+	// The binding the dynamic scope gives its name, or the
 	// initial target, read as a $ref; the use keeps the reference's text.
 	if dref := get("$dynamicRef"); nil != dref {
 		if "string" != dref.t {
@@ -2724,7 +2721,7 @@ func (ctx *importCtx) data(path, keyword string, node *jnode) (*ixpr, bool) {
 func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 	entries := []ientry{}
 	// An unknown keyword rides under its own name, but not under a name
-	// the exporter reads as another keyword (ADR-072).
+	// the exporter reads as another keyword.
 	own := func(at, key string, val *ixpr) {
 		if as, renamed := importExportedAs[key]; renamed {
 			ctx.lose(at, key, "the record key "+key+" is written as "+as+
@@ -2733,8 +2730,7 @@ func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 		}
 		entries = append(entries, ientry{key: key, val: val})
 	}
-	// A keyword the schema's dialect does not define is an annotation
-	// (ADR-061).
+	// A keyword the schema's dialect does not define is an annotation.
 	for _, en := range node.unknown {
 		if val, ok := ctx.data(ptrChild(ptr, en.key), en.key, en.val); ok {
 			own(ptrChild(ptr, en.key), en.key, val)
@@ -3060,7 +3056,7 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral, typed bool
 }
 
 // importCover is what a schema's keywords evaluate, under the trials of
-// the conditional branches that lead to it (ADR-058).
+// the conditional branches that lead to it.
 type importCover struct {
 	cond    []*ixpr
 	keys    []*ixpr
@@ -3515,8 +3511,7 @@ func (ctx *importCtx) emit(root *ixpr) *iout {
 }
 
 // sourceMapOf is the spans the import wrote, carried to the agreed form,
-// each frame numbered by where its own text first appears, the root 0
-// (ADR-066).
+// each frame numbered by where its own text first appears, the root 0.
 func (ctx *importCtx) sourceMapOf(out *iout, text string) *SourceMap {
 	placed := append([]iplaced{}, out.placed...)
 	sort.SliceStable(placed, func(a, b int) bool {
@@ -3637,7 +3632,7 @@ func beginImport(text string, opts *ImportOptions) (*importCtx, *jnode) {
 			base.doc = doc
 		}
 	}
-	// ADR-064: the published meta-schemas, each at its own URI where the
+	// The published meta-schemas, each at its own URI where the
 	// set gives none there.
 	for key, meta := range importMetaSchemas {
 		if _, given := base.documents[key]; !given {
@@ -3710,7 +3705,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	if nil == coreMap(body) {
 		ctx, body = base.run(false)
 	}
-	// An identity rides only a declaration (ADR-056).
+	// An identity rides only a declaration.
 	for _, node := range base.order {
 		declared := false
 		if target := ctx.targets[node]; nil != target {
@@ -3763,7 +3758,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 }
 
 // importMetaURIs is the meta-schema each dialect's schemas are checked
-// against (ADR-065).
+// against.
 var importMetaURIs = map[string]string{
 	"draft-04": "http://json-schema.org/draft-04/schema#",
 	"draft-06": "http://json-schema.org/draft-06/schema#",
@@ -3798,7 +3793,7 @@ func (ctx *importCtx) metaOf(root *jnode) string {
 }
 
 // metaCheck reads an input that stands against its meta-schema through a
-// wrapper whose map root declares the meta-schema's recursion (ADR-065).
+// wrapper whose map root declares the meta-schema's recursion.
 // A number past the exactness budget, or anything inside a resource of
 // another dialect, refuses nothing; a meta-schema whose model does not
 // stand, or that vet cannot finish, checks nothing, and the import says so.
@@ -3931,7 +3926,7 @@ func writtenAt(node *jnode, segs []string, ptr string) metaWritten {
 }
 
 // UpgradeJSONSchema runs the upgrade stage alone: the schema the import
-// reads in place of one in a legacy dialect (ADR-061).
+// reads in place of one in a legacy dialect.
 func UpgradeJSONSchema(text string, opts *ImportOptions) UpgradeReport {
 	ctx, parsed := beginImport(text, opts)
 	if nil != parsed {

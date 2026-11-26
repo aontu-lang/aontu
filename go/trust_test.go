@@ -255,7 +255,7 @@ func TestTrustDepsIsEmptyWithoutIncludes(t *testing.T) {
 	}
 }
 
-// THE EXTENSION DECIDES INSIDE THE MEM CAPABILITY TOO (ADR-012). A
+// THE EXTENSION DECIDES INSIDE THE MEM CAPABILITY TOO. A
 // virtual file set is still a file set: its keys carry extensions, and
 // the same rule has to read them, or the capability becomes a way to
 // include what the filesystem would refuse. The shared spec rows cannot

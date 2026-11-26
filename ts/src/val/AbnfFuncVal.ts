@@ -1,6 +1,6 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// The grammar pair, ADR-033. Twin of go/abnf.go.
+// The grammar pair. Twin of go/abnf.go.
 
 import type { Val, ValSpec } from '../type'
 import { DONE } from '../type'

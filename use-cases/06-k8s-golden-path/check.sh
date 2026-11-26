@@ -91,10 +91,10 @@ has vet-tampered '[aontu/constraint]' "constraint code"
 has vet-tampered 'max(20)' "replica cap named"
 has vet-tampered 'replicas' "replica finding located"
 has vet-tampered 'memory' "unit-less quantity flagged by re()"
-# 2026-08-26 (template-clone isolation, ADR-005): the finding path is
+# 2026-08-26 (template-clone isolation): the finding path is
 # `...containers.0.env.name` — identical in BOTH ports (the TS path
 # previously said env.0.name but dropped `web`; the ports disagreed).
-# 2026-09-09 (ADR-030): THE ELIDED ELEMENT INDEX IS BACK, and the path
+# 2026-09-09: THE ELIDED ELEMENT INDEX IS BACK, and the path
 # is now `...containers.0.env.0.name` in both ports. A meet of two
 # operands is attributed to the slot it was driven at, which for an
 # element inside a spread is that element's own position — so the
@@ -144,13 +144,13 @@ probe_fails multiply '[aontu/unexpected]' \
   "replicas * 2 is not even lexable ('+' is the only operator)"
 probe_fails double-from-default '[aontu/mapval_no_gen]' \
   "x + x doubling fails against a defaulted operand"
-# 2026-08-29: fixed by ADR-011 — the preferred value answers the meet
+# 2026-08-29: fixed by making the star sugar — the preferred value answers the meet
 # first, so a ranked default and min/max now share a field, and the
 # bounds ride the override space rather than swallowing the default.
 run p-default-with-bounds 0 "$DIR/probes/default-with-bounds.aontu"
 has p-default-with-bounds '"replicas": 2' "generated default"
 ok "probe default-with-bounds: a ranked default and min/max coexist"
-# 2026-08-26: fixed by the template-clone isolation change (ADR-005) —
+# 2026-08-26: fixed by the template-clone isolation change —
 # the relative ref in the template EXPRESSION now answers for the
 # child (was [aontu/no_path] at a NaN key), so this moved from the
 # expected-failure probes to the goldens below. Shared-spec pin:
@@ -195,7 +195,7 @@ probe_golden() { # file label
     || die "probe $1 output differs from expected/$1.json"
   ok "pinned $2"
 }
-# 2026-08-26: fixed by the preference admission gate (ADR-004) -- the
+# 2026-08-26: fixed by the preference admission gate -- the
 # out-of-bound override is refused now, so this moved from the
 # silent-wrong-answer goldens to the refusal probes (the golden
 # expected/bound-bypass.json, replicas:40, is gone with it).
@@ -209,7 +209,7 @@ probe_golden length-on-schema-list \
 probe_fails close-shallow-typo '[aontu/closed]' \
   "close(pack) seals the children too: typo'd override refused"
 # 2026-08-26: the next four goldens hold the CORRECT outputs — fixed by
-# the template-clone isolation change (ADR-005). They pinned
+# the template-clone isolation change. They pinned
 # silent-wrong answers before (both children named "web", shared
 # rank-2 key(), empty hidden-pack children, no_path on the template
 # expression ref).

@@ -11,7 +11,7 @@
 # ONE FIELD, TWICE. Each field carries its own facts -- the wire name,
 # whether it is optional, and which of the six shapes it is -- and each
 # language spells them itself. That is the cost of retiring the
-# declaration lowering (ADR-038): the facts are shared, the spelling is
+# declaration lowering (ADR-108): the facts are shared, the spelling is
 # not. The kind is read off the schema, so each arm of that `match` is
 # a kind the field sits inside, `number` for `ledgerId`'s
 # `integer | biginteger` (xf-domain.aontu says why).

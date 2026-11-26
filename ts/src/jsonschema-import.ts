@@ -2,7 +2,7 @@
 
 
 // JSON Schema to aontu (G12). The importer owns the meaning of
-// every keyword it carries (ADR-003) and rewrites the schema into aontu
+// every keyword it carries (ADR-105) and rewrites the schema into aontu
 // text that generates nothing on its own. A keyword it does not yet
 // carry is a reported loss, never a silent drop.
 
@@ -32,25 +32,25 @@ import type { SourceMap, SourceSpan } from './sourcemap'
 export type ImportOptions = {
   // Where the schema came from, named in the report's sites.
   path?: string
-  // An optional property's default becomes a preference (ADR-052).
+  // An optional property's default becomes a preference.
   defaults?: boolean
   // The schema's retrieval URI, the base of its relative identifiers.
   uri?: string
   // The documents a reference may reach, by URI. None is fetched.
   documents?: Record<string, string>
-  // ADR-059: every format with a grammar is also format(g), as a
+  // ADR-105: every format with a grammar is also format(g), as a
   // meta-schema whose $vocabulary lists format-assertion asks.
   formatAssertion?: boolean
   // The grammar of each format JSON Schema does not define, by name; a
   // format it defines keeps its committed grammar.
   formats?: Record<string, string>
-  // ADR-061: the dialect of a resource that names none, one of
+  // The dialect of a resource that names none, one of
   // `DIALECTS`; absent, the last of them.
   dialect?: string
-  // ADR-065: skips the check of the input against its meta-schema, for
+  // Skips the check of the input against its meta-schema, for
   // an input the caller trusts.
   noMetaCheck?: boolean
-  // ADR-066: the report carries the source map of the aontu text.
+  // The report carries the source map of the aontu text.
   sourceMap?: boolean
 }
 
@@ -69,7 +69,7 @@ export type ImportReport = {
 
 export const IMPORT_VET_FLAGS = ['--no-fill', '--exact-numbers']
 
-// ADR-061: what the upgrade stage made of a schema: the dialect its root
+// What the upgrade stage made of a schema: the dialect its root
 // is read in, the schema in the dialect the importer reads that it wrote,
 // each number as it was written, and each pointer it moved, with where
 // to, or "" where that schema holds nothing. The schema is null on
@@ -89,7 +89,7 @@ export type JEntry = { key: string, val: JNode }
 export type JNode = { off: number, end: number } & (
   {
     t: 'object', entries: JEntry[]
-    // ADR-061: each key the upgrade moved, with its value as written,
+    // Each key the upgrade moved, with its value as written,
     // which a pointer into the schema as written still reaches; the
     // keywords the schema's dialect does not define; and those it
     // ignores beside a $ref.
@@ -287,7 +287,7 @@ export function parseJson(src: string): JNode | Fault {
 
 // The expression tree the importer writes, printed by one rule so both
 // ports produce the same bytes. A mark is the keyword an expression or
-// entry was written for (ADR-066): a frame is the schema a reference
+// entry was written for: a frame is the schema a reference
 // reached, whose keywords are located against it, and a reference
 // enters the frame of its target.
 type Frame = { ptr: string, node: JNode }
@@ -531,7 +531,7 @@ type Ctx = {
   formats: Map<string, string>
   // The schema nodes a conversion reached.
   seen: Set<JNode>
-  // ADR-057: each resource's dynamic anchors, the names a $dynamicRef
+  // Each resource's dynamic anchors, the names a $dynamicRef
   // asks the dynamic scope for, the scope a conversion is in, the scopes
   // each target was declared in, the names each target's declarations
   // differ by, and the declarations the scopes added.
@@ -541,12 +541,12 @@ type Ctx = {
   clones: Map<Target, string[]>
   uses: Map<JNode, Set<string>>
   cloned: number
-  // ADR-061: the dialect a resource names none of, the dialect each
+  // The dialect a resource names none of, the dialect each
   // schema is read in, and where each pointer the upgrade moved was
   // written.
   dialect: Dialect
   dialects: Map<JNode, Dialect>
-  // ADR-063: the keywords each schema reads, where its meta-schema lists
+  // The keywords each schema reads, where its meta-schema lists
   // vocabularies.
   reads: Map<JNode, Set<string> | undefined>
   origin: Map<string, string>
@@ -561,7 +561,7 @@ const DEFAULT_BASE = DEFAULT_ROOT + 'schema'
 // The copies a root that is not a map may make before they are cut.
 const COPY_BUDGET = 4096
 // The declarations dynamic scopes may add beyond each schema's first
-// before the import is refused (ADR-057).
+// before the import is refused.
 const SCOPE_BUDGET = 1024
 
 
@@ -826,7 +826,7 @@ function resolveRef(ctx: Ctx, from: JNode, ref: string): JNode | undefined {
   for (const tok of frag.slice(1).split('/')) {
     const key = tok.replace(/~1/g, '/').replace(/~0/g, '~')
     if ('object' === node.t) {
-      // A pointer reads the schema as written (ADR-061).
+      // A pointer reads the schema as written.
       node = node.was?.get(key) ?? node.entries.find((en) => en.key === key)?.val
     }
     else if ('array' === node.t && /^(0|[1-9][0-9]*)$/.test(key)) {
@@ -853,7 +853,7 @@ function resolveRef(ctx: Ctx, from: JNode, ref: string): JNode | undefined {
 }
 
 
-// ADR-061: the dialects a schema may name, earliest first.
+// The dialects a schema may name, earliest first.
 export type Dialect = 'draft-04' | 'draft-06' | 'draft-07' | '2019-09' | '2020-12'
 const DIALECTS: Dialect[] = ['draft-04', 'draft-06', 'draft-07', '2019-09', '2020-12']
 
@@ -886,7 +886,7 @@ const DIALECT_KEYS: Record<string, Set<string>> = {
     'unevaluatedProperties', 'maxContains', 'minContains', 'deprecated', 'contentSchema']),
 }
 
-// ADR-063: the vocabularies the importer reads, by URI, from the table
+// The vocabularies the importer reads, by URI, from the table
 // grammar/jsonschema/vocabularies.tsv; a line with no keywords is not one.
 type Vocabulary = { dialect: string, reads: string, format: string, keys: string[] }
 const VOCABULARIES = new Map<string, Vocabulary>()
@@ -929,7 +929,7 @@ function dialectNamed(ctx: Ctx, uri: string, depth = 0): Dialect | undefined {
 }
 
 
-// ADR-061: a schema of a legacy dialect rewritten in place, keyword by
+// A schema of a legacy dialect rewritten in place, keyword by
 // keyword, into the schema the importer reads that means the same,
 // before it is indexed. `ptr` is where the walk reads it and `was` where
 // it was written; `root` marks a document's root, and `recursive` whether
@@ -1140,7 +1140,7 @@ function originOf(ctx: Ctx, path: string): string {
 
 
 function targetName(ctx: Ctx, node: JNode, at: string): string {
-  // A name spells the schema as written (ADR-061).
+  // A name spells the schema as written.
   const ptr = originOf(ctx, at)
   if ((ctx.docOf.get(node) as Doc).root !== ctx.root) {
     return 'u_' + encodeName(ptr.replace(/#$/, ''))
@@ -1239,7 +1239,7 @@ function settleRefs(ctx: Ctx, root: JNode): void {
 }
 
 
-// ADR-057: the names some $dynamicRef asks the dynamic scope for, and
+// The names some $dynamicRef asks the dynamic scope for, and
 // every schema a resource anchors by one, a target as a $ref's is.
 function bindDynamic(ctx: Ctx, seen: Set<JNode>, misses: Miss[]): void {
   for (const node of [...ctx.ptrOf.keys()]) {
@@ -1387,7 +1387,7 @@ const SCOPED: Record<string, string[]> = {
 }
 
 
-// ADR-059: the grammar a format asserts, the committed one of its name
+// ADR-105: the grammar a format asserts, the committed one of its name
 // or the one the format set gives it.
 function grammarOf(ctx: Ctx, name: JNode | undefined): string | undefined {
   return '' === ctx.asserts || 'string' !== name?.t ? undefined :
@@ -1830,8 +1830,8 @@ function convertNode(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean,
 }
 
 
-// A target is declared once for each dynamic scope it is read in
-// (ADR-057), each after the first under a name of its own.
+// A target is declared once for each dynamic scope it is read in,
+// each after the first under a name of its own.
 function declare(ctx: Ctx, target: Target): string {
   const uses = usesOf(ctx, target.node)
   const key = [...enter(ctx, target.node)].filter(([n]) => uses.has(n))
@@ -1865,7 +1865,7 @@ function declare(ctx: Ctx, target: Target): string {
 }
 
 
-// ADR-056: the identity a declared schema had, which its declaration
+// The identity a declared schema had, which its declaration
 // carries: the entry's own identifier as written, any other resource's
 // as its URI, absolute or under the entry's directory; its anchor; and
 // the $defs key a name that says the anchor does not say.
@@ -1876,7 +1876,7 @@ function identity(ctx: Ctx, target: Target, clone: boolean): MapEntry[] {
   if ('string' === anchor?.t) {
     out.push({ key: 'anchor', optional: false, val: raw(quote(anchor.s)) })
   }
-  // A clone (ADR-057) names the definition its first declaration is.
+  // A clone names the definition its first declaration is.
   const defs = /^#\/\$defs\/([^/]+)$/.exec(target.ptr)
   if (null != defs && (clone || target.name.startsWith('a_'))) {
     out.push({ key: 'defs', optional: false,
@@ -1936,7 +1936,7 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     }
   }
 
-  // ADR-057: the binding the dynamic scope gives its name, or the
+  // The binding the dynamic scope gives its name, or the
   // initial target, read as a $ref; the use keeps the reference's text.
   const dref = get('$dynamicRef')
   if (null != dref) {
@@ -2110,8 +2110,7 @@ function annotate(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, e: Expr)
       entries.push({ key, optional: false, val })
     }
   }
-  // A keyword the schema's dialect does not define is an annotation
-  // (ADR-061).
+  // A keyword the schema's dialect does not define is an annotation.
   for (const en of node.unknown ?? []) {
     const val = data(ctx, child(ptr, en.key), en.key, en.val)
     if (undefined !== val) {
@@ -2353,7 +2352,7 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
 }
 
 
-// ADR-058: what a schema's keywords evaluate, under the trials of the
+// What a schema's keywords evaluate, under the trials of the
 // conditional branches that lead to it.
 type Cover = { cond: Expr[], keys: Expr[], all: boolean, members?: Expr, exact: boolean }
 
@@ -2704,7 +2703,7 @@ function emit(ctx: Ctx, root: Expr): Out {
 }
 
 
-// ADR-066: the spans the import wrote, carried to the agreed form, each
+// The spans the import wrote, carried to the agreed form, each
 // frame numbered by where its own text first appears, the root 0.
 function sourceMapOf(ctx: Ctx, out: Out, text: string): SourceMap {
   const placed = [...out.placed].sort((a, b) =>
@@ -2781,7 +2780,7 @@ function begin(text: string, options?: ImportOptions): [Ctx, JNode | undefined] 
       base.doc = doc
     }
   }
-  // ADR-064: the published meta-schemas, each at its own URI where the
+  // The published meta-schemas, each at its own URI where the
   // set gives none there.
   for (const [key, meta] of Object.entries(META_SCHEMAS)) {
     if (!base.documents.has(key)) {
@@ -2844,7 +2843,7 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
   if (undefined === coreMap(body)) {
     [ctx, body] = run(base, false)
   }
-  // An identity rides only a declaration (ADR-056).
+  // An identity rides only a declaration.
   for (const [node, ptr] of base.ptrOf) {
     const target = ctx.targets.get(node)
     const declared = ctx.mapRoot && undefined !== target && ctx.decls.has(target.name)
@@ -2883,7 +2882,7 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
 }
 
 
-// ADR-065: the meta-schema each dialect's schemas are checked against.
+// The meta-schema each dialect's schemas are checked against.
 const META_URIS: Record<string, string> = {
   'draft-04': 'http://json-schema.org/draft-04/schema#',
   'draft-06': 'http://json-schema.org/draft-06/schema#',
@@ -2909,7 +2908,7 @@ function metaOf(ctx: Ctx, root: JNode): string {
 }
 
 
-// ADR-065: an input that stands is read against its meta-schema through a
+// An input that stands is read against its meta-schema through a
 // wrapper whose map root declares the meta-schema's recursion. A number past
 // the exactness budget, or anything inside a resource of another dialect,
 // refuses nothing; a meta-schema whose model does not stand, or that vet
@@ -2984,7 +2983,7 @@ function written(node: JNode, segs: string[], ptr: string): Written {
 }
 
 
-// ADR-061: the upgrade stage alone: the schema the import reads in place
+// The upgrade stage alone: the schema the import reads in place
 // of one in a legacy dialect.
 export function upgradeJsonSchema(text: string, options?: ImportOptions): UpgradeReport {
   const [ctx, parsed] = begin(text, options)
@@ -3040,7 +3039,7 @@ function metaVocabulary(ctx: Ctx, uri: string): (JNode & { t: 'object' }) | unde
 }
 
 
-// ADR-063: the keywords a resource reads under the vocabularies its
+// The keywords a resource reads under the vocabularies its
 // meta-schema lists, the core vocabulary's always among them, or
 // undefined where it lists none and every vocabulary is read. Only a
 // listed `false` makes a vocabulary aontu does not read optional.

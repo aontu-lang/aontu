@@ -1,4 +1,4 @@
-# 2026-08-26: FIXED by the template-clone isolation change (ADR-005) —
+# 2026-08-26: FIXED by the template-clone isolation change —
 # sealing each child (close around the template) now composes with a
 # SECOND pack merging onto the same children: each child reports ITS
 # OWN key().  Historically key() evaluated once in the close()d

@@ -71,14 +71,14 @@ class PlusOpVal extends OpBaseVal_1.OpBaseVal {
     operate(ctx, args) {
         const av = operand(args[0]);
         const bv = operand(args[1]);
-        // ABSENCE PROPAGATES (ADR-034).
+        // ABSENCE PROPAGATES.
         if (true === av?.isAbsent) {
             return av;
         }
         if (true === bv?.isAbsent) {
             return bv;
         }
-        // Lists concatenate (ADR-037).
+        // Lists concatenate.
         if (true === av?.isList && true === bv?.isList) {
             const peg = [...av.peg, ...bv.peg].map((v, i) => v.clone(ctx.descend(String(i))));
             return new ListVal_1.ListVal({ peg }, ctx);

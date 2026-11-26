@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
 // Regenerate the Unicode property tables a pattern's \p{...} reads in
-// ECMA-262's u mode (ADR-060), from the Unicode Character Database at
+// ECMA-262's u mode (ADR-105), from the Unicode Character Database at
 // the version ts/scripts/ucd.cjs pins: General_Category, Script,
 // Script_Extensions and the binary properties ECMA-262 lists, with
 // every alias. Written once, to ts/src/unicodeprops.ts and

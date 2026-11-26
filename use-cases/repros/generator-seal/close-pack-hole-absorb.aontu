@@ -1,5 +1,5 @@
 # Use-case 02 gap 5 (claim C1) -- FIXED 2026-08-26 by the
-# template-clone isolation change (ADR-005): a `_` hole belongs to its
+# template-clone isolation change: a `_` hole belongs to its
 # NEAREST ENCLOSING GENERATOR, so close() around a pack whose template
 # holds a hole no longer reports that hole as its own. The overlay
 # statement now merges with the generated child exactly as it does

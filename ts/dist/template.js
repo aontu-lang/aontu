@@ -54,7 +54,7 @@ function extensionOf(path) {
 }
 // The marker for a file, by its extension, or the C-family default.
 // The extension decides, exactly as it decides what an include is
-// (ADR-012) -- one rule, and no flag to remember for the common case.
+// -- one rule, and no flag to remember for the common case.
 function markerFor(path) {
     return MARKERS[extensionOf(path)] ?? DEFAULT_MARKER;
 }

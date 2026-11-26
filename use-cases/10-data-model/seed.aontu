@@ -96,7 +96,7 @@ invoices: "inv-3001": {
 # two can never drift apart; relate() makes each account's subject a
 # checked link, not a loose string.
 #
-# Since ADR-014 an address is a TREE PATH, so the link is BUILT from
+# An address is a TREE PATH, so the link is BUILT from
 # the destination key: `key()` is the customer id this account was
 # generated for, and `+` puts the bag in front of it. The check is
 # still real -- a customer bag that lost a member would leave an

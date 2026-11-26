@@ -5,7 +5,7 @@
 # marks, defaults -- so the vocabulary costs the language nothing, and
 # an author who wants a different one writes it the same way.
 #
-# The source is BUNDLED with the engine (the aontu/ tree, ADR-036): no
+# The source is BUNDLED with the engine (the aontu/ tree, ADR-107): no
 # filesystem, no package resolution, so it is available under every
 # include capability except `none`, and the hermeticity posture is not
 # widened by a source that never leaves the process. The two copies are
@@ -17,7 +17,7 @@
 #
 # Every expectation was obtained by the parity probe (AGENTS.md).
 vocabulary-is-served	gens	@"aontu:system"\np: $.aontu.System.Port & {}	{"aontu":{"System":{}},"p":{"direction":"in"}}
-# THE SCHEME IS NOT A DIRECTORY (ADR-028): the `.aontu` spelling the
+# THE SCHEME IS NOT A DIRECTORY (ADR-107): the `.aontu` spelling the
 # bare `std/` names once accepted is not a model name, and is
 # refused like any other typo, as aontu-scheme.tsv pins for
 # `aontu:profile.aontu`.
@@ -27,7 +27,7 @@ vocabulary-generates-nothing-of-its-own	gens	@"aontu:system"	{"aontu":{"System":
 # --- Port -------------------------------------------------------------
 #
 # `port-direction-refuses-nonmember` (FLIPPED 2026-08-26 by the
-# admission gate, ADR-004; was `port-direction-is-not-closed`,
+# admission gate; was `port-direction-is-not-closed`,
 # expecting `"sideways"` to pass): a preferred member no longer holds
 # the disjunction open, so `*in | out | inout` is a true
 # enum-with-default -- unset generates `in`, `out`/`inout` override,

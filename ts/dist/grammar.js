@@ -5,7 +5,7 @@ exports.PARSE_CHECK_EVERY = exports.PARSE_STEP_MAX = void 0;
 exports.compileGrammar = compileGrammar;
 exports.numValsExact = numValsExact;
 exports.parseWith = parseWith;
-// The grammar seam, ADR-033. Twin of go/grammar.go.
+// The grammar seam. Twin of go/grammar.go.
 const parser_1 = require("@tabnas/parser");
 const abnf_1 = require("@tabnas/abnf");
 // A constant, not a trust knob: this bounds a third party's grammar.

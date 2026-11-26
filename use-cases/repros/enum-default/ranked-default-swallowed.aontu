@@ -1,4 +1,4 @@
-# FIXED 2026-08-26 (the rank-uniform meet, ADR-004).
+# FIXED 2026-08-26 (the rank-uniform meet).
 # expected: {"a":1.5,"b":2} -- a rank>=2 preference follows the same
 #           meet rules as rank 1: a kind conjunct or kind alternative
 #           the innermost value already satisfies leaves the ranked

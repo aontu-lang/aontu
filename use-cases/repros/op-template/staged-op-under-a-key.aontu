@@ -3,7 +3,7 @@
 # and so does one whose operands are both literals. Run:
 #   aontu staged-op-under-a-key.aontu
 # The string spelling below fails the same way and long predates list
-# concatenation (ADR-037), which only made the shape worth writing:
+# concatenation, which only made the shape worth writing:
 #   x: { k: "a", n: string }
 #   x: { k: "a", n: "p" + join(["q"], "") }   # not-scalar-type
 # It is why `{k:"frag", n:["head"] + emit(...)}` cannot be written

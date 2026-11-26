@@ -257,7 +257,7 @@ function subsumeNode(state, path, g0, s0) {
     if (true === g?.isTop) {
         return 'yes';
     }
-    // A nil admits nothing (ADR-052's forbidden key and closed spread), so
+    // A nil admits nothing (a forbidden key, a closed spread), so
     // every value subsumes one, and one subsumes no other value.
     if (true === s?.isNil) {
         return 'yes';
@@ -414,8 +414,8 @@ function subsumeNode(state, path, g0, s0) {
         return 'undecided';
     }
     // Concrete scalars subsume only themselves (identity compares kind
-    // as well as value) -- except paths, whose meet is the prefix rule
-    // (ADR-016): a prefix admits every extension of itself, so it
+    // as well as value) -- except paths, whose meet is the prefix rule:
+    // a prefix admits every extension of itself, so it
     // subsumes one, exactly as the meet answers the longer.
     if (true === g?.isScalar) {
         if (true === g.isPath && true === s?.isPath &&

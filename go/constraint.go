@@ -49,7 +49,7 @@ type constraintPending struct {
 
 // constraintFormat is a format: the argument as written, the name a
 // refusal gives, and the grammars it is, which regex alone has none of
-// (ADR-059).
+// (ADR-105).
 type constraintFormat struct {
 	v    *ScalarVal
 	src  string
@@ -64,7 +64,7 @@ type constraintRe struct {
 	src string
 	// norm is the export's pattern, in ECMA-262's syntax, meaning the same.
 	norm string
-	prog []rxInst // compiled by aontu's own matcher (ADR-060)
+	prog []rxInst // compiled by aontu's own matcher (ADR-105)
 }
 
 const reRepeatMax = 1000
@@ -267,7 +267,7 @@ type reGroup struct {
 }
 
 // formatWhy is why the format refuses s, or "" where it admits it
-// (ADR-059).
+// (ADR-105).
 func formatWhy(f constraintFormat, s string) string {
 	head := "format " + f.name + ": "
 	if nil == f.gs {
@@ -516,7 +516,7 @@ type ConstraintVal struct {
 	// twin carries the same string.
 	invalidWhy string
 	// sites is the call each part of a residual met from several was
-	// written as (ADR-066), so a refusal is sited at the atom that
+	// written as, so a refusal is sited at the atom that
 	// refused: bounds, excluded values and divisors by pointer, every
 	// other part by its key.
 	sites map[any]site
@@ -798,7 +798,7 @@ func makeConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		return c
 	}
 
-	// A committed name or a grammar, read and checked once (ADR-059).
+	// A committed name or a grammar, read and checked once (ADR-105).
 	if "format" == atom {
 		psv, pd := orderableScalar(args[0])
 		if nil == psv || "string" != pd || KindPath == psv.kind {
@@ -959,7 +959,7 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 		// A bound's residual stands against the top, but a choice in the
 		// arguments it reads is no argument; any other peer meets it. So
 		// does another atom's whose arguments hold only written nils, which
-		// refuses what it meets as one written there does (ADR-046).
+		// refuses what it meets as one written there does.
 		bound := boundAtom(c.pending.atom)
 		if (nil == peer || isTop(peer)) &&
 			((bound && !holdsChoice(atomArgs(c.pending.atom, args))) || (!bound && writtenNilsOnly(args))) {
@@ -1115,7 +1115,7 @@ func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx) Val {
 }
 
 // checkRests holds every member no cover evaluates to the atom's own
-// schema (ADR-058): a cover whose condition admits the settled peer
+// schema: a cover whose condition admits the settled peer
 // evaluates each member its keys or members schema admits.
 func (c *ConstraintVal) checkRests(bag Val, optional []string, peer Val, ctx *Ctx) Val {
 	if 0 == len(c.rests) {

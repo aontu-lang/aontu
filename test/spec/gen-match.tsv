@@ -26,7 +26,7 @@ match-atom-pattern	gens	z:match(1,min(0),ok,integer,no)\n	{"z":"ok"}
 match-map-pattern	gens	z:match({a:1},{a:integer},yes,other)\n	{"z":"yes"}
 match-result-key	gens	z:match(1,integer,{k:key()})\n	{"z":{"k":"z"}}
 match-inside-pack	gens	n:[a,b]\nd:pack($.n,{t:match(key(),a,1,2)})\n	{"d":{"a":{"t":1},"b":{"t":2}},"n":["a","b"]}
-# THE DEFAULTED-SCRUTINEE RULE (ADR-004, 2026-08-26; use-cases/BUGS.md
+# THE DEFAULTED-SCRUTINEE RULE (2026-08-26; use-cases/BUGS.md
 # §5). A settled scrutinee carrying an effective default matches as the
 # value generation will emit -- the innermost preferred value -- not as
 # the still-open preference. Before this, a pattern could SELECT an arm

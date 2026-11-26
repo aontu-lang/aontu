@@ -1,5 +1,5 @@
 # BUGS.md section 35a -- FIXED 2026-08-26 by the template-clone
-# isolation change (ADR-005): the same instance path normalisation
+# isolation change: the same instance path normalisation
 # that fixed section 33 makes a sibling reference inside a
 # spread-template EXPRESSION answer per child. Historically
 # `&: {md: .side_effect}` worked but `&: {md: "|" + .side_effect}`

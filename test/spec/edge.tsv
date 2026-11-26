@@ -18,7 +18,7 @@ edge-neg-interval-lives	errc	a:integer&above(-2.5)&below(-1.5)	mapval_no_gen
 edge-neg-bound-member	gens	a:integer&min(-2.5) a:-2	{"a":-2}
 edge-cross-scale-window	canon	a:min(0.5)&max(0d0.75)	{"a":min(0.5)&max(0d0.75)}
 edge-constraint-nil	errc	a:min(0)&nil	literal_nil
-# ADR-011 R1: the peer SATISFIES the default's constraint, so the
+# The peer SATISFIES the default's constraint, so the
 # default stands as the value that satisfied it -- the long form's
 # `(min(0)&5) | (number&5)` keeps the star on the arm that survived.
 edge-pref-of-constraint	canon	a:*min(0) a:5	{"a":*5}
@@ -32,7 +32,7 @@ edge-root-conjunct-ref	errc	1&$.zz	conjunct
 edge-pref-conjunct	gens	b:2 a:*(1&1)	{"a":1,"b":2}
 edge-pref-op	gens	b:1 a:*(1+1)	{"a":2,"b":1}
 edge-pref-disjunct-meet	gens	a:*(1|2)&3	{"a":3}
-# ADR-011 R2: two defaults at one rank disagreeing is a clash between
+# Two defaults at one rank disagreeing is a clash between
 # DEFAULTS, not between the values they hold.
 edge-pref-pref-disjunct	errc	a:*1|*2	pref_rank_clash
 edge-disjunct-intersect	canon	a:(1|2)&(2|3)	{"a":2}
@@ -53,7 +53,7 @@ edge-path-func	gens	p:path(q.r) q:{r:7}	{"p":".q.r","q":{"r":7}}
 edge-plus-strings	gens	a:"x"+"y"	{"a":"xy"}
 edge-plus-float-int	gens	a:1.5+2	{"a":3.5}
 edge-plus-map	errc	a:{x:1}+2	mapval_no_gen
-# TWO LISTS CONCATENATE (ADR-037), and an absent operand makes the
+# TWO LISTS CONCATENATE, and an absent operand makes the
 # whole sum absent, which is what carries a heading away with the
 # rows it heads. A list mixed with a scalar still residuates, as a
 # boolean mixed with a number does: `+` refuses nothing it did not
@@ -129,7 +129,7 @@ edge-key-own	gens	q:{k:key(0)}	{"q":{"k":"k"}}
 # edges, closed bags, list spreads, junction dedup, + operator kinds,
 # and neq edges.
 #
-# THE RESERVED PATH NAMES ARE GONE (ADR-009). `$KEY`, `$SELF` and
+# THE RESERVED PATH NAMES ARE GONE. `$KEY`, `$SELF` and
 # `$PARENT` were intercepted by name before the variable table was
 # consulted; they are now ORDINARY VARIABLES, so the sources below say
 # `unknown_var` for the same reason `$nosuch` does. Each is paired with
@@ -263,7 +263,7 @@ edge-plus-str-int	gens	a:"x"+1	{"a":"x1"}
 edge-plus-int-str	gens	a:1+"y"	{"a":"1y"}
 # A reference member that resolves to 1 leaves `1|2` -- still two
 # alternatives, so INCOMPLETE residue rather than the conflict the old
-# generation fold reported (ADR-007).
+# generation fold reported.
 edge-disjunct-ref-member	errc	a:($.b|2) b:1	disjunct_no_gen
 edge-pref-same-twice	gens	q:*2|*2	{"q":2}
 edge-key-newline	canon	a:{"x\\ny":1}	{"a":{"x\\ny":1}}

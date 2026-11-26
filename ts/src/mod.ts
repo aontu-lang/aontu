@@ -19,7 +19,7 @@ export type ModuleFs = {
 }
 
 
-// A package path is `<domain>/<path>` and carries no major (ADR-022).
+// A package path is `<domain>/<path>` and carries no major (ADR-111).
 const MODULE_RE =
   /^([a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+(?:\/[A-Za-z0-9._-]+)*)(?:#(aon1-[A-Za-z0-9_-]+))?$/
 
@@ -84,7 +84,7 @@ export function validateModulePath(path: string): string | undefined {
 
 // The final element of a routed path, when it carries an extension the
 // include table knows, was meant as a file: the commonest mistake once
-// the major left the name (ADR-022 part 4), so it gets its own message.
+// the major left the name (ADR-111), so it gets its own message.
 export function localFileExt(path: string): string | undefined {
   const last = path.split('/').pop() as string
   const m = /\.([^.]+)$/.exec(last)
@@ -164,7 +164,7 @@ export function modCacheDirFor(
 }
 
 
-// The user cache's trees (ADR-039 part 2).
+// The user cache's trees.
 export function cacheStoreDir(cache: string, hash: string, pkg: string): string {
   return moduleDir(pathJoin(cache, 'store', hash), pkg)
 }

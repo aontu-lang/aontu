@@ -1,4 +1,4 @@
-# FORMAT -- `format(g)` (G12 phase 13, ADR-059): a Band A atom in the
+# FORMAT -- `format(g)` (G12 phase 13, ADR-105): a Band A atom in the
 # string domain that accumulates like `re`. `g` is a grammar, RFC 5234
 # ABNF with RFC 7405's `%s` and `%i`, or a name: a string that is one rule
 # name names one of the nineteen JSON Schema formats, eighteen committed
@@ -84,7 +84,7 @@ format-err-left-recursion-through-a-rule	err	a: format("v = w \\"a\\"\\nw = [\\"
 format-err-prose	err	a: format("v = <prose>") & "x"	rule v: a prose value cannot be run
 format-err-groups-nest-too-deep	err	a: format("v = (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((\\"a\\")))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))") & "a"	rule v: groups nest deeper than 64
 # regex is ECMA-262's pattern syntax in u mode, its early errors
-# included, read by aontu's own parser (ADR-060). It is syntax only: a
+# included, read by aontu's own parser (ADR-105). It is syntax only: a
 # lookaround, a backreference and a modifier group are valid patterns,
 # though re() cannot run them, and re()'s own \\A is not u mode's.
 # Groups nest at most 256 deep: that bound is aontu's, not ECMA-262's.

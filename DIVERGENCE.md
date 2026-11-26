@@ -24,7 +24,7 @@ divergences](#the-permanent-divergences) may be added to it: those are
 differences in what a port ANSWERS.
 
 [Structural divergences](#structural-divergences) are the other kind,
-and they are the ones most easily lost. ADR-001 asks the port to mirror
+and they are the ones most easily lost. ADR-102 asks the port to mirror
 TypeScript's STRUCTURE, not only its results, and a shape difference
 answers the same bytes: every shared row passes while the two files
 drift apart. Such a divergence therefore belongs here AND keeps its
@@ -65,7 +65,7 @@ having been agreed.
   as Go's tables advance. No ledger entry: nothing in this repository can
   change it, and no spec rows pin it.
 
-- **A malformed config file's error PROSE** (ADR-012). Both ports
+- **A malformed config file's error PROSE**. Both ports
   refuse the document, with the same class and the same exit code —
   what differs is how much they say. TypeScript's format reader throws,
   so the frame that reader drew reaches the user: the `.toml`, its
@@ -81,7 +81,7 @@ having been agreed.
   Closing it needs a way for a processor to report, which is upstream
   work in `@tabnas/multisource`.
 
-- **`.csv` is not a readable include** (ADR-012). Neither port ships a
+- **`.csv` is not a readable include**. Neither port ships a
   CSV reader, because the two `@tabnas` readers that would be wired in
   disagree about what a CSV file is: `@tabnas/csv` answers header-keyed
   records with string fields, `github.com/tabnas/csv/go` answers raw

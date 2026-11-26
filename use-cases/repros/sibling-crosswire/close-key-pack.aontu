@@ -1,5 +1,5 @@
 # Use-case 06 gap 1 (claim C3) -- FIXED 2026-08-26 by the
-# template-clone isolation change (ADR-005): each generated child is a
+# template-clone isolation change: each generated child is a
 # FULL per-destination instance (the deep `dup` clone / instanceClone),
 # so key() inside a close()d pack template resolves per child.
 # Historically close() around the template was sufficient on its own

@@ -162,7 +162,7 @@ ok "the check is red when a golden is edited, and names the file"
 # bytes and neither engine parses the target, so there is nothing left
 # to grade. Recorded as a capability this migration costs.
 
-# 11. ADR-001: the Go port renders the same bytes. This is the check
+# 11. ADR-102: the Go port renders the same bytes. This is the check
 # that matters most for a generator -- one model must not become two
 # different files depending on which engine ran -- and it now covers
 # the FOLD, the dispatch and the profile as well as the lines.
@@ -174,7 +174,7 @@ if command -v go >/dev/null 2>&1; then
     "$GOBIN" model get "$u" --trust root "$DIR/all.aontu" 2>/dev/null > "$WORK/$u.go.json"
     $AONTU model get "$u" --trust root "$DIR/all.aontu" 2>/dev/null > "$WORK/$u.ts.json"
     diff -u "$WORK/$u.ts.json" "$WORK/$u.go.json" \
-      || fail "$u: the two ports build different trees (ADR-001)"
+      || fail "$u: the two ports build different trees (ADR-102)"
   done
   ok "both ports build byte-identical trees for all three files"
 else

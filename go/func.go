@@ -60,7 +60,6 @@ var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
 	"move": true, "path": true, "close": true, "open": true,
-	// ADR-034.
 	"maybe": true,
 	"min":   true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "len": true, "empty": true, "unique": true, "must": true,
@@ -290,7 +289,7 @@ func (f *FuncVal) callName() string {
 }
 
 // A keyed() call is written under its own name, not as the match that
-// carries it out (ADR-080), its default left out where it is `any`.
+// carries it out, its default left out where it is `any`.
 func (f *FuncVal) Canon() string {
 	peg := f.peg
 	if f.keyed {
@@ -369,7 +368,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		return constrainParse(ctx, f, base, peer)
 	}
 
-	// ADR-034: not resolved YET is not resolved to nothing.
+	// Not resolved YET is not resolved to nothing.
 	if "maybe" == f.name && !ctx.settle {
 		return residuate(f, base, peer)
 	}
@@ -475,7 +474,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	// ABSENCE PROPAGATES (ADR-034), ahead of join's deferral.
+	// ABSENCE PROPAGATES, ahead of join's deferral.
 	var absent Val
 	if "maybe" != f.name {
 		for _, a := range newpeg {
@@ -539,7 +538,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				home = pm.path
 			}
 			out.setvpath(cp(home))
-			// A rider's value is its argument, written where it is (ADR-066).
+			// A rider's value is its argument, written where it is.
 			if !ridesCall(f.name) || out.pos() < 0 {
 				out.setPos(f.site.sp)
 				out.setPosu(f.site.spu)

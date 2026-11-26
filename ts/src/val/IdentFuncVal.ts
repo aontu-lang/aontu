@@ -73,7 +73,7 @@ class IdentFuncVal extends FuncBaseVal {
 
 
 // A declaration's record: a map of concrete data under any keys, which
-// the JSON Schema exporter reads its identity from (ADR-073).
+// the JSON Schema exporter reads its identity from.
 function identRecord(r: any): Record<string, Val[]> | undefined {
   if (true !== r.isMap || !isData(r)) {
     return undefined

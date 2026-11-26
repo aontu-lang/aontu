@@ -85,7 +85,7 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 
 		out := resolveModule(ref, moduleFrom(spec), cache, depth)
 		// A bare `config.json` routes here now the major has left the
-		// name (ADR-022 part 4); the message says what was meant.
+		// name (ADR-111); the message says what was meant.
 		if ext := localFileExt(ref.Path); "" != ext && "" != includeFormat(ext, sink) {
 			out = refuseModule("module_local", localFileMsg(ref.Path))
 		}

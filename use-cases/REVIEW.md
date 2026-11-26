@@ -421,7 +421,7 @@ day: ~30 reader/author/verifier agents, every claim triple-checked
 (found in use, reduced to a minimal repro, refutation attempted
 against docs and spec). Three caveats. It exercises the TypeScript
 implementation only — Go parity of every repro is unverified and the
-repros are candidates for `test/spec/` rows, not substitutes (ADR-001
+repros are candidates for `test/spec/` rows, not substitutes (ADR-102
 discipline applies). Severity grades encode this review's judgment
 that silent wrong output outranks loud failure; a maintainer may
 weigh differently. And the consumer studies read the code as it is —

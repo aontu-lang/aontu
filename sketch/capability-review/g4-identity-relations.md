@@ -2,7 +2,7 @@
 
 *Status: implemented — all six phases landed in both ports;
 **phase 1 (`id()`) was retired on 2026-08-30 by
-[ADR-014](../../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)**,
+[ADR-014](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)**,
 and phases 2 and 3 were reshaped to address TREE PATHS rather than
 entity names. This document is kept as the design record of what was
 built and why; read ADR-014 for what replaced the identity half of it,

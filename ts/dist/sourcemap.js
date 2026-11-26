@@ -8,7 +8,7 @@ exports.carry = carry;
 exports.readSourceMap = readSourceMap;
 exports.locate = locate;
 exports.vetOutput = vetOutput;
-// Where the importer wrote each keyword, and vet's output units (ADR-066).
+// Where the importer wrote each keyword, and vet's output units.
 const node_crypto_1 = require("node:crypto");
 function textSha(text) {
     return (0, node_crypto_1.createHash)('sha256').update(text, 'utf8').digest('hex');

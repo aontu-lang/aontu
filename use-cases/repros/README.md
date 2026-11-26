@@ -25,7 +25,7 @@ Two cautions:
   `enum-default/match-helper-workaround.aontu` is deliberately the
   *working* spelling, kept beside the failing ones.
 - The whole `enum-default/` family is **FIXED** as of 2026-08-26 by
-  the preference admission gate (ADR-004): each header records the
+  the preference admission gate: each header records the
   new behaviour and the shared spec rows that pin it, and BUGS.md
   §1–5 carry Status lines.
 - The whole `generator-seal/` family, `sibling-crosswire/`'s
@@ -33,11 +33,11 @@ Two cautions:
   `rankpref-key-pack.aontu`), and `pack-refs/`'s re-anchoring entries
   (`rel-ref-in-expr.aontu`, `nested-pack-hole.aontu`,
   `spread-expr-sibling.aontu`, `hide-computed-drop.aontu`) are **FIXED**
-  as of 2026-08-26 by the template-clone isolation change (ADR-005):
+  as of 2026-08-26 by the template-clone isolation change:
   headers record the new behaviour and the pinning rows, and BUGS.md
   §8–12, §33–35 carry Status lines.
 - The rest of both families is **FIXED** as of 2026-08-26 by the
-  spread application rework (ADR-006): the unequal-spread crosswire
+  spread application rework: the unequal-spread crosswire
   (§6, §7 — `idmerge-ref-templates.aontu`, `oneview-ref-templates.aontu`,
   `two-spreads*.aontu`), the self-referential merge expression (§36,
   `merge-expr-onto-pack-child.aontu`), and the generator over
@@ -60,7 +60,7 @@ Two cautions:
   `constraint-alias.tsv`.
 
 - `includes/` (§49, filed 2026-08-28) is **FIXED** as of 2026-08-30,
-  by the ruling in ADR-012: `.aontu` is read as aontu
+  by the include-extension ruling: `.aontu` is read as aontu
   source, ten config formats (`.json`, `.jsonld`, `.jsonc`, `.json5`,
   `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini`) are read as
   data by their own parsers, and every other one — and a name with no
@@ -70,7 +70,7 @@ Two cautions:
   the whole point. Their pin is `file.tsv`, the `load-ext-*` block.
 
 - `key-func/` (§50, filed 2026-08-28) is **FIXED** as of 2026-08-30,
-  and Go was right. It was found by removing `.$KEY` (ADR-009): the
+  and Go was right. It was found by removing `.$KEY`: the
   only test covering a spread template read through a deep reference
   used that spelling, whose different code path hid a live parity
   break in `key()`. What settled it is that Go's four-level answer is
@@ -126,6 +126,6 @@ Two cautions:
   staged call already had. Pinned by `edge.tsv` —
   `edge-plus-op-under-map-template`, `-map-kind` and `-map-value`.
 
-These are review artifacts. Per ADR-001, the durable home for any
+These are review artifacts. Per ADR-102, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
 promoting these repros into rows is follow-up work for maintainers.

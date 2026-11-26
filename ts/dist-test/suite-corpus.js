@@ -82,7 +82,7 @@ function runCorpus(name, bound, groups, documents) {
     let skipped = 0;
     const aontu = new aontu_1.Aontu();
     for (const g of groups) {
-        // The suite's optional/format/ asks for format assertion (ADR-059).
+        // The suite's optional/format/ asks for format assertion (ADR-105).
         const report = (0, jsonschema_import_1.importJsonSchema)(g.schema, {
             path: g.file, documents, formatAssertion: g.file.startsWith('optional/format/'),
             dialect: g.dialect,

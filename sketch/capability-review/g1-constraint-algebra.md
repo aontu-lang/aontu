@@ -658,7 +658,7 @@ which is fixed: it now canons as `top`, and no row is exempt.)*
    three leaks in one day proved that any blacklisted axis admits
    the next divergence by construction, replaced outright by
    normalisation under
-   [ADR-003](../../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted):
+   [ADR-003](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted):
    `normaliseRe`, statement-for-statement identical in both ports,
    rewrites the constructs the hosts read differently (`\d`, `\s`,
    `.`, `\A`, `\z`, …) before either engine compiles, and refusal is
@@ -770,7 +770,7 @@ applied to the language itself.
 ## Open questions
 
 - ~~**Token sugar later?**~~ **Settled: no, by
-  [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
+  [ADR-008](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
   (2026-08-28); the Reconciliation section below carries the
   reasoning.** *(The question as posed:)* Should `>0` ever parse as sugar for
   `above(0)` once adoption data exists? For: CUE familiarity and
@@ -872,7 +872,7 @@ shipped in a minor release.
 
 Whether to adopt the operators anyway, as sugar over the atoms, was
 open until 2026-08-28 and is now settled: **no**, by
-[ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators).
+[ADR-008](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-008--constraints-are-named-not-spelled-with-operators).
 One spelling per concept, because a second one is paid for at every
 surface that renders a residual — canon, the shipped grammars, LSP
 completion, every error quoting a constraint — and because the named

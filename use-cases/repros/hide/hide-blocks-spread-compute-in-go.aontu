@@ -1,5 +1,5 @@
 # 63: inside `hide()`, the Go port does not resolve a list spread's
-# template computation; TypeScript does. An ADR-001 parity break with
+# template computation; TypeScript does. An ADR-102 parity break with
 # OPPOSITE EXIT CODES on a document neither port reports as wrong.
 #
 # FIXED 2026-09-07. Both ports now answer the TypeScript line above,

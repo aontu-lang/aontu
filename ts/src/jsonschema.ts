@@ -361,7 +361,7 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     extra.push(...c.res.map((r: any) => ({ pattern: r.norm })))
   }
 
-  // ADR-059: a committed format by its name, a grammar under
+  // ADR-105: a committed format by its name, a grammar under
   // x-aontu-format, which only aontu reads.
   for (const [key, fs, reason] of [
     ['format', c.fmts.filter((f: any) => f.src === f.name), FORMAT_ANNOTATES],
@@ -540,7 +540,7 @@ const COVER_LOST = 'JSON Schema evaluates a member only by its name, a pattern o
   'cover reaches past these is DROPPED and the schema admits members the model refuses'
 
 
-// ADR-058: rest() as an allOf member whose own keywords evaluate what its
+// rest() as an allOf member whose own keywords evaluate what its
 // covers do, so its unevaluated keyword sees those and no more. A
 // condition rides `not: {not: …}`, which keeps its own annotations out.
 function restCheckOut(ctx: Ctx, path: string[], extra: any[], r: any,
@@ -698,7 +698,7 @@ function keyword(out: any, extra: any[], key: string, val: any): void {
 
 function fromVal(ctx: Ctx, path: string[], v: any): any {
   const out = fromValRef(ctx, path, v)
-  // ADR-057: a use read from a $dynamicRef keeps its $ref until dynamicRefs
+  // A use read from a $dynamicRef keeps its $ref until dynamicRefs
   // knows the definitions' anchors. A fragment that is no anchor never
   // asked the dynamic scope, nor did a use whose schema is written in place.
   const text = out?.$dynamicRef
@@ -843,7 +843,7 @@ function withRiders(out: any, v: any): any {
 
 const DEPRECATION_TEXT = ['msg', 'use', 'since']
 
-// The record keys read as keywords, each with its kind; null-prototype (ADR-072).
+// The record keys read as keywords, each with its kind; null-prototype.
 const META_KEYWORD: Record<string, [string, string]> = Object.assign(Object.create(null), {
   title: ['title', 'string'], description: ['description', 'string'],
   comment: ['$comment', 'string'], default: ['default', 'data'],
@@ -890,7 +890,7 @@ function annotate(out: any, v: any): any {
     for (const k of Object.keys(layer).sort(cmpCodePoint)) {
       const json = generated(layer[k])
       const known = META_KEYWORD[k]
-      // A record is anyone's: what JSON Schema cannot read is skipped (ADR-074).
+      // A record is anyone's: what JSON Schema cannot read is skipped.
       if (undefined !== known && !fitsKind(known[1], json)) {
         continue
       }
@@ -968,7 +968,7 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
   }
 
   if (true === v.isPref) {
-    // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
+    // A bare `*x` admits every value of x's kind and prefers x,
     // so `const: x` would refuse what the model admits.
     if (true === v.peg?.isScalar) {
       return { ...kindOfLiteral(ctx, path, v.peg), default: scalarJson(v.peg) }
@@ -1742,7 +1742,7 @@ function withDefs(ctx: Ctx, schema: any, body: any): SchemaLoss[] {
 }
 
 
-// ADR-057: the declarations of one schema read in several dynamic scopes
+// The declarations of one schema read in several dynamic scopes
 // are one definition where their schemas, $refs included, agree.
 function unclone(schema: any, body: any, used: Def[]): void {
   // Clones share the $defs key a clone's identity names.
@@ -1769,7 +1769,7 @@ function unclone(schema: any, body: any, used: Def[]): void {
 }
 
 
-// ADR-057: a use read from a $dynamicRef is one where its anchor names, in
+// A use read from a $dynamicRef is one where its anchor names, in
 // the schema's own resource, the schema its $ref reached; else its $ref stands.
 function dynamicRefs(schema: any, kept: Def[]): void {
   const at = new Map<string, any>([['#', schema], ...kept.map((d): [string, any] => [defRef(d), d.schema])])
@@ -1785,9 +1785,9 @@ function dynamicRefs(schema: any, kept: Def[]): void {
   })
 }
 
-// ADR-056: a definition's identity is written on it, a folded one's on the
+// A definition's identity is written on it, a folded one's on the
 // schema, but not an identifier a $ref inside would resolve against, an
-// anchor its resource holds, or a key given several values (ADR-074).
+// anchor its resource holds, or a key given several values.
 function identify(schema: any, folded: Def[], kept: Def[]): void {
   const one = (defs: Def[], key: string): string | undefined => {
     const all: string[] = [...new Set(defs.flatMap((d) => identityTexts(d.value, key)))]
@@ -1834,7 +1834,7 @@ const IDENTITY_KEYS = new Set(['id', 'anchor', 'dynamicAnchor', 'defs'])
 
 const isText = (v: any): boolean => true === v.isScalar && 'string' === typeof v.peg
 
-// The text a declaration's record holds under a key (ADR-073).
+// The text a declaration's record holds under a key.
 function identityTexts(value: any, key: string): string[] {
   return (value.identity?.[key] ?? []).filter(isText).map((v: any) => v.peg)
 }

@@ -518,7 +518,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		return subYes
 	}
 
-	// A nil admits nothing (ADR-052's forbidden key and closed spread), so
+	// A nil admits nothing (a forbidden key, a closed spread), so
 	// every value subsumes one, and one subsumes no other value.
 	if nil != s && s.Nil() {
 		return subYes
@@ -701,7 +701,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	}
 
 	// Concrete scalars subsume only themselves -- except paths, whose
-	// meet is the prefix rule (ADR-016): a prefix admits every
+	// meet is the prefix rule: a prefix admits every
 	// extension of itself, so it subsumes one, exactly as the meet
 	// answers the longer. Mirrors the same arm in ts/src/subsume.ts.
 	if gv, ok := g.(*ScalarVal); ok {

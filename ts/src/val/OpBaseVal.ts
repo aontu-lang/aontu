@@ -163,7 +163,7 @@ class OpBaseVal extends FeatureVal {
     let out = (super.clone(ctx, {
       peg: this.peg,
     }) as OpBaseVal)
-    // THE PER-DESTINATION INSTANTIATION RULE (ADR-005): an operation
+    // THE PER-DESTINATION INSTANTIATION RULE: an operation
     // inside a template clones its operands as instances — the
     // default clone shares them (see FuncBaseVal.clone). Every
     // operand is a Val by construction, as in the Go twin's []Val.

@@ -128,7 +128,7 @@ const SHARED = Path.join(__dirname, '..', '..', 'test', 'spec', 'signature.tsv')
         (0, expect_1.expect)(0 < rows).equal(true);
         (0, expect_1.expect)(undeclared).equal([]);
     });
-    // ADR-080: canon writes a call the document wrote, never another in
+    // Canon writes a call the document wrote, never another in
     // its place. What it may write beside one is listed: the range a count
     // is read as, the value super() answers, and move()'s default.
     (0, node_test_1.test)('canon-writes-no-call-the-source-lacks', () => {

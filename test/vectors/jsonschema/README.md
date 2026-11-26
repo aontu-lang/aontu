@@ -53,7 +53,7 @@ themselves, each release's schemas read in its own dialect.
 `output-tests/skips.tsv` is their ledger, in the same columns, under the
 same three rules and its own bound.
 
-`roundtrip.tsv` is the round-trip ledger of ADR-068.
+`roundtrip.tsv` is the round-trip ledger of ADR-109.
 `ts/test/jsonschema-roundtrip.test.ts` and `go/jsonschema_roundtrip_test.go`
 import every group's schema in each dialect's directory, export the
 import, import the export, and require the two imports to be one value:

@@ -1,4 +1,4 @@
-# An agent-emitted order record. An address is a path value (ADR-016),
+# An agent-emitted order record. An address is a path value,
 # so the emitter writes Aontu: a plain string is never an address.
 orders: "ord-7003": {
   customerId: path("$.customers.cust-1002")

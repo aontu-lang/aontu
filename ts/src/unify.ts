@@ -58,7 +58,7 @@ const withDepth = (
 
 // Vals should only have to unify downwards (in .unify) over Vals they understand.
 // and for complex Vals, TOP, which means self unify if not yet done
-// The meet's riders are the union of its operands' (ADR-052).
+// The meet's riders are the union of its operands'.
 function ride(out: any, a: any, b: any): void {
   if (null != out.deprecation || null != a?.deprecation || null != b?.deprecation) {
     out.deprecation = unionRecords([out.deprecation, a?.deprecation, b?.deprecation],
@@ -123,7 +123,7 @@ function drives(v: any): boolean {
     || v.isFunc
     || v.isExpect
     || v.isPendingLink
-    // An op DRIVES while an operand has not decided (ADR-037).
+    // An op DRIVES while an operand has not decided.
     || (v.isOp && (waitsOnHole(v) || v.holdsStaged))
     // A graph atom DRIVES: no peer knows it, and it hands each back.
     || v.isGraphAtom
@@ -248,7 +248,7 @@ const meet = (ctx: AontuContext, a: any, b: any, whence: string) => {
     }
   }
 
-  // ABSENCE IS THE UNIT OF THE MEET (ADR-034). The dispatch below is
+  // ABSENCE IS THE UNIT OF THE MEET. The dispatch below is
   // the LEFT operand's, so `&` commutes only if it is answered here.
   if (null != a && null != b) {
     if (true === a.isAbsent) {

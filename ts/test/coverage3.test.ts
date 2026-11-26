@@ -506,7 +506,7 @@ describe('coverage3-funcs', () => {
     Assert.equal(bout[0].why, 'path_address')
 
     // …while a container argument passes through prepare (a computed
-    // argument is the driving loop's to evaluate, ADR-016) and is
+    // argument is the driving loop's to evaluate) and is
     // refused at resolve, where a driven non-string always is.
     const pfm: any = new PathFuncVal({ peg: [new MapVal({ peg: {} })] }, ctx)
     const marg = new MapVal({ peg: {} })
@@ -898,7 +898,7 @@ describe('coverage3-lang', () => {
 
     Assert.equal(lang.parse('1,,2').canon, '[1,nil,2]')
 
-    // A JSON include is Aontu source (ADR-012), and every JSON kind is
+    // A JSON include is Aontu source, and every JSON kind is
     // a kind the grammar already has.
     Assert.equal(lang.parse('1, @"' + raw + '"').canon,
       '[1,{"a":1,"b":"s","c":true,"d":[1,2],"e":null,"f":1.5}]')

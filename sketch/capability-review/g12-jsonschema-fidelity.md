@@ -892,14 +892,14 @@ into the same aontu document, so the result is hermetic and holds only
 internal references.
 
 **Amended 2026-10-20 by
-[ADR-073](../../ADR.md#adr-073--an-ident-record-is-open-declaration-metadata).**
+[ADR-073](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-073--an-ident-record-is-open-declaration-metadata).**
 The declaration's record is open: any key holds concrete data, the
 four identity keys are the exporter's conventions, each read where it
 holds text, and every other key is written as a keyword of its own name
 on the definition.
 
 **Amended 2026-10-20 by
-[ADR-074](../../ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
+[ADR-074](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
 What the export cannot write of a declaration's record is no loss: an
 identifier a `$ref` inside would resolve against, an anchor its
 resource already holds, a key with several values, and the record of a
@@ -945,7 +945,7 @@ rather than a plain `$ref` that silently changes what an overriding
 anchor would do.
 
 **Amended 2026-10-20 by
-[ADR-074](../../ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
+[ADR-074](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
 A use written as its `$ref` is no loss: it admits what the import did,
 and what goes is the re-binding an outer scope would do.
 
@@ -991,7 +991,7 @@ which 2020-12 treats as an annotation. The LSP's hover gains `title`
 and `description`.
 
 **Amended 2026-10-20 by
-[ADR-072](../../ADR.md#adr-072--a-meta-record-is-open-metadata).** A
+[ADR-072](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-072--a-meta-record-is-open-metadata).** A
 record's keys are open: any key holds concrete data, and the keys
 above are the exporter's conventions, each read with its keyword's
 kind, a convention of another kind a reported loss. The importer
@@ -999,7 +999,7 @@ writes an unknown keyword as a key of its own name, not under `x`,
 and `x` is a key like any other.
 
 **Amended 2026-10-20 by
-[ADR-074](../../ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
+[ADR-074](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
 A convention of another kind, or a key naming a JSON Schema keyword, is
 not written, and is no loss.
 

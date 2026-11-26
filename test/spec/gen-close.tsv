@@ -11,7 +11,7 @@ close-inside-template	gens	n:[a]\nd:pack($.n,close({x:1}))\n	{"d":{"a":{"x":1}},
 close-template-refuses-extra	errc	n:[a]\nd:pack($.n,close({x:1}))\nd:a:y:2\n	closed
 open-reopens-generated	gens	n:[a]\nd:open(close(pack($.n,{x:1})))\nd:z:1\n	{"d":{"a":{"x":1},"z":1},"n":["a"]}
 
-# TEMPLATE-CLONE ISOLATION (ADR-005, 2026-08-26; use-cases/BUGS.md §8,
+# TEMPLATE-CLONE ISOLATION (2026-08-26; use-cases/BUGS.md §8,
 # §10 — the language review's finding B acceptance suite). close()
 # around a key()-bearing pack template used to resolve key() ONCE in
 # the one shared inner map (the base func clone shares its args), so

@@ -211,7 +211,7 @@ run lost-default 0 "$DIR/probes/lost-default.aontu"
 has lost-default '"replicas": 2' "the default survives the bound"
 ok "pinned: constraint conjunct swallows a ranked default (gap 1)"
 
-# 2026-08-26: fixed by the preference admission gate (ADR-004) -- the
+# 2026-08-26: fixed by the preference admission gate -- the
 # out-of-range override is now refused instead of accepted (gap 2 was
 # the fail-open evidence; the golden expected/bypassed-bound.json with
 # replicas:40 is gone with it).
@@ -220,7 +220,7 @@ has bypassed '[aontu/empty]' "empty-disjunction refusal"
 ok "fixed: override outside the disjoined bound refused, exit 1 (gap 2)"
 
 # --------------------------------- probe: close(pack) + overlay (fixed)
-# 2026-08-26: fixed by the template-clone isolation change (ADR-005) —
+# 2026-08-26: fixed by the template-clone isolation change —
 # the golden now holds the CORRECT merge (the overlay lands on the
 # generated prod child; no bogus template absorption). Shared-spec pin:
 # test/spec/gen-close.tsv close-pack-hole-overlay-merges.

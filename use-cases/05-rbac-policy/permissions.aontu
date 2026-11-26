@@ -4,7 +4,7 @@
 # an address naming no node is a located [aontu/rel_unresolved]
 # error, not a silently dead grant.
 #
-# Since ADR-014 an address is a TREE PATH -- `$.permissions.audit_read`
+# An address is a TREE PATH -- `$.permissions.audit_read`
 # -- so this bag needs no `id()` and carries no second name. The keys
 # below ARE the addresses' last segment, which is why the catalog is
 # still the one place a permission is spelled.

@@ -105,7 +105,7 @@ patch-inplace-spread-refused	patch	svc: { a: { r: integer } }	{"inPlace":true,"o
 patch-inplace-ref-refused	patch	base: integer\nn: integer	{"inPlace":true,"overlay":"base: 7\\nn: $.base\\n","set":["$.n=5"]}	{"appended":["\\"n\\": 5"],"codes":["patch_not_editable","scalar_value"],"overlay":"base: 7\\nn: $.base\\n\\"n\\": 5\\n","verdict":"invalid"}
 # (A no-extent row stood here while the pipe existed: `x: hello |>
 # upper` synthesised a contribution the parser never sited, and the
-# span check refused it. ADR-018 removed the pipe, and with it the one
+# span check refused it. The pipe is gone, and with it the one
 # spelling that reached that refusal from source; the span
 # verification itself remains in both ports as an exported seam,
 # pinned by unit tests with conjuncts the engine would never produce

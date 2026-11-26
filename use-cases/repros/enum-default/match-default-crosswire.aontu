@@ -1,4 +1,4 @@
-# FIXED 2026-08-26 (the defaulted-scrutinee rule, ADR-004).
+# FIXED 2026-08-26 (the defaulted-scrutinee rule).
 # expected: {"side_effect":"readonly","requires_approval":false} -- the
 #           generated scrutinee is the default "readonly", not destructive
 # actual (now matches): {"requires_approval":false,"side_effect":"readonly"};

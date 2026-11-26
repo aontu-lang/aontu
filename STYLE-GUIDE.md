@@ -127,7 +127,7 @@ published:
 | Internal | `ADR.md`, `sketch/`, `sketch/capability-review/`, `admin/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
 
 **A published page never cites an internal one.** Not as a link, not
-as a parenthetical, not as a bare token. `(ADR-004)` after a rule tells
+as a parenthetical, not as a bare token. `(ADR-104)` after a rule tells
 a reader nothing they can act on: the decision record argues a choice
 already made, and the rule it decided is what the page is for. State
 the rule and stop.

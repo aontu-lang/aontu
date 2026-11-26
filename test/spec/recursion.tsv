@@ -2,7 +2,7 @@
 # prefix test used to answer path_cycle, it answers a RECURSIVE
 # RESIDUAL -- `$.Node` inside `Node` (and `%t` inside `%t`) simply
 # means the fixpoint. The residual expands ONE LEVEL PER MEET WITH
-# CONCRETE STRUCTURE (per destination, ADR-005's clone discipline), is
+# CONCRETE STRUCTURE (per destination, by the clone discipline), is
 # SYMBOLIC in canon and the aon1- hash (the mu-form, finite and
 # round-tripping), and REFUSES at generation when a demanded position
 # never met data (recursion_unexpanded) -- so guardedness is EMERGENT:

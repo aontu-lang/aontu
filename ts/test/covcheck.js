@@ -1,6 +1,6 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-// ADR-002 gate: read an lcov report of ts/src and fail unless every
+// ADR-103 gate: read an lcov report of ts/src and fail unless every
 // line, branch and function is covered.
 //
 //   node test/covcheck.js [lcov.info ...]
@@ -205,11 +205,11 @@ function main() {
     `functions ${pct(...total.fns)}% (${total.fns[0]}/${total.fns[1]})\n`)
 
   if (0 === gaps.length) {
-    process.stdout.write('covcheck: 100% (ADR-002)\n')
+    process.stdout.write('covcheck: 100% (ADR-103)\n')
     return
   }
 
-  process.stderr.write(`\ncovcheck: ${gaps.length} uncovered item(s) — ADR-002 requires 100%:\n`)
+  process.stderr.write(`\ncovcheck: ${gaps.length} uncovered item(s) — ADR-103 requires 100%:\n`)
   for (const g of gaps) {
     process.stderr.write('  ' + g + '\n')
   }

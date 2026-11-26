@@ -170,7 +170,7 @@ class MatchFuncVal extends FuncBaseVal {
 }
 
 
-// keyed() IS CARRIED OUT BY ITS MATCH AND WRITTEN UNDER ITS OWN NAME (ADR-080).
+// keyed() IS CARRIED OUT BY ITS MATCH AND WRITTEN UNDER ITS OWN NAME.
 class KeyedFuncVal extends MatchFuncVal {
   callname() {
     return 'keyed'

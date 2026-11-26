@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// G12 phase 18 (ADR-068): every schema of the pinned SchemaStore subset
+// G12 phase 18 (ADR-109): every schema of the pinned SchemaStore subset
 // comes back from import(export(import(S))) as import(S), as the official
 // suite's do, or it is a row of the ledger
 // test/vectors/jsonschema/schemastore/roundtrip.tsv, mirroring

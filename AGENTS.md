@@ -6,9 +6,9 @@ kept in parity**: **TypeScript** in `ts/` — the **canonical** one — and
 **Go** in `go/`, a port that mirrors its semantics.
 
 Three decisions govern everything below and are recorded in
-[`ADR.md`](ADR.md): **ADR-001** (the two implementations stay at full
-parity, proved by the shared spec), **ADR-002** (coverage stays at 100 %
-in both, with every exclusion justified in the source), and **ADR-003**
+[`ADR.md`](ADR.md): **ADR-102** (the two implementations stay at full
+parity, proved by the shared spec), **ADR-103** (coverage stays at 100 %
+in both, with every exclusion justified in the source), and **ADR-105**
 (where a host subsystem supplies semantics, aontu defines the meaning and
 rewrites the input rather than trusting the host). Read those before
 proposing a change that touches one implementation only, that adds code
@@ -97,7 +97,7 @@ Two failures are found in CI rather than locally: a generated copy or
 `ts/dist` not rebuilt (the happy path refuses a tree `make build-ts`
 changes), and a use case broken by a language change.
 
-CI is two workflows (ADR-070, ADR-071).
+CI is two workflows.
 [`build.yml`](.github/workflows/build.yml), on every push and pull
 request, Linux only, five minutes at most: the happy path and **one
 sampled group** of the TypeScript suite from
@@ -125,9 +125,9 @@ without `gh`".
   Writing it from one engine baselines a divergence as the contract, and
   nothing in the suite can warn you. See
   [the parity probe](docs/contributing/testing.md#the-parity-probe).
-- **A behaviour is shared only once it passes in both ports** (ADR-001).
+- **A behaviour is shared only once it passes in both ports** (ADR-102).
   TypeScript alone is *partial*.
-- **A structural divergence registers like any other** (ADR-001): two
+- **A structural divergence registers like any other** (ADR-102): two
   shapes that answer the same bytes pass every shared row, so nothing
   but [`ts/test/parity.test.ts`](ts/test/parity.test.ts) and
   [`DIVERGENCE.md`](DIVERGENCE.md) can catch them. Recording one in a

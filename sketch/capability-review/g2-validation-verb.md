@@ -382,7 +382,7 @@ Field semantics:
   corrected value could still satisfy — rendered from member canons,
   *not* via `DisjunctVal.gen`, ~~whose fold has a known
   over-unification defect (ts/src/val/DisjunctVal.ts)~~ *(fixed by
-  [ADR-007](../../ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does),
+  [ADR-007](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does),
   2026-08-27: an unresolved disjunction is `disjunct_no_gen` in both
   ports, and its members are never folded)*; for a closed
   struct, `allowed` would list the key set and `nearest` give an

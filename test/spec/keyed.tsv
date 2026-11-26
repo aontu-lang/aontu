@@ -2,7 +2,7 @@
 # match(key(0), p, t, e), with `any` where e is left out (ruling 18 of
 # sketch/LANG-REFINEMENT-PLAN.0.md), and each engine carries it out by
 # that match. The match has no text of its own: canon, the hash form, a
-# refusal and a loss report all write keyed under its own name (ADR-080).
+# refusal and a loss report all write keyed under its own name.
 # Each expectation is what both engines answer. Columns:
 # name<TAB>mode<TAB>src<TAB>expect, with data before expect in the
 # five-column modes.

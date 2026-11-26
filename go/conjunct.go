@@ -249,7 +249,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	if mh {
 		out.setMarkHide(true)
 	}
-	// A meet flattened in leaves its riders on the whole (ADR-052).
+	// A meet flattened in leaves its riders on the whole.
 	for _, cv := range carried {
 		out = rideOn(ctx, out, cv, nil)
 	}

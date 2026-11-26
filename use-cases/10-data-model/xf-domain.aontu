@@ -1,6 +1,6 @@
 # xf-domain.aontu --- the record schema as TypeScript, one transform.
 #
-# THE WALK, and what it costs (G9 worked example 1, ADR-038): the
+# THE WALK, and what it costs (G9 worked example 1, ADR-108): the
 # schema below is walked into TypeScript text, which the transform
 # spells itself. There is no declaration vocabulary and no lowering
 # behind it any more, so the TypeScript here is the generator's.

@@ -688,7 +688,7 @@ func TestSpec(t *testing.T) {
 							src, want, got)
 					}
 				case "jsonschema-output":
-					// ADR-066: the schema imported with its source map, the
+					// The schema imported with its source map, the
 					// data vetted as JSON Schema asks, and the report as
 					// basic output units.
 					var golden map[string]any

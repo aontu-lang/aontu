@@ -53,7 +53,7 @@ class IdentFuncVal extends FuncBaseVal_1.FuncBaseVal {
 }
 exports.IdentFuncVal = IdentFuncVal;
 // A declaration's record: a map of concrete data under any keys, which
-// the JSON Schema exporter reads its identity from (ADR-073).
+// the JSON Schema exporter reads its identity from.
 function identRecord(r) {
     if (true !== r.isMap || !(0, MetaFuncVal_1.isData)(r)) {
         return undefined;

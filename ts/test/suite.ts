@@ -100,7 +100,7 @@ function text(node: JNode): string {
 
 
 // The official suite's shape: files of groups, each a schema and its
-// tests, read in the dialect the directory is written in (ADR-061).
+// tests, read in the dialect the directory is written in.
 function suiteGroups(dir: string, dialect?: string): Group[] {
   const out: Group[] = []
   for (const file of files(dir, '', [])) {
@@ -141,7 +141,7 @@ function settle(text: string): any {
 
 
 // Why a schema does not come back from import(export(import(S))) as its
-// first import (ADR-068), or undefined where it does.
+// first import (ADR-109), or undefined where it does.
 function roundTrip(schema: string, opts: {
   documents: Record<string, string>, path?: string, dialect?: string, formatAssertion?: boolean
 }): string | undefined {

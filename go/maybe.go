@@ -4,7 +4,7 @@ package aontu
 
 import "slices"
 
-// ADR-034. Twin of ts/src/val/MaybeFuncVal.ts and AbsentVal.ts.
+// Twin of ts/src/val/MaybeFuncVal.ts and AbsentVal.ts.
 
 // Top with one difference: absence is GENERABLE, and generates
 // nothing, so a bag drops it at a required key too.

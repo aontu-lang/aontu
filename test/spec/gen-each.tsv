@@ -61,7 +61,7 @@ each-data-string	errc	o:each(x,{v:_})\n	each_data
 #   each(d, _ & t)  ... each of them also t
 #
 # That is what `each(d)` and `each(d, t)` spelled until `each` was
-# retired (ADR-026). The rows below are `each`'s whole former surface
+# retired. The rows below are `each`'s whole former surface
 # under this spelling, carried over unchanged in expectation: both
 # arities, kind/map/preference/constraint templates, empty bags,
 # generation over a generator, the spread-augmented snapshot, a hole as

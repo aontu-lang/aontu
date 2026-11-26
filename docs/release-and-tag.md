@@ -180,7 +180,7 @@ Environment:           (blank — this workflow declares none)
 ## One version series, shared
 
 **Since 0.70.0 the npm package and the Go module carry the same number**,
-by [ADR-041](../ADR.md#adr-041--the-npm-package-and-the-go-module-share-one-version-series).
+by [ADR-104](../ADR.md#adr-104--one-version-names-a-release-of-both-ports).
 They were separate until then (npm on 0.6x, the module on 0.1.x), and
 the argument for separating them was Go's semantic import versioning:
 
@@ -216,7 +216,7 @@ check-go-major` is what stops it happening by accident.
 What is bought for that: one number to say, one number to read in a bug
 report, and `aontu.version` the same string from both ports: the last
 by-construction difference between the two ports' reports, which
-[ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+[ADR-102](../ADR.md#adr-102--two-implementations-held-at-parity-by-shared-rows)
 otherwise does not tolerate. `make publish` refuses `V` and `GOV` that
 differ, so the two cannot drift back apart unnoticed, and a release of
 one half alone is still possible. It just leaves the numbers unequal
