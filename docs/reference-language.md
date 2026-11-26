@@ -2861,7 +2861,7 @@ Unary `-` negates a numeric operand exactly. It binds tighter than
 `+`, `&` and `|` (`-1 & integer` is `(-1) & integer`) and, like `+`,
 never narrows the kind and never yields `-0`.
 
-The definition holds `+` as the call `plus`, which `callTerm` and `plusOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) make from the operands' normal forms. Each operand reads through its riders first, then through a lone preference. Two numbers add by `add`'s rules, `Number.binary` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), and a sum no leaf holds is `nil`, an error. A string beside a scalar joins the two texts, a number written as `Number.text` writes it. Two lists concatenate, `plusOf_lists` and `plusOf_nil_list`, and a list beside a scalar is no sum, `plusOf_list_lit`. Any other pair of operands leaves the `+` waiting: it generates nothing and refuses nothing, so `vet` reads the document as incomplete, and a literal meets it as a pair, `Val.callAt` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean). A sum of an absence waits on `maybe`, which the definition lacks.
+The definition holds `+` as the call `plus`, which `callTerm` and `plusOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) make from the operands' normal forms. Each operand reads through its riders first, then through a lone preference. Two numbers add by `add`'s rules, `Number.binary` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), and a sum no leaf holds is `nil`, an error. A string beside a scalar joins the two texts, a number written as `Number.text` writes it, and an address is the text that spells it, `Val.plusOperand`, so `path($.a) + "/n"` is `"$.a/n"`. Two lists concatenate, `plusOf_lists` and `plusOf_nil_list`, and a list beside a scalar is no sum, `plusOf_list_lit`. Any other pair of operands leaves the `+` waiting: it generates nothing and refuses nothing, so `vet` reads the document as incomplete, and a literal meets it as a pair, `Val.callAt` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean). A sum of an absence waits on `maybe`, which the definition lacks.
 
 ## Functions
 
@@ -4970,8 +4970,11 @@ or `true` where an address must be is an `error`. Each leaf of the
 value is a link, which `Decls.withRefers` in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads, the leaf's
 address read from the relation's own position. The
-definition has no rule yet for `acyclic()` and `inverse(k)`, which
-`vet` doesn't check either
+definition reads `acyclic()` and `inverse(k)` as absence carrying the
+atom, `callTerm` and `inverseOf` in `spec/Aontu/Verdict.lean`, so each
+rides the value it meets and changes nothing in it, and an
+`inverse` whose argument is no name is an `error`. It has no rule yet
+for what the atoms ask of the edges, which `vet` doesn't check either
 ([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it, and rows from rh0 on to a constraint met with `relate()` and to a

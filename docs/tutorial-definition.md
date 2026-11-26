@@ -7989,7 +7989,7 @@ answer:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def plusOf (a b : Val) : Made :=
-  match a.operand, b.operand with
+  match a.plusOperand, b.plusOperand with
   | .list xs _ _, .list ys _ _ => .made (.list (xs ++ ys) none false)
   | .lit (.bool p), .lit (.bool q) => .made (.lit (.bool (p || q)))
   | .lit (.str s), .lit y => (y.plusText?.map fun t => .made (.lit (.str (s ++ t)))).getD .waits
@@ -8006,6 +8006,42 @@ JavaScript writes a number, which is why `d` reads `x1e+21`. Two lists
 concatenate, the left's elements then the right's: `plusOf_lists` and
 `plusOf_nil_list` say so, the empty list adding nothing, and
 `plusOf_list_lit` says that a list beside a scalar is no sum.
+
+An address under `+` is the text that spells it, so it joins as a
+string does. Write `join.aontu`:
+
+<!-- test: scenario plus-address -->
+<!-- test: file join.aontu -->
+```aontu
+a: {}
+link: path($.a)
+url: .link + "/edit"
+```
+
+<!-- test: run -->
+```sh
+$ aontu join.aontu
+{
+  "a": {},
+  "link": "$.a",
+  "url": "$.a/edit"
+}
+```
+
+`plusOf` reads each operand through `Val.plusOperand`, which is where
+the address turns to text:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.plusOperand (v : Val) : Val :=
+  match v.operand with
+  | .addr a => .lit (.str a.text)
+  | w => w
+```
+
+A relative address joins as it's written, `path(.a) + "/n"` being
+`".a/n"`. Rows from ap0 on of `test/spec/def-path.tsv` hold these, and
+both engines answer every one as the definition does.
 
 Anything else waits: a kind, `null`, a map, a list beside a scalar, a
 boolean beside a number. A `+` that waits isn't an error. It generates
@@ -10484,6 +10520,70 @@ and each of those is a link, so `relate({ k:1 }) & [&: path]` met with
 `[path($.a)]` flows `k` into `a`. Rows from rh0 on hold both, and both
 engines answer every one as the definition does.
 
+### The graph atoms
+
+Two atoms declare what a relation's edges must keep. `acyclic()` asks
+that the relation its field names holds no cycle, and `inverse(k)` that
+each of its edges has its mirror under `k`. Write `graph.aontu`:
+
+<!-- test: scenario graph-atoms -->
+<!-- test: file graph.aontu -->
+```aontu
+a: dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]
+b: usedBy: relate() & [path($.a)]
+```
+
+Its one edge has its mirror and makes no cycle, so it generates, and
+the atoms leave no trace in the output:
+
+<!-- test: run -->
+```sh
+$ aontu graph.aontu
+{
+  "a": {
+    "dependsOn": [
+      "$.b"
+    ]
+  },
+  "b": {
+    "usedBy": [
+      "$.a"
+    ]
+  }
+}
+```
+
+The definition reads each atom as a call that makes absence carrying
+the atom:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .acyclic, [] => .ride .acyclic .absent []
+  | .inverse, [k] => inverseOf k
+```
+
+Absence is the unit of the meet, as step 33 showed, so the atom rides
+whatever it meets and changes nothing in it: the relation's value
+here, an integer in `acyclic() & 1`, a map a path reads through. An
+atom alone is absence still, so `d: acyclic()` generates no member at
+`d` and admits whatever the data gives there. An `inverse` takes a name,
+and anything else is `nil`, the schema's error:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def inverseOf : Val → Val
+  | .lit (.str k) => if isRelName k then .ride (.inverse k) .absent [] else .nil
+  | _ => .nil
+```
+
+So much for how the atoms read. What they ask has no rule in the
+definition yet. Both engines refuse to generate a document whose graph breaks an
+atom, as `relation_cycle` or `relation_inverse_missing`, and `vet`
+passes it, which #491 tracks. So rows from ga0 on of
+`test/spec/def-path.tsv` hold only documents whose graphs keep what
+their atoms ask, and both engines answer every one as the definition
+does.
+
 ## 38. A spread read at each member
 
 A spread's template holds every member of its map or list, and a path
@@ -11546,8 +11646,8 @@ which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
 steps 20 to 26 and 33 to 37 don't walk through, the named tables and
 recursion of step 40, a string
-constraint met with a path value, and the graph atoms `inverse(k)` and
-`acyclic()`. [`aontu vet`](reference-api.md#aontu-vet) states which
+constraint met with a path value, and what the graph atoms `acyclic()`
+and `inverse(k)` ask of a relation's edges. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 

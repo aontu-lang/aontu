@@ -3665,7 +3665,7 @@ theorem Val.unparent_checkableA : ∀ {v : Val}, v.CheckableA → v.unparent.Che
     cases h with | ride hv => exact Val.unparent_checkableA hv
   | .ride .metadata _ _, h | .ride .deprecate _ _, h | .ride .ident _ _, h | .ride .type _ _, h
   | .ride .hide _ _, h | .ride .opened _ _, h | .ride .lifts _ _, h | .ride .seals _ _, h
-  | .ride (.move _) _ _, h | .ride .void _ _, h => h
+  | .ride (.move _) _ _, h | .ride .void _ _, h | .ride .acyclic _ _, h | .ride (.inverse _) _ _, h => h
   | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h | .anyString, h
   | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h | .min _, h | .max _, h
   | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h | .unique _, h | .re _, h

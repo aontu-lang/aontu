@@ -270,13 +270,22 @@ def Scalar.plusText? : Scalar → Option String
   | .num n => some n.text
   | .null => none
 
+/-- A term as `+` reads its operand: as a call reads its argument
+(`Val.operand`), and an address as the text that spells it
+(`Addr.text`), so that `path($.a) + "/n"` is `"$.a/n"`. -/
+def Val.plusOperand (v : Val) : Val :=
+  match v.operand with
+  | .addr a => .lit (.str a.text)
+  | w => w
+
 /-- What `+` makes of two terms in normal form: two lists one list, the
 left's elements then the right's; two booleans either; a string and a
-scalar with text the two texts joined; two numbers their sum by `add`,
-refused where no leaf holds it; and anything else waits: a kind,
-`null`, a map, a list beside a scalar, a boolean beside a number. -/
+scalar with text the two texts joined, an address read as its text; two
+numbers their sum by `add`, refused where no leaf holds it; and
+anything else waits: a kind, `null`, a map, a list beside a scalar, a
+boolean beside a number. -/
 def plusOf (a b : Val) : Made :=
-  match a.operand, b.operand with
+  match a.plusOperand, b.plusOperand with
   | .list xs _ _, .list ys _ _ => .made (.list (xs ++ ys) none false)
   | .lit (.bool p), .lit (.bool q) => .made (.lit (.bool (p || q)))
   | .lit (.str s), .lit y => (y.plusText?.map fun t => .made (.lit (.str (s ++ t)))).getD .waits
@@ -766,7 +775,22 @@ def Fn.takes : Fn → ℕ → Bool
   | .relate, n | .path, n => n ≤ 1
   | .cmp c, n => c.takes n
   | .load, n | .bnd .neq, n => 1 ≤ n
-  | .bnd _, n => n == 1
+  | .bnd _, n | .inverse, n => n == 1
+  | .acyclic, n => n == 0
+
+/-- Whether a string names a relation, as both ports read a name an
+`inverse` takes: a letter or `_`, then letters, digits, `-` and `_`. -/
+def isRelName (s : String) : Bool :=
+  match s.toList with
+  | [] => false
+  | c :: cs => (c.isAlpha || c == '_') && cs.all fun c => c.isAlphanum || c == '-' || c == '_'
+
+/-- What `inverse(k)` is as a term: absence carrying the atom, so that
+it rides the value it meets, and `nil` where `k` isn't a name a string
+writes. -/
+def inverseOf : Val → Val
+  | .lit (.str k) => if isRelName k then .ride (.inverse k) .absent [] else .nil
+  | _ => .nil
 
 /-- Whether a call's value holds its argument, so that the moves the
 argument holds ride the value already: `super`, `pref`, `move`, `copy`
@@ -1106,7 +1130,10 @@ a `relate` the relation kind, `relName`,
 carrying its template (`Val.link`), so that the template rides the
 value the link meets, in every arm and copy the value is in, and is
 met into each target the normal form names where the document is read
-(`Decls.withRefers`); a bound
+(`Decls.withRefers`); a graph atom, `acyclic()` or `inverse(k)`,
+absence carrying the atom (`Rider.acyclic`, `Rider.inverse`), so that it
+rides the value it meets and leaves the value as it is, and an `inverse`
+whose argument is no name (`isRelName`) `nil`; a bound
 written over terms the bound `bndOf` makes of them; any other call the
 number `callValue` computes, where it computes one, and itself
 otherwise, which no reading makes. -/
@@ -1139,6 +1166,8 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .copy, [x] => (normaliseD ds x).unmark.unseal
   | .relate, [] => .link (.alias relName) .any
   | .relate, [t] => .link (.alias relName) t
+  | .acyclic, [] => .ride .acyclic .absent []
+  | .inverse, [k] => inverseOf k
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -3663,10 +3692,17 @@ theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA)
     · cases h
   · cases h
 
+theorem Val.plusOperand_checkableA {v : Val} (h : v.CheckableA) : v.plusOperand.CheckableA := by
+  have h' := Val.operand_checkableA h
+  unfold Val.plusOperand
+  split
+  · exact .lit
+  · exact h'
+
 theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
     (h : plusOf a b = .made v) : v.CheckableA := by
-  have ha' := Val.operand_checkableA ha
-  have hb' := Val.operand_checkableA hb
+  have ha' := Val.plusOperand_checkableA ha
+  have hb' := Val.plusOperand_checkableA hb
   unfold plusOf at h
   split at h
   · rename_i xs _ _ ys _ _ hxa hyb
@@ -3934,6 +3970,20 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
   | _ => simp only [Val.prefer]; constructor
 
 
+theorem inverseOf_checkableA : ∀ k : Val, (inverseOf k).CheckableA
+  | .lit (.str k) => by
+    show (if isRelName k then Val.ride (.inverse k) .absent [] else Val.nil).CheckableA
+    split
+    · exact .ride .absent
+    · exact .nil
+  | .lit (.num _) | .lit (.bool _) | .lit .null => .nil
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
+  | .mapKind | .listKind | .pathKind | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _
+  | .len _ | .unique _ | .re _ | .format _ | .grammar _ | .any | .nil | .absent | .nothing
+  | .map _ _ _ | .list _ _ _ | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .addr _
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
+  | .ride _ _ _ | .link _ _ | .key | .keyUp _ | .hole | .call _ _ => .nil
+
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
     {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
   unfold callTerm
@@ -3968,6 +4018,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact (normaliseD_checkableA (ds := ds) hd (h _ (by simp))).unmark.unseal
   · exact .link .alias .any
   · exact .link .alias (h _ (by simp))
+  · exact .ride .absent
+  · exact inverseOf_checkableA _
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
