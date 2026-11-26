@@ -1671,6 +1671,49 @@ la38	verdict	"a": {}, "l": [hide(1), (relate({"k": 1})) & (path($.a))]	{"a": {"k
 la39	verdict	"a": {}, "l": [1, maybe($.gone), (relate({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid"}
 la40	verdict	"a": {}, "l": [1, maybe($.gone), (relate({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 la41	verdict	"a": {}, "l": [1, maybe($.gone), (relate({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+# A sum of an absence is absent, and the key that holds it is left out, in
+# rows su0 on: absence on either side of `+`, beside a list, a string and a
+# number, in a list, inside another sum, met with a kind and under an
+# optional key.
+su0	verdict	"a": (["h"]) + (maybe($.t))	{}	{"verdict":"valid"}
+su1	verdict	"a": (["h"]) + (maybe($.t))	{}	{"verdict":"valid","opts":{"noFill":true}}
+su2	verdict	"a": (["h"]) + (maybe($.t))	{}	{"verdict":"valid","opts":{"partial":true}}
+su3	verdict	"t": ["x"], "a": (["h"]) + (maybe($.t))	{}	{"verdict":"valid"}
+su4	verdict	"t": ["x"], "a": (["h"]) + (maybe($.t))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+su5	verdict	"t": ["x"], "a": (["h"]) + (maybe($.t))	{}	{"verdict":"valid","opts":{"partial":true}}
+su6	verdict	"a": (maybe($.t)) + (["h"])	{}	{"verdict":"valid"}
+su7	verdict	"a": (maybe($.t)) + (["h"])	{}	{"verdict":"valid","opts":{"noFill":true}}
+su8	verdict	"a": (maybe($.t)) + (["h"])	{}	{"verdict":"valid","opts":{"partial":true}}
+su9	verdict	"a": ("h") + (maybe($.t))	{}	{"verdict":"valid"}
+su10	verdict	"a": ("h") + (maybe($.t))	{}	{"verdict":"valid","opts":{"noFill":true}}
+su11	verdict	"a": ("h") + (maybe($.t))	{}	{"verdict":"valid","opts":{"partial":true}}
+su12	verdict	"a": (1) + (maybe($.t))	{}	{"verdict":"valid"}
+su13	verdict	"a": (1) + (maybe($.t))	{}	{"verdict":"valid","opts":{"noFill":true}}
+su14	verdict	"a": (1) + (maybe($.t))	{}	{"verdict":"valid","opts":{"partial":true}}
+su15	verdict	"a": (maybe($.t)) + (maybe($.u))	{}	{"verdict":"valid"}
+su16	verdict	"a": (maybe($.t)) + (maybe($.u))	{}	{"verdict":"valid","opts":{"noFill":true}}
+su17	verdict	"a": (maybe($.t)) + (maybe($.u))	{}	{"verdict":"valid","opts":{"partial":true}}
+su18	verdict	"a": (["h"]) + (maybe($.t)), "b": 1	{}	{"verdict":"valid"}
+su19	verdict	"a": (["h"]) + (maybe($.t)), "b": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+su20	verdict	"a": (["h"]) + (maybe($.t)), "b": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+su21	verdict	"a": (["h"]) + (maybe($.t))	{"a": ["z"]}	{"verdict":"valid"}
+su22	verdict	"a": (["h"]) + (maybe($.t))	{"a": ["z"]}	{"verdict":"valid","opts":{"noFill":true}}
+su23	verdict	"a": (["h"]) + (maybe($.t))	{"a": ["z"]}	{"verdict":"valid","opts":{"partial":true}}
+su24	verdict	"a": (["h"]) + (maybe($.t))	{"t": ["x"]}	{"verdict":"valid"}
+su25	verdict	"a": (["h"]) + (maybe($.t))	{"t": ["x"]}	{"verdict":"incomplete","opts":{"noFill":true}}
+su26	verdict	"a": (["h"]) + (maybe($.t))	{"t": ["x"]}	{"verdict":"valid","opts":{"partial":true}}
+su27	verdict	"a": [1, ("h") + (maybe($.t))]	{}	{"verdict":"valid"}
+su28	verdict	"a": [1, ("h") + (maybe($.t))]	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+su29	verdict	"a": [1, ("h") + (maybe($.t))]	{}	{"verdict":"valid","opts":{"partial":true}}
+su30	verdict	"a": ((["h"]) + (maybe($.t))) + (["z"])	{}	{"verdict":"valid"}
+su31	verdict	"a": ((["h"]) + (maybe($.t))) + (["z"])	{}	{"verdict":"valid","opts":{"noFill":true}}
+su32	verdict	"a": ((["h"]) + (maybe($.t))) + (["z"])	{}	{"verdict":"valid","opts":{"partial":true}}
+su33	verdict	"a": (list) & ((["h"]) + (maybe($.t)))	{}	{"verdict":"incomplete"}
+su34	verdict	"a": (list) & ((["h"]) + (maybe($.t)))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+su35	verdict	"a": (list) & ((["h"]) + (maybe($.t)))	{}	{"verdict":"valid","opts":{"partial":true}}
+su36	verdict	"a"?: (["h"]) + (maybe($.t))	{}	{"verdict":"valid"}
+su37	verdict	"a"?: (["h"]) + (maybe($.t))	{}	{"verdict":"valid","opts":{"noFill":true}}
+su38	verdict	"a"?: (["h"]) + (maybe($.t))	{}	{"verdict":"valid","opts":{"partial":true}}
 pf0	verdict	"b": pref(1)	{}	{"verdict":"valid"}
 pf1	verdict	"b": pref(1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 pf2	verdict	"b": pref(1)	{}	{"verdict":"valid","opts":{"partial":true}}
@@ -4681,6 +4724,69 @@ rx44	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": %T, "y": 1	{}	
 rx45	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": type(%T)	{}	{"verdict":"valid"}
 rx46	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": type(%T)	{}	{"verdict":"valid","opts":{"noFill":true}}
 rx47	verdict	%T = {"m": {}, "n": (relate(%T)) & (path(.m))}\n"x": type(%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+# A recursive name met with a kind, a disjunction and another recursive name
+# follows in rows rm0 on: a kind picks among the name's branches as structure
+# does, a disjunction meets it arm by arm, and two names met hold both.
+rm0	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{"x": {"p": {"a": true}}}	{"verdict":"valid"}
+rm1	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"noFill":true}}
+rm2	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"partial":true}}
+rm3	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{"x": true}	{"verdict":"invalid"}
+rm4	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{"x": true}	{"verdict":"invalid","opts":{"noFill":true}}
+rm5	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{"x": true}	{"verdict":"invalid","opts":{"partial":true}}
+rm6	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{}	{"verdict":"valid"}
+rm7	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rm8	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (map)	{}	{"verdict":"valid","opts":{"partial":true}}
+rm9	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (boolean)	{"x": false}	{"verdict":"valid"}
+rm10	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (boolean)	{"x": false}	{"verdict":"valid","opts":{"noFill":true}}
+rm11	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (boolean)	{"x": false}	{"verdict":"valid","opts":{"partial":true}}
+rm12	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (boolean)	{"x": {}}	{"verdict":"invalid"}
+rm13	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (boolean)	{"x": {}}	{"verdict":"invalid","opts":{"noFill":true}}
+rm14	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (boolean)	{"x": {}}	{"verdict":"invalid","opts":{"partial":true}}
+rm15	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (map) & (%T)	{"x": {"p": {"a": {"p": {"b": true}}}}}	{"verdict":"valid"}
+rm16	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (map) & (%T)	{"x": {"p": {"a": {"p": {"b": true}}}}}	{"verdict":"valid","opts":{"noFill":true}}
+rm17	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (map) & (%T)	{"x": {"p": {"a": {"p": {"b": true}}}}}	{"verdict":"valid","opts":{"partial":true}}
+rm18	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (map) & (%T)	{"x": {"p": {"a": 1}}}	{"verdict":"invalid"}
+rm19	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (map) & (%T)	{"x": {"p": {"a": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rm20	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (map) & (%T)	{"x": {"p": {"a": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+rm21	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": {"p": {"a": true}}}	{"verdict":"valid"}
+rm22	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"noFill":true}}
+rm23	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"partial":true}}
+rm24	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": true}	{"verdict":"valid"}
+rm25	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": true}	{"verdict":"valid","opts":{"noFill":true}}
+rm26	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": true}	{"verdict":"valid","opts":{"partial":true}}
+rm27	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": 1}	{"verdict":"invalid"}
+rm28	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+rm29	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & ((boolean) | (map))	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+rm30	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (%T)	{"x": {"p": {"a": true}}}	{"verdict":"valid"}
+rm31	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (%T)	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"noFill":true}}
+rm32	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (%T)	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"partial":true}}
+rm33	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (%T)	{}	{"verdict":"incomplete"}
+rm34	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rm35	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n"x": (%T) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+rm36	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": {"p": {"a": true}}}	{"verdict":"valid"}
+rm37	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"noFill":true}}
+rm38	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": {"p": {"a": true}}}	{"verdict":"valid","opts":{"partial":true}}
+rm39	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": {"q": {}}}	{"verdict":"valid"}
+rm40	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": {"q": {}}}	{"verdict":"valid","opts":{"noFill":true}}
+rm41	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": {"q": {}}}	{"verdict":"valid","opts":{"partial":true}}
+rm42	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": true}	{"verdict":"invalid"}
+rm43	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": true}	{"verdict":"invalid","opts":{"noFill":true}}
+rm44	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{"x": true}	{"verdict":"invalid","opts":{"partial":true}}
+rm45	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{}	{"verdict":"incomplete"}
+rm46	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rm47	verdict	%T = (boolean) | ({"p"?: {&: %T}})\n%U = {"q"?: %U, "p"?: any}\n"x": (%T) & (%U)	{}	{"verdict":"valid","opts":{"partial":true}}
+rm48	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": [1, [2]]}	{"verdict":"valid"}
+rm49	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": [1, [2]]}	{"verdict":"valid","opts":{"noFill":true}}
+rm50	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": [1, [2]]}	{"verdict":"valid","opts":{"partial":true}}
+rm51	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": 1}	{"verdict":"invalid"}
+rm52	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+rm53	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+rm54	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": ["a"]}	{"verdict":"invalid"}
+rm55	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": ["a"]}	{"verdict":"invalid","opts":{"noFill":true}}
+rm56	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (list)	{"x": ["a"]}	{"verdict":"invalid","opts":{"partial":true}}
+rm57	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (integer)	{"x": 3}	{"verdict":"valid"}
+rm58	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (integer)	{"x": 3}	{"verdict":"valid","opts":{"noFill":true}}
+rm59	verdict	%L = (integer) | ([&: %L])\n"x": (%L) & (integer)	{"x": 3}	{"verdict":"valid","opts":{"partial":true}}
 # A use of a recursive name whose body reads its own place reads as a copy
 # of the body placed where it stands, at each level the data or the schema
 # reaches (ruling 26), in rows rr0 on.

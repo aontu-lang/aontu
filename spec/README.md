@@ -145,7 +145,8 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   document admits, and `OrderIndependent` states it of any reading, but
   `vetP` reads a document through its normal form, its paths and its
   links, and that it meets the contract is checked by evaluation on the
-  rows `od0` on (`order_verdicts_agree`) and not yet proved;
+  rows `od0` on (`order_verdicts_agree`) and `mp0` on, and not yet
+  proved;
 - the annotation `gen(spec)`: a rider whose record is read, where the
   others' are carried and never read; the meet of two records, which
   unify as maps; the standard options of each type and the check that
