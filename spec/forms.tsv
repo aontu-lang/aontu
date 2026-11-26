@@ -104,4 +104,6 @@ call	call	maybe
 call	call	emit
 call	call	apply
 absent	call	maybe
+call	call	acyclic
+call	call	inverse
 hole	syntax	_

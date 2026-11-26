@@ -3835,6 +3835,110 @@ theorem rel_held_verdict_exact : ∀ c ∈ relHeldCases, ∀ (m : Mode) (v : Ver
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relHeldCases_checkable c hc).1 (relHeldCases_checkable c hc).2 v
 
+/-- The graph atoms as they read: an atom alone, required, optional and
+at the root, which is no member of the output and admits what the data
+gives; an atom met with `any`, a kind, a literal on either side and a
+map, which leaves each as it is, and two atoms beside a literal the
+data refuses; a relation whose atoms hold, `acyclic()` over a chain and
+`inverse(k)` with its mirror written, the atoms before the value and
+after it, in either order, and one written twice; a template that still
+flows through the atoms, beside data it refuses; an atom beside a
+relation with no value, required and optional; an `inverse` whose
+argument is a number, holds a space, is empty or starts with a digit,
+each no name, and one a name writes with `_` and `-`; a path through a
+map an atom rides, beside data that refuses what it reads; atoms a name
+brings; and atoms under `hide()` and `type()`. -/
+def graphAtomCases : List (Decls × Val × Data) :=
+  let lst (vs : List Val) : Val := .list vs none false
+  let ac : Val := .call .acyclic []
+  let inv (k : String) : Val := .call .inverse [str k]
+  let r0 : Val := .call .relate []
+  let d (v : Val) : Val := m [("a", m [("d", v)])]
+  let chain (v : Val) : Val := m [("a", m [("d", v)]), ("b", m [])]
+  let mirror (v : Val) : Val :=
+    m [("a", m [("dependsOn", v)]), ("b", m [("usedBy", .meet r0 (lst [ad 0 ["a"]]))])]
+  let toB : Val := lst [ad 0 ["b"]]
+  [([], d ac, .map []),
+    ([], d ac, .map [("a", .map [("d", j 1)])]),
+    ([], d (inv "k"), .map []),
+    ([], m [("a", .map [("d", true, ac)] none false)], .map []),
+    ([], m [("d", ac)], .map []),
+    ([], d (.meet ac .any), .map []),
+    ([], d (.meet ac .integer), .map []),
+    ([], d (.meet ac .integer), .map [("a", .map [("d", j 1)])]),
+    ([], d (.meet ac .integer), .map [("a", .map [("d", .str "x")])]),
+    ([], d (.meet ac (int 1)), .map []),
+    ([], d (.meet (int 1) ac), .map []),
+    ([], d (.meet ac (m [("x", int 1)])), .map []),
+    ([], d (.meet (.meet ac (inv "k")) (int 1)), .map [("a", .map [("d", j 2)])]),
+    ([], chain (.meet (.meet r0 ac) toB), .map []),
+    ([], chain (.meet (.meet r0 toB) ac), .map []),
+    ([], chain (.meet (.meet (.meet r0 ac) ac) toB), .map []),
+    ([], mirror (.meet (.meet r0 (inv "usedBy")) toB), .map []),
+    ([], mirror (.meet (.meet (.meet r0 (inv "usedBy")) ac) toB), .map []),
+    ([], mirror (.meet (.meet (.meet r0 ac) (inv "usedBy")) toB), .map []),
+    ([], mirror (.meet (.meet (.meet r0 toB) (inv "usedBy")) ac), .map []),
+    ([], chain (.meet (.meet (.call .relate [m [("k", int 1)]]) ac) toB), .map []),
+    ([], chain (.meet (.meet (.call .relate [m [("k", int 1)]]) ac) toB), .map [("b", .map [("k", j 2)])]),
+    ([], d (.meet r0 ac), .map []),
+    ([], m [("a", .map [("d", true, .meet r0 ac)] none false)], .map []),
+    ([], m [("d", .meet r0 (.call .inverse [int 1]))], .map []),
+    ([], m [("d", .meet r0 (inv "a b"))], .map []),
+    ([], m [("d", .meet r0 (inv ""))], .map []),
+    ([], m [("d", .meet (.meet r0 (inv "_x-1")) (lst []))], .map []),
+    ([], m [("d", .meet (.meet r0 (inv "1x")) (lst []))], .map []),
+    ([], m [("r", .meet ac (m [("a", int 1)])), ("q", p ["r", "a"])], .map []),
+    ([], m [("r", .meet ac (m [("a", int 1)])), ("q", p ["r", "a"])], .map [("q", j 2)]),
+    ([("R", .meet r0 ac)], chain (.meet (.alias "R") toB), .map []),
+    ([], m [("x", hide (.meet (m [("a", int 1)]) ac)), ("y", type (.meet (lst [int 1]) (inv "k")))], .map [])]
+
+set_option maxRecDepth 8192 in
+theorem graphAtomCases_checkable : ∀ c ∈ graphAtomCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem graph_atom_verdict_exact : ∀ c ∈ graphAtomCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (graphAtomCases_checkable c hc).1 (graphAtomCases_checkable c hc).2 v
+
+/-- `+` over an address, which reads as the text that spells it: beside
+a string on either side, another address, a number, a float and a
+boolean; a relative address, as it is written; between two strings; an
+address a path reads, and one a preference holds on either side; beside
+`null`, a list, a map and a kind, and the kind `path` beside a string,
+where the `+` waits; and data that takes the text or refuses it. -/
+def addrPlusCases : List (Decls × Val × Data) :=
+  let pl (a b : Val) : Val := .call .plus [a, b]
+  let doc (v : Val) : Val := m [("a", m []), ("b", m []), ("x", v)]
+  let a := ad 0 ["a"]
+  [([], doc (pl a (str "/n")), .map []),
+    ([], doc (pl (str "n/") a), .map []),
+    ([], doc (pl a (ad 0 ["b"])), .map []),
+    ([], doc (pl a (int 1)), .map []),
+    ([], doc (pl (int 1) a), .map []),
+    ([], doc (pl a (.lit (.num (.float (.dyadic 3 (-1)))))), .map []),
+    ([], doc (pl a (.lit (.bool true))), .map []),
+    ([], doc (pl (ad 1 ["a"]) (str "/n")), .map []),
+    ([], doc (pl (ad 2 ["q"]) (str "!")), .map []),
+    ([], doc (pl (pl (str "<") a) (str ">")), .map []),
+    ([], m [("a", m []), ("p", a), ("x", pl (p ["p"]) (str "/n"))], .map []),
+    ([], doc (pl (.pref 1 a) (str "!")), .map []),
+    ([], doc (pl a (.pref 1 (str "d"))), .map []),
+    ([], doc (pl a (.lit .null)), .map []),
+    ([], doc (pl a (.list [int 1] none false)), .map []),
+    ([], doc (pl a (m [("b", int 1)])), .map []),
+    ([], doc (pl a .string), .map []),
+    ([], m [("p", .pathKind), ("x", pl (p ["p"]) (str "!"))], .map []),
+    ([], doc (pl a (str "/n")), .map [("x", .str "$.a/n")]),
+    ([], doc (pl a (str "/n")), .map [("x", .str "other")])]
+
+set_option maxRecDepth 8192 in
+theorem addrPlusCases_checkable : ∀ c ∈ addrPlusCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem addr_plus_verdict_exact : ∀ c ∈ addrPlusCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (addrPlusCases_checkable c hc).1 (addrPlusCases_checkable c hc).2 v
+
 /-- Links read where they land: a `relate` in a `type()` that a path
 reference copies, beside a target the template admits, one it refuses,
 one that names nothing and data that refuses the template; a `relate` in
@@ -7034,6 +7138,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
     ("call", "call", "each"), ("call", "call", "pack"), ("call", "call", "maybe"),
     ("call", "call", "emit"), ("call", "call", "apply"), ("absent", "call", "maybe"),
+    ("call", "call", "acyclic"), ("call", "call", "inverse"),
     ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
@@ -7068,7 +7173,8 @@ def formSamples : List (String × Val) :=
     ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
     ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole]),
     ("pack", .call .pack [.listKind, .hole]), ("maybe", .call .maybe [.string]),
-    ("emit", .call .emit [.listKind, .mapKind]), ("apply", .call .apply [.integer, .hole])]
+    ("emit", .call .emit [.listKind, .mapKind]), ("apply", .call .apply [.integer, .hole]),
+    ("acyclic", .call .acyclic []), ("inverse", .call .inverse [.lit (.str "k")])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -10128,6 +10234,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# ring of three, a list's elements, and a relation to a subtype of the type"
     IO.println "# that declares it, by name and by path."
     pathRows "mp" mutualPathCases
+    IO.println "# The graph atoms `acyclic()` and `inverse(k)`, in rows ga0 on, as they read:"
+    IO.println "# an atom rides the value it meets and leaves it as it is, one alone is no"
+    IO.println "# member of the output, a template still flows through one, and an `inverse`"
+    IO.println "# whose argument is no name is the schema's error. Every document here keeps"
+    IO.println "# what its atoms ask; what a broken graph answers has no rule yet."
+    pathRows "ga" graphAtomCases
+    IO.println "# `+` over an address, in rows ap0 on, which reads as the text that spells it."
+    pathRows "ap" addrPlusCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
