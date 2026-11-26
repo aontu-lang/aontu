@@ -791,6 +791,32 @@ theorem admits_list_data {env : Env} {root : Data} {is : List Val} {sp : Option 
   cases h with
   | list _ _ _ _ => exact ⟨_, rfl⟩
 
+/-- The member found under a key is a member under that key. -/
+theorem mem_of_find_key : ∀ {fs : List (String × Bool × Val)} {k : String} {f : String × Bool × Val},
+    fs.find? (fun f => f.1 == k) = some f → (k, f.2.1, f.2.2) ∈ fs
+  | [], _, _, h => nomatch h
+  | g :: fs, k, f, h => by
+    rw [List.find?_cons] at h
+    split at h
+    · rename_i hk
+      cases h
+      have hk' : g.1 = k := eq_of_beq hk
+      rw [← hk']; exact List.mem_cons_self
+    · exact List.mem_cons_of_mem _ (mem_of_find_key h)
+
+/-- Where none is found, the map declares none under the key. -/
+theorem not_mem_of_find_key : ∀ {fs : List (String × Bool × Val)} {k : String},
+    fs.find? (fun f => f.1 == k) = none → ∀ (o : Bool) (v : Val), (k, o, v) ∉ fs
+  | [], _, _, _, _, hm => nomatch hm
+  | g :: fs, k, h, o, v, hm => by
+    rw [List.find?_cons] at h
+    split at h
+    · exact nomatch h
+    · rename_i hne
+      rcases List.mem_cons.mp hm with rfl | hm
+      · exact nomatch (beq_iff_eq.mpr rfl : (k == k) = true).symm.trans hne
+      · exact not_mem_of_find_key h o v hm
+
 /-- A map's members compared soundly: where `r` is sound on every value
 lighter than the map, the general map admits what the specific does. -/
 theorem leMembers_sound {eg es : Env} {r : Val → Val → Bool} {gfs sfs : List (String × Bool × Val)}
@@ -827,16 +853,10 @@ theorem leMembers_sound {eg es : Env} {r : Val → Val → Bool} {gfs sfs : List
     simp only at hf
     split at hf
     · rename_i f' hfind
-      have hk : f'.1 = k := by simpa using List.find?_some hfind
-      have hmem : (k, f'.2.1, f'.2.2) ∈ sfs := by
-        have := List.mem_of_find?_eq_some hfind
-        rw [← hk]; exact this
       exact hr v f'.2.2 x hf (Data.weight_lt_of_lookup hl) (hwf k x (lookup_mem hl))
-        (hs1 k f'.2.1 f'.2.2 x hmem hl)
+        (hs1 k f'.2.1 f'.2.2 x (mem_of_find_key hfind) hl)
     · rename_i hfind
-      refine rest v k x hf (lookup_mem hl) fun o' v' hm' => ?_
-      have := List.find?_eq_none.mp hfind (k, o', v') hm'
-      simp at this
+      exact rest v k x hf (lookup_mem hl) (not_mem_of_find_key hfind)
   · have hf := (hall (k, o, v) hm).1
     simp only at hf
     rcases (Bool.or_eq_true _ _).mp hf with ho | hreq
@@ -845,17 +865,17 @@ theorem leMembers_sound {eg es : Env} {r : Val → Val → Bool} {gfs sfs : List
       simp only [Bool.and_eq_true, beq_iff_eq, Bool.not_eq_true'] at hf'
       have hmem : (k, false, f'.2.2) ∈ sfs := by
         rw [← hf'.1, ← hf'.2]; exact hm'
-      exact absurd (hs2 k false f'.2.2 hmem hl) (by simp)
+      exact nomatch hs2 k false f'.2.2 hmem hl
   · subst ht
     simp only [Bool.and_eq_true, Bool.not_eq_true', List.all_eq_true] at hspread
     obtain ⟨⟨hkey, hallS⟩, hrest⟩ := hspread
     rw [Val.atKey_of_keyed _ hkey]
-    by_cases hd : ∃ o' v', (k, o', v') ∈ sfs
-    · obtain ⟨o', v', hm'⟩ := hd
-      have hl := lookup_eq_some_of_nodup hnd hm
-      exact hr t v' x (hallS (k, o', v') hm') (Data.weight_lt_of_mem_members hm) (hwf k x hm)
-        (hs1 k o' v' x hm' hl)
-    · exact rest t k x hrest hm fun o' v' hm' => hd ⟨o', v', hm'⟩
+    cases hfind : sfs.find? (fun f' => f'.1 == k) with
+    | some f' =>
+      have hm' := mem_of_find_key hfind
+      exact hr t f'.2.2 x (hallS (k, f'.2.1, f'.2.2) hm') (Data.weight_lt_of_mem_members hm)
+        (hwf k x hm) (hs1 k f'.2.1 f'.2.2 x hm' (lookup_eq_some_of_nodup hnd hm))
+    | none => exact rest t k x hrest hm (not_mem_of_find_key hfind)
   · rw [hgc] at hclosed
     simp only [Bool.not_true, Bool.false_or, Bool.and_eq_true, List.all_eq_true] at hclosed
     obtain ⟨o', v', hm'⟩ := hs4 hclosed.1 k x hm
@@ -911,8 +931,7 @@ theorem leElems_sound {eg es : Env} {r : Val → Val → Bool} {gis sis : List V
         exact hr t t' x hrest.2 (Data.weight_lt_of_getElem? hx) hxw this
       · rcases (Bool.or_eq_true _ _).mp hrest with hsc | hany
         · have hl := hs2 hsc rfl
-          have := (List.getElem?_eq_some_iff.mp hx).1
-          omega
+          exact absurd (hl ▸ (List.getElem?_eq_some_iff.mp hx).1) hi
         · rw [isAny_eq hany]; exact .any
 
 /-- `leCo` is sound: where it answers yes with every pair in `cold`
