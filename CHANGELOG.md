@@ -8,6 +8,51 @@ each change affects.
 
 ## Unreleased
 
+### The definition's rows hold a `match` over a hole
+
+Another language rule the old decision record held, which the
+definition already answers and no generated row held. No engine
+changes, and none to the definition.
+
+- **In a generator's template the generator binds the hole**, so the
+  match is made once for each member, on the member:
+  `each([1 2 3], match(_, 1, "one", 2, "two", "many"))` is
+  `["one", "two", "many"]`. 12 cases, rows th0 to th35 of
+  `test/spec/def-trial.tsv`: by `each` and by `pack`, a pattern that is
+  a map and one that is a kind, the match as a member of a map
+  template, no default with a member that takes no arm, the hole as
+  the default, and a `filter`'s condition.
+- **Outside one nothing binds it**, and the match is the schema's
+  error, `hole_unbound`, whatever the data gives. 11 cases, rows tf0
+  to tf32: the hole as the scrutinee, as a pattern and as a result,
+  met with a value, at an optional key, under a mark, in a spread's
+  template, and in the body of a name a generator's template reads.
+
+The old record had such a match wait, so that the run reported
+`incomplete`. Ruling 34 has since made a hole nothing binds an error
+wherever it stands, and these rows hold that for a `match`.
+
+Both engines answer all 69 rows as the definition does. The definition
+tutorial's step 27 gains the two readings, with an example the docs
+test runs.
+
+Three more of the ten rules, read against the rows that exist:
+
+- **A string is never a path, and a relation refuses a string where an
+  address is wanted.** The definition states both, and rows already
+  hold a relation met with a string, `path()` over a string that is
+  absolute, relative, empty and computed, two addresses met by prefix
+  and two that don't compare. Two shapes have no row yet: the `path`
+  kind met with a string, and a relation over a list of strings. Both
+  engines and the definition agree on them.
+- **A generator reads a settled source.** Here the definition differs
+  from both engines, and the question is filed for a ruling as #1012. A
+  path that is a call's data argument reads its target where the
+  target stands in both engines, and as a copy placed at the call in
+  the definition, so `match($.src.a, {n: "a"}, "yes", "no")` over a
+  member a spread's `key()` names takes a different arm in each.
+  `admin/issue-plan.md` gains it.
+
 ### A template doesn't apply to a member that is absence, however the absence is made
 
 #1008 in the definition, and the same rule in both engines for an

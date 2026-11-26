@@ -232,7 +232,7 @@ Path steps carried as text: a structural step closes #471, #472 and #475 togethe
 
 ### Generators, folds and trials
 
-25 issues (3 S, 22 M).
+26 issues (3 S, 23 M).
 
 Generators that cannot read the member they make (#754) or their own enclosing bag (#751), `key(n)` in an `emit` template (#783, #786), the trial question of #818, ruled as 63 and built 2026-11-22, and three findings of decision 62's build, ruled 2026-11-22: #892, a conflict below the top of a trial argument read against a value, which makes the whole argument admit nothing (74, built in the definition the same day), #894, a written `nil` below the top of `must`'s condition, which reads as ruling 54 reads it (75, built in both ports the same day, but for an arm that holds one, #907), and #895, a path in `must`'s condition into the value under trial, which reads the field as 63 reads one in `match` (76, built the same day), and #917, the same path written as a relative one, fixed the same day; #919, a pattern that reads the match's own place, and #922, what a scrutinee holding a `type()` or `hide()` member selects by, both ruled 2026-11-22 (85: the pattern reads the field; 86: the scrutinee's output). The newer ones: an unknown call that is silent in a trial (#870, ruled as 77), a default inside a map that a trial misses (#847, ruled as 78), three TypeScript failures on a relative reference in `match` and `maybe` (#850, #868, #871), and the keyed projection the lang refinement plan builds (#861).
 
@@ -267,6 +267,7 @@ Generators that cannot read the member they make (#754) or their own enclosing b
 | [#963](https://github.com/aontu-lang/aontu/issues/963) | def | M |  | A `match` pattern that holds a default refuses the default's own value in both ports: `match(1, *1, "T", "D")` is `"D"` where `match(2, *1, "T", "D")` is `"T"`. The canon comparison keeps the mark. |
 | [#964](https://github.com/aontu-lang/aontu/issues/964) | def | M |  | A `match` passes over a pattern whose optional member clashes with the scrutinee's own, though the value generated has neither: both ports try the pattern against the term, the definition against the output. |
 | [#965](https://github.com/aontu-lang/aontu/issues/965) | def | M |  | A `match` tries a sealed pattern, or one that names the member, against a `type()` or `hide()` member of the scrutinee, which the output leaves out (both ports). #922 built the rule for a pattern that leaves the member alone. |
+| [#1012](https://github.com/aontu-lang/aontu/issues/1012) | def | M |  | A call's data argument that is a path, the source of `each`, `pack`, `apply`, `filter` or a fold or a `match`'s scrutinee, reads its target where the target stands in both ports, and as a copy placed at the call in the definition. Asks for a ruling; the old record's rule is the ports'. Go reads a `match`'s pattern that way too, where TypeScript reads a copy. |
 
 ### Declarations, loads, includes and built-in models
 
