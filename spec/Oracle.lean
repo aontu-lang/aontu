@@ -6010,6 +6010,83 @@ theorem select_verdict_exact : ∀ c ∈ selectCases, ∀ (m : Mode) (v : Verdic
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (selectCases_checkable c hc).1 (selectCases_checkable c hc).2 v
 
+/-- A `match` over the hole in a generator's template: the generator
+binds the hole, so the match is made once for each member, on the
+member. A list by `each` and a map by `pack`, which reads each string
+of its list as a key, against no data, the value generated and one a
+member's arm refuses; a pattern that is a
+map and one that is a kind; the match as a member of a map template; no
+default, where every member takes an arm and where one takes none,
+which is the schema's error; the hole as the default too, which is the
+member; and a `filter`'s condition, whose hole the `filter` binds. -/
+def holeMatchCases : List (Decls × Val × Data) :=
+  let one : Val := .lit (.str "one")
+  let other : Val := .lit (.str "other")
+  let mt : Val := .select .hole [(int 1, one)] (some other)
+  let byKey : Val := .select .hole [(.lit (.str "a"), one)] (some other)
+  let each (d t : Val) : Val := .call .each [d, t]
+  let dxs (xs : List Data) : Data := .map [("xs", .list xs)]
+  [([], m [("xs", each (lst [int 1, int 2, int 3])
+      (.select .hole [(int 1, one), (int 2, .lit (.str "two"))] (some other)))], .map []),
+    ([], m [("xs", each (lst [int 1, int 2]) mt)], dxs [.str "one", .str "other"]),
+    ([], m [("xs", each (lst [int 1, int 2]) mt)], dxs [.str "one", .str "one"]),
+    ([], m [("m", .call .pack [lst [.lit (.str "a"), .lit (.str "b")], byKey])], .map []),
+    ([], m [("m", .call .pack [lst [.lit (.str "a"), .lit (.str "b")], byKey])],
+      .map [("m", .map [("a", .str "one"), ("b", .str "one")])]),
+    ([], m [("xs", each (lst [m [("k", .lit (.str "a"))], m [("k", .lit (.str "b"))]])
+      (.select .hole [(m [("k", .lit (.str "a"))], m [("r", int 1)])] (some (m [("r", int 2)]))))], .map []),
+    ([], m [("xs", each (lst [int 1, .lit (.str "a")])
+      (.select .hole [(.number, .lit (.str "n")), (.string, .lit (.str "s"))] none))], .map []),
+    ([], m [("xs", each (lst [int 1, int 2]) (m [("v", mt)]))], .map []),
+    ([], m [("xs", each (lst [int 1, int 1]) (.select .hole [(int 1, one)] none))], .map []),
+    ([], m [("xs", each (lst [int 1, int 2]) (.select .hole [(int 1, one)] none))], .map []),
+    ([], m [("xs", each (lst [int 1, int 2]) (.select .hole [(int 1, one)] (some .hole)))], .map []),
+    ([], m [("xs", .filter (lst [int 1, int 2, int 3])
+      (.select .hole [(int 1, .integer)] (some (.lit (.bool false)))))], .map [])]
+
+set_option maxRecDepth 8192 in
+/-- Every case's schema, read with its generator's instances made and
+their selections taken, holds no hole, no path, no pattern and no
+format, so `vet` is `Vet` on it, by `vet_iff`. -/
+theorem holeMatchCases_checkable : ∀ c ∈ holeMatchCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem holeMatch_verdict_exact : ∀ c ∈ holeMatchCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (holeMatchCases_checkable c hc).1 (holeMatchCases_checkable c hc).2 v
+
+/-- A `match` over a hole that nothing binds: outside a generator's
+template the hole is no value's place, so the match is the schema's
+error whatever the data gives. The hole as the scrutinee, against no
+data, the scrutinee's value and an arm's result; met with a value, at
+an optional key and under a mark; as a pattern, as a result and with no
+default; in a spread's template, which binds none; and in the body of a
+name a generator's template reads, since a hole binds only where it is
+written. -/
+def freeHoleMatchCases : List (Decls × Val × Data) :=
+  let one : Val := .lit (.str "one")
+  let other : Val := .lit (.str "other")
+  let mt : Val := .select .hole [(int 1, one)] (some other)
+  [([], m [("x", mt)], .map []),
+    ([], m [("x", mt)], .map [("x", j 1)]),
+    ([], m [("x", mt)], .map [("x", .str "one")]),
+    ([], m [("x", .meet mt (int 1))], .map []),
+    ([], mo [("x", true, mt)], .map []),
+    ([], m [("x", hide mt), ("y", int 2)], .map []),
+    ([], m [("x", .select (int 1) [(.hole, one)] (some other))], .map []),
+    ([], m [("x", .select (int 1) [(int 1, .hole)] (some other))], .map []),
+    ([], m [("x", .select .hole [(int 1, one)] none)], .map []),
+    ([], m [("a", .meet (.map [] (some mt) false) (m [("x", int 1)]))], .map []),
+    ([("M", mt)], m [("xs", .call .each [lst [int 1, int 2], .alias "M"])], .map [])]
+
+/-- Each case reads as ill-formed, which is the `error` class of `Vet`
+whatever the checker can read, and `vet` answers it (`vet_error_iff`). -/
+theorem freeHoleMatchCases_illFormed : ∀ c ∈ freeHoleMatchCases, c.1.illFormedR c.2.1 = true := by decide
+
+theorem freeHoleMatch_error : ∀ c ∈ freeHoleMatchCases, ∀ (m : Mode),
+    vet m c.1 c.2.1 c.2.2 = .error :=
+  fun c hc _ => vet_error_iff.mpr (.inr (.inr (freeHoleMatchCases_illFormed c hc)))
+
 /-- The cases of decision 13 of the design note's §7: a spread that
 selects on `key(0)`, the key of the member it is tried on, over a map's
 members and over a list's positions: an arm that admits, an arm that
@@ -9926,6 +10003,12 @@ def main (args : List String) : IO UInt32 := do
     trialRows "td" deepEagerCases
     trialRows "tn" voidBelowCases
     trialRows "tl" lazyClashCases
+    IO.println "# A match over the hole: in a generator's template, which binds the hole, the"
+    IO.println "# match is made once for each member, in rows th0 on; outside one nothing"
+    IO.println "# binds it, and the match is the schema's error whatever the data, in rows"
+    IO.println "# tf0 on."
+    trialRows "th" holeMatchCases
+    trialRows "tf" freeHoleMatchCases
     keyedRows "yk"
     return 0
   | ["calls"] =>

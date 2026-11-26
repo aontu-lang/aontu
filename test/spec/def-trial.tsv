@@ -1179,6 +1179,79 @@ tl17	verdict	"v": nof(1, {"b"?: (len(1)) & ([1, 2])}, {"x": 1})	{"v": {"x": 1}}	
 tl18	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid"}
 tl19	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 tl20	verdict	"v": nof(1, {"b"?: *(1) | *(2)}, {"x": 1})	{"v": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+# A match over the hole: in a generator's template, which binds the hole, the
+# match is made once for each member, in rows th0 on; outside one nothing
+# binds it, and the match is the schema's error whatever the data, in rows
+# tf0 on.
+th0	verdict	"xs": each([1, 2, 3], match(_, 1, "one", 2, "two", "other"))	{}	{"verdict":"valid"}
+th1	verdict	"xs": each([1, 2, 3], match(_, 1, "one", 2, "two", "other"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th2	verdict	"xs": each([1, 2, 3], match(_, 1, "one", 2, "two", "other"))	{}	{"verdict":"valid","opts":{"partial":true}}
+th3	verdict	"xs": each([1, 2], match(_, 1, "one", "other"))	{"xs": ["one", "other"]}	{"verdict":"valid"}
+th4	verdict	"xs": each([1, 2], match(_, 1, "one", "other"))	{"xs": ["one", "other"]}	{"verdict":"valid","opts":{"noFill":true}}
+th5	verdict	"xs": each([1, 2], match(_, 1, "one", "other"))	{"xs": ["one", "other"]}	{"verdict":"valid","opts":{"partial":true}}
+th6	verdict	"xs": each([1, 2], match(_, 1, "one", "other"))	{"xs": ["one", "one"]}	{"verdict":"invalid"}
+th7	verdict	"xs": each([1, 2], match(_, 1, "one", "other"))	{"xs": ["one", "one"]}	{"verdict":"invalid","opts":{"noFill":true}}
+th8	verdict	"xs": each([1, 2], match(_, 1, "one", "other"))	{"xs": ["one", "one"]}	{"verdict":"invalid","opts":{"partial":true}}
+th9	verdict	"m": pack(["a", "b"], match(_, "a", "one", "other"))	{}	{"verdict":"valid"}
+th10	verdict	"m": pack(["a", "b"], match(_, "a", "one", "other"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th11	verdict	"m": pack(["a", "b"], match(_, "a", "one", "other"))	{}	{"verdict":"valid","opts":{"partial":true}}
+th12	verdict	"m": pack(["a", "b"], match(_, "a", "one", "other"))	{"m": {"a": "one", "b": "one"}}	{"verdict":"invalid"}
+th13	verdict	"m": pack(["a", "b"], match(_, "a", "one", "other"))	{"m": {"a": "one", "b": "one"}}	{"verdict":"invalid","opts":{"noFill":true}}
+th14	verdict	"m": pack(["a", "b"], match(_, "a", "one", "other"))	{"m": {"a": "one", "b": "one"}}	{"verdict":"invalid","opts":{"partial":true}}
+th15	verdict	"xs": each([{"k": "a"}, {"k": "b"}], match(_, {"k": "a"}, {"r": 1}, {"r": 2}))	{}	{"verdict":"valid"}
+th16	verdict	"xs": each([{"k": "a"}, {"k": "b"}], match(_, {"k": "a"}, {"r": 1}, {"r": 2}))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th17	verdict	"xs": each([{"k": "a"}, {"k": "b"}], match(_, {"k": "a"}, {"r": 1}, {"r": 2}))	{}	{"verdict":"valid","opts":{"partial":true}}
+th18	verdict	"xs": each([1, "a"], match(_, number, "n", string, "s"))	{}	{"verdict":"valid"}
+th19	verdict	"xs": each([1, "a"], match(_, number, "n", string, "s"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th20	verdict	"xs": each([1, "a"], match(_, number, "n", string, "s"))	{}	{"verdict":"valid","opts":{"partial":true}}
+th21	verdict	"xs": each([1, 2], {"v": match(_, 1, "one", "other")})	{}	{"verdict":"valid"}
+th22	verdict	"xs": each([1, 2], {"v": match(_, 1, "one", "other")})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th23	verdict	"xs": each([1, 2], {"v": match(_, 1, "one", "other")})	{}	{"verdict":"valid","opts":{"partial":true}}
+th24	verdict	"xs": each([1, 1], match(_, 1, "one"))	{}	{"verdict":"valid"}
+th25	verdict	"xs": each([1, 1], match(_, 1, "one"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th26	verdict	"xs": each([1, 1], match(_, 1, "one"))	{}	{"verdict":"valid","opts":{"partial":true}}
+th27	verdict	"xs": each([1, 2], match(_, 1, "one"))	{}	{"verdict":"error"}
+th28	verdict	"xs": each([1, 2], match(_, 1, "one"))	{}	{"verdict":"error","opts":{"noFill":true}}
+th29	verdict	"xs": each([1, 2], match(_, 1, "one"))	{}	{"verdict":"error","opts":{"partial":true}}
+th30	verdict	"xs": each([1, 2], match(_, 1, "one", _))	{}	{"verdict":"valid"}
+th31	verdict	"xs": each([1, 2], match(_, 1, "one", _))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th32	verdict	"xs": each([1, 2], match(_, 1, "one", _))	{}	{"verdict":"valid","opts":{"partial":true}}
+th33	verdict	"xs": filter([1, 2, 3], match(_, 1, integer, false))	{}	{"verdict":"valid"}
+th34	verdict	"xs": filter([1, 2, 3], match(_, 1, integer, false))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+th35	verdict	"xs": filter([1, 2, 3], match(_, 1, integer, false))	{}	{"verdict":"valid","opts":{"partial":true}}
+tf0	verdict	"x": match(_, 1, "one", "other")	{}	{"verdict":"error"}
+tf1	verdict	"x": match(_, 1, "one", "other")	{}	{"verdict":"error","opts":{"noFill":true}}
+tf2	verdict	"x": match(_, 1, "one", "other")	{}	{"verdict":"error","opts":{"partial":true}}
+tf3	verdict	"x": match(_, 1, "one", "other")	{"x": 1}	{"verdict":"error"}
+tf4	verdict	"x": match(_, 1, "one", "other")	{"x": 1}	{"verdict":"error","opts":{"noFill":true}}
+tf5	verdict	"x": match(_, 1, "one", "other")	{"x": 1}	{"verdict":"error","opts":{"partial":true}}
+tf6	verdict	"x": match(_, 1, "one", "other")	{"x": "one"}	{"verdict":"error"}
+tf7	verdict	"x": match(_, 1, "one", "other")	{"x": "one"}	{"verdict":"error","opts":{"noFill":true}}
+tf8	verdict	"x": match(_, 1, "one", "other")	{"x": "one"}	{"verdict":"error","opts":{"partial":true}}
+tf9	verdict	"x": (match(_, 1, "one", "other")) & (1)	{}	{"verdict":"error"}
+tf10	verdict	"x": (match(_, 1, "one", "other")) & (1)	{}	{"verdict":"error","opts":{"noFill":true}}
+tf11	verdict	"x": (match(_, 1, "one", "other")) & (1)	{}	{"verdict":"error","opts":{"partial":true}}
+tf12	verdict	"x"?: match(_, 1, "one", "other")	{}	{"verdict":"error"}
+tf13	verdict	"x"?: match(_, 1, "one", "other")	{}	{"verdict":"error","opts":{"noFill":true}}
+tf14	verdict	"x"?: match(_, 1, "one", "other")	{}	{"verdict":"error","opts":{"partial":true}}
+tf15	verdict	"x": hide(match(_, 1, "one", "other")), "y": 2	{}	{"verdict":"error"}
+tf16	verdict	"x": hide(match(_, 1, "one", "other")), "y": 2	{}	{"verdict":"error","opts":{"noFill":true}}
+tf17	verdict	"x": hide(match(_, 1, "one", "other")), "y": 2	{}	{"verdict":"error","opts":{"partial":true}}
+tf18	verdict	"x": match(1, _, "one", "other")	{}	{"verdict":"error"}
+tf19	verdict	"x": match(1, _, "one", "other")	{}	{"verdict":"error","opts":{"noFill":true}}
+tf20	verdict	"x": match(1, _, "one", "other")	{}	{"verdict":"error","opts":{"partial":true}}
+tf21	verdict	"x": match(1, 1, _, "other")	{}	{"verdict":"error"}
+tf22	verdict	"x": match(1, 1, _, "other")	{}	{"verdict":"error","opts":{"noFill":true}}
+tf23	verdict	"x": match(1, 1, _, "other")	{}	{"verdict":"error","opts":{"partial":true}}
+tf24	verdict	"x": match(_, 1, "one")	{}	{"verdict":"error"}
+tf25	verdict	"x": match(_, 1, "one")	{}	{"verdict":"error","opts":{"noFill":true}}
+tf26	verdict	"x": match(_, 1, "one")	{}	{"verdict":"error","opts":{"partial":true}}
+tf27	verdict	"a": ({&: match(_, 1, "one", "other")}) & ({"x": 1})	{}	{"verdict":"error"}
+tf28	verdict	"a": ({&: match(_, 1, "one", "other")}) & ({"x": 1})	{}	{"verdict":"error","opts":{"noFill":true}}
+tf29	verdict	"a": ({&: match(_, 1, "one", "other")}) & ({"x": 1})	{}	{"verdict":"error","opts":{"partial":true}}
+tf30	verdict	%M = match(_, 1, "one", "other")\n"xs": each([1, 2], %M)	{}	{"verdict":"error"}
+tf31	verdict	%M = match(_, 1, "one", "other")\n"xs": each([1, 2], %M)	{}	{"verdict":"error","opts":{"noFill":true}}
+tf32	verdict	%M = match(_, 1, "one", "other")\n"xs": each([1, 2], %M)	{}	{"verdict":"error","opts":{"partial":true}}
 yk0	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid"}
 yk1	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 yk2	verdict	"z": {&: keyed("a", integer, nil)}	{"z": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
