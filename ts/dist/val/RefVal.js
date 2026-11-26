@@ -601,12 +601,8 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     this.detectRefCycle(ctx)) {
                     out = (0, err_1.makeNilErr)(ctx, 'path_cycle', this);
                 }
-                else if (null != out && !snap && !this.mark._hide_found &&
-                    pendingMarkWrapper(out)) {
-                    out = undefined;
-                }
                 else if (null != out && !snap && true === ctx.argsnap &&
-                    !out.done) {
+                    (!out.done || (!this.mark._hide_found && pendingMarkWrapper(out)))) {
                     out = undefined;
                 }
                 else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg, 0, ctx.root, new Set(), this.template)) {
@@ -614,6 +610,11 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     rec.site = this.site;
                     rec.path = [...this.path];
                     out = rec;
+                }
+                // A hide() or type() still to settle is waited for, unless it reached back here above.
+                else if (null != out && !snap && !this.mark._hide_found &&
+                    pendingMarkWrapper(out)) {
+                    out = undefined;
                 }
                 // Types and hidden values are cloned and made concrete
                 else if (null != out) { //  && (out.mark.type || out.mark.hide)) {
@@ -673,7 +674,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 }
             }
         }
-        // console.log('REF-FIND', ctx.cc, this.id, selfpath, 'PEG=', pegpath, 'RP', pI, refpath.join('.'), descent, 'O=', out?.id, out?.canon, out?.done)
         return out;
     }
     detectRefCycle(ctx) {

@@ -37,8 +37,13 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
         return out;
     }
     body(ctx) {
-        return walkPlace(ctx.root, this.target)
+        let node = walkPlace(ctx.root, this.target)
             ?? walkPlace(ctx._fixroot, this.target);
+        // A hide() or type() still to settle marks the definition, not what a use of it unfolds.
+        while ((true === node?.isHideFunc || true === node?.isTypeFunc) && !node.done && null != node.peg?.[0]) {
+            node = node.peg[0];
+        }
+        return node;
     }
     unify(peer, ctx) {
         const p = peer;
@@ -211,7 +216,7 @@ function bumpRecurse(v, xc) {
 }
 // Each name or path v holds is followed to what it names too, given the root.
 function containsRecurseOf(v, target, d, root, seen = new Set(), links = false) {
-    v = throughRider(v);
+    v = unmarked(v);
     if (null == v || true !== v.isVal || 8 < d) {
         return false;
     }
@@ -227,7 +232,7 @@ function containsRecurseOf(v, target, d, root, seen = new Set(), links = false) 
             return false;
         }
         seen.add(key);
-        return containsRecurseOf(unmarked(walkPlace(root, at)), target, d + 1, root, seen, links);
+        return containsRecurseOf(walkPlace(root, at), target, d + 1, root, seen, links);
     }
     const peg = v.peg;
     if (true === v.isMap && null != peg) {

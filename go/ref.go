@@ -753,11 +753,9 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		}
 	}
 
-	if !snap && !rv.hideFound && pendingMarkWrapper(node) {
-		return nil
-	}
-
-	if !snap && ctx.argsnap && node.Dc() != DONE {
+	// A hide() or type() still to settle is waited for, unless it reaches back here: that never settles.
+	pending := !snap && !rv.hideFound && pendingMarkWrapper(node)
+	if !snap && ctx.argsnap && (pending || node.Dc() != DONE) {
 		return nil
 	}
 
@@ -781,6 +779,9 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			rec.path = cp(rv.path)
 			return rec
 		}
+	}
+	if pending {
+		return nil
 	}
 
 	// A ref carrying marks transfers them onto the found node in place,

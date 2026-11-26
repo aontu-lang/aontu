@@ -34,10 +34,15 @@ func (r *RecurseVal) body(ctx *Ctx) Val {
 	if nil == ctx {
 		return nil
 	}
-	if node := walkPlace(ctx.root, r.target); nil != node {
-		return node
+	node := walkPlace(ctx.root, r.target)
+	if nil == node {
+		node = walkPlace(ctx.fixroot, r.target)
 	}
-	return walkPlace(ctx.fixroot, r.target)
+	// A hide() or type() still to settle marks the definition, not what a use of it unfolds.
+	for fv, ok := node.(*FuncVal); ok && pendingMarkWrapper(fv) && 0 < len(fv.peg); fv, ok = node.(*FuncVal) {
+		node = fv.peg[0]
+	}
+	return node
 }
 
 // walkTarget descends a tree by the residual's absolute target path,
@@ -87,9 +92,6 @@ func walkPlace(root Val, at []string) Val {
 }
 
 func unmarked(v Val) Val {
-	if nil == v {
-		return nil
-	}
 	v = throughWrap(v)
 	if fv, ok := v.(*FuncVal); ok && pendingMarkWrapper(fv) && 0 < len(fv.peg) {
 		return throughWrap(fv.peg[0])
@@ -217,7 +219,7 @@ func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string
 	if nil == v || 8 < depth {
 		return false
 	}
-	v = throughRider(v)
+	v = unmarked(v)
 	switch n := v.(type) {
 	case *RecurseVal:
 		same := len(n.target) == len(target)
@@ -227,7 +229,7 @@ func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string
 		// Another definition's residual reaches what that definition reaches.
 		if key := strings.Join(n.target, "\x00"); !same && nil != root && !seen[key] {
 			seen[key] = true
-			return reachesRecurse(unmarked(walkPlace(root, n.target)), target, depth+1, root, seen, links)
+			return reachesRecurse(walkPlace(root, n.target), target, depth+1, root, seen, links)
 		}
 		return same
 	case *RefVal:
@@ -243,7 +245,7 @@ func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string
 		at := n.namedPlace()
 		if key := strings.Join(at, "\x00"); nil != at && !seen[key] {
 			seen[key] = true
-			return reachesRecurse(unmarked(walkPlace(root, at)), target, depth+1, root, seen, links)
+			return reachesRecurse(walkPlace(root, at), target, depth+1, root, seen, links)
 		}
 		return false
 	case *MapVal:
