@@ -33,6 +33,7 @@ own.
 | [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean) | a document's alias declarations, the environment they make, and the alias-cycle rule |
 | [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean) | how a document reads under its declarations, a recursive name left to unfold against the data, and a checker that reads the names |
 | [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) | how a path reads: the term at a position, each path a document writes read as a name |
+| [`spec/Aontu/Graph.lean`](../spec/Aontu/Graph.lean) | what the graph atoms ask of the edges a document writes, and the verdict that judges them |
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, the strict bounds under their closed ones, two declarations of one key, and the contract any `subsume` must meet |
 | [`spec/Aontu/Reorder.lean`](../spec/Aontu/Reorder.lean) | order independence: one value written in two orders admits the same data |
 | [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) | the reference's table of subsumption rules as theorems, and the procedure that decides the order |
@@ -10565,13 +10566,111 @@ def inverseOf : Val → Val
   | _ => .nil
 ```
 
-So much for how the atoms read. What they ask has no rule in the
-definition yet. Both engines refuse to generate a document whose graph breaks an
-atom, as `relation_cycle` or `relation_inverse_missing`, and their `vet`
-answers `invalid` for it. So rows from ga0 on of
-`test/spec/def-path.tsv` hold only documents whose graphs keep what
-their atoms ask, and both engines answer every one as the definition
-does.
+So much for how the atoms read. Rows from ga0 on of
+`test/spec/def-path.tsv` hold documents whose graphs keep what their
+atoms ask, and both engines answer every one as the definition does.
+
+### What the atoms ask
+
+What an atom asks is of the whole document: of the edges its relations
+write. No meet could hold that, since one more edge makes an acyclic
+graph cyclic. So
+[`spec/Aontu/Graph.lean`](../spec/Aontu/Graph.lean) judges the document
+generation writes. An edge is an address a relation holds:
+
+<!-- test: quote spec/Aontu/Graph.lean -->
+```lean
+structure Edge where
+  src : String
+  key : String
+  dst : String
+  deriving DecidableEq
+```
+
+It starts from the node that holds the relation's field, it's of the
+relation that field's key names, and it ends at the node the address
+names. A node goes by the text of its place, as an address spells it.
+So `graph.aontu` writes two edges: `dependsOn` from `$.a` to `$.b`, and
+`usedBy` from `$.b` to `$.a`.
+
+An atom declares for the key it's met at. So `inverse(usedBy)` and
+`acyclic()` there declare for `dependsOn`, and a declaration holds for
+every edge of its key, wherever the document writes one. `Holds` says
+what each asks:
+
+<!-- test: quote spec/Aontu/Graph.lean -->
+```lean
+def Holds (es : List Edge) : String × Rider → Prop
+  | (n, .acyclic) => ¬ Cyclic (pairsOf es n)
+  | (n, .inverse k) => ∀ e, e ∈ es → e.key = n → (⟨e.dst, k, e.src⟩ : Edge) ∈ es
+  | _ => True
+```
+
+A cycle is a node that reaches itself, by one edge or more:
+
+<!-- test: quote spec/Aontu/Graph.lean -->
+```lean
+def Cyclic (es : List (String × String)) : Prop :=
+  ∃ a, Relation.TransGen (fun a b => (a, b) ∈ es) a a
+```
+
+`cyclicB_iff` proves that the check `vet` runs finds one exactly where
+one exists. Now break the graph, so that `b` depends on `a` in turn.
+Write `cycle.aontu`:
+
+<!-- test: scenario graph-judged -->
+<!-- test: file cycle.aontu -->
+```aontu
+a: dependsOn: relate() & acyclic() & [path($.b)]
+b: dependsOn: relate() & [path($.a)]
+```
+
+and `cycle-data.aontu`, which gives no edge of its own:
+
+<!-- test: file cycle-data.aontu -->
+```aontu
+b: {}
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet cycle.aontu cycle-data.aontu
+verdict: invalid
+
+$.a.dependsOn.0: relation_cycle [conflict]
+  [aontu/relation_cycle]: Cannot relate value at path $.a.dependsOn.0
+  schema: cycle.aontu:1:39 (path($.b))
+$ echo $?
+1
+```
+
+Nothing in the meet refuses this document: `vetP` answers `valid`. The
+verdict with the atoms is `vetP`'s, and `invalid` where `vetP` answers
+`valid`, the document generates, and its graph breaks an atom:
+
+<!-- test: quote spec/Aontu/Graph.lean -->
+```lean
+def vetG (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
+  if vetP m ds S j = .valid ∧ ds.graphBroken S j = true then .invalid else vetP m ds S j
+```
+
+So a document that waits has no graph to judge. Beside an unfilled
+`n: integer` the same cycle is `incomplete`, and `--partial` passes
+it. And `outputG` says what `cycle.aontu` generates, which is nothing:
+the output `outputP` gives, where the graph keeps what its atoms ask.
+
+The definition reads the edges and the declarations from the normal
+form generation writes from, within the arms of a disjunction the rank
+rule picks, as it reads a link's template. So a default's edge is an
+edge. With
+`*[path($.b)] | []` in place of `[path($.b)]` the document is `invalid`
+still, and with the default on the other arm, `[path($.b)] | *[]`, it's
+`valid`, since generation writes no edge from `a`.
+
+Rows from gj0 on hold both engines to it, 153 rows from 51 documents,
+and both answer every one as the definition does.
 
 ## 38. A spread read at each member
 
@@ -11634,9 +11733,8 @@ for the rest of the language, so it says nothing about it. The
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
 steps 20 to 26 and 33 to 37 don't walk through, the named tables and
-recursion of step 40, a string
-constraint met with a path value, and what the graph atoms `acyclic()`
-and `inverse(k)` ask of a relation's edges. [`aontu vet`](reference-api.md#aontu-vet) states which
+recursion of step 40, and a string
+constraint met with a path value. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 

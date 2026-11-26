@@ -4902,10 +4902,14 @@ address read from the relation's own position. The
 definition reads `acyclic()` and `inverse(k)` as absence carrying the
 atom, `callTerm` and `inverseOf` in `spec/Aontu/Verdict.lean`, so each
 rides the value it meets and changes nothing in it, and an
-`inverse` whose argument is no name is an `error`. It has no rule yet
-for what the atoms ask of the edges. Rows from rl0 on of
-[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it, and rows from rh0 on to a constraint met with `relate()` and to a
+`inverse` whose argument is no name is an `error`. What the atoms ask
+is `Holds` in [`spec/Aontu/Graph.lean`](../spec/Aontu/Graph.lean), over
+the edges the document writes (`Val.edges`) and the atoms it declares
+(`Val.graphDecls`), and `vetG` is the verdict that judges them:
+`invalid` where the document generates and its graph breaks an atom.
+Rows from gj0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv)
+hold both engines to the verdict, rows from rl0 on to the relation
+kind, and rows from rh0 on to a constraint met with `relate()` and to a
 spread over the value's addresses. Data writes no address, so whatever
 the template, a relation refuses data that writes a list of anything,
 the spelling `"$.a"` among them, and passes an empty list, in the rows
