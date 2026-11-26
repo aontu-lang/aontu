@@ -1198,3 +1198,12 @@ vet-lone-parent-arm-lifts-a-member-beside-the-template-refuses-under-partial	ver
 vet-lone-parent-arm-lifts-a-member-beside-the-template-admits	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": 2}}}	{"verdict":"valid"}
 vet-lone-parent-arm-lifts-a-member-beside-the-template-admits-with-no-fill	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
 vet-lone-parent-arm-lifts-a-member-beside-the-template-admits-under-partial	verdict	x: *{a: {n: 1}, &: {m: .n}}	{"x": {"a": {"n": 2, "m": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+# A bare close() beside a pref() call over a path (#726): the call is no path, so
+# the place meets the data as it stands, and the seal takes the data's keys. Each
+# row is the definition's answer too.
+vet-directive-beside-a-pref-call-over-a-path-takes-the-datas-key	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1, "y": 2}}	{"verdict":"valid"}
+vet-directive-beside-a-pref-call-over-a-path-takes-the-datas-key-with-no-fill	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1, "y": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-directive-beside-a-pref-call-over-a-path-takes-the-datas-key-under-partial	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"partial":true}}
+vet-directive-beside-a-pref-call-over-a-path-admits-the-copy	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1}}	{"verdict":"valid"}
+vet-directive-beside-a-pref-call-over-a-path-admits-the-copy-with-no-fill	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+vet-directive-beside-a-pref-call-over-a-path-admits-the-copy-under-partial	verdict	b: {x: 1}\na: close() & pref($.b)	{"a": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}

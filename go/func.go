@@ -428,6 +428,9 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			repathArg(arg, base, ctx.settle)
 		}
 	}
+	if "relate" == f.name && 0 < len(f.peg) {
+		landPaths(f.peg[0], base)
+	}
 
 	// Resolve operands into a scratch slice WITHOUT writing them back:
 	// a stuck func keeps its original operands in canon (mirrors TS
@@ -459,7 +462,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				newtype = newtype || na.markedType()
 				newhide = newhide || na.markedHide()
 			}
-			if na.Dc() != DONE {
+			if na.Dc() != DONE && !("relate" == f.name && landsOnly(na)) {
 				pegdone = false
 			}
 			newpeg = append(newpeg, na)

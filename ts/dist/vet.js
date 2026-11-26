@@ -616,9 +616,9 @@ function vet(schemaSrc, dataSrc, opts) {
             }
             stampUrl(meetAnchor, schemaUrl);
             // A root meet or a template holding a bare directive settles before the data meets it, as a
-            // key's does, unless a reference in the schema, which reads the data, would settle with it.
-            if (((0, ConjunctVal_1.placeTerms)(meetAnchor).some(ConjunctVal_1.bareDirective) ||
-                0 < directedTemplates(meetAnchor).length) && !(0, ConjunctVal_1.holdsRef)(meetAnchor)) {
+            // key's does; beside a reference, which reads the data, the root's terms meet first as it's read.
+            meetAnchor.own = (0, ConjunctVal_1.placeTerms)(meetAnchor).some(ConjunctVal_1.bareDirective);
+            if ((meetAnchor.own || 0 < directedTemplates(meetAnchor).length) && !(0, ConjunctVal_1.holdsRef)(meetAnchor)) {
                 meetAnchor = aontu.unify(meetAnchor, undefined, aontu.ctx({ collect: true }));
             }
         }

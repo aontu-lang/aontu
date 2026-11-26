@@ -4425,11 +4425,13 @@ as a spread's template reads its own at each member and a copy reads
 its own where the copy stands. So
 `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}` gives `x.m` the member
 `v: 2`, and a link the template carries reads its relative address
-from where that template lands, as it does in both engines. A relative
-path the template holds, as `.k` is here, both engines still read where
-the document writes the link, inside the template, where it names
-nothing, so they leave the template waiting there, which
-[#661](https://github.com/aontu-lang/aontu/issues/661) tracks.
+from where that template lands. A path that names no member of the
+target's is an error, as any path to nothing is. A path that climbs
+past the template, as `..k` does in `relate({v: ..k})`, both engines
+read where the document writes the link, and the definition from the
+target, which differ only where the target isn't the link's sibling.
+[#1001](https://github.com/aontu-lang/aontu/issues/1001) asks which
+holds.
 
 In the definition, `relate(t)` reads as the relation kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
@@ -5888,6 +5890,11 @@ closed value reached later, through a reference or a separate map
 merge, is closed exactly as `close({...})` is, and a child that
 resolves later inside a closed value (a reference, a pending call) is
 closed when it does. Unmet, `close()` does not generate.
+
+A path beside a bare `close()` supplies its copy as one of the terms at
+the place. With `b: {x: 1}`, `a: close() & $.b` seals `a` with the keys
+`b` holds, and `vet` refuses data that adds another key to `a`. A bare
+`open()` beside a path lifts a seal the copy carries.
 
 **A type is closed for its instances.** A copy of a `type()`-marked
 value taken by reference is an instance, and adds nothing at any depth,
