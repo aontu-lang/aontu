@@ -88,8 +88,9 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - what the graph atoms `acyclic()` and `inverse(k)` ask of a relation's
   edges: the definition reads each atom as a term that rides its value,
   so a document whose graph breaks one reads as it would without the
-  atom, where both ports refuse to generate it, and rulings 72 and 73
-  judge the edges generation writes (#491, #878);
+  atom, where both ports refuse to generate it and their `vet` answers
+  `invalid`, and ruling 72 judges the edges generation writes, a
+  default's among them, which neither port does yet (#878);
 - a preference under a call: a written `*1 | integer` reads as the lone
   `*1` it has the shape of, and `(*1 | string) & integer`, a preferred
   arm the meet leaves alone, reads as a choice, each the other way

@@ -10567,8 +10567,8 @@ def inverseOf : Val → Val
 
 So much for how the atoms read. What they ask has no rule in the
 definition yet. Both engines refuse to generate a document whose graph breaks an
-atom, as `relation_cycle` or `relation_inverse_missing`, and `vet`
-passes it, which #491 tracks. So rows from ga0 on of
+atom, as `relation_cycle` or `relation_inverse_missing`, and their `vet`
+answers `invalid` for it. So rows from ga0 on of
 `test/spec/def-path.tsv` hold only documents whose graphs keep what
 their atoms ask, and both engines answer every one as the definition
 does.

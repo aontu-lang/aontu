@@ -8,6 +8,46 @@ each change affects.
 
 ## Unreleased
 
+### `vet` judges the graph atoms of a document that generates
+
+#491. A document whose graph breaks `acyclic()` or `inverse(k)` was
+`valid` under `vet` in both engines, while both refused to generate it:
+
+```aontu
+a: { dependsOn: relate() & acyclic() & [path($.b)] }
+b: { dependsOn: relate() & [path($.a)] }
+```
+
+| `aontu vet` against `{}` | default | `--no-fill` | `--partial` |
+|---|---|---|---|
+| Both engines, before | `valid` | `incomplete` | `valid` |
+| Both engines, now | `invalid` | `incomplete` | `invalid` |
+
+**A verdict changes.** `vet` now reads the verdict generation gives, as
+ruling 73 asks: the finding is generation's own, `relation_cycle` or
+`relation_inverse_missing`, class `conflict`, at the offending edge,
+and the exit code is 1. The library's `vet` answers the same, and so
+does the MCP server's `vet` tool, which calls it. Both ports.
+
+`vet` judges the graph only where the document generates:
+
+- A document that waits isn't judged, so beside an unfilled
+  `n: integer` the same cycle is `incomplete`, and `--partial` passes
+  it. Once the data gives `n`, it's `invalid`.
+- A document the data already refuses isn't judged either: the
+  refusal is the report, and the graph adds nothing to it.
+- Under `--no-fill`, JSON data carries none of the schema's edges, so
+  the verdict stays `incomplete`. A data document written in aontu that
+  writes the edges itself is judged in every mode.
+- Under `--at` no graph is judged: the graph belongs to the whole
+  document.
+
+48 rows in `test/spec/relation.tsv` hold both engines to it, 45 for the
+verdict in its three modes and 3 for the whole report.
+
+The definition has no rule yet for what the atoms ask, and neither
+engine judges an edge only a default brings (#878).
+
 ### A call reads a choice settled to one arm as that arm, in the definition
 
 #1023. A disjunction that a meet narrows to one arm is that arm in both

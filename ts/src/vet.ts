@@ -26,6 +26,7 @@ import { noPathFinding } from './query'
 import { fillDiff } from './admit'
 import { genToward } from './val/admission'
 import { genPlain } from './val/genwrite'
+import { relationErrors } from './relation'
 import { cmpCodePoint } from './keyorder'
 import { pointerOf } from './sourcemap'
 
@@ -928,6 +929,16 @@ export function vet(
         value: v.canon,
       }],
     }, path))
+  }
+
+  // A graph atom judges the document generation writes, so one that refuses or waits isn't judged.
+  if (undefined !== generated && null == options.at && !findings.some((f) => 'error' === f.severity)) {
+    const relCtx: any = aontu.ctx({ collect: true })
+    relationErrors(relCtx, unified)
+    for (const err of relCtx.err) {
+      materialise(err, relCtx)
+      findings.push(pointed(findingOf(err, prov), err.path))
+    }
   }
 
   const keyed = findings.map((f, i) => ({ key: orderKey(f, i), finding: f }))
