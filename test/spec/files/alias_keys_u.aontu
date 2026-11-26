@@ -1,0 +1,4 @@
+# Loads, under a key of its own, a source that declares a name. A
+# declaration stands only at the root, so the load is refused where it
+# stands, wherever this file is loaded.
+k: @"./alias_declares_u.aontu"
