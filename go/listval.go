@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -382,8 +383,23 @@ func placedAt(l *ListVal, kept []Val) []Val {
 	return out
 }
 
-// A container template waits for a member that has not decided.
+// A container template waits for a member that has not decided: a
+// maybe still to answer, or a call or a meet over one.
 func undecided(v Val) bool {
-	f, ok := v.(*FuncVal)
-	return ok && "maybe" == f.name && DONE != f.Dc()
+	if DONE == v.Dc() {
+		return false
+	}
+	var peg []Val
+	switch n := v.(type) {
+	case *FuncVal:
+		if "maybe" == n.name {
+			return true
+		}
+		peg = n.peg
+	case *PlusOpVal:
+		peg = n.peg
+	case *ConjunctVal:
+		peg = n.peg
+	}
+	return slices.ContainsFunc(peg, undecided)
 }

@@ -34,10 +34,11 @@ class AbsentVal extends FeatureVal {
   }
 
   // The unit of the meet, called for EITHER operand so `&` commutes.
-  // Nothing here meets an absence with TOP, so there is no top arm;
-  // Go has one because it MEETS an op's result where this port places
-  // it. edge-plus-list-absent guards the day that changes.
+  // Met with top it stays absence: a maybe over a path to one reads it so.
   unify(peer: Val, ctx: AontuContext): Val {
+    if (peer.isTop) {
+      return this
+    }
     const at: string[] = ctx.path
     if (0 < at.length && at.join('\u0000') !== peer.path.map(String).join('\u0000')) {
       const out = peer.clone(ctx, { path: [...at], dup: true })
