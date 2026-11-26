@@ -2272,3 +2272,9 @@ File the aontu issue
 ```text
 What is fulcio? What is sigstore?
 ```
+
+## 2026-11-26 09:03:10 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+Is fulcio a live service?
+```
