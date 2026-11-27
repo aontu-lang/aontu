@@ -11,10 +11,13 @@ and the merged pull requests stay current, and this note does not.
 
 ## Where it stands
 
-- **Shared rows generated from the definition:** 39,842 of the 51,030
-  rows in `test/spec/*.tsv` (78.1 %) are written by the oracle into the
+- **Shared rows generated from the definition:** 39,842 of the 51,379
+  rows in `test/spec/*.tsv` (77.5 %) are written by the oracle into the
   fourteen `test/spec/def-*.tsv` files, and both engines answer every
   one as the definition does. The ledger, `spec/ledger.tsv`, is empty.
+  The share falls a little whenever engine work adds hand-written rows
+  faster than the definition adds generated ones, as #1093 and #1098
+  did on the last day.
 - **The definition:** 25 modules in `spec/Aontu/`, 34,436 lines and
   1,159 theorems, none resting on `sorry`. The oracle is
   `spec/Oracle.lean` and 29 modules in `spec/Oracle/`, 12,907 lines.
