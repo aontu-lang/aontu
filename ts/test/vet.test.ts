@@ -845,3 +845,13 @@ describe('vet-a-call-that-waits', () => {
     Assert.equal(vet('v: {&: 1 + 1}', 'v: {a: 3}').verdict, 'invalid')
   })
 })
+
+
+describe('vet-a-default-written-twice', () => {
+  for (const schema of ['x: *1 | *1', 'x: *1 | *1 | "a"', 'd: *1, x: $.d | *1']) {
+    test(schema, () => {
+      Assert.equal(vet(schema, '{"x": 3}').verdict, 'invalid')
+      Assert.equal(vet(schema, '{"x": 1}').verdict, 'valid')
+    })
+  }
+})
