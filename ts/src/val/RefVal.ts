@@ -246,11 +246,14 @@ function member(v: any, part: any): any {
 }
 
 
-// A link's template reads the relative paths that stay inside it where it lands, at the link's
-// target (ruling 50); one that climbs past the template reads where the link is written.
+// A link's template reads where it lands, at the link's target, an absolute path below its root and a
+// relative one inside it (ruling 50); one that climbs past the template reads where the link is written.
 function landPaths(tmpl: Val, base: string[]): void {
   walkVals(tmpl, (t: any) => {
-    if (true === t.isRef && !t.absolute) {
+    if (true === t.isRef && t.absolute) {
+      t.lands = t.lands || t !== tmpl
+    }
+    else if (true === t.isRef) {
       let climbs = 0
       while ('.' === t.peg[climbs]) {
         climbs++
