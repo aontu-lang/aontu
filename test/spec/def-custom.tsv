@@ -41,3 +41,5 @@ cw32	gens	({"x": ((null) | (string)) & (gen({"custom": (("<") + (_)) + (">")}))}
 cw33	gens	"x": (("a") & (gen({"custom": upper(_)}))) & (gen({"custom": upper(_)}))	{"x":"A"}
 cw34	gens	"x": ("a") & (gen({"custom": (upper(_)) & (gen({"custom": (_) + ("!")}))}))	{"x":"A!"}
 cw35	gens	"x": ("a") & (gen({"custom": upper(_)})), "y": $.x	{"x":"A","y":"A"}
+cw36	gens	"x": (("v") & (gen({"custom": {"a"?: 1, "b": 2}}))) & (gen({"custom": {"b": 2, "a"?: 1}}))	{"x":{"a":1,"b":2}}
+cw37	gens	"x": match("a", "a", ("b") & (gen({"custom": upper(_)})), "c")	{"x":"B"}
