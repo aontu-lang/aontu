@@ -5625,7 +5625,9 @@ def Val.stagedMeets (ds : Decls) : Val → Val
     if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.stagedMeets ds) (b.stagedMeets ds)
   | .map fs spread closed => .map (stagedFields ds fs) spread closed
   | .list items spread closed => .list (stagedItems ds items) spread closed
-  | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
+  | .or arms =>
+    if loneFails (stagedArms ds arms) then .nil
+    else mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
   | .pref r x => .pref r (x.stagedMeets ds)
   | .ride .gen v r => (v.stagedMeets ds).withRecord r
   | .ride k v r => .ride k (v.stagedMeets ds) r
@@ -6038,12 +6040,31 @@ $ echo $?
 ```
 
 An arm of a disjunction that holds such a conflict drops, as an arm
-that holds any conflict does. But a lone default whose own value holds
-one makes the place an error, as both engines answer, and `recordArms`
-reads it so.
+that holds any conflict does. But a lone default whose own value no
+longer stands, each arm it prefers holding one, makes the place an
+error, as both engines answer:
 
-Rows from an0 on hold both engines to it, 570 rows from 190 documents,
-and both answer every one as the definition does.
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def loneFails (arms : List (ℕ × Val)) : Bool :=
+  match (Val.or (arms.flatMap flattenArm)).loneArms with
+  | some prefs => prefs.all fun p => p.2.illFormed
+  | none => false
+```
+
+So `*(7 & gen({ places:1 }) & gen({ places:2 }))` is an error, and
+`*((7 & gen({ places:1 }) & gen({ places:2 })) | 8)` prefers `8`.
+
+A call reads its argument's value through the riders around it, so an
+annotation in an argument would go unread. Both engines read each
+argument whole, and so does the definition (`Decls.argClashes`):
+`upper("a" & gen({ keys:"camel" }))` is an error, and so is
+`gen({ places:2 & gen({ keys:"camel" }) })`, whose annotation sits in
+`gen`'s own argument. A written `nil` passes through `gen` unchanged, so
+`note?: gen(nil)` leaves `note` out.
+
+Rows from an0 on hold both engines to it, 651 rows from 217
+documents, and both answer every one as the definition does.
 
 ### What an annotation writes
 
@@ -6838,7 +6859,9 @@ read then holds a conflict anywhere (`Decls.clashes`): a size, `must`'s
 condition and the count of `nof` and of `contains`; and so are a
 `filter` whose source and a selection whose scrutinee holds one, or is
 dead, written `nil` or not. So such a trial is an error where it stands, an arm holding it drops,
-and a spread holding it refuses each member it's tried on. An argument a
+and a spread holding it refuses each member it's tried on. So is a call
+whose argument holds an output annotation and a conflict
+(`Decls.argClashes`), as `upper("a" & gen({keys: "camel"}))` is. An argument a
 trial tries against a value instead, a branch of `nof`, `when`'s three
 and the conditions of `contains` and `filter`, admits nothing where it
 holds a conflict anywhere (`Decls.tried`), as one at its top does. A
@@ -7071,13 +7094,15 @@ there for its flow to read:
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
+      else if (resolveItems ds b here args).any ds.argClashes then .nil
       else if f.holdsArg then callTerm ds f (ds.argArms f (resolveItems ds b here args))
       else (callTerm ds f (ds.argArms f (resolveItems ds b here args))).rideMoves
         ((resolveItems ds b here args).flatMap Val.moves)
 ```
 
-`argArms` is step 21's reading of a choice settled to one arm, for a
-call that reads values.
+A call whose argument holds an output annotation and a conflict is
+`nil` (`Decls.argClashes`), as step 14 explains. `argArms` is step 21's
+reading of a choice settled to one arm, for a call that reads values.
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean

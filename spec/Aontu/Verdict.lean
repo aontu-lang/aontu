@@ -808,11 +808,14 @@ of. -/
 def Cmp.takes (c : Cmp) (n : ℕ) : Bool :=
   (!c.required || 1 ≤ n) && n ≤ (if c.kids.isEmpty then 1 else 2)
 
-/-- What `gen` makes of its argument: the annotation of the record the
-argument spells out (`Val.record?`, `Val.annotation`), and a refusal
-where it spells out none, a kind or a preference among it, since both
-ports read the record from the document as it is written. -/
+/-- What `gen` makes of its argument: a written `nil` as it is
+(`Val.isVoid`), which both ports hand on unchanged, so that `v?: gen(nil)`
+is absent; the annotation of the record the argument spells out
+(`Val.record?`, `Val.annotation`); and a refusal where it spells out
+none, a kind or a preference among it, since both ports read the record
+from the document as it is written. -/
 def genOf (ds : Decls) (a : Val) : Made :=
+  if (normaliseD ds a).isVoid then .made (normaliseD ds a) else
   match (normaliseD ds a).record? with
   | some r => .made (Val.annotation r)
   | none => .refused
@@ -2109,17 +2112,27 @@ def illPats : List (Val × Val) → Bool
   | (p, _) :: ps => p.illFormed || illPats ps
 end
 
+/-- Whether arms are a lone preference's, `*x` read as `x | super(x)`
+(`Val.loneArms`), with the arms it stands for flattened in
+(`flattenArm`), whose own value no longer stands: no arm that prefers
+does (`Val.illFormed`), so that its parent type alone would be left.
+Both ports report that conflict at the place, whatever the data would
+have put in the value's stead, and drop an arm of the value that holds
+one as any arm is dropped, so `*((1 & 2) | 3)` prefers `3`. -/
+def loneFails (arms : List (ℕ × Val)) : Bool :=
+  match (Val.or (arms.flatMap flattenArm)).loneArms with
+  | some prefs => prefs.all fun p => p.2.illFormed
+  | none => false
+
 /-- The arms of a disjunction once a record has met each of them
 (`Val.withRecord`) or each is held to its own (`Val.held`): the arms as
 they are where each still stands, and otherwise those that do
 (`mkOr`), an arm that no longer stands dropped as an arm that holds any
-conflict is. But where the disjunction is a lone preference, `*x` read
-as `x | super(x)`, and it is the preference's own value that no longer
-stands, the whole is `nil`: both ports report that conflict at the
-place, whatever the data would have put in the value's stead. -/
+conflict is; but `nil` where the disjunction is a lone preference whose
+own value no longer stands (`loneFails`). -/
 def recordArms (arms : List (ℕ × Val)) : Val :=
   if arms.all (fun p => !p.2.illFormed) then .or arms
-  else if arms.any (fun p => p.2.isParent) && arms.any (fun p => p.1 != 0 && p.2.illFormed) then .nil
+  else if loneFails arms then .nil
   else mkOr (arms.filter fun p => !p.2.illFormed)
 
 mutual
@@ -2156,15 +2169,19 @@ ports find at the meet, an arm's the arm's alone, and a member's its
 container's, and an arm that does not stand the arm's alone too, as
 both ports drop it. An arm is read with the arms it stands for
 flattened in (`flattenArm`), so that a preference clash between them
-stays the disjunction's. An output annotation's record is met into the
-record its value carries (`Val.withRecord`), so that two records that
-disagree are a conflict too. `Val.staged` is this and `Val.held`. -/
+stays the disjunction's, and a lone preference whose own value no longer
+stands is `nil` (`loneFails`). An output annotation's record is met
+into the record its value carries (`Val.withRecord`), so that two
+records that disagree are a conflict too. `Val.staged` is this and
+`Val.held`. -/
 def Val.stagedMeets (ds : Decls) : Val → Val
   | .meet a b =>
     if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.stagedMeets ds) (b.stagedMeets ds)
   | .map fs spread closed => .map (stagedFields ds fs) spread closed
   | .list items spread closed => .list (stagedItems ds items) spread closed
-  | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
+  | .or arms =>
+    if loneFails (stagedArms ds arms) then .nil
+    else mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
   | .pref r x => .pref r (x.stagedMeets ds)
   | .ride .gen v r => (v.stagedMeets ds).withRecord r
   | .ride k v r => .ride k (v.stagedMeets ds) r
@@ -2230,6 +2247,15 @@ arm that holds one drops, and a written `nil` stands, which both read
 as a value that admits nothing, met with whatever it meets (`Val.void`,
 ruling 54). -/
 def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds).illFormed
+
+/-- Whether a call's argument holds an output annotation and a conflict
+(`Decls.clashes`): a value that doesn't take the record it carries, or
+two records that disagree, among them. A call reads its argument's value
+through the riders around it, the annotation one of them, so a
+conflict only staging finds would go unread; both ports read each
+argument whole and report it, an argument of `gen` itself among them. -/
+def Decls.argClashes (ds : Decls) (a : Val) : Bool :=
+  a.holds (fun | .ride .gen _ _ => true | _ => false) && ds.clashes a
 
 /-- An argument a trial tries against a value, a branch of `nof`,
 `when`'s three and the conditions of `contains` and `filter`, admits
@@ -2448,7 +2474,9 @@ read then holds a conflict anywhere (`Decls.clashes`): a size, `must`'s
 condition and the count of `nof` and of `contains`; and so are a
 `filter` whose source and a selection whose scrutinee holds one, or is
 dead, written `nil` or not. So such a trial is an error where it stands, an arm holding it drops,
-and a spread holding it refuses each member it's tried on. An argument a
+and a spread holding it refuses each member it's tried on. So is a call
+whose argument holds an output annotation and a conflict
+(`Decls.argClashes`), as `upper("a" & gen({keys: "camel"}))` is. An argument a
 trial tries against a value instead, a branch of `nof`, `when`'s three
 and the conditions of `contains` and `filter`, admits nothing where it
 holds a conflict anywhere (`Decls.tried`), as one at its top does. A
@@ -2552,6 +2580,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
+      else if (resolveItems ds b here args).any ds.argClashes then .nil
       else if f.holdsArg then callTerm ds f (ds.argArms f (resolveItems ds b here args))
       else (callTerm ds f (ds.argArms f (resolveItems ds b here args))).rideMoves
         ((resolveItems ds b here args).flatMap Val.moves)
@@ -4014,6 +4043,8 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
       ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
+    split
+    · exact .nil
     · exact rideMoves_checkableA callTerm_split_checkableA
   | succ k =>
     have ha := hp k a (by simp)
@@ -4022,6 +4053,8 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
       Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
+    split
+    · exact .nil
     · exact rideMoves_checkableA callTerm_split_checkableA
 
 /-- A `rep` call read at a position reads to a term the checker can read
@@ -4040,6 +4073,8 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
       ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
+    split
+    · exact .nil
     · exact rideMoves_checkableA callTerm_rep_checkableA
   | succ k =>
     have ha := hp k a (by simp)
@@ -4049,6 +4084,8 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
       Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
+    split
+    · exact .nil
     · exact rideMoves_checkableA callTerm_rep_checkableA
 
 /-- A call's term is one the checker can read where its arguments are. -/
@@ -4168,12 +4205,16 @@ theorem inverseOf_checkableA : ∀ k : Val, (inverseOf k).CheckableA
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .ride _ _ _ | .link _ _ | .key | .keyUp _ | .hole | .call _ _ => .nil
 
-theorem genOf_checkableA {ds : Decls} {a v : Val} (h : genOf ds a = .made v) : v.CheckableA := by
+theorem genOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {a v : Val}
+    (ha : a.CheckableA) (h : genOf ds a = .made v) : v.CheckableA := by
   unfold genOf at h
   split at h
   · cases h
-    exact Val.annotation_checkableA _
-  · cases h
+    exact normaliseD_checkableA hd ha
+  · split at h
+    · cases h
+      exact Val.annotation_checkableA _
+    · cases h
 
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
     {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
@@ -4211,7 +4252,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact .link .alias (h _ (by simp))
   · exact .ride .absent
   · exact inverseOf_checkableA _
-  · exact Made.term_checkableA hd h fun v hv => genOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => genOf_checkableA hd (h _ (by simp)) hv
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
@@ -4636,6 +4677,8 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
         refine callTerm_checkableA hd (Decls.argArms_checkableA hd fun a ha => ?_)
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih1 a₀ ha₀ hb
+      split
+      · exact .nil
       split
       · exact hct
       · exact rideMoves_checkableA hct
@@ -5062,6 +5105,8 @@ theorem stagedMeets_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) :
     exact ihi v hv
   | @or arms _ ih =>
     simp only [Val.stagedMeets]
+    split
+    · exact .nil
     refine mkOr_checkableA fun p hp => ?_
     obtain ⟨q, hq, hpq⟩ := List.mem_flatMap.mp (List.mem_filter.mp hp).1
     obtain ⟨a, ha, he⟩ := mem_stagedArms hq

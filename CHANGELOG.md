@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### Three readings of the output annotation the definition missed
+
+The definition now reads three cases of `gen` as both engines do. An
+annotation inside a call's argument that its value doesn't take, or two
+that disagree, is the schema's error, as `upper("a" & gen({ keys:"camel" }))`
+is, and so is one in `gen`'s own argument. A lone default whose own
+value's records disagree is an error at its place. And `gen(nil)` is the
+written `nil` it's given, so `note?: gen(nil)` leaves `note` out:
+
+```aontu
+note?: gen(nil)
+name: "ada" & gen({ case:"upper" })
+```
+
+```json
+{"name":"ADA"}
+```
+
+81 rows of `test/spec/def-path.tsv`, an570 on, hold both engines to it.
+No engine changes.
+
 ### The definition writes what the output options say
 
 What a document writes under its output annotations was stated for a

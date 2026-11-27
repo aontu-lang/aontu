@@ -5907,9 +5907,12 @@ as maps. `Val.heldTo` holds a value to its record, and
 `admits_heldTo` proves that the result admits what the value admits,
 of the types that take the record. `Val.staged` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) meets the
-records each value carries, then holds each value to its own. Rows an0
-on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
-engines to it.
+records each value carries, then holds each value to its own. A call
+whose argument holds an annotation that conflicts is the schema's error
+(`Decls.argClashes`), since both engines read each argument whole, and
+`genOf` hands a written `nil` on unchanged. Rows an0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it.
 
 What a document writes is `outputW` in
 [`spec/Aontu/Writing.lean`](../spec/Aontu/Writing.lean): `writeWith`
