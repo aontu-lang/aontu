@@ -303,3 +303,23 @@ link-into-a-proto-key	gens	"__proto__": {}\nx: relate({k:1}) & path($.__proto__)
 # A copy's link can send a template that reads the copy as recursion: the
 # residual meets the other link's template once the definition has assembled.
 copy-of-a-link-whose-template-reads-the-copy	gens	w: {a: relate({x: $.v}) & path($.b)}\nv: $.w\nb: {}	{"b":{"x":{"a":"$.b"}},"v":{"a":"$.b"},"w":{"a":"$.b"}}
+
+# A path nested in a relation's template reads where the template
+# lands, so a template that names a subtype of the type declaring the
+# relation reads alike in every order (#1007).
+subtype-in-a-template-declared-first	gens	t: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{"n":{"a":{"k":"d","via":{"k":"d"}},"b":{"k":"f","up":"$.n.a"}}}
+subtype-in-a-template-declared-first-vet	verdict	t: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{}	{"verdict":"valid"}
+subtype-in-a-template-declared-first-vet-no-fill	verdict	t: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{}	{"opts":{"noFill":true},"verdict":"incomplete"}
+subtype-in-a-template-declared-first-vet-partial	verdict	t: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{}	{"opts":{"partial":true},"verdict":"valid"}
+subtype-in-a-template-declared-after	gens	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{"n":{"a":{"k":"d","via":{"k":"d"}},"b":{"k":"f","up":"$.n.a"}}}
+subtype-in-a-template-declared-after-vet	verdict	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{}	{"verdict":"valid"}
+subtype-in-a-template-declared-after-vet-no-fill	verdict	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{}	{"opts":{"noFill":true},"verdict":"incomplete"}
+subtype-in-a-template-declared-after-vet-partial	verdict	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nn: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }	{}	{"opts":{"partial":true},"verdict":"valid"}
+subtype-in-a-template-used-above	gens	n: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }\nt: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})	{"n":{"a":{"k":"d","via":{"k":"d"}},"b":{"k":"f","up":"$.n.a"}}}
+subtype-in-a-template-used-above-vet	verdict	n: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }\nt: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})	{}	{"verdict":"valid"}
+subtype-in-a-template-used-above-vet-no-fill	verdict	n: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }\nt: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})	{}	{"opts":{"noFill":true},"verdict":"incomplete"}
+subtype-in-a-template-used-above-vet-partial	verdict	n: { &: $.t.N }\nn: a: { k:"d" }\nn: b: { k:"f" up:path($.n.a) }\nt: hide({\n  D: $.t.N & { k:"d" }\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n})	{}	{"opts":{"partial":true},"verdict":"valid"}
+subtype-in-a-template-unused	gens	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nx: 1	{"x":1}
+subtype-in-a-template-unused-vet	verdict	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nx: 1	{}	{"verdict":"valid"}
+subtype-in-a-template-unused-vet-no-fill	verdict	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nx: 1	{}	{"opts":{"noFill":true},"verdict":"incomplete"}
+subtype-in-a-template-unused-vet-partial	verdict	t: hide({\n  N: { k:"d"|"f" up?:relate({via?: $.t.D}) }\n  D: $.t.N & { k:"d" }\n})\nx: 1	{}	{"opts":{"partial":true},"verdict":"valid"}

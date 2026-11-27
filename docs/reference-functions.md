@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 75 built-in functions and no user-defined ones. The name set
+aontu has 76 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -127,6 +127,21 @@ $ echo $?
 1
 ```
 
+`at` reads its rest slot of keys against the same words, once every key
+has settled, and answers the same code for a key that fits neither
+`string` nor `integer`:
+
+<!-- test: run -->
+```sh
+$ echo 'm: {a: 1}  x: at($.m, true)' | aontu
+[aontu/func_arg]: Cannot unify values at path $.x
+...
+  argument 2 (`k`) was `true`.
+...
+$ echo $?
+1
+```
+
 The declared words are read as kinds, so a numeric leaf fits `number`:
 
 ```aontu
@@ -247,18 +262,19 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 64 of the 75 names, and 52 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 54 of the 75 use no
+in 65 of the 76 names, and 53 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 55 of the 76 use no
 mode but `value`, and 21 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
 
-- `template`, five slots: `apply`'s, `each`'s, `emit`'s, and `pack`'s
-  second argument, and `relate`'s only argument. `pack`, `each`, and
-  `emit` instantiate the template per destination rather than driving
-  it, and `apply` instantiates it once, for its value; `relate` drives
-  it at the call site.
+- `template`, six slots: `apply`'s, `each`'s, `emit`'s, and `pack`'s
+  second argument, `pack`'s third, and `relate`'s only argument.
+  `pack`, `each`, and `emit` instantiate the template per destination
+  rather than driving it, and `apply` instantiates it once, for its
+  value; `pack` reads its third once for each member, for the key of
+  that member's child, and `relate` drives it at the call site.
   [Generating children: `pack` and
   `each`](reference-language.md#generating-children-pack-and-each),
   [Transforming: `emit`](reference-language.md#transforming-emit),
@@ -306,13 +322,14 @@ with the slot, and where the semantics are specified:
   evaluator does not drive.
   [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Six non-value slots answer a code of their own rather than
+Seven non-value slots answer a code of their own rather than
 `invalid-arg`:
 
 | name | slot | mode | code |
 |---|---|---|---|
 | `format` | `g` | `text` | `format_unknown`, `format_grammar`, `abnf_grammar` |
 | `inverse` | `k` | `projector` | `inverse_name` |
+| `pack` | `k` | `template` | `pack_key` |
 | `path` | `p` | `capture` | `path_address` |
 | `re` | `p` | `text` | `constraint_pattern` |
 | `rep` | `p` | `text` | `rep_pattern` |
@@ -346,6 +363,7 @@ documentation page and fails on a difference of one space.
 | `acyclic() : constraint` | `0` | none | `constraint` |
 | `add(a: number, b: number) : number` | `2` | `value` | `number` |
 | `apply(v: any, template f: any) : any` | `2` | `value`, `template` | `any` |
+| `at(d: map\|list, ...k: string\|integer) : any` | `2..n` | `value` | `any` |
 | `below(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `close(m?: any) : any` | `0..1` | `value` | `any` |
 | `contains(trial c: any, n?: number\|constraint) : constraint` | `1..2` | `trial`, `value` | `constraint` |
@@ -393,7 +411,7 @@ documentation page and fails on a difference of one space.
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | `2..n` | `value`, `trial` | `constraint` |
 | `nom(name: string, style?: string\|list, acronyms?: list) : string\|map` | `1..3` | `value` | `string\|map` |
 | `open(m?: any) : any` | `0..1` | `value` | `any` |
-| `pack(d: map\|list, template t: any) : map` | `2` | `value`, `template` | `map` |
+| `pack(d: map\|list, template t: any, template k?: string) : map` | `2..3` | `value`, `template` | `map` |
 | `parse(g: string, v?: string) : map\|list\|constraint` | `1..2` | `value` | `map\|list\|constraint` |
 | `path(capture p?: path) : path` | `0..1` | `capture` | `path` |
 | `pick(d: map\|list, projector k: string\|integer) : any` | `2` | `value`, `projector` | `any` |
@@ -420,14 +438,14 @@ documentation page and fails on a difference of one space.
 A result word of `constraint` marks a residual whose meet depends on the
 peer it lands beside. `any` is the result word where the declaration
 cannot name the result: twelve wrappers that answer whatever they were
-given, plus `pick`, which answers a projection out of every child,
-`apply`, which answers what its template makes of a value, `match`,
-which answers one of its pattern results, and `keyed`, which answers its
-schema or its default.
+given, plus `pick`, which answers a projection out of every child, `at`,
+which answers the member its keys name, `apply`, which answers what its
+template makes of a value, `match`, which answers one of its pattern
+results, and `keyed`, which answers its schema or its default.
 
 ## Slices
 
-The same 75 names, cut by result word, by rest slot, and by optional
+The same 76 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -436,7 +454,7 @@ The eleven result words, and the names under each:
 | result | count | names |
 |---|---|---|
 | `annotation` | 1 | `gen` |
-| `any` | 16 | `apply`, `close`, `copy`, `deprecate`, `hide`, `ident`, `keyed`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
+| `any` | 17 | `apply`, `at`, `close`, `copy`, `deprecate`, `hide`, `ident`, `keyed`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
 | `constraint` | 19 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `mulof`, `must`, `neq`, `nof`, `re`, `relate`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
@@ -473,8 +491,9 @@ the encodings, `encode` and `decode`:
 that answers `path` is `path` itself:
 [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Five names take a rest slot, spelled `...` in the declaration. `neq`
-takes one or more single values and has a floor of one. `nof` takes its
+Six names take a rest slot, spelled `...` in the declaration. `neq`
+takes one or more single values and has a floor of one. `at` takes its
+bag and then one or more keys, so its floor is two. `nof` takes its
 count and then one or more trial schemas, so its floor is two, and
 `meta` takes its value and then one or more records, so its floor is
 two as well. `rest` takes its trial schema and then any number of cover
@@ -485,11 +504,12 @@ floor is three: a scrutinee, a pattern, and an answer. `match` is
 specified at [Selecting: `filter` and
 `match`](reference-language.md#selecting-filter-and-match), `neq` at
 [The constraint algebra](reference-language.md#the-constraint-algebra),
+`at` at [The member at a key: `at`](reference-language.md#the-member-at-a-key-at),
 `nof` at [Band B: `nof`](reference-language.md#band-b-nof), `rest` at
 [Band B: `rest`](reference-language.md#band-b-rest), and `meta` at
 [Annotations: `meta`](reference-language.md#annotations-meta).
 
-Twenty-eight names have at least one optional slot. `must` is the one
+Twenty-nine names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message
 `text`. `match` is the one name whose rest group pairs a `trial` member
 with a `value` one.

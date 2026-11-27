@@ -110,9 +110,9 @@ class AontuContext {
   _trials: { n: number, memo: Map<string, boolean> }
 
   // The include manifest sink (G5, docs/trust.md): every include the
-  // resolver reads is recorded here as { path, capability }, and
+  // resolver reads is recorded here as { path, capability, src }, and
   // Aontu.parse() sorts and dedups it onto the result's `deps`.
-  manifest: { path: string, capability: string }[]
+  manifest: { path: string, capability: string, src?: string }[]
 
   _trialMode?: boolean
 

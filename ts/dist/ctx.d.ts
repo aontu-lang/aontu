@@ -75,6 +75,7 @@ declare class AontuContext {
     manifest: {
         path: string;
         capability: string;
+        src?: string;
     }[];
     _trialMode?: boolean;
     _matchRead?: boolean;

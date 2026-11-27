@@ -473,6 +473,19 @@ func rereadAt(v Val, path []string, made bool) Val {
 	return v
 }
 
+// liftCopy makes a copy an instance: its marks are cleared, and a type's
+// copy is sealed, since a type is a definition its own statements extend.
+func liftCopy(out Val, typed bool) Val {
+	dropMarkedElements(out)
+	walkMark(out, true, false, true, false)
+	out = unwrapConstraintKind(out)
+	out = dropPendingMarkWrappers(out)
+	if typed {
+		sealTree(out, true, false)
+	}
+	return out
+}
+
 func listIndex(part string) (int, bool) {
 	if "" == part {
 		return 0, false
@@ -829,15 +842,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		if staged && !moved {
 			ownArgs(out)
 		}
-		dropMarkedElements(out)
-		walkMark(out, true, false, true, false)
-		out = unwrapConstraintKind(out)
-		out = dropPendingMarkWrappers(out)
-		// A type is a definition: its own statements extend it, a
-		// copy taken by reference is an instance and adds nothing.
-		if typed && !rv.copyFound {
-			sealTree(out, true, false)
-		}
+		out = liftCopy(out, typed && !rv.copyFound)
 	}
 	if rv.copyFound {
 		unsealTree(out)
@@ -1195,11 +1200,13 @@ func (vv *VarVal) Gen(ctx *Ctx) (any, error) {
 	return nil, nil
 }
 
-// A link's template reads the relative paths that stay inside it where it lands, at the link's
-// target (ruling 50); one that climbs past the template reads where the link is written.
+// A link's template reads where it lands, at the link's target, an absolute path below its root and a
+// relative one inside it (ruling 50); one that climbs past the template reads where the link is written.
 func landPaths(tmpl Val, base []string) {
 	walkVals(tmpl, func(t Val) bool {
-		if r, ok := t.(*RefVal); ok && !r.absolute {
+		if r, ok := t.(*RefVal); ok && r.absolute {
+			r.lands = r.lands || t != tmpl
+		} else if ok {
 			climbs := 0
 			for climbs < len(r.peg) && "." == r.peg[climbs] {
 				climbs++

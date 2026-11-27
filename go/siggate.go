@@ -91,3 +91,24 @@ func sigRefuse(ctx *Ctx, f *FuncVal, args []Val) Val {
 
 	return nil
 }
+
+// The gate stops at a rest argument; a call that reads its rest as data
+// asks for each one here.
+func restRefuse(ctx *Ctx, f *FuncVal, args []Val) Val {
+	sig := funcSig[f.name]
+	fixed := len(sig.Args) - 1
+	rest := sig.Args[fixed]
+	kinds := sigGateKinds(rest.Type)
+	for i := fixed; i < len(args); i++ {
+		if !sigAdmits(kinds, args[i]) {
+			return makeNilErrFull(ctx, "func_arg", f, args[i], "", map[string]string{
+				"func": sig.Name,
+				"sig":  renderSig(sig),
+				"arg":  rest.Name,
+				"argn": itoa(i + 1),
+				"got":  args[i].Canon(),
+			})
+		}
+	}
+	return nil
+}

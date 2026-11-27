@@ -400,11 +400,12 @@ const G = (x) => A.generate(x);
     (0, node_test_1.test)('type-functionality', () => {
         const a0 = new __1.Aontu();
         const G = a0.generate.bind(a0);
-        (0, expect_1.expect)(G('type(1) & number')).equal(1);
-        (0, expect_1.expect)(G('type(hello) & string')).equal('hello');
-        (0, expect_1.expect)(G('type(true) & boolean')).equal(true);
-        (0, expect_1.expect)(G('number & type(42)')).equal(42);
-        (0, expect_1.expect)(G('string & type(world)')).equal('world');
+        (0, expect_1.expect)(G('type(1) & number')).equal(undefined);
+        (0, expect_1.expect)(G('type(hello) & string')).equal(undefined);
+        (0, expect_1.expect)(G('type(true) & boolean')).equal(undefined);
+        (0, expect_1.expect)(G('number & type(42)')).equal(undefined);
+        (0, expect_1.expect)(G('string & type(world)')).equal(undefined);
+        (0, expect_1.expect)(G('a: type(1) & number')).equal({});
     });
     (0, node_test_1.test)('type-canon', () => {
         const N = (x, _ctx) => new unify_1.Unify(x, lang)
@@ -432,12 +433,13 @@ const G = (x) => A.generate(x);
     (0, node_test_1.test)('hide-functionality', () => {
         const a0 = new __1.Aontu();
         const G = a0.generate.bind(a0);
-        // hide() should mark values as hidden from generation
-        (0, expect_1.expect)(G('hide(1) & number')).equal(1);
-        (0, expect_1.expect)(G('hide(hello) & string')).equal('hello');
-        (0, expect_1.expect)(G('hide(true) & boolean')).equal(true);
-        (0, expect_1.expect)(G('number & hide(42)')).equal(42);
-        (0, expect_1.expect)(G('string & hide(world)')).equal('world');
+        // A marked root generates nothing, whatever its kind.
+        (0, expect_1.expect)(G('hide(1) & number')).equal(undefined);
+        (0, expect_1.expect)(G('hide(hello) & string')).equal(undefined);
+        (0, expect_1.expect)(G('hide(true) & boolean')).equal(undefined);
+        (0, expect_1.expect)(G('number & hide(42)')).equal(undefined);
+        (0, expect_1.expect)(G('string & hide(world)')).equal(undefined);
+        (0, expect_1.expect)(G('a: hide(1) & number')).equal({});
     });
     (0, node_test_1.test)('hide-canon', () => {
         // Test canonical representation shows hide wrapping

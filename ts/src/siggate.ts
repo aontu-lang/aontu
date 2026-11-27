@@ -106,9 +106,35 @@ function sigRefuse(
   }
 
   return undefined
-} /* node:coverage ignore next 5 */
+}
+
+
+// The gate stops at a rest argument; a call that reads its rest as data
+// asks for each one here.
+function restRefuse(
+  ctx: AontuContext, fn: any, args: Val[]
+): Val | undefined {
+  const sig: FuncSig = funcSig[fn.funcname()]
+  const fixed = sig.args.length - 1
+  const rest: ArgSig = sig.args[fixed]
+  const markers = gateWords(rest.type) as any[]
+  for (let i = fixed; i < args.length; i++) {
+    const arg: any = args[i]
+    if (!admits(markers, arg)) {
+      return makeNilErr(ctx, 'func_arg', fn, arg, undefined, {
+        func: sig.name,
+        sig: renderSig(sig),
+        arg: rest.name,
+        argn: '' + (i + 1),
+        got: arg.canon,
+      })
+    }
+  }
+  return undefined
+} /* node:coverage ignore next 6 */
 
 
 export {
+  restRefuse,
   sigRefuse,
 }

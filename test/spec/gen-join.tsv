@@ -168,3 +168,8 @@ join-through-a-hidden-schema-folds-its-members	gens	schema: hide({ents: {u: {n: 
 # An optional key generating an EMPTY bag is dropped by generation, and
 # so is not a member.
 join-skips-an-optional-empty-map	gens	m: {x: "a", y?: {}}\no: join($.m, "-")	{"m":{"x":"a"},"o":"a"}
+# A fold a reference copies before it answers reads its data where the
+# data stands, as the path it holds does.
+join-copied	gen	a: {x: 1, y: .x}\nb: join($.a, "-")\nc: $.b	{"a":{"x":1,"y":1},"b":"1-1","c":"1-1"}
+join-copied-deeper	gen	a: {x: 1, y: .x}\nb: join($.a, "-")\nc: {d: $.b}	{"a":{"x":1,"y":1},"b":"1-1","c":{"d":"1-1"}}
+join-copied-into-each	gen	a: {x: 1, y: .x}\nb: join($.a, "-")\nout: each([1, 2], {v: $.b})	{"a":{"x":1,"y":1},"b":"1-1","out":[{"v":"1-1"},{"v":"1-1"}]}

@@ -133,6 +133,14 @@ function openWrap(ctx: AontuContext, v: any): Val {
 }
 
 
+// A member under a call whose data is being driven is its input, not its output.
+function feeding(ctx: AontuContext, path: string[]): AontuContext {
+  const out: any = ctx.clone({})
+  out.feeds = [...((ctx as any).feeds ?? []), path.join('\u0000')]
+  return out
+}
+
+
 // What a call that waits for its place reads as: any value, which a use reads again.
 function waiting(ctx: AontuContext): Val {
   const out: any = top().clone(ctx)
@@ -177,7 +185,7 @@ class FuncBaseVal extends FeatureVal {
     const TOP = top()
     let alldone = true
 
-    const actx: AontuContext = ctx.clone({})
+    const actx: AontuContext = feeding(ctx, this.path)
     ; (actx as any).argsnap = true
 
     for (let i = 0; i < count && i < this.peg.length; i++) {
@@ -197,6 +205,19 @@ class FuncBaseVal extends FeatureVal {
   stagedReady(ctx: AontuContext, count: number): boolean {
     const ready = this.driveStagedArgs(ctx, count)
     return ready && true === ctx.settle
+  }
+
+
+  // A fold that waits keeps the arguments it was written with: a copy of
+  // it moves, and a driven bag would carry its relative reads along.
+  foldReady(ctx: AontuContext, count: number): boolean {
+    const written = this.peg
+    this.peg = written.map((a: Val) => a.clone(ctx, { dup: true }))
+    const ready = this.stagedReady(ctx, count)
+    if (!ready) {
+      this.peg = written
+    }
+    return ready
   }
 
 
@@ -389,9 +410,6 @@ class FuncBaseVal extends FeatureVal {
 
   get canon() {
     return '' +
-      // (this.type ? '<type>' : '') +
-      // (this.done ? '<done>' : '') +
-      // (this.id + '=') +
       this.funcname() + '(' + (this.peg.map((p: any) => p.canon).join(',')) + ')'
   }
 
@@ -426,11 +444,12 @@ class FuncBaseVal extends FeatureVal {
   }
 
 
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 
 
 export {
   trialUnify,
   sameMembers,
+  feeding,
   FuncBaseVal,
 }

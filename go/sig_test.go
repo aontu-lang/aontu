@@ -192,14 +192,15 @@ func TestSigExportedAccessors(t *testing.T) {
 	// The exported render surface the LSP consumes; cross-package
 	// calls do not count toward this package's ADR-103 floor, so the
 	// accessors are pinned here.
-	if got := FuncSignature("pack"); "pack(d: map|list, template t: any) : map" != got {
+	if got := FuncSignature("pack"); "pack(d: map|list, template t: any, template k?: string) : map" != got {
 		t.Fatalf("pack signature: %q", got)
 	}
 	if "" != FuncSignature("notafunc") {
 		t.Fatal("notafunc has no signature")
 	}
 	params := FuncSignatureParams("pack")
-	if 2 != len(params) || "d: map|list" != params[0] || "template t: any" != params[1] {
+	if 3 != len(params) || "d: map|list" != params[0] || "template t: any" != params[1] ||
+		"template k?: string" != params[2] {
 		t.Fatalf("pack params: %v", params)
 	}
 	if nil != FuncSignatureParams("notafunc") {

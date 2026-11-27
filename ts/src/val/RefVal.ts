@@ -145,6 +145,24 @@ function markedElement(list: any, e: any): boolean {
 }
 
 
+function liftCopy(v: Val, typed: boolean): Val {
+  let out = dropMarkedElements(v)
+  // The copy carries a held constraint without its type.
+  out = walkPrefs(out, (_key: string | number | undefined, val: Val) => {
+    val.mark.type = false
+    val.mark.hide = false
+    const held = (val as any).held
+    return true === (val as any).isConstraintKind && null != held ?
+      held : val
+  })
+  out = dropPendingMarkWrappers(out)
+  if (typed) {
+    sealTree(out, true)
+  }
+  return out
+}
+
+
 // A staged call's copy shares its arguments with the call it copies, and
 // a preference its value, so each takes its own before the copy changes.
 function ownArgs(ctx: AontuContext, v: Val): Val {
@@ -246,11 +264,14 @@ function member(v: any, part: any): any {
 }
 
 
-// A link's template reads the relative paths that stay inside it where it lands, at the link's
-// target (ruling 50); one that climbs past the template reads where the link is written.
+// A link's template reads where it lands, at the link's target, an absolute path below its root and a
+// relative one inside it (ruling 50); one that climbs past the template reads where the link is written.
 function landPaths(tmpl: Val, base: string[]): void {
   walkVals(tmpl, (t: any) => {
-    if (true === t.isRef && !t.absolute) {
+    if (true === t.isRef && t.absolute) {
+      t.lands = t.lands || t !== tmpl
+    }
+    else if (true === t.isRef) {
       let climbs = 0
       while ('.' === t.peg[climbs]) {
         climbs++
@@ -782,19 +803,7 @@ class RefVal extends FeatureVal {
             if (staged && !moved) {
               out = ownArgs(ctx, out)
             }
-            out = dropMarkedElements(out)
-            // The copy carries a held constraint without its type.
-            out = walkPrefs(out, (_key: string | number | undefined, val: Val) => {
-              val.mark.type = false
-              val.mark.hide = false
-              const held = (val as any).held
-              return true === (val as any).isConstraintKind && null != held ?
-                held : val
-            })
-            out = dropPendingMarkWrappers(out)
-            if (typed && !this.copyFound) {
-              sealTree(out, true)
-            }
+            out = liftCopy(out, typed && !this.copyFound)
           }
           if (this.copyFound) {
             unsealTree(out)
@@ -978,7 +987,7 @@ class RefVal extends FeatureVal {
     ].filter(p => '' != p).join(',')
   }
 
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 12 */
 
 
 export {
@@ -986,6 +995,7 @@ export {
   landPaths,
   landedAt,
   landsOnly,
+  liftCopy,
   member,
   pendingMarkWrapper,
   RefVal,

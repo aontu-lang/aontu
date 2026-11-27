@@ -931,3 +931,73 @@ func symbolTree(src string, root Val) []DocSymbol {
 	}
 	return out
 }
+
+// CursorRefs is where the path a cursor names is written, and where it
+// is read.
+type CursorRefs struct {
+	Path   []string    `json:"path"`
+	Writes []PathPlace `json:"writes"`
+	Reads  []PathPlace `json:"reads"`
+}
+
+// readsOf is where a reference that reads path is written, in the
+// document or in the text of the file that holds it, as the reference
+// spans it there.
+func readsOf(src string, root Val, path []string, texts map[string]string) []PathPlace {
+	out := []PathPlace{}
+	cursorWalk(root, func(v Val, _ []string) bool {
+		ref, isRef := v.(*RefVal)
+		if !isRef || !slices.Equal(ref.plainRefPath(), path) {
+			return false
+		}
+		text, file := src, v.srcurl()
+		if "" != file {
+			text = texts[file]
+		}
+		lines := newSrcLines(text)
+		// A reference that is all a group holds is sited at the group.
+		at := v.pos()
+		p := at
+		for 0 <= p && p < len(text) && strings.IndexByte("( \t\r\n", text[p]) >= 0 {
+			p++
+		}
+		if 0 <= at && at <= len(text) {
+			if end, spelt := refSpan(text, p); spelt == ref.spelling() {
+				out = append(out, PathPlace{File: file, Range: CursorRange{Start: lines.positionOf(p),
+					End: lines.positionOf(end)}})
+			}
+		}
+		return false
+	})
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		if a.Range.Start.Line != b.Range.Start.Line {
+			return a.Range.Start.Line < b.Range.Start.Line
+		}
+		return a.Range.Start.Character < b.Range.Start.Character
+	})
+	return out
+}
+
+// ReferencesAt is where the path a key or a reference under the cursor
+// names is written, its sites as `model why` reads them, and where a
+// reference reads it; nil where the cursor names no path.
+func (a *Aontu) ReferencesAt(src string, pos CursorPosition) *CursorRefs {
+	root, err := a.parseEntry(src)
+	if nil != err || nil == root {
+		return nil
+	}
+	path := namedPath(cursorAt(src, pos, root))
+	if nil == path {
+		return nil
+	}
+	reads := readsOf(src, root, path, a.IncludeText)
+	writes := []PathPlace{}
+	for _, s := range a.SitesOf(src, path) {
+		writes = append(writes, PathPlace{File: s.File, Range: s.Range})
+	}
+	return &CursorRefs{Path: path, Writes: writes, Reads: reads}
+}

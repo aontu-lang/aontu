@@ -15,7 +15,7 @@ func TestCompletionDetailIsTheSignature(t *testing.T) {
 	if got := byLabel["upper"].Detail; "upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string" != got {
 		t.Fatalf("upper detail: %q", got)
 	}
-	if got := byLabel["pack"].Detail; "pack(d: map|list, template t: any) : map" != got {
+	if got := byLabel["pack"].Detail; "pack(d: map|list, template t: any, template k?: string) : map" != got {
 		t.Fatalf("pack detail: %q", got)
 	}
 	if got := byLabel["path"].Detail; "path(capture p?: path) : path" != got {
@@ -34,10 +34,10 @@ func TestCompletionDetailIsTheSignature(t *testing.T) {
 func TestSignatureHelp(t *testing.T) {
 	// Inside the call: the declared signature, first parameter active.
 	r := SignatureHelp("x: pack($.names, {a:1})", 0, 8)
-	if nil == r || "pack(d: map|list, template t: any) : map" != r.Signatures[0].Label {
+	if nil == r || "pack(d: map|list, template t: any, template k?: string) : map" != r.Signatures[0].Label {
 		t.Fatalf("pack help: %+v", r)
 	}
-	if 2 != len(r.Signatures[0].Parameters) || 0 != r.ActiveParameter {
+	if 3 != len(r.Signatures[0].Parameters) || 0 != r.ActiveParameter {
 		t.Fatalf("pack params: %+v", r)
 	}
 
@@ -45,6 +45,12 @@ func TestSignatureHelp(t *testing.T) {
 	r = SignatureHelp("x: pack($.names, {a:1})", 0, 18)
 	if nil == r || 1 != r.ActiveParameter {
 		t.Fatalf("pack active: %+v", r)
+	}
+
+	// After the second comma: the key template is active.
+	r = SignatureHelp("x: pack($.names, {a:1}, key(0))", 0, 26)
+	if nil == r || 2 != r.ActiveParameter {
+		t.Fatalf("pack key active: %+v", r)
 	}
 
 	// A comma or paren inside a string does not miscount.
@@ -139,7 +145,7 @@ func TestSignatureHelpDispatch(t *testing.T) {
 	if err := json.Unmarshal(help(pos("file:///s.aontu", 0, 8)), &sh); nil != err {
 		t.Fatal(err)
 	}
-	if "pack(d: map|list, template t: any) : map" != sh.Signatures[0].Label {
+	if "pack(d: map|list, template t: any, template k?: string) : map" != sh.Signatures[0].Label {
 		t.Fatalf("dispatch result: %+v", sh)
 	}
 
