@@ -22,6 +22,8 @@ const OUT = Path.resolve(opt('--out', Path.join(REPO, 'sketch', 'defcheck')))
 const BATCH = Number(opt('--batch', 100))
 const ONLY = opt('--files', null)
 const TIMEOUT = Number(opt('--timeout', 900)) * 1000
+const JOBS = Number(opt('--jobs', 3))
+const REUSE = process.argv.includes('--reuse')
 
 // The calling program's bindings (`progVars` in spec/Oracle/Gen.lean).
 const VARS = ['foo', 'bar', 'flag', 'obj', 'big', 'half', 'off', 'bigi', 'bigd', 'nul', 'PARENT', 'kint']
@@ -157,26 +159,78 @@ async function main() {
   const results = new Map()
   const started = Date.now()
   const tick = setInterval(() => console.log(`lean: ${results.size}/${ok.length} rows, ${Math.round(100 * results.size / ok.length)}%, ${Math.round((Date.now() - started) / 1000)}s`), 30000)
-  for (const [bi, batch] of batches.entries()) {
+  // A row that crashes Lean takes its batch's unflushed output with it,
+  // so the rows left without an answer run again in halves until the
+  // crash is down to one row.
+  const one = async (bi, batch) => {
     const file = Path.join(OUT, 'lean', `b${bi}.lean`)
     const lines = [LEAN_HEAD]
     for (const r of batch) {
       lines.push(`#eval IO.println (${JSON.stringify(r.name)} ++ "\\t" ++ ${r.lean})`)
     }
-    Fs.writeFileSync(file, lines.join('\n') + '\n')
-    const { code, out } = await runLean(file)
-    Fs.writeFileSync(file.replace(/\.lean$/, '.out'), out)
+    const text = lines.join('\n') + '\n'
+    const outFile = file.replace(/\.lean$/, '.out')
+    let code = 0
+    let out
+    if (REUSE && Fs.existsSync(outFile) && Fs.readFileSync(file, 'utf8') === text) {
+      out = Fs.readFileSync(outFile, 'utf8')
+      code = /deep recursion|Stack overflow|terminat/.test(out) ? 1 : 0
+    }
+    else {
+      Fs.writeFileSync(file, text)
+      ;({ code, out } = await runLean(file))
+      Fs.writeFileSync(outFile, out)
+    }
     const got = new Map()
     for (const line of out.split('\n')) {
       const p = line.split('\t')
-      if (3 === p.length && batch.some((r) => r.name === p[0])) got.set(p[0], { answer: p[1], src: JSON.parse(p[2]) })
+      if (3 !== p.length || !batch.some((r) => r.name === p[0])) continue
+      try {
+        got.set(p[0], { answer: p[1], src: JSON.parse(p[2]) })
+      }
+      catch {
+        // A line the crash cut short.
+      }
     }
-    for (const r of batch) {
-      results.set(`${r.file}:${r.name}`, got.get(r.name) || { answer: null, why: 0 === code ? 'no answer' : `lean exit ${code}` })
+    const missing = batch.filter((r) => !got.has(r.name))
+    for (const r of batch) if (got.has(r.name)) results.set(`${r.file}:${r.name}`, got.get(r.name))
+    if (0 === missing.length) return
+    if (0 === code) {
+      // An `#eval` Lean can't elaborate: its error names its line.
+      const errs = new Map()
+      for (const m of out.matchAll(/\.lean:(\d+):\d+: error(?:\([^)]*\))?: ([^\n]*)/g)) {
+        const at = Number(m[1]) - LEAN_HEAD.split('\n').length - 1
+        if (!errs.has(at)) errs.set(at, m[2])
+      }
+      for (const r of missing) {
+        const why = errs.get(batch.indexOf(r))
+        results.set(`${r.file}:${r.name}`, { answer: null, why: why ? 'lean error: ' + why.slice(0, 80) : 'no answer' })
+      }
+      return
     }
+    if (1 === missing.length) {
+      const why = /deep recursion/.test(out) ? 'lean: deep recursion' : `lean exit ${code}`
+      results.set(`${missing[0].file}:${missing[0].name}`, { answer: null, why })
+      return
+    }
+    const half = Math.ceil(missing.length / 2)
+    queue.push(missing.slice(0, half), missing.slice(half))
   }
+  const queue = batches.slice()
+  let next = 0
+  const worker = async () => {
+    while (0 < queue.length) await one(next++, queue.shift())
+  }
+  await Promise.all(Array.from({ length: JOBS }, worker))
   clearInterval(tick)
   report(all, ok, skipped, results)
+}
+
+// The oracle's `quote` writes a control character as `\u00XX`, where
+// both engines write JSON's short escapes; the bytes differ, the string
+// doesn't.
+function jsonEscapes(s) {
+  return s.replace(/\\u00([0-1][0-9a-f])/g, (m, h) => JSON.stringify(String.fromCharCode(parseInt(h, 16))).slice(1, -1))
 }
 
 function compare(r, res) {
@@ -186,7 +240,7 @@ function compare(r, res) {
     return want.includes(res.answer) ? 'agree' : 'differ'
   }
   if ('<none>' === res.answer) return 'differ'
-  return res.answer === r.expect ? 'agree' : 'differ'
+  return jsonEscapes(res.answer) === r.expect ? 'agree' : 'differ'
 }
 
 function report(all, ok, skipped, results) {

@@ -128,7 +128,8 @@ function args(v) {
 }
 
 function call(fn, xs, ctx) {
-  return `.call .${fn} ${list(xs.map((x) => term(x, ctx)))}`
+  const f = fn.includes(' ') ? `(.${fn})` : `.${fn}`
+  return `.call ${f} ${list(xs.map((x) => term(x, ctx)))}`
 }
 
 function bound(x) {
@@ -161,7 +162,7 @@ function entries(v) {
 
 // A relative path's climb: `.b` is one level up, each `.` before the
 // first key one more.
-function path(v) {
+function path(v, ctx) {
   const steps = v.peg.slice()
   if (steps.some((s) => 'string' !== typeof s)) unsupported('a path with a computed step')
   if (v.absolute) {
@@ -179,6 +180,7 @@ function path(v) {
   if (steps.includes('.') || steps.some((s) => s.startsWith('\u0000'))) {
     unsupported('a path the definition has no steps for')
   }
+  if (1 === up && ctx.emitBody) return `.path ${list(['.node', ...steps.map((s) => `.key ${leanStr(s)}`)])}`
   return `.path ${list([`.up ${up}`, ...steps.map((s) => `.key ${leanStr(s)}`)])}`
 }
 
@@ -283,7 +285,7 @@ function term(v, ctx = { seen: {} }) {
       const [r, x] = rank(v)
       return `.pref ${r} (${armTerm(x, ctx)})`
     }
-    case 'RefVal': return path(v)
+    case 'RefVal': return path(v, ctx)
     case 'VarVal':
       if ('StringVal' !== v.peg.constructor.name) unsupported('a computed variable')
       ctx.seen.vars = true
@@ -316,9 +318,14 @@ function term(v, ctx = { seen: {} }) {
     case 'PathFuncVal': {
       const a = args(v)
       if (1 === a.length && 'RefVal' === a[0].constructor.name &&
-        a[0].peg.every((s) => 'string' === typeof s && '.' !== s && !s.startsWith('%'))) {
-        const steps = a[0].peg
-        return `.addr ⟨${a[0].absolute ? 0 : 1}, ${list(steps.map(leanStr))}⟩`
+        a[0].peg.every((s) => 'string' === typeof s && !s.startsWith('%'))) {
+        const steps = a[0].peg.slice()
+        let up = a[0].absolute ? 0 : 1
+        while (!a[0].absolute && '.' === steps[0]) {
+          up++
+          steps.shift()
+        }
+        if (!steps.includes('.')) return `.addr ⟨${up}, ${list(steps.map(leanStr))}⟩`
       }
       return call('path', a, ctx)
     }
@@ -407,6 +414,11 @@ function term(v, ctx = { seen: {} }) {
     const b = 1 === xs.length ? bound(xs[0]) : null
     if (null == b) return call(`bnd .${BOUNDS[n][1]}`, xs, ctx)
     return `.${BOUNDS[n][0]} (${b})`
+  }
+  // An `emit` template reads `.x` from the node it is tried on.
+  if ('EmitFuncVal' === n) {
+    const a = args(v)
+    return `.call .emit ${list([term(a[0], ctx), ...a.slice(1).map((x) => term(x, { ...ctx, emitBody: true }))])}`
   }
   if (FNS[n]) return call(FNS[n], args(v), ctx)
   if (v.isCmpFunc) return call(`cmp .${v.cmp}`, args(v), ctx)

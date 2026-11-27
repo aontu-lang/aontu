@@ -48,6 +48,11 @@ function varsCtx(a) {
   return ctx
 }
 
+// What the definition leaves to its opaque `host` (spec/Aontu/Admits.lean):
+// which strings a pattern, a format or a grammar reads, and how a
+// string changes case.
+const HOST = /\b(re|format|parse|abnf|rep|split|upper|lower)\(|\bcase:/
+
 function ts(mode, src, data, opts) {
   try {
     if ('verdict' === mode) return vet(src, data, opts).verdict
@@ -109,6 +114,7 @@ function main() {
     const goOk = go.has(`${r.file}:${r.name}`)
     let cls
     if (tsTerm !== tsAns) cls = 'reading'
+    else if (HOST.test(src)) cls = 'host'
     else if (want.includes(tsAns) && goOk) cls = 'definition'
     else if (tsAns === r.def) cls = 'row'
     else cls = 'engines'
