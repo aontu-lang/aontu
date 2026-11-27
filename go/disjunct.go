@@ -451,7 +451,7 @@ func dedup(vals []Val, ranked bool) []Val {
 			ep, eok := e.(*PrefVal)
 			vp, vok := v.(*PrefVal)
 			// Twin defaults leave the value at rank 0 beside the default, as the fold does.
-			if !ranked && eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) && sameRec(e, v) {
+			if !ranked && eok && vok && ep.rank == vp.rank && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) && sameRec(e, v) {
 				vals = append(vals[:vI+1], append([]Val{prefInnerPeg(ep)}, vals[vI+1:]...)...)
 			}
 			if valSame(e, v) && sameRec(e, v) {

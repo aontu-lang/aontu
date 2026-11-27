@@ -404,7 +404,8 @@ function dedupArms(ctx: AontuContext, oval: Val[], ranked: boolean): void {
       const a: any = oval[vI]
       const b: any = oval[kI]
       // Twin defaults leave the value at rank 0 beside the default, as the fold does.
-      const plain = !ranked && true === a.isPref && true === b.isPref ? prefInnerPeg(a) : TRIAL_NIL
+      const plain = !ranked && true === a.isPref && true === b.isPref && a.rank === b.rank ?
+        prefInnerPeg(a) : TRIAL_NIL
       if (b.same(a) && sameRec(b, a)) {
         oval[vI] = keepRiders(ctx, a, b)
         oval[kI] = plain
