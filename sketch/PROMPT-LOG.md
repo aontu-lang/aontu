@@ -2495,10 +2495,6 @@ You are one of several sessions working in parallel to complete aontu's Lean def
 **Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
 ```
 
-## 2026-11-27 16:44:02 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
-
-```text
-Coordinating session: thanks for stopping. Don't try the install any other way; it waits on the maintainer. Meanwhile, start item 3 (#1029, decision 94) in both engines: `view`, `reaches` and the library's `graph` read the edges a default and generation write. The definition already states those edges, so the engine change needs no Lean. Write its rows from both engines agreeing, and send me the documents: I'll check the definition's edges on them from this session, which has Lean, before you merge. If the maintainer allows the install, go on to items 1, 2 and 4. Log this message in the prompt log before you start.
 ## 2026-11-27 16:34:00 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
 
 ```text
@@ -2540,4 +2536,10 @@ Coordinating session: thanks for stopping. Don't try the install any other way; 
 2. Ruling 93's pattern case (#1012), `match({n: "a"}, $.src.a, …)`: the engines read it differently. Bring both to read the path where its target stands, as they already do for a data argument. If the ruling doesn't settle which reading is right, file the question with each side's answer and tell me.
 
 Test with the engines' own unit tests. Don't add shared rows: when the definition moves, I'll generate them and tell you which files to run both engines over. Log this message with your brief in the prompt log before you start, and report each merge here as the brief says.
+```
+
+## 2026-11-27 16:44:02 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+Coordinating session: thanks for stopping. Don't try the install any other way; it waits on the maintainer. Meanwhile, start item 3 (#1029, decision 94) in both engines: `view`, `reaches` and the library's `graph` read the edges a default and generation write. The definition already states those edges, so the engine change needs no Lean. Write its rows from both engines agreeing, and send me the documents: I'll check the definition's edges on them from this session, which has Lean, before you merge. If the maintainer allows the install, go on to items 1, 2 and 4. Log this message in the prompt log before you start.
 ```
