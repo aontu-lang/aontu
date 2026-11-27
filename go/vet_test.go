@@ -753,3 +753,14 @@ func TestVetACallThatWaits(t *testing.T) {
 		t.Errorf("a template that computes, refused: %s", r.Verdict)
 	}
 }
+
+func TestVetADefaultWrittenTwice(t *testing.T) {
+	for _, schema := range []string{`x: *1 | *1`, `x: *1 | *1 | "a"`, `d: *1, x: $.d | *1`} {
+		if r := vetRun(schema, `{"x": 3}`, nil); VetInvalid != r.Verdict {
+			t.Errorf("%s against 3: %s", schema, r.Verdict)
+		}
+		if r := vetRun(schema, `{"x": 1}`, nil); VetValid != r.Verdict {
+			t.Errorf("%s against 1: %s", schema, r.Verdict)
+		}
+	}
+}

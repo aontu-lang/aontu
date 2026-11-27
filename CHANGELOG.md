@@ -31,6 +31,26 @@ another way:
 A list literal in a pattern still reads as sealed to its own length,
 so `match([1, 2], [], …)` takes no arm, pending #1070.
 
+### A default written twice admits only its value
+
+**Breaking.** #971, in both engines. Two defaults of one rank that agree
+fold into the default and the value at rank 0, as `foldArms` in the
+definition folds them, so the disjunction admits that value and nothing
+wider. Before, the fold left the default alone, and a default alone
+admits its parent type.
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `x: *1 \| *1` | `{"x": 3}` | `valid` | `invalid` |
+| `d: *1`, `x: $.d \| *1` | `{"x": 3}` | `valid` | `invalid` |
+
+Defaults of one rank that meet fold the same way, keeping the arms as
+written: `*{x:1} | *{y:2}` is `*{"x":1,"y":2}|{"x":1}|{"y":2}`.
+
+The canon of such a disjunction follows the definition's normal form:
+`x: *1 | *1` is `*1|1`, where it was `*1`, so its hash changes. What it
+generates doesn't.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call
