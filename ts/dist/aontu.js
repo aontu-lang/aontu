@@ -217,8 +217,10 @@ class Aontu {
                     if (true === uval.isTop || true === uval.isPlace) {
                         ac.adderr((0, err_1.descErr)((0, err_1.makeNilErr)(ac, 'no_gen', uval), ac));
                     }
+                    // A root left out of the output generates nothing, whatever its kind.
+                    const marked = true === uval.mark?.hide || true === uval.mark?.type;
                     out = uval.isNil ? (ac.adderr(uval), undefined)
-                        : 0 < ac.err.length ? undefined
+                        : 0 < ac.err.length || marked ? undefined
                             : uval.gen(ac);
                     if (!uval.isNil && 0 === ac.err.length) {
                         (0, alias_1.aliasErrors)(ac, uval);

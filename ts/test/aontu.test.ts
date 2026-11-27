@@ -762,3 +762,12 @@ describe('aontu-match-by-the-value-generated', () => {
     })
   }
 })
+
+
+describe('aontu-a-marked-root-generates-nothing', () => {
+  for (const src of ['hide(1)', 'type(1)', 'hide("x")', 'hide(*{a: 1} | {b: 2})', 'hide({a: 1})']) {
+    test(src, () => {
+      expect(new Aontu().generate(src)).equal(undefined)
+    })
+  }
+})

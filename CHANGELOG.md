@@ -8,6 +8,15 @@ each change affects.
 
 ## Unreleased
 
+### A marked root generates nothing, whatever its kind
+
+**Breaking.** #1078, in both engines. A root marked `hide()` or `type()`
+generates nothing, and the command prints `null`, as the reference
+states and the definition writes. A map or list root already did. A
+scalar root wrote its value: `hide(1)` was `1`. In TypeScript a hidden
+root that is a default wrote the default: `hide(*{a: 1} | {b: 2})` was
+`{"a": 1}`. Each is now `null`.
+
 ### A guide for CUE users
 
 Task CG4 of the lang refinement plan. A new how-to,
