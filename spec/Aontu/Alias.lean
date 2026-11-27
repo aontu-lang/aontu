@@ -718,6 +718,35 @@ def Decls.tableUnfold (ds : Decls) (e : Val → Val) : Fn → List Val → List 
   | .emit, [s, .alias n] => [s, if ds.recursiveB n then ((ds.env n).map e).getD (.alias n) else .alias n]
   | _, as => as
 
+/-- Whether a call's first argument is data the call reads: a
+generator's source, the bag a fold or `sort` reads, and the list `pick`
+and `join` read. A path there reads its target where the target stands,
+and nothing is placed (ruling 93). -/
+def Fn.readsData : Fn → Bool
+  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
+  | _ => false
+
+/-- A name's value as data a call reads: the meet of its bodies as the
+output has it, each member and element a mark of its own leaves out
+left out (`Val.visible`), and the other marks cleared (#1069). A
+reference elsewhere copies the marked members too (`Decls.env`). -/
+def Decls.envData (ds : Decls) (n : String) : Option Val :=
+  match ds.bodies n with
+  | [] => none
+  | v :: vs => some (vs.foldl .meet v).unident.visible.unmark
+
+/-- A term as data a call reads: a name that is not recursive as its
+value read as data (`Decls.envData`), and any other term as written. -/
+def Decls.dataArg (ds : Decls) : Val → Val
+  | .alias n => if ds.recursiveB n then .alias n else (ds.envData n).getD (.alias n)
+  | v => v
+
+/-- A call's arguments, its first read as data where the call reads it
+(`Fn.readsData`). -/
+def Decls.dataArgs (ds : Decls) (f : Fn) : List Val → List Val
+  | a :: as => (if f.readsData then ds.dataArg a else a) :: as
+  | [] => []
+
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
@@ -759,11 +788,16 @@ def expandF (ds : Decls) : ℕ → Val → Val
         (cs.map fun c => (c.1.map (expandF ds k), c.2.1.map (expandF ds k), c.2.2.map (expandF ds k)))
     | .select s arms d =>
       .select (expandF ds k s) (arms.map fun a => (expandF ds k a.1, expandF ds k a.2)) (d.map (expandF ds k))
-    | .filter s c => .filter (expandF ds k s) (expandF ds k c)
-    | .call f args => .call f (f.tableArgs (ds.tableUnfold (expandF ds k) f (args.map (expandF ds k))))
+    | .filter s c => .filter (expandF ds k (ds.dataArg s)) (expandF ds k c)
+    | .call f args => .call f (f.tableArgs (ds.tableUnfold (expandF ds k) f ((ds.dataArgs f args).map (expandF ds k))))
     | .ride t v r => .ride t (t.reads (expandF ds k v)) r
     | .link v t => .link (expandF ds k v) (expandF ds k t)
     | v => v
+
+/-- A call that reads no data reads its arguments as written. -/
+theorem Decls.dataArgs_of_not {ds : Decls} {f : Fn} (as : List Val) (h : f.readsData = false) :
+    ds.dataArgs f as = as := by
+  cases as <;> simp [Decls.dataArgs, h]
 
 /-- A call other than `emit` reads its arguments as written. -/
 theorem Fn.tableArgs_of_ne {f : Fn} (args : List Val) (h : f ≠ .emit) : f.tableArgs args = args := by
@@ -1390,6 +1424,60 @@ theorem unguardedRefs_innerTable : ∀ (v : Val) {n : String},
       exact mem_unguardedItems.mpr ⟨t, by simp, ht⟩
     · exact h
 
+/-- Writing a term's visible part keeps the names it reaches. -/
+theorem Val.unguardedRefs_visible (v : Val) : v.visible.unguardedRefs = v.unguardedRefs := by
+  induction v using Val.visible.induct
+    (motive_2 := fun arms => unguardedArms (visibleArms arms) = unguardedArms arms)
+    (motive_3 := fun _ => True) (motive_4 := fun _ => True) (motive_5 := fun _ => True)
+  case case8 =>
+    rename_i v h1 h2 h3 h4 h5 h6 h7
+    rw [Val.visible.eq_8 v h1 h2 h3 h4 h5 h6 h7]
+  all_goals first
+    | trivial
+    | simp_all only [Val.visible, visibleArms, Val.unguardedRefs, unguardedArms]
+
+/-- A name's value read as data reaches the names its value does. -/
+theorem Decls.envData_env {ds : Decls} {k : String} {b : Val} (h : ds.envData k = some b) :
+    ∃ b', ds.env k = some b' ∧ b.unguardedRefs = b'.unguardedRefs := by
+  simp only [Decls.envData] at h
+  simp only [Decls.env]
+  split at h
+  · exact nomatch h
+  · rename_i v vs hb
+    cases h
+    rw [hb]
+    exact ⟨_, rfl, by rw [Val.unguardedRefs_unmark, Val.unguardedRefs_visible, Val.unguardedRefs_unmark]⟩
+
+/-- A term read as data is itself, or a name's value read as data. -/
+theorem Decls.dataArg_cases (ds : Decls) (a : Val) :
+    ds.dataArg a = a ∨ ∃ k b, a = .alias k ∧ ds.envData k = some b ∧ ds.dataArg a = b := by
+  cases a with
+  | alias k =>
+    by_cases hr : ds.recursiveB k = true
+    · exact .inl (by simp [Decls.dataArg, hr])
+    · cases he : ds.envData k with
+      | none => exact .inl (by simp [Decls.dataArg, hr, he])
+      | some b => exact .inr ⟨k, b, rfl, he, by simp [Decls.dataArg, hr, he]⟩
+  | _ => exact .inl rfl
+
+/-- An argument a call hands on is one it was handed, or the value read
+as data of a name it was handed. -/
+theorem mem_dataArgs {ds : Decls} {f : Fn} {as : List Val} {x : Val} (h : x ∈ ds.dataArgs f as) :
+    x ∈ as ∨ ∃ k b, Val.alias k ∈ as ∧ ds.envData k = some b ∧ x = b := by
+  cases as with
+  | nil => simp [Decls.dataArgs] at h
+  | cons a as =>
+    simp only [Decls.dataArgs, List.mem_cons] at h
+    rcases h with h | h
+    · by_cases hf : f.readsData = true
+      · rw [if_pos hf] at h
+        rcases ds.dataArg_cases a with ha | ⟨k, b, rfl, he, hb⟩
+        · exact .inl (by rw [h, ha]; exact List.mem_cons_self)
+        · exact .inr ⟨k, b, List.mem_cons_self, he, h.trans hb⟩
+      · rw [if_neg hf] at h
+        exact .inl (by rw [h]; exact List.mem_cons_self)
+    · exact .inl (List.mem_cons_of_mem _ h)
+
 /-- A name the expansion of a term reaches with nothing between, the term
 reached that way itself, or reaches through a name it so reached. -/
 theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String},
@@ -1524,9 +1612,17 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
     | filter s c =>
       simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
       rcases h with h | h
-      · rcases unguardedRefs_expandF f s h with h' | ⟨m, hm, hmn⟩
-        · exact .inl (.inl h')
-        · exact .inr ⟨m, .inl hm, hmn⟩
+      · rcases ds.dataArg_cases s with hs | ⟨k, b, rfl, hb, hs⟩
+        · rw [hs] at h
+          rcases unguardedRefs_expandF f s h with h' | ⟨m, hm, hmn⟩
+          · exact .inl (.inl h')
+          · exact .inr ⟨m, .inl hm, hmn⟩
+        · rw [hs] at h
+          obtain ⟨b', hb', hr⟩ := Decls.envData_env hb
+          have hk : k ∈ (Val.alias k).unguardedRefs := by simp [Val.unguardedRefs]
+          rcases unguardedRefs_expandF f b h with h' | ⟨m, hm, hmn⟩
+          · exact .inr ⟨k, .inl hk, .single (Decls.refersUnguarded_of_env hb' (by rw [← hr]; exact h'))⟩
+          · exact .inr ⟨k, .inl hk, .trans (.single (Decls.refersUnguarded_of_env hb' (by rw [← hr]; exact hm))) hmn⟩
       · rcases unguardedRefs_expandF f c h with h' | ⟨m, hm, hmn⟩
         · exact .inl (.inr h')
         · exact .inr ⟨m, .inr hm, hmn⟩
@@ -1542,18 +1638,32 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
         · exact unguardedRefs_innerTable _ (unguardedRefs_replacedTable hn)
       rcases mem_tableUnfold hy with hy | ⟨k, b, hk, he, rfl⟩
       · obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hy
-        rcases unguardedRefs_expandF f a hny with h' | ⟨m, hm', hmn⟩
-        · exact .inl (mem_unguardedItems.mpr ⟨a, ha, h'⟩)
-        · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, hmn⟩
+        rcases mem_dataArgs ha with ha | ⟨j, c, hj, hc, rfl⟩
+        · rcases unguardedRefs_expandF f a hny with h' | ⟨m, hm', hmn⟩
+          · exact .inl (mem_unguardedItems.mpr ⟨a, ha, h'⟩)
+          · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, hmn⟩
+        · obtain ⟨c', hc', hr⟩ := Decls.envData_env hc
+          have hj' : j ∈ unguardedItems args := mem_unguardedItems.mpr ⟨_, hj, by simp [Val.unguardedRefs]⟩
+          rcases unguardedRefs_expandF f a hny with h' | ⟨m, hm', hmn⟩
+          · exact .inr ⟨j, hj', .single (Decls.refersUnguarded_of_env hc' (by rw [← hr]; exact h'))⟩
+          · exact .inr ⟨j, hj', .trans (.single (Decls.refersUnguarded_of_env hc' (by rw [← hr]; exact hm'))) hmn⟩
       · obtain ⟨a, ha, hak⟩ := List.mem_map.mp hk
         have hka : k ∈ (expandF ds f a).unguardedRefs := by rw [hak]; simp [Val.unguardedRefs]
         have hkn : Relation.TransGen ds.RefersUnguarded k n := by
           rcases unguardedRefs_expandF f b hny with h' | ⟨m, hm', hmn⟩
           · exact .single (Decls.refersUnguarded_of_env he h')
           · exact .trans (.single (Decls.refersUnguarded_of_env he hm')) hmn
-        rcases unguardedRefs_expandF f a hka with h' | ⟨m, hm', hmk⟩
-        · exact .inr ⟨k, mem_unguardedItems.mpr ⟨a, ha, h'⟩, hkn⟩
-        · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, .trans hmk hkn⟩
+        rcases mem_dataArgs ha with ha | ⟨j, c, hj, hc, rfl⟩
+        · rcases unguardedRefs_expandF f a hka with h' | ⟨m, hm', hmk⟩
+          · exact .inr ⟨k, mem_unguardedItems.mpr ⟨a, ha, h'⟩, hkn⟩
+          · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, .trans hmk hkn⟩
+        · obtain ⟨c', hc', hr⟩ := Decls.envData_env hc
+          have hj' : j ∈ unguardedItems args := mem_unguardedItems.mpr ⟨_, hj, by simp [Val.unguardedRefs]⟩
+          have hjk : Relation.TransGen ds.RefersUnguarded j k := by
+            rcases unguardedRefs_expandF f a hka with h' | ⟨m, hm', hmk⟩
+            · exact .single (Decls.refersUnguarded_of_env hc' (by rw [← hr]; exact h'))
+            · exact .trans (.single (Decls.refersUnguarded_of_env hc' (by rw [← hr]; exact hm'))) hmk
+          exact .inr ⟨j, hj', .trans hjk hkn⟩
     | _ => exact .inl (by simpa [expandF] using h)
 
 /-! ### The directives reach no name the term does not -/
@@ -2412,6 +2522,32 @@ theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Checkabl
     exact (Val.checkableA_unident
       (this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw)))).unmark
 
+/-- A name's value read as data is a term the checker can read. -/
+theorem Decls.envData_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {k : String} {b : Val}
+    (h : ds.envData k = some b) : b.CheckableA := by
+  simp only [Decls.envData] at h
+  split at h
+  · exact nomatch h
+  · rename_i v vs hbs
+    cases h
+    have hall : ∀ w, w ∈ v :: vs → w.CheckableA := by
+      intro w hw
+      rw [← hbs] at hw
+      simp only [Decls.bodies, List.mem_map, List.mem_filter] at hw
+      obtain ⟨d, ⟨hd, -⟩, rfl⟩ := hw
+      exact hb d hd
+    have : ∀ (vs : List Val) (v : Val), v.CheckableA → (∀ w, w ∈ vs → w.CheckableA) →
+        (vs.foldl Val.meet v).CheckableA := by
+      intro vs
+      induction vs with
+      | nil => intro v hv _; exact hv
+      | cons w vs ih =>
+        intro v hv hws
+        exact ih (.meet v w) (.meet hv (hws w (List.mem_cons_self)))
+          (fun w' hw' => hws w' (List.mem_cons_of_mem _ hw'))
+    exact (Val.checkableA_unident
+      (this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw)))).visible.unmark
+
 /-- The table an `emit` call the checker can read holds is a term it can
 read. -/
 theorem innerTable_checkableA : ∀ (v : Val), v.CheckableA → (innerTable v).CheckableA
@@ -2480,7 +2616,9 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       have hyc : y.CheckableA := by
         rcases mem_tableUnfold hy with hy | ⟨n, b, -, he, rfl⟩
         · obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hy
-          exact expandF_checkableA hb f a (hargs a ha)
+          rcases mem_dataArgs ha with ha | ⟨j, c, -, hc, rfl⟩
+          · exact expandF_checkableA hb f a (hargs a ha)
+          · exact expandF_checkableA hb f a (Decls.envData_checkableA hb hc)
         · exact expandF_checkableA hb f b (Decls.env_checkableA hb he)
       rcases hx with rfl | rfl
       · exact hyc

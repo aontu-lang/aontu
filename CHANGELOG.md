@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### The definition leaves a hidden member out of the data a call reads
+
+#1069, in the definition. Data a call reads through a path, the source
+of a generator, `filter` or a fold, reads as the output has it, each
+member or element a mark of its own leaves out left out
+(`Decls.envData` in `spec/Aontu/Alias.lean`). Before, it read the
+unmarked copy a plain reference makes, so `join($.m, "-")` over
+`m: {a: "keep", b: hide("SECRET")}` leaked `SECRET`. Rows gh0 on of
+`test/spec/def-gaps.tsv`. Both ports answer every one as the definition
+does, and neither changes.
+
 ### The definition writes a left-out root as `null`
 
 #1075, in the definition. A document whose root carries `hide()` or
