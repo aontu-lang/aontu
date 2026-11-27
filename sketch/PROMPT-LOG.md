@@ -2618,10 +2618,6 @@ Next engine-side work, in this order:
 Log this message in the prompt log first.
 ```
 
-## 2026-11-27 22:17:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
-
-```text
-Wrap up current work, closing a agents, and write up into a handover doc
 ## 2026-11-27 21:45:16 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
 
 ```text
@@ -2639,4 +2635,10 @@ P11 items 1 and 2, the two that need Lean, move to me. Item 4 (#1007) is yours, 
 - **#1061:** still waits on the maintainer's ruling.
 
 Don't stop between items. Report to me at each merge.
+```
+
+## 2026-11-27 22:17:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Wrap up current work, closing a agents, and write up into a handover doc
 ```
