@@ -2631,3 +2631,19 @@ The `spec/README.md` gap bullets for #1042 and `list-witness` are stale. I'll fi
 
 Don't stop between items. Send me a one-line report at each merge.
 ```
+
+## 2026-11-27 22:17:25 UTC · Claude Code · session_01D35vdZaS5uN2Wb4n2156JH
+
+```text
+Wrap up now: the maintainer is closing every session. Start nothing new.
+
+Within about 15 minutes:
+1. If a change of yours already passes its checks, merge it as usual. Otherwise commit your work in progress to your branch and push it, and leave any PR open. The commit message says what is done and what is left.
+2. Send me one message with:
+   - your branch, and its PR if any;
+   - what is done;
+   - what is left, in order;
+   - anything the next person needs to know.
+
+Then stop. This session will be archived after your report.
+```
