@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### A path nested in a relation's template reads where the template lands
+
+Both ports (#1007). An absolute path below the root of a `relate()`
+template now reads where the template lands, at the link's target, as
+a relative path inside it already did (ruling 50). A template that
+names a subtype of the type declaring the relation, such as
+`up?: relate({via?: $.t.D})` inside `N` with `D: $.t.N & {k: "d"}`,
+was read where it was declared, so it generated or was `unify_cycle`
+by the order the document was written in. Every order now generates
+the same value. A path that is the whole template is read as before.
+
 ### The definition's `filter` reads a preferred disjunction arm by arm
 
 In the definition, a `filter` now takes a child that is a disjunction
