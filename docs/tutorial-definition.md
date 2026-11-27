@@ -6958,7 +6958,12 @@ own, as a list holds no position for either, and `nil` where the data
 is no bag or a marked reading is a conflict. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
-data is no bag or a list holds anything but a string. An `emit` is the
+data is no bag or a list holds anything but a string. A `pack` with a key,
+`pack(d, t, k)`, puts each member's instance under the string `k` is
+read as at the place the instance would take under the member's own key
+or index (`Val.segMembers`), the template read under that string, the
+instances of a repeated string met, waits while any member's key waits,
+and is `nil` where a key is no string (task C2, rulings 5 to 8). An `emit` is the
 list of the pieces its table makes of each member of its selection, in
 the order `Val.members` reads them, its `match`es read for no member and
 its bodies for the member, each hole and each reference into the node
@@ -6968,7 +6973,10 @@ stays as written, a call no reading makes, where a template lacks its
 `match` or a list for its `body`, the selection is no bag, or a member
 makes no pieces (`emitPlan`), and where no position places a `key(n)`
 the table holds. A `maybe` is
-what `maybeOf` makes of its argument, and a call, a generator, a
+what `maybeOf` makes of its argument, but one whose argument is an `at`,
+which reads as a reference there (ruling 2 of C1): absence where the
+`at`'s data is a reference that names nothing, or an `at` that names
+nothing so, or a step names nothing (`atMissD`), and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence, nor for one a mark of its
 own, `hide()` or `type()`, leaves out, each element after
@@ -10097,7 +10105,8 @@ Nothing names `config`, so `port` and the second tag are **absence**,
 `maybe(v)` is `v` where it names something, and absence where all that
 is wrong with it is that it doesn't: a reference at the top of `v`, `v`
 itself, a side of a meet, an arm of a disjunction or the value under a
-rider, names nothing in the document read. Absence admits every value,
+rider, names nothing in the document read, or an `at` that is the
+argument names nothing at a step or in its data (`atMissD`). Absence admits every value,
 generates nothing, and is the unit of the meet, but met with `any` it
 stays absence; a map leaves it out of its output at a required key as
 at an optional one, a list holds no position for it, and a call that
