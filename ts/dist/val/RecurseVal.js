@@ -7,6 +7,7 @@ exports.throughRider = throughRider;
 exports.declaration = declaration;
 exports.bumpRecurse = bumpRecurse;
 exports.containsRecurseOf = containsRecurseOf;
+exports.unmarked = unmarked;
 exports.walkTarget = walkTarget;
 const type_1 = require("../type");
 const err_1 = require("../err");
@@ -250,5 +251,5 @@ function containsRecurseOf(v, target, d, root, seen = new Set(), links = false) 
     const linkTemplates = !named ? [] :
         true === v.isRelateFunc ? v.peg : [v.tval, ...(v.relates ?? [])];
     return linkTemplates.some((t) => containsRecurseOf(t, target, d + 1, root, seen, links));
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 9 */
 //# sourceMappingURL=RecurseVal.js.map

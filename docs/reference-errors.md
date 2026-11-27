@@ -224,7 +224,7 @@ twenty rows have no such section and carry no link.
 | `negative` | 0.51.0 | Unary minus applied to a non-numeric operand. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `not_number` | 0.51.0 | A numeric literal that reads as a non-finite value. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `pack_data` | 0.53.0 | The first argument to `pack()` is not a bag. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |
-| `pack_key` | 0.53.0 | A list packed by `pack()` holds an element that is not a string. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |
+| `pack_key` | 0.53.0 | A list packed by `pack()` holds an element that is not a string, or its third argument answers a key that is not one. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |
 | `parse` | 0.51.0 | The outer wrapper for a source that could not be turned into a document; the inner error carries the code that explains it. |
 | `parse_arg` | 0.63.0 | `parse()` was given something other than a grammar string and a text string. ([Grammars: `abnf()` and `parse()`](reference-language.md#grammars-abnf-and-parse)) |
 | `parse_bad_src` | 0.51.0 | The source handed in for parsing is not a non-empty string. |

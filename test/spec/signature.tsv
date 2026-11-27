@@ -55,7 +55,7 @@ gen(spec: string|map) : annotation
 acyclic() : constraint
 inverse(projector k: string) : constraint
 relate(template t?: any) : constraint
-pack(d: map|list, template t: any) : map
+pack(d: map|list, template t: any, template k?: string) : map
 each(d: map|list, template t: any) : list
 apply(v: any, template f: any) : any
 filter(d: map|list, trial c: any) : map|list
@@ -71,6 +71,7 @@ sum(d: map|list) : number
 least(d: map|list) : number
 greatest(d: map|list) : number
 pick(d: map|list, projector k: string|integer) : any
+at(d: map|list, ...k: string|integer) : any
 sort(d: map|list, projector k?: string|integer, dir?: string) : list
 join(d: map|list, sep?: string) : string
 esc(s: string, variant?: string) : string

@@ -81,6 +81,33 @@ a: 1.5
 A sized integer is `integer & min(0) & max(255)`, which is why every
 alias above starts with `integer`.
 
+The sized numbers come bundled. `@"aontu:num"` names `Int8` to
+`Int128`, `Uint8` to `Uint128` and `Float32` under `$.aontu.Num`, as
+[the `aontu:num` sized numbers](../reference-language.md#the-aontunum-sized-numbers)
+lists them, so a block of your own holds only the names your project
+adds, built on them. Write this as `port.aontu`:
+
+<!-- test: scenario bundled-sizes -->
+<!-- test: file port.aontu -->
+```aontu
+@"aontu:num"
+
+type: type({ port:$.aontu.Num.Uint16 & min(1) })
+
+listen: $.type.port & 8080
+```
+
+<!-- test: run -->
+```sh
+$ aontu port.aontu
+{
+  "aontu": {
+    "Num": {}
+  },
+  "listen": 8080
+}
+```
+
 Aliases are ordinary values, so they compose: one can be defined in
 terms of another, and a use site can narrow one further
 (`$.type.uint8 & max(15)`). For a file-local name that skips the

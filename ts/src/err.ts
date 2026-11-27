@@ -13,6 +13,9 @@ import { AontuContext } from './ctx'
 import { NilVal, TRIAL_NIL } from './val/NilVal'
 
 import { hints } from './hints'
+import { AONTU_SOURCES } from './aontumodel'
+
+const MODEL_TEXT = new Map(Object.entries(AONTU_SOURCES))
 
 
 const { errmsg, strinject } = util
@@ -211,6 +214,10 @@ function resolveSrc(v: Val, errctx: ErrContext | undefined) {
 
   if (undefined !== errctx?.texts?.[url]) {
     return errctx.texts[url]
+  }
+  const model = MODEL_TEXT.get(url)
+  if (undefined !== model) {
+    return model
   }
   if (null != url) {
     if (cache && cache.has(url)) {

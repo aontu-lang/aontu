@@ -14,9 +14,10 @@ import { format } from './format'
 import { utf8Bytes } from './escape'
 import {
   pathAt, sitesOf, describeAt, definitionAt, describeVal, membersAt, symbolsOf,
+  referencesAt,
 } from './cursor'
 import type {
-  CursorMembers, CursorPath, DocSymbol, Member, PathSite, PathValue,
+  CursorMembers, CursorPath, DocSymbol, Member, PathPlace, PathSite, PathValue,
 } from './cursor'
 import type { WhyConjunct } from './provenance'
 
@@ -28,6 +29,10 @@ const SEVERITY_INFORMATION = 3
 const SEVERITY_HINT = 4
 
 const LSP_VERSION = VERSION
+
+// LSP DocumentHighlightKind subset.
+const HIGHLIGHT_READ = 2
+const HIGHLIGHT_WRITE = 3
 
 
 type Position = { line: number, character: number }
@@ -240,6 +245,8 @@ function initializeResult() {
       signatureHelpProvider: { triggerCharacters: ['(', ','] },
       documentFormattingProvider: true,
       documentSymbolProvider: true,
+      referencesProvider: true,
+      documentHighlightProvider: true,
     },
     serverInfo: {
       name: 'aontu-lsp',
@@ -433,6 +440,35 @@ function computeSymbols(text: string, trust?: any): DocSymbol[] | null {
 }
 
 
+type DocumentHighlight = { range: Range, kind: number }
+
+
+// Every site that writes the path a key or a reference names, where the
+// client asks for them, and every reference that reads it.
+function computeReferences(
+  src: string, position: Position, uri: string, includeDeclaration: boolean,
+  trust?: any): Location[] | null {
+  const refs = referencesAt(src, position, { trust })
+  return undefined === refs ? null :
+    [...(includeDeclaration ? refs.writes : []), ...refs.reads].map((p) => ({
+      uri: '' === p.file ? uri : pathToUri(p.file),
+      range: p.range,
+    }))
+}
+
+
+// The same, in the document alone, a site that writes the path apart
+// from a reference that reads it.
+function computeHighlights(
+  src: string, position: Position, trust?: any): DocumentHighlight[] | null {
+  const refs = referencesAt(src, position, { trust })
+  const here = (ps: PathPlace[], kind: number) =>
+    ps.filter((p) => '' === p.file).map((p) => ({ range: p.range, kind }))
+  return undefined === refs ? null :
+    [...here(refs.writes, HIGHLIGHT_WRITE), ...here(refs.reads, HIGHLIGHT_READ)]
+}
+
+
 // Go to where the name is BOUND: its declaration, or the destructure
 // that brought it in, which is where this file gets the name.
 function computeDefinition(
@@ -600,7 +636,7 @@ const COMPLETION_VARIABLE = 6
 const COMPLETION_KEYWORD = 14
 
 const BUILTIN_FUNCS = [
-  'abnf', 'above', 'acyclic', 'add', 'apply', 'below', 'close', 'contains', 'content', 'copy',
+  'abnf', 'above', 'acyclic', 'add', 'apply', 'at', 'below', 'close', 'contains', 'content', 'copy',
   'copyfiles', 'decode', 'deprecate',
   'div',
   'each', 'emit', 'empty', 'encode', 'esc',
@@ -861,6 +897,21 @@ class LspHandler {
         }]
       }
 
+      case 'textDocument/references':
+      case 'textDocument/documentHighlight': {
+        const uri = msg.params?.textDocument?.uri
+        const pos = msg.params?.position
+        const text = null != uri ? this.docs.get(uri) : undefined
+        return [{
+          jsonrpc: '2.0', id: msg.id,
+          result: null == text || null == pos ? null :
+            'textDocument/references' === msg.method ?
+              computeReferences(text, pos, uri, true === msg.params?.context?.includeDeclaration,
+                this.trust) :
+              computeHighlights(text, pos, this.trust),
+        }]
+      }
+
       case 'textDocument/definition': {
         const uri = msg.params?.textDocument?.uri
         const pos = msg.params?.position
@@ -898,7 +949,7 @@ class LspHandler {
     return publishDiagnosticsMsg(uri,
       computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }))
   }
-} /* node:coverage ignore next 40 */
+} /* node:coverage ignore next 45 */
 
 
 export {
@@ -911,6 +962,8 @@ export {
   computePathAt,
   computeSitesOf,
   computeSymbols,
+  computeReferences,
+  computeHighlights,
   LspHandler,
   LSP_VERSION,
   BUILTIN_FUNCS,
@@ -922,6 +975,8 @@ export {
   COMPLETION_FIELD,
   COMPLETION_VARIABLE,
   COMPLETION_KEYWORD,
+  HIGHLIGHT_READ,
+  HIGHLIGHT_WRITE,
 }
 
 export type {
@@ -937,5 +992,6 @@ export type {
   TextEdit,
   CursorPath,
   DocSymbol,
+  DocumentHighlight,
   PathSite,
 }

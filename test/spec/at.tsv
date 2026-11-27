@@ -1,0 +1,143 @@
+# THE MEMBER AT A KEY OR A POSITION: at(d, ...k) reads what a path step
+# reads, a member of a map under the key k spells and of a list at the
+# index it spells, and more keys step further (task C1 of
+# sketch/LANG-REFINEMENT-PLAN.0.md, rulings 1 to 4). Each expectation is
+# what both engines answer. Columns: name<TAB>mode<TAB>src<TAB>expect.
+# A field of each member, keys kept.
+at-field-keys-kept	gen	svc: {a: {port: 1, cfg: {x: 1}}, b: {port: 2, cfg: {x: 2}}}\nports: pack($.svc, at(_, port))\ncfgs: pack($.svc, at(_, cfg))	{"cfgs":{"a":{"x":1},"b":{"x":2}},"ports":{"a":1,"b":2},"svc":{"a":{"cfg":{"x":1},"port":1},"b":{"cfg":{"x":2},"port":2}}}
+at-field-of-list-members	gen	xs: [{name: web}, {name: db}]\nout: each($.xs, {n: at(_, name)})	{"out":[{"n":"web"},{"n":"db"}],"xs":[{"name":"web"},{"name":"db"}]}
+at-field-bare-template	gen	xs: [{name: web}, {name: db}]\nout: each($.xs, at(_, name))	{"out":["web","db"],"xs":[{"name":"web"},{"name":"db"}]}
+at-field-missing-in-one	errc	svc: {a: {port: 1}, b: {}}\nports: pack($.svc, at(_, port))	no_path
+at-field-maybe-in-one	gen	svc: {a: {port: 1}, b: {}}\nports: pack($.svc, {p: maybe(at(_, port))})	{"ports":{"a":{"p":1},"b":{}},"svc":{"a":{"port":1},"b":{}}}
+at-field-maybe-list-drops	gen	xs: [{n: 1}, {}, {n: 3}]\nout: each($.xs, maybe(at(_, n)))	{"out":[1,3],"xs":[{"n":1},{},{"n":3}]}
+# A lookup by a field of the member.
+at-lookup-field	gen	teams: {core: {email: "core@x"}, web: {email: "web@x"}}\nsvc: {a: {team: core}, b: {team: web}}\nowners: pack($.svc, at($.teams, at(_, team), email))	{"owners":{"a":"core@x","b":"web@x"},"svc":{"a":{"team":"core"},"b":{"team":"web"}},"teams":{"core":{"email":"core@x"},"web":{"email":"web@x"}}}
+at-lookup-record	gen	teams: {core: {email: "core@x", tier: 1}, web: {email: "web@x", tier: 2}}\nsvc: {a: {team: core}, b: {team: web}}\nout: pack($.svc, {owner: at($.teams, at(_, team))})	{"out":{"a":{"owner":{"email":"core@x","tier":1}},"b":{"owner":{"email":"web@x","tier":2}}},"svc":{"a":{"team":"core"},"b":{"team":"web"}},"teams":{"core":{"email":"core@x","tier":1},"web":{"email":"web@x","tier":2}}}
+at-lookup-miss	errc	teams: {core: {email: "core@x"}}\nsvc: {a: {team: core}, b: {team: ops}}\nowners: pack($.svc, at($.teams, at(_, team), email))	no_path
+at-lookup-miss-maybe	gen	teams: {core: {email: "core@x"}}\nsvc: {a: {team: core}, b: {team: ops}}\nowners: pack($.svc, {o: maybe(at($.teams, at(_, team), email))})	{"owners":{"a":{"o":"core@x"},"b":{}},"svc":{"a":{"team":"core"},"b":{"team":"ops"}},"teams":{"core":{"email":"core@x"}}}
+# A condition over two fields. A bound whose argument holds `_`, as in
+# filter($.xs, {a: above(at(_, b))}), reads nothing in a trial and keeps
+# no member in either engine, as routes-k4 of comprehension.tsv does; a
+# match over the difference is the direct spelling.
+at-condition-two-fields	gen	xs: [{a: 3, b: 1}, {a: 1, b: 2}]\nbig: each($.xs, match(sub(at(_, a), at(_, b)), above(0), at(_, a), maybe($.none)))	{"big":[3],"xs":[{"a":3,"b":1},{"a":1,"b":2}]}
+at-condition-bound-reads-nothing	gen	xs: [{a: 3, b: 1}, {a: 1, b: 2}]\nbig: pick(filter($.xs, {a: above(at(_, b))}), a)	{"big":[],"xs":[{"a":3,"b":1},{"a":1,"b":2}]}
+at-condition-equal-fields	gen	xs: [{a: 3, b: 3}, {a: 1, b: 2}]\nsame: filter($.xs, {a: at(_, b)})	{"same":[{"a":3,"b":3}],"xs":[{"a":3,"b":3},{"a":1,"b":2}]}
+# Two lists paired by position.
+at-pair-by-position	gen	ks: [a, b]\nys: [1, 2]\npairs: each($.ks, {k: _, y: at($.ys, key())})	{"ks":["a","b"],"pairs":[{"k":"a","y":1},{"k":"b","y":2}],"ys":[1,2]}
+at-pair-shorter-list	errc	ks: [a, b, c]\nys: [1, 2]\npairs: each($.ks, {k: _, y: at($.ys, key())})	no_path
+at-pair-shorter-list-maybe	gen	ks: [a, b, c]\nys: [1, 2]\npairs: each($.ks, {k: _, y: maybe(at($.ys, key()))})	{"ks":["a","b","c"],"pairs":[{"k":"a","y":1},{"k":"b","y":2},{"k":"c"}],"ys":[1,2]}
+# A step into a map and a list, as a path's.
+at-map-key	gen	m: {a: 1, b: 2}\nx: at($.m, b)	{"m":{"a":1,"b":2},"x":2}
+at-map-key-quoted	gen	m: {"a b": 1}\nx: at($.m, "a b")	{"m":{"a b":1},"x":1}
+at-map-key-empty	gen	m: {"": 1}\nx: at($.m, "")	{"m":{"":1},"x":1}
+at-map-integer-key	gen	m: {"1": z}\nx: at($.m, 1)	{"m":{"1":"z"},"x":"z"}
+at-map-negative-key	gen	m: {"-1": z, a: y}\nx: at($.m, -1)	{"m":{"-1":"z","a":"y"},"x":"z"}
+at-list-index	gen	xs: [a, b, c]\nf: at($.xs, 0)\ns: at($.xs, 1)	{"f":"a","s":"b","xs":["a","b","c"]}
+at-list-index-text	gen	xs: [a, b, c]\nx: at($.xs, "2")	{"x":"c","xs":["a","b","c"]}
+at-list-index-text-leading-zero	errc	xs: [a, b, c]\nx: at($.xs, "01")	no_path
+at-list-index-text-negative	errc	xs: [a, b, c]\nx: at($.xs, "-1")	no_path
+at-list-name	errc	xs: [a, b, c]\nx: at($.xs, a)	no_path
+at-literal-map	gen	x: at({a: 2, b: 3}, b)	{"x":3}
+at-literal-list	gen	x: at([1, 2], 1)	{"x":2}
+at-agrees-with-path	gen	m: {a: {b: [5, 6]}}\nx: at($.m, a, b, 1)\ny: $.m.a.b.1	{"m":{"a":{"b":[5,6]}},"x":6,"y":6}
+# A negative position counts from the end of a list, which a path step
+# does not: at(xs, -1) is the last member (ruling 4).
+at-last	gen	xs: [a, b, c]\nx: at($.xs, -1)	{"x":"c","xs":["a","b","c"]}
+at-second-last	gen	xs: [a, b, c]\nx: at($.xs, -2)	{"x":"b","xs":["a","b","c"]}
+at-first-from-end	gen	xs: [a, b, c]\nx: at($.xs, -3)	{"x":"a","xs":["a","b","c"]}
+at-before-first	errc	xs: [a, b, c]\nx: at($.xs, -4)	no_path
+at-past-last	errc	xs: [a, b, c]\nx: at($.xs, 3)	no_path
+at-empty-list	errc	xs: []\nx: at($.xs, -1)	no_path
+at-path-step-negative-misses	errc	xs: [a, b, c]\nx: $.xs.-1	no_path
+at-last-of-twelve	gen	xs: [a, b, c, d, e, f, g, h, i, j, k, l]\nout: at($.xs, -1)	{"out":"l","xs":["a","b","c","d","e","f","g","h","i","j","k","l"]}
+at-negative-after-key	gen	m: {xs: [1, 2, 3]}\nx: at($.m, xs, -1)	{"m":{"xs":[1,2,3]},"x":3}
+at-negative-nested	gen	xs: [[1, 2], [3, 4]]\nx: at(at($.xs, -1), -1)	{"x":4,"xs":[[1,2],[3,4]]}
+# More keys step further: at(d, a, b) is at(at(d, a), b).
+at-nested	gen	m: {a: {b: {c: 1}}}\nx: at($.m, a, b, c)\ny: at(at(at($.m, a), b), c)	{"m":{"a":{"b":{"c":1}}},"x":1,"y":1}
+at-nested-list-map	gen	m: {xs: [{n: 1}, {n: 2}]}\nx: at($.m, xs, 1, n)	{"m":{"xs":[{"n":1},{"n":2}]},"x":2}
+at-nested-miss	errc	m: {a: {b: {c: 1}}}\nx: at($.m, a, b, d)	no_path
+at-nested-into-scalar	errc	m: {a: 1}\nx: at($.m, a, b)	no_path
+at-nested-into-text	errc	m: {a: abc}\nx: at($.m, a, 0)	no_path
+# Each key is read as its value, so it can be computed.
+at-key-from-path	gen	m: {a: 1, k: a}\nx: at($.m, $.m.k)	{"m":{"a":1,"k":"a"},"x":1}
+at-key-from-relative-path	gen	x: {m: {a: 1}, k: a, v: at(.m, .k)}	{"x":{"k":"a","m":{"a":1},"v":1}}
+at-key-from-later-path	gen	m: {a: 1}\nx: at($.m, $.k)\nk: a	{"k":"a","m":{"a":1},"x":1}
+at-key-from-sum	gen	xs: [10, 20, 30]\nx: at($.xs, add(1, 1))	{"x":30,"xs":[10,20,30]}
+at-key-from-count	gen	xs: [a, b, c]\nx: at($.xs, sub(sum(each($.xs, 1)), 1))	{"x":"c","xs":["a","b","c"]}
+at-key-from-at	gen	m: {a: {b: 1}, k: {n: a}}\nx: at($.m, at($.m, k, n), b)	{"m":{"a":{"b":1},"k":{"n":"a"}},"x":1}
+at-key-from-text	gen	m: {ab: 1}\nx: at($.m, "a" + "b")	{"m":{"ab":1},"x":1}
+at-key-from-key	gen	m: {x: 1, y: 2}\nout: pack($.m, {v: at($.m, key())})	{"m":{"x":1,"y":2},"out":{"x":{"v":1},"y":{"v":2}}}
+at-data-from-at	gen	m: {a: {b: 1}}\nx: at(at($.m, a), b)	{"m":{"a":{"b":1}},"x":1}
+at-data-from-relative-path	gen	a: {m: {x: 1}, v: at(.m, x)}	{"a":{"m":{"x":1},"v":1}}
+# The answer is a copy, as a reference's is: it meets what it is met
+# with, and the member it was read from is unchanged.
+at-copy-meets	gen	m: {a: {b: 1}}\nx: at($.m, a) & {c: 2}	{"m":{"a":{"b":1}},"x":{"b":1,"c":2}}
+at-copy-conflict	errc	m: {a: 1}\nx: at($.m, a) & 2	scalar_value
+at-copy-unified-later	gen	m: {a: {b: 1}}\nx: at($.m, a)\nx: {c: 2}	{"m":{"a":{"b":1}},"x":{"b":1,"c":2}}
+at-copy-of-merged-map	gen	m: {a: 1}\nm: {b: 2}\nx: at($.m, b)	{"m":{"a":1,"b":2},"x":2}
+at-copy-through-reference	gen	m: {a: $.n}\nn: {b: 1}\nx: at($.m, a, b)	{"m":{"a":{"b":1}},"n":{"b":1},"x":1}
+at-copy-of-pref	canon	m: {a: *1 | 2}\nx: at($.m, a)	{"m":{"a":*1|2},"x":*1|2}
+at-copy-of-kind	canon	m: {a: {b: integer}}\nx: at($.m, a)	{"m":{"a":{"b":integer}},"x":{"b":integer}}
+at-copy-spread	gen	m: {a: {&: {n: 1}}}\nx: at($.m, a) & {q: {}}	{"m":{"a":{}},"x":{"q":{"n":1}}}
+at-copy-seal	errc	m: {a: close({b: 1})}\nx: at($.m, a) & {c: 2}	closed
+at-canon-resolved	canon	xs: [{a: 1}]\nout: each($.xs, {v: at(_, a)})	{"out":[{"v":1}],"xs":[{"a":1}]}
+# A marked member is read as a path reads it (ruling 3): a hide() or
+# type() member is read, and its copy is unmarked; a type's copy is
+# sealed, as a path's is.
+at-marked-hide	gen	m: {a: hide(1), b: 2}\nx: at($.m, a)\ny: $.m.a	{"m":{"b":2},"x":1,"y":1}
+at-marked-hide-map	gen	m: {a: hide({b: 1})}\nx: at($.m, a)	{"m":{},"x":{"b":1}}
+at-marked-hidden-bag	gen	m: hide({a: 1})\nx: at($.m, a)\ny: $.m.a	{"x":1,"y":1}
+at-marked-hide-inside	gen	m: {a: {b: hide(1), c: 2}}\nx: at($.m, a)	{"m":{"a":{"c":2}},"x":{"b":1,"c":2}}
+at-marked-list-element	gen	xs: [1, hide(2), 3]\nx: at($.xs, 1)\ny: $.xs.1	{"x":3,"xs":[1,3],"y":3}
+at-marked-type	canon	m: {a: type(integer)}\nx: at($.m, a)	{"m":{"a":integer},"x":integer}
+at-marked-type-met	gen	m: {a: type({b: integer})}\nx: at($.m, a) & {b: 1}\ny: $.m.a & {b: 1}	{"m":{},"x":{"b":1},"y":{"b":1}}
+at-marked-type-sealed	errc	m: {a: type({b: integer})}\nx: at($.m, a) & {b: 1, c: 2}	closed
+at-marked-type-sealed-path	errc	m: {a: type({b: integer})}\ny: $.m.a & {b: 1, c: 2}	closed
+at-marked-typed-bag	errc	T: type({a: {b: 1}})\nx: at($.T, a) & {c: 2}	closed
+# A step that names nothing is refused as a path's is, and under maybe
+# it is absence (ruling 2).
+at-miss	errc	m: {a: 1}\nx: at($.m, b)	no_path
+at-miss-scalar	errc	x: at(1, a)	no_path
+at-miss-text	errc	x: at("abc", 0)	no_path
+at-miss-prototype-name	errc	m: {a: 1}\nx: at($.m, constructor)	no_path
+at-miss-empty-key	errc	m: {a: 1}\nx: at($.m, "")	no_path
+at-miss-data	errc	x: at($.gone, a)	no_path
+at-maybe-miss	gen	m: {a: 1}\nx: maybe(at($.m, b))\ny: 1	{"m":{"a":1},"y":1}
+at-maybe-hit	gen	m: {a: 1}\nx: maybe(at($.m, a))	{"m":{"a":1},"x":1}
+at-maybe-nested-miss	gen	m: {a: {b: 1}}\nx: maybe(at($.m, a, c))	{"m":{"a":{"b":1}}}
+at-maybe-miss-met	gen	m: {a: {b: 1}}\nx: maybe(at($.m, a, c)) & 2	{"m":{"a":{"b":1}},"x":2}
+at-maybe-into-scalar	gen	m: {a: 1}\nx: maybe(at($.m, a, b))	{"m":{"a":1}}
+at-maybe-missing-data	gen	x: maybe(at($.gone, b))	{}
+at-maybe-list-element	gen	m: {a: 1}\nx: [1, maybe(at($.m, b)), 2]	{"m":{"a":1},"x":[1,2]}
+at-maybe-past-last	gen	xs: [a]\nx: [maybe(at($.xs, 1)), maybe(at($.xs, -2)), at($.xs, -1)]	{"x":["a"],"xs":["a"]}
+at-maybe-inside-call	errc	m: {a: 1}\nx: maybe(upper(at($.m, b)))	no_path
+at-absent-key-propagates	gen	m: {a: 1}\nx: at($.m, maybe($.gone))\ny: 1	{"m":{"a":1},"y":1}
+# A key is a string or an integer; any other is refused as the
+# signature declares, and a call needs one key at least.
+at-key-boolean	errc	m: {a: 1}\nx: at($.m, true)	func_arg
+at-key-float	errc	xs: [1, 2]\nx: at($.xs, 1.5)	func_arg
+at-key-null	errc	m: {a: 1}\nx: at($.m, null)	func_arg
+at-key-list	errc	m: {a: 1}\nx: at($.m, [a])	func_arg
+at-key-map	errc	m: {a: 1}\nx: at($.m, {a: 1})	func_arg
+at-key-second-bad	errc	m: {a: {b: 1}}\nx: at($.m, a, false)	func_arg
+at-key-bad-message	err	m: {a: 1}\nx: at($.m, true)	argument 2 (`k`) was `true`
+at-key-path-value	errc	m: {a: 1}\nx: at($.m, path(a))	func_arg
+at-key-kind	errc	m: {a: 1}\nx: at($.m, string)	func_arg
+at-key-choice	errc	m: {a: 1, b: 2}\nx: at($.m, *a | b)	func_arg
+at-key-biginteger	errc	xs: [1, 2]\nx: at($.xs, 99999999999999999999)	func_arg
+at-key-float-whole	errc	xs: [1, 2]\nx: at($.xs, 1.0)	func_arg
+at-key-negative-zero	gen	xs: [1, 2]\nx: at($.xs, -0)	{"x":1,"xs":[1,2]}
+at-no-key	errc	m: {a: 1}\nx: at($.m)	func_arity
+at-no-args	errc	x: at()	func_arity
+# A lookup copied by a reference before it answers is as usable as the
+# path it stands for: the copy reads its data where the data stands.
+at-copied-default-relative	gen	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: $.b	{"a":{"x":1,"y":1},"b":1,"c":1}
+at-copied-default-relative-path	gen	a: {x: *1 | integer, y: .x}\nb: $.a.y\nc: $.b	{"a":{"x":1,"y":1},"b":1,"c":1}
+at-copied-twice	gen	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: $.b\nd: $.b	{"a":{"x":1,"y":1},"b":1,"c":1,"d":1}
+at-copied-deeper	gen	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: {d: $.b}\ne: [$.b, $.c.d]	{"a":{"x":1,"y":1},"b":1,"c":{"d":1},"e":[1,1]}
+at-copied-from-deeper	gen	a: {x: 1, y: .x}\nq: {b: at($.a, y)}\nc: $.q.b	{"a":{"x":1,"y":1},"c":1,"q":{"b":1}}
+at-copied-into-each	gen	a: {x: 2, y: .x}\nb: at($.a, y)\nout: each([1, 2], {v: $.b, n: _})	{"a":{"x":2,"y":2},"b":2,"out":[{"n":1,"v":2},{"n":2,"v":2}]}
+at-copied-into-pack	gen	a: {x: 2, y: .x}\nb: at($.a, y)\nout: pack({p: 1, q: 2}, add($.b, _))	{"a":{"x":2,"y":2},"b":2,"out":{"p":3,"q":4}}
+at-copied-nested-call	gen	a: {m: {x: 1, y: .x}}\nb: at(at($.a, m), y)\nc: $.b	{"a":{"m":{"x":1,"y":1}},"b":1,"c":1}
+at-copied-lookup-of-lookup	gen	a: {m: {x: 1, y: .x}}\nb: at($.a, m)\nc: at($.b, y)\nd: $.c	{"a":{"m":{"x":1,"y":1}},"b":{"x":1,"y":1},"c":1,"d":1}
+at-copied-canon	canon	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: $.b	{"a":{"x":*1|integer,"y":*1|integer},"b":*1|integer,"c":*1|integer}

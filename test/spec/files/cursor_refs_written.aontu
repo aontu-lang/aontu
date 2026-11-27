@@ -1,0 +1,9 @@
+r: ($.top)
+s: $."top"
+t: ( ( .q ) )
+q: $.top
+u: $.'top'.k
+v: $."top"."k"
+w: (
+  $.top
+)

@@ -917,7 +917,8 @@ admits `"zebra"` and refuses `"apple"`.
   `integer` or `1.5` satisfies it. (Kept on 2026-11-21: ruling 27 of
   [the plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
   ships the names as a bundled model, `@"aontu:num"`, which adds no
-  keyword, to land as its task BT4.)
+  keyword, and its task BT4 built it on 2026-11-27, in
+  `aontu/num/num.aontu`, held by `test/spec/num.tsv`.)
 - **Row 7 — which turned out not to be a defect at all.** The note
   called `a: >10` lexing as `">10"` "worse than unsupported, since it
   produces a well-formed wrong config", and this document repeated that

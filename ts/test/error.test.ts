@@ -286,6 +286,22 @@ describe('error', function() {
   })
 
 
+  // Mirrors TestFullMessageBuiltinModelTwin in go/hints_test.go: a site in
+  // a built-in model frames the model's text.
+  it('full-message-builtin-model-twin', () => {
+    let err: any = undefined
+    try {
+      new Aontu().generate('@"aontu:system"\ns: $.aontu.System.Service & {kind: database}\n')
+    }
+    catch (e: any) {
+      err = e
+    }
+    if (undefined === err) {
+      throw new Error('expected error')
+    }
+    expect(err.message).equal("[aontu/scalar_value]: Cannot unify values at path $.s.kind\n\nLiteral scalar values of the same kind can only unify if they are\nexactly equal.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  a & a   -> a    # Does unify (equal Strings);\n  1 & 2   -> nil  # Does not unify (unequal Integers);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).\n\n Cannot unify value: \"service\" with value: \"database\"\n  \u001b[34m--> aontu:system:11:29\n\u001b[34m   9 | \u001b[0m  # Written out rather than Component & { kind: service }: a reference\n\u001b[34m  10 | \u001b[0m  # to a type()-marked member does not survive the include.\n\u001b[34m  11 | \u001b[0m  Service: type(open({ kind:service ports?: { &: $.aontu.System.Port } }))\n                                   \u001b[34m^ value was: \"service\"\u001b[0m\n\u001b[34m  12 | \u001b[0m\n\u001b[34m  13 | \u001b[0m  # A grammar, not re(): the identifier shape is a quantified group\n\n Cannot unify value: \"database\" with value: \"service\"\n  \u001b[34m--> <no-file>:2:36\n\u001b[34m  1 | \u001b[0m@\"aontu:system\"\n\u001b[34m  2 | \u001b[0ms: $.aontu.System.Service & {kind: database}\n                                         \u001b[34m^ value was: \"database\"\u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n")
+  })
+
   it('full-message-parse-unprintable-twin', () => {
     let err: any = undefined
     try {

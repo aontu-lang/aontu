@@ -21,9 +21,33 @@ import { prefInnerPeg } from './PrefVal'
 import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
 import { bagMembers } from './members'
+import { unmarked, walkTarget } from './RecurseVal'
+import { holdsRef } from './ConjunctVal'
 
 
 type Member = { key: string, val: Val }
+
+
+const MAKERS = new Set(['pack', 'each', 'apply', 'match'])
+
+
+const making = (v: any): boolean =>
+  true === v?.isFunc && !v.done && MAKERS.has(v.funcname())
+
+
+// A member a generator is still making is not yet where a path reads it; its input is.
+function unmade(ctx: AontuContext, path: string[]): boolean {
+  const feeds: string[] = (ctx as any).feeds ?? []
+  for (let i = 0; i < path.length; i++) {
+    const at = path.slice(0, i)
+    const node: any = unmarked(walkTarget(ctx.root, at))
+    if (!feeds.includes(at.join('\u0000')) &&
+      (making(node) || (true === node?.isConjunct && node.peg.some(making)))) {
+      return true
+    }
+  }
+  return false
+}
 
 
 class FilterFuncVal extends FuncBaseVal {
@@ -52,7 +76,7 @@ class FilterFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(ctx, 1)) {
+    if (!this.stagedReady(ctx, 1) || (holdsRef(this.peg[1]) && unmade(ctx, this.path))) {
       return this.residuate(peer, ctx)
     }
 

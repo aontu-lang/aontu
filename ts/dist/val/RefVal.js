@@ -6,6 +6,7 @@ exports.dropPendingMarkWrappers = dropPendingMarkWrappers;
 exports.landPaths = landPaths;
 exports.landedAt = landedAt;
 exports.landsOnly = landsOnly;
+exports.liftCopy = liftCopy;
 exports.member = member;
 exports.pendingMarkWrapper = pendingMarkWrapper;
 const utility_1 = require("../utility");
@@ -109,6 +110,22 @@ function markedElement(list, e) {
     }
     return (true === e?.mark?.hide && true !== list.mark.hide) ||
         (true === e?.mark?.type && true !== list.mark.type);
+}
+function liftCopy(v, typed) {
+    let out = dropMarkedElements(v);
+    // The copy carries a held constraint without its type.
+    out = walkPrefs(out, (_key, val) => {
+        val.mark.type = false;
+        val.mark.hide = false;
+        const held = val.held;
+        return true === val.isConstraintKind && null != held ?
+            held : val;
+    });
+    out = dropPendingMarkWrappers(out);
+    if (typed) {
+        (0, SealVal_1.sealTree)(out, true);
+    }
+    return out;
 }
 // A staged call's copy shares its arguments with the call it copies, and
 // a preference its value, so each takes its own before the copy changes.
@@ -653,19 +670,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         if (staged && !moved) {
                             out = ownArgs(ctx, out);
                         }
-                        out = dropMarkedElements(out);
-                        // The copy carries a held constraint without its type.
-                        out = walkPrefs(out, (_key, val) => {
-                            val.mark.type = false;
-                            val.mark.hide = false;
-                            const held = val.held;
-                            return true === val.isConstraintKind && null != held ?
-                                held : val;
-                        });
-                        out = dropPendingMarkWrappers(out);
-                        if (typed && !this.copyFound) {
-                            (0, SealVal_1.sealTree)(out, true);
-                        }
+                        out = liftCopy(out, typed && !this.copyFound);
                     }
                     if (this.copyFound) {
                         (0, SealVal_1.unsealTree)(out);
@@ -816,6 +821,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
             this.prefix ? 'prefix' : '',
         ].filter(p => '' != p).join(',');
     }
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 12 */
 exports.RefVal = RefVal;
 //# sourceMappingURL=RefVal.js.map

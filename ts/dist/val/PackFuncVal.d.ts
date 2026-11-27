@@ -1,15 +1,19 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
-import { MapVal } from './MapVal';
 import { FuncBaseVal } from './FuncBaseVal';
-declare function dataKeys(data: Val | undefined, ctx: AontuContext): string[] | string;
+type Member = {
+    key: string;
+    val: Val;
+};
+declare function packMembers(ctx: AontuContext, data: Val | undefined, k: Val | undefined): Member[] | string | Val | undefined;
 declare class PackFuncVal extends FuncBaseVal {
     isPackFunc: boolean;
     staged: boolean;
+    packed: Member[] | string | Val | undefined;
     constructor(spec: ValSpec, ctx?: AontuContext);
     funcname(): string;
     prepare(_ctx: AontuContext, _args: Val[]): null;
     unify(peer: Val, ctx: AontuContext): Val;
-    resolve(ctx: AontuContext, args: Val[]): MapVal | import("./NilVal").NilVal;
+    resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
-export { dataKeys, PackFuncVal, };
+export { packMembers, PackFuncVal, };
