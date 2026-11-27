@@ -42,6 +42,7 @@ own.
 | [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) | what a term generates, which is what evaluation outputs |
 | [`spec/Aontu/Read.lean`](../spec/Aontu/Read.lean) | how `vet` reads a number the data writes, in each read mode |
 | [`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean) | how an output option writes a generated number |
+| [`spec/Aontu/Annotation.lean`](../spec/Aontu/Annotation.lean) | the output annotation: each type's options, and how two records unify |
 | [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) | the verdicts of `vet`, and how the calls, the generators and the component tree read |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
@@ -5618,16 +5619,21 @@ meet whatever else is incomplete: `n: any, t: len(1)` against
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Val.staged (ds : Decls) : Val → Val
-  | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
+def Val.stagedMeets (ds : Decls) : Val → Val
+  | .meet a b =>
+    if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.stagedMeets ds) (b.stagedMeets ds)
   | .map fs spread closed => .map (stagedFields ds fs) spread closed
   | .list items spread closed => .list (stagedItems ds items) spread closed
   | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
-  | .pref r x => .pref r (x.staged ds)
-  | .ride k v r => .ride k (v.staged ds) r
-  | .link v lt => .link (v.staged ds) lt
+  | .pref r x => .pref r (x.stagedMeets ds)
+  | .ride .gen v r => (v.stagedMeets ds).withRecord r
+  | .ride k v r => .ride k (v.stagedMeets ds) r
+  | .link v lt => .link (v.stagedMeets ds) lt
   | v => v
 ```
+
+`Val.staged` is this pass and then `Val.held`, which the last part of
+this step comes to, with the records an output annotation carries.
 
 An arm that does not stand (`Val.illFormed`) drops the same way, as
 both engines drop it, read with the arms it stands for flattened in
@@ -5939,6 +5945,109 @@ Evaluation writes the default `{b: 1}` for `x`. The data doesn't carry
 `b`, and it doesn't need to, since the arm `{}` admits `{}` as written.
 The cases of `armCases` follow in rows `na0` on, and both engines
 answer every one as the definition does.
+
+### An output annotation
+
+`gen(r)` says how generation writes a value, as the reference's
+[output options](reference-language.md#output-options-gen) describe.
+[`spec/Aontu/Annotation.lean`](../spec/Aontu/Annotation.lean) reads it
+as `any` carrying its record, so the meet leaves the value as it is and
+the record rides whatever the value becomes, as a mark rides it:
+
+<!-- test: quote spec/Aontu/Annotation.lean -->
+```lean
+def Val.annotation : Record → Val
+  | [] => .any
+  | r => .ride .gen .any r
+```
+
+`vet` reads no option. It reads only that each value's type takes the
+record the value carries. Each type has its standard options, the ones
+the bundled model `aontu:gen` lists, and `Shape.takes` states them.
+The staging this step reads does two things with records. It meets the
+records one value carries as maps, `Record.unify`, so two that
+disagree make a conflict, the schema's error. Then it holds each value
+to its record:
+
+<!-- test: quote spec/Aontu/Annotation.lean -->
+```lean
+def Val.heldTo (t : Record) (v : Val) : Val :=
+  match v.shape? with
+  | some s => if s.takesAll t then .ride .gen v t else .nil
+  | none => .ride .gen (if v.isAny then takers t else .meet v (takers t)) t
+```
+
+A literal, a kind alone, a map, a list, and an address each make
+their type known, and where that type doesn't take the record the value is
+`nil`. A bound, or a kind beside one, leaves the type open, and then
+the value meets `takers t`, the term that admits the values of each
+type that takes the record. `admits_heldTo` proves that either way the
+result admits what the value admits, of those types. So an annotation
+alone admits only those values. Write `annotated.aontu`:
+
+<!-- test: scenario annotation -->
+<!-- test: file annotated.aontu -->
+```aontu
+price: gen({ places:2 })
+```
+
+and `annotated-text.aontu`:
+
+<!-- test: file annotated-text.aontu -->
+```aontu
+price: "free"
+```
+
+Only a number takes `places`, so `vet` refuses the string:
+
+<!-- test: run -->
+```sh
+$ aontu vet annotated.aontu annotated-text.aontu
+verdict: invalid
+
+$.price: gen_option [conflict]
+  [aontu/gen_option]: Cannot unify values at path $.price
+  data: annotated-text.aontu:1:8 ("free")
+  schema: annotated.aontu:1:12 ({"places":2})
+$ echo $?
+1
+```
+
+Two records that disagree make the document an error, whatever the
+data gives. Write `annotated-twice.aontu`:
+
+<!-- test: file annotated-twice.aontu -->
+```aontu
+price: gen({ places:2 }) & gen({ places:3 })
+```
+
+and vet the same data against it:
+
+<!-- test: run -->
+```sh
+$ aontu vet annotated-twice.aontu annotated-text.aontu
+verdict: error
+
+$.price: gen_conflict [conflict]
+  [aontu/gen_conflict]: Cannot unify values at path $.price
+  schema: annotated-twice.aontu:1:32 ({"places":3})
+  schema: annotated-twice.aontu:1:12 ({"places":2})
+$ echo $?
+4
+```
+
+An arm of a disjunction that holds such a conflict drops, as an arm
+that holds any conflict does. But a lone default whose own value holds
+one makes the place an error, as both engines answer, and `recordArms`
+reads it so.
+
+Rows from an0 on hold both engines to it, 570 rows from 190 documents,
+and both answer every one as the definition does. The definition says
+what an option writes for a number alone, in
+[`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean). The other
+types' options and `custom` wait, and
+[`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
+both engines to each other on them.
 
 ## 15. Where the definition and the engines differ
 
@@ -9781,8 +9890,10 @@ Absence is the unit of the meet, so `1 & maybe($.gone)` is `1`:
 <!-- test: quote spec/Aontu/Meet.lean -->
 ```lean
 /-- A meet with absence: what the other side's normal form is, but
-absence where that is `any`, which absence is below. -/
-def absentOr (v : Val) : Val := if v.isAny then .absent else v
+absence where that is `any`, which absence is below, an output
+annotation or more around it or not, so that `maybe(v) & gen(r)` is
+absence where `v` names nothing. -/
+def absentOr (v : Val) : Val := if v.isAnyNote then .absent else v
 ```
 
 Absence admits every value, as `any` does, so where the two differ is
@@ -11867,6 +11978,11 @@ disjunction or a selection, a spread whose template reads its member's
 place keeps its template as written, so a relative path in it resolves
 nowhere, and so does a generator's template there, whether the
 document writes it there or in a name it uses there.
+
+Nor does it say what an output option writes, but for a number's.
+Step 14 shows what `vet` reads of an annotation, and a string's
+`case`, an empty value's `empty`, an address's `form`, a map's `keys`,
+a boolean's `as`, and the expression `custom` wait.
 
 Nor does it seal a path's copy of a place that a bare `close()` beside
 a path seals. The directive seals the place itself, as step 9 shows,

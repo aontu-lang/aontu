@@ -12,6 +12,7 @@ import Aontu.Subsume
 import Aontu.Profiles
 import Aontu.Reorder
 import Aontu.Written
+import Aontu.Annotation
 import Aontu.Graph
 
 /-!
@@ -396,6 +397,14 @@ judges every theorem.
 /-- info: 'Aontu.vetG_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.vetG_iff
+
+/-- info: 'Aontu.admits_heldTo' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.admits_heldTo
+
+/-- info: 'Aontu.admits_annotation' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.admits_annotation
 
 /-- info: 'Aontu.not_le_map_required' does not depend on any axioms -/
 #guard_msgs in

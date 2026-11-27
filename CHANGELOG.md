@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads the output annotation
+
+`gen(r)` was the one built-in function the definition held no rule for.
+It now reads the annotation as `any` carrying its record, holds each
+value to the standard options of its type, and unifies two records on
+one value as maps, as both engines do. `vet` reads no option, only that
+the value's type takes the record:
+
+```aontu
+price: gen({ places:2 })
+```
+
+| `aontu vet` | against `price: 9.5` | against `price: "free"` |
+|---|---|---|
+| Both engines | `valid` | `invalid` |
+| The definition, now | `valid` | `invalid` |
+
+`spec/Aontu/Annotation.lean` states it, and 570 rows of
+`test/spec/def-path.tsv`, an0 on, hold both engines to it. `spec/forms.tsv`
+gains `gen`, and `encode` and `decode`, which it lacked. No engine
+changes. What an option writes stays stated for a number alone.
+
 ### Go: `vet --no-fill` reads a map's keys as the document writes them
 
 Under `--no-fill`, `vet` compares the data with what the schema
