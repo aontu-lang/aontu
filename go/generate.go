@@ -197,6 +197,44 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		inst := instanceClone(cond, slot)
 		setPaths(inst, slot)
 		test := fillPlace(inst, child)
+		// Each value the child admits must be admitted: a disjunction is read arm by arm (ruling 51).
+		arms := []Val{child}
+		if d, ok := child.(*DisjunctVal); ok {
+			arms = d.peg
+		}
+		decided, all := true, true
+		if m, ok := test.(*MapVal); ok && 0 < len(m.aliasKeys) {
+			decided = false
+			arms = nil
+		}
+		for _, arm := range arms {
+			arm = prefInnerPeg(arm)
+			own, gens := ownJSON(arm, ctx, slot)
+			if !gens {
+				decided = false
+				break
+			}
+			admits, ok := admitsSettled(ctx, test, arm, own, slot)
+			if !ok {
+				decided = false
+				break
+			}
+			all = all && admits && !sealedMiss(test, own)
+		}
+		// A default alone also stands for its parent type, which the condition must admit whole.
+		if pc, lone := child.(*PrefVal); lone && decided && all {
+			st := &subState{profile: "values", pairs: newSubPairs()}
+			switch subsumeNode(st, nil, test, pc.superpeg) {
+			case subYes:
+			case subNo:
+				all = false
+			default:
+				decided = false
+			}
+		}
+		if decided {
+			return all
+		}
 		met := trialUnify(ctx, clonePath(child, slot), test)
 		return nil != met && sameMembers(child, met, ctx, true)
 	}
@@ -259,6 +297,32 @@ func effectiveScrutinee(v Val) Val {
 	return prefInnerPeg(out)
 }
 
+// outputOf is the scrutinee as the output reads it: a member the generated value leaves out is no member.
+func outputOf(v Val, own any) Val {
+	m, ok := v.(*MapVal)
+	j, jok := own.(map[string]any)
+	if !ok || !jok {
+		return v
+	}
+	out := clonePath(m, m.vpath()).(*MapVal)
+	peg := map[string]Val{}
+	keys := []string{}
+	for _, k := range out.keys {
+		if c, in := j[k]; in && nil != out.peg[k] {
+			peg[k] = outputOf(out.peg[k], c)
+			keys = append(keys, k)
+		}
+	}
+	optional := []string{}
+	for _, k := range out.optional {
+		if _, in := peg[k]; in {
+			optional = append(optional, k)
+		}
+	}
+	out.peg, out.keys, out.optional = peg, keys, optional
+	return out
+}
+
 func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	scrutinee := effectiveScrutinee(args[0])
 	last := len(args)
@@ -268,8 +332,23 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 
 	tried := []string{}
 	open := !generates(args[0])
+	var output Val
+	var own any
+	if !open {
+		if j, ok := ownJSON(scrutinee, ctx, base); ok {
+			own, output = j, outputOf(scrutinee, j)
+		}
+	}
 	for i := 1; i < last; i += 2 {
 		tried = append(tried, args[i].Canon())
+		if nil != output {
+			if admits, ok := admitsSettled(ctx, args[i], output, own, base); ok {
+				if admits && !sealedMiss(args[i], own) {
+					return clonePath(args[i+1], base)
+				}
+				continue
+			}
+		}
 		ctx.slot = base
 		met := trialUnify(ctx,
 			clonePath(scrutinee, base), clonePath(args[i], base))

@@ -7,6 +7,9 @@ const MapVal_1 = require("./MapVal");
 const BagVal_1 = require("./BagVal");
 const ListVal_1 = require("./ListVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const admission_1 = require("./admission");
+const subsume_1 = require("../subsume");
+const PrefVal_1 = require("./PrefVal");
 const Val_1 = require("./Val");
 const PlaceVal_1 = require("./PlaceVal");
 const members_1 = require("./members");
@@ -37,6 +40,19 @@ class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
             const inst = cond.clone(kctx, { dup: true });
             (0, Val_1.repathInstance)(inst, inst.path);
             const test = (0, PlaceVal_1.fillPlace)(inst, child, kctx);
+            // Each value the child admits must be admitted: a disjunction is read arm by arm (ruling 51).
+            const arms = (true === child.isDisjunct ? child.peg : [child]).map(PrefVal_1.prefInnerPeg);
+            const owns = arms.map((arm) => (0, admission_1.ownJson)(arm, kctx));
+            const declares = 0 < (test.aliasKeys ?? []).length;
+            if (!declares && owns.every((own) => undefined !== own)) {
+                const verdicts = arms.map((arm, i) => !(0, admission_1.sealedMiss)(test, owns[i]) && (0, admission_1.admitsSettled)(kctx, test, arm, owns[i], kctx.path));
+                // A default alone also stands for its parent type, which the condition must admit whole.
+                const parent = true === child.isPref && verdicts.every((v) => true === v) ?
+                    (0, subsume_1.subsumeNode)({ profile: 'values', findings: [], generalUrl: '', specificUrl: '', pairs: (0, subsume_1.newPairs)() }, [], test, child.superpeg) : 'yes';
+                if ('undecided' !== parent && verdicts.every((v) => undefined !== v)) {
+                    return 'yes' === parent && verdicts.every((v) => true === v);
+                }
+            }
             const met = (0, FuncBaseVal_1.trialUnify)(kctx, child.clone(kctx), test);
             return undefined !== met && (0, FuncBaseVal_1.sameMembers)(child, met, kctx, true);
         };

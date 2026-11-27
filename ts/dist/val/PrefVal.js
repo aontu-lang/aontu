@@ -172,6 +172,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 return out;
             }
             this.peg = (0, unify_1.unite)(rctx, this.peg, (0, top_1.top)(), 'pref/resolve');
+            this.rank = this.peg instanceof PrefVal ? 1 + this.peg.rank : 0;
             this.resuper(ctx);
         }
         // `*nil` is `nil | super(nil)`: no arm holds a value, as in `nil | nil`.

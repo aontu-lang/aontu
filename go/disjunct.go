@@ -331,6 +331,26 @@ func (d *DisjunctVal) forGen(ctx *Ctx) (Val, bool) {
 }
 
 func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
+	// A star over a call or a path adds to the rank of what it reads as (ruling 89).
+	for vI, v := range d.peg {
+		p, ok := v.(*PrefVal)
+		if !ok || DONE == p.peg.Dc() {
+			continue
+		}
+		if f, isFunc := p.peg.(*FuncVal); !isRef(p.peg) && !(isFunc && "pref" == f.name) {
+			continue
+		}
+		rctx := trialCtx(ctx)
+		read := unite(rctx, clonePath(p, p.vpath()), top())
+		if 0 < len(rctx.err) || read.Nil() {
+			continue
+		}
+		rp, ok := read.(*PrefVal)
+		if !ok || DONE != rp.peg.Dc() {
+			return nil
+		}
+		d.peg[vI] = rp
+	}
 	prefs := []int{}
 	lead := -1
 	for vI := 0; vI < len(d.peg); vI++ {
@@ -353,6 +373,8 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 
 	// Only the defaults the rank rule picks fold: foldArms in spec/Aontu/Meet.lean.
 	at := -1
+	written := append([]Val{}, d.peg...)
+	folds := false
 	for _, vI := range prefs {
 		pref, ok := d.peg[vI].(*PrefVal)
 		if !ok || lead != pref.rank {
@@ -374,9 +396,14 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 			return folded
 		}
 		d.peg[at] = folded
-		d.peg[vI] = nil
+		// The arms the fold stands for stay at rank 0, so the disjunction admits no wider.
+		d.peg[vI] = prefInnerPeg(written[vI])
+		folds = true
 	}
 
+	if folds {
+		d.peg = append(d.peg[:at+1], append([]Val{prefInnerPeg(written[at])}, d.peg[at+1:]...)...)
+	}
 	kept := d.peg[:0]
 	for _, p := range d.peg {
 		if p != nil {
@@ -434,16 +461,22 @@ func (d *DisjunctVal) genSame(ctx *Ctx, plain bool) (any, bool) {
 
 func dedup(vals []Val, ranked bool) []Val {
 	var out []Val
-	for _, v := range vals {
+	vals = append([]Val{}, vals...)
+	for vI := 0; vI < len(vals); vI++ {
+		v := vals[vI]
 		dup := false
 		for eI, e := range out {
+			ep, eok := e.(*PrefVal)
+			vp, vok := v.(*PrefVal)
+			// Twin defaults leave the value at rank 0 beside the default, as the fold does.
+			if !ranked && eok && vok && ep.rank == vp.rank && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) && sameRec(e, v) {
+				vals = append(vals[:vI+1], append([]Val{prefInnerPeg(ep)}, vals[vI+1:]...)...)
+			}
 			if valSame(e, v) && sameRec(e, v) {
 				dup = true
 				out[eI] = keepRiders(e, v, true)
 				break
 			}
-			ep, eok := e.(*PrefVal)
-			vp, vok := v.(*PrefVal)
 			if eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) && sameRec(e, v) {
 				dup = true
 				if vp.rank < ep.rank {

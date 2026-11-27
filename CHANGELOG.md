@@ -40,6 +40,90 @@ not, and a declaration is none. The library answers are `symbolsOf`
 and `SymbolsOf`; a new shared-row mode, `symbols`, holds both ports to
 one answer in 33 rows of `test/spec/cursor.tsv`.
 
+### A `filter` reads a member that is a default alone as its parent type too
+
+Decision 51, in both engines. A member that is a default alone, `*1`,
+stands for its value and its parent type, as `vet` reads it, so a
+`filter` keeps it only where the condition admits every integer:
+`filter({g: *1}, *1 | 2)` is `{}`, where it was `{"g": 1}`, and
+`filter({g: *1}, integer)` still keeps `g`.
+
+### A star over a `pref()` call or a path ranks as what it reads as
+
+#970, in both engines. A star written over a term that is itself a
+default adds to that default's rank, so `*pref(1)` and `*$.d`, with
+`d: *1`, rank as `**1`, as `*(*1)` already did. Before, each engine
+ranked such an arm before reading it, so it counted one rank too low.
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `x: *pref(1) \| *2` | `{"x": 3}` | `error` (`pref_rank_clash`) | `invalid` |
+| `d: *1`, `x: *$.d \| *2` | `{"x": 3}` | `error` (`pref_rank_clash`) | `invalid` |
+| `x: *pref(1) \| **2` | `{}` | Go read `**1\|**2`, TypeScript `error` | `error` in both |
+
+The canon of the first two is `**1|*2`, and each generates `2`.
+
+### The definition writes a left-out root as `null`
+
+#1075, in the definition. A document whose root carries `hide()` or
+`type()` writes `null`, as the reference says and both engines do for a
+map or a list root. The definition wrote the root's value. Rows gr0 on
+in the new `test/spec/def-gaps.tsv`, which `ts/scripts/defcheck.cjs`'s
+gaps fill. Both ports answer every one as the definition does.
+
+### A `match` reads the value its scrutinee generates, and a `filter` each value of a member
+
+**Breaking.** #963, #964 and #965, in both engines.
+- **`match`:** where the scrutinee generates a value, the arm is taken
+  whose pattern admits that value, as the output writes it.
+- **`filter`:** keeps a member each value of which its condition admits,
+  reading a disjunction arm by arm (ruling 51).
+
+Before, each engine met the pattern with the scrutinee's term and compared
+canons. That read a default, an optional member or a marked member
+another way:
+
+| Document | Before | Now |
+|---|---|---|
+| `t: match(1, *1, "T", "D")` | `"D"` | `"T"` |
+| `t: match({x?: string}, {x?: integer}, "T", "D")` | `"D"` | `"T"` |
+| `t: match({a: 1, z: type(number)}, close({a: 1}), "T", "D")` | `"D"` | `"T"` |
+| `t: match({a: 1, z: type(number)}, {a: 1, z: 5}, "T", "D")` | `"T"` | `"D"` |
+| `x: filter({a: *1 \| 2, b: 2 \| *1, c: 1}, *1 \| 2)` | `{"a": 1}` | `{"a": 1, "b": 1, "c": 1}` |
+
+A list literal in a pattern still reads as sealed to its own length,
+so `match([1, 2], [], …)` takes no arm, pending #1070.
+
+### The definition waits on a call inside `contains`, `rest`, `len` and a starred branch
+
+Ruling 91 (#977), in the definition, after both engines moved in
+#1060. A call still waiting for an operand, `integer + 1`, makes
+`contains`, `rest`, `len` and a starred branch of `nof` wait with it,
+so `vet` says `incomplete`, and `valid` under `--partial`, where the
+definition said `invalid`. Rows wx0 to wx44 of `test/spec/def-path.tsv`
+hold the definition and both engines to the nine documents of #977 and
+to the same forms over a value that doesn't wait.
+
+### A default written twice admits only its value
+
+**Breaking.** #971, in both engines. Two defaults of one rank that agree
+fold into the default and the value at rank 0, as `foldArms` in the
+definition folds them, so the disjunction admits that value and nothing
+wider. Before, the fold left the default alone, and a default alone
+admits its parent type.
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `x: *1 \| *1` | `{"x": 3}` | `valid` | `invalid` |
+| `d: *1`, `x: $.d \| *1` | `{"x": 3}` | `valid` | `invalid` |
+
+Defaults of one rank that meet fold the same way, keeping the arms as
+written: `*{x:1} | *{y:2}` is `*{"x":1,"y":2}|{"x":1}|{"y":2}`.
+
+The canon of such a disjunction follows the definition's normal form:
+`x: *1 | *1` is `*1|1`, where it was `*1`, so its hash changes. What it
+generates doesn't.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call
