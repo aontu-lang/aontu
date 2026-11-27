@@ -353,6 +353,8 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 
 	// Only the defaults the rank rule picks fold: foldArms in spec/Aontu/Meet.lean.
 	at := -1
+	written := append([]Val{}, d.peg...)
+	folds := false
 	for _, vI := range prefs {
 		pref, ok := d.peg[vI].(*PrefVal)
 		if !ok || lead != pref.rank {
@@ -375,17 +377,13 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 		}
 		d.peg[at] = folded
 		// The arms the fold stands for stay at rank 0, so the disjunction admits no wider.
-		plain := folded
-		for {
-			p, ok := plain.(*PrefVal)
-			if !ok {
-				break
-			}
-			plain = p.peg
-		}
-		d.peg[vI] = plain
+		d.peg[vI] = prefInnerPeg(written[vI])
+		folds = true
 	}
 
+	if folds {
+		d.peg = append(d.peg[:at+1], append([]Val{prefInnerPeg(written[at])}, d.peg[at+1:]...)...)
+	}
 	kept := d.peg[:0]
 	for _, p := range d.peg {
 		if p != nil {
