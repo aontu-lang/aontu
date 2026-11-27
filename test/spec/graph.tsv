@@ -156,3 +156,11 @@ links-in-two-arms-are-one-position	graph	a: {x: [&: relate(), path($.b)] | [&: r
 # equivalence that did not carry the derived structure with it would be
 # the more dangerous kind of almost-true.
 each-bound-generated-element-edge	graph	z: {}\nn: [{uses: relate() & path($.z)}]\no: each($.n, _ & _)	{"edges":[{"from":"$.n.0","key":"uses","to":"$.z","at":"$.n.0.uses"},{"from":"$.o.0","key":"uses","to":"$.z","at":"$.o.0.uses"}]}
+
+# A DEFAULT is decided (ruling 94, #1029): its links are the edges
+# generation writes, alone or as the preferred arm, and the arm it
+# does not take is not read.
+edge-a-default-writes	graph	a: {x: *[&: relate(), path($.b)]}\nb: {}	{"edges":[{"from":"$.a","key":"x","to":"$.b","at":"$.a.x.0"}]}
+edge-a-pref-writes	graph	a: {x: pref([&: relate(), path($.b)])}\nb: {}	{"edges":[{"from":"$.a","key":"x","to":"$.b","at":"$.a.x.0"}]}
+edge-of-the-preferred-arm	graph	a: {x: *[&: relate(), path($.b)] | 1}\nb: {}	{"edges":[{"from":"$.a","key":"x","to":"$.b","at":"$.a.x.0"}]}
+edge-of-the-preferred-arm-only	graph	a: {x: *[&: relate(), path($.b)] | [&: relate(), path($.c)]}\nb: {}\nc: {}	{"edges":[{"from":"$.a","key":"x","to":"$.b","at":"$.a.x.0"}]}
