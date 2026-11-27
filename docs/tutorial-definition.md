@@ -2869,7 +2869,8 @@ as the table it holds, each template's replacements written into its
 body (`Fn.tableArgs`), and one that names a recursive
 name as that name's bodies, a level for each turn left
 (`Decls.tableUnfold`), so the turns bound how deep a rule set that names
-itself walks. -/
+itself walks. The data of an `at` that is a reference reads as
+`Decls.atRef` has it. -/
 def expandF (ds : Decls) : ℕ → Val → Val
 ```
 
