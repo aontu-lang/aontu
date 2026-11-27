@@ -487,6 +487,17 @@ describe('lang', function() {
     }
   })
 
+
+  it('read-by-extension', () => {
+    const read = (path: string | undefined, src: string) =>
+      new Aontu({ path, readByExtension: true }).unify(src).canon
+    expect(read('c.toml', 'port = 8080')).equal('{"port":8080}')
+    expect(read('c.yaml', 'port:\n  - 1')).equal('{"port":[1]}')
+    expect(read('c.json', 'port: - 1')).equal('{"port":-1}')
+    expect(read(undefined, 'port: - 1')).equal('{"port":-1}')
+    expect(new Aontu({ path: 'c.yaml' }).unify('port: - 1').canon).equal('{"port":-1}')
+  })
+
 })
 
 

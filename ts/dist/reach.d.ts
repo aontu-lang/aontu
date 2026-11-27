@@ -10,6 +10,7 @@ export type ReachOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    readByExtension?: boolean;
     relation?: string;
 };
 export declare function parseNodePath(s: string): string[] | undefined;

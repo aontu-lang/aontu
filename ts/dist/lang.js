@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Site = exports.Lang = void 0;
 exports.includeFormat = includeFormat;
+exports.operandFormat = operandFormat;
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const jsonic_1 = require("@tabnas/jsonic");
@@ -1620,6 +1621,13 @@ function includeFormat(ext, textExt) {
     }
     return textExt?.includes(ext) ? 'text' : undefined;
 }
+// The data format an entry document is read in, where its extension
+// names one. JSON stays aontu source, whose reading of a number is exact.
+function operandFormat(path) {
+    const format = includeFormat(extKindOf(path ?? ''));
+    return 'source' === format || 'text' === format || 'json' === format ?
+        undefined : format;
+}
 // Extensions no widening may reach. `js` executes under multisource's
 // default processor; `''` is the no-extension fallback, which names no
 // file type at all.
@@ -2159,9 +2167,12 @@ class Lang {
         if (opts && null != opts.log && Number.isInteger(opts.log)) {
             jm.log = opts.log;
         }
+        const path = opts?.path ?? this.opts.path;
+        const format = true === this.opts.readByExtension ? operandFormat(path) : undefined;
         let val;
         try {
-            val = this.jsonic(src, jm);
+            val = undefined === format ? this.jsonic(src, jm) :
+                rawToVal(DATA_READERS[format](src, path));
             // An implicit top-level list (`a b`, `1,2`) is built by the core
             // jsonic grammar without passing through the aontu val/list rules,
             // so the root (and its elements) arrive as raw JS values. Convert
@@ -2177,7 +2188,7 @@ class Lang {
             if (refused || e instanceof jsonic_1.JsonicError || 'JsonicError' === e.constructor.name) {
                 const why = refused ? e.code : 'syntax';
                 const refusal = new NilVal_1.NilVal({ why, err: e });
-                refusal.parse = parseRefusal(e, src, opts?.path ?? this.opts.path, refused ? '' : opCharHint(src));
+                refusal.parse = parseRefusal(e, src, path, refused || undefined !== format ? '' : opCharHint(src));
                 if (!refused) {
                     refusal.site.row = e.lineNumber;
                     refusal.site.col = e.columnNumber;

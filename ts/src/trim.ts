@@ -24,6 +24,7 @@ export type TrimOptions = {
   trust?: TrustOptions
 
   textExt?: string[]
+  readByExtension?: boolean
 }
 
 

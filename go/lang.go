@@ -2744,7 +2744,7 @@ func placeAliasHoists(out any, sink *aliasHoistSink) {
 	m[aliasKeysKey] = ak
 }
 
-func parseWithTrust(src, base, file string, trust *trustSink, exact bool, depth int) (Val, error) {
+func parseWithTrust(src, base, file, format string, trust *trustSink, exact bool, depth int) (Val, error) {
 	src = toValidSource(src)
 
 	if off := findConflictMarker(src); off >= 0 {
@@ -2752,6 +2752,10 @@ func parseWithTrust(src, base, file string, trust *trustSink, exact bool, depth 
 	}
 	if off := findDeepNesting(src, 2*depth); off >= 0 {
 		return newMap(), refusalAt("max_depth", src, file, off)
+	}
+
+	if "" != format {
+		return parseData(src, file, format)
 	}
 
 	lang, err := langForBase(base)
@@ -2811,6 +2815,18 @@ func parseWithTrust(src, base, file string, trust *trustSink, exact bool, depth 
 	return root, nil
 }
 
+// parseData reads an entry document by a data format's reader.
+func parseData(src, file, format string) (Val, error) {
+	out, err := dataReaders[format].ParseMeta(src, map[string]any{"fileName": file})
+	if err != nil {
+		msg, marker, row, col := syntaxParts(err)
+		return newMap(), parseRefusal("syntax", marker, msg, row, col, file, src, "")
+	}
+	root := dataToVal(out)
+	setPaths(root, []string{})
+	return root, nil
+}
+
 // conflictError is the refusal of a version-control conflict marker at
 // byte offset off. The marker's row and column ride along: the
 // canonical port puts them on the refusal's site, and the validation
@@ -2833,16 +2849,21 @@ func refusalAt(code, src, file string, off int) *AontuError {
 }
 
 func syntaxError(err error, src, file string) *AontuError {
-	msg, marker, row, col := err.Error(), "syntax", -1, -1
+	msg, marker, row, col := syntaxParts(err)
+	if "include_operand" == marker {
+		return parseRefusal(marker, marker, msg, row, col, file, src, "")
+	}
+	return parseRefusal("syntax", marker, msg, row, col, file, src, opCharHint(src))
+}
+
+func syntaxParts(err error) (msg, marker string, row, col int) {
+	msg, marker, row, col = err.Error(), "syntax", -1, -1
 	if je, ok := err.(*jsonic.JsonicError); ok {
 		marker = je.Code
 		msg, _, _ = strings.Cut(je.Detail, "\n")
 		row, col = je.Row, je.Col
 	}
-	if "include_operand" == marker {
-		return parseRefusal(marker, marker, msg, row, col, file, src, "")
-	}
-	return parseRefusal("syntax", marker, msg, row, col, file, src, opCharHint(src))
+	return msg, marker, row, col
 }
 
 // parseRefusal is a parse-stage failure rendered as every other

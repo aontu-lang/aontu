@@ -1060,6 +1060,13 @@ func entryRootOfFile(file string) string {
 	return filepath.Dir(abs)
 }
 
+// operand reads a's document by its extension, by the table an include
+// uses.
+func operand(a *aontu.Aontu) *aontu.Aontu {
+	a.ReadByExtension = true
+	return a
+}
+
 // aontuForFileTrust is aontuForFile under an explicit capability.
 func aontuForFileTrust(file string, trust trustArg) *aontu.Aontu {
 	a := aontuForFile(file)
@@ -1373,7 +1380,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		}
 		applyTrust(a, trust, filepath.Dir(abs), stderr)
 		a.ExactNumbers = exact
-		return emit(a, string(src), mode, format, stdout, stderr)
+		return emit(operand(a), string(src), mode, format, stdout, stderr)
 	}
 
 	a := aontu.New()

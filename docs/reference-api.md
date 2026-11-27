@@ -122,6 +122,57 @@ document that doesn't parse can't say what it reads, so a run that
 names one refuses no binding as unread. A bound value is sited at the
 option that bound it, so an error frames `--> --var n:1:1`.
 
+**A document operand is read by its extension**, by the table an
+include uses ([Source loading](reference-language.md#source-loading-)).
+A `.yaml`, `.yml`, `.toml`, `.ini`, `.jsonc`, `.json5`, `.jsonic` or
+`.jsc` operand is data in that format. A `.json` or `.jsonld` operand
+is aontu source, as it was before, because aontu source reads JSON
+with each number by its exact value. So `vet` still refuses a
+nineteen-digit identifier in a `.json` file rather than round it. An
+`.aontu` operand, a `.txt` operand and one with any other extension
+are aontu source. Write `config.yaml` as:
+
+<!-- test: scenario operand -->
+<!-- test: file config.yaml -->
+```yaml
+name: web
+port: 8080
+```
+
+Write `schema.aontu` as:
+
+<!-- test: file schema.aontu -->
+```aontu
+name: string
+port: integer & min(1)
+```
+
+Then evaluate the YAML and vet it:
+
+<!-- test: run -->
+```sh
+$ aontu -c config.yaml
+{"name":"web","port":8080}
+$ aontu vet schema.aontu config.yaml
+verdict: valid
+```
+
+A data operand that does not parse is refused at the operand, with
+the code its reader gives, as an include is. A value read from a data
+operand carries no row or column, so a finding names the file as
+`config.yaml:-1:-1`. A data reader reads each number through the
+double nearest it, and `--exact-numbers` doesn't reach it.
+
+The bare command, `vet`, `subsume`, `trim`, `relations`, `reaches`,
+`view`, `jsonschema`, `hash`, `model get`, `model why`, `allow` and
+`agentsmd` read their document operands so. The other verbs read
+their files as before. `fmt` formats aontu text. `template`, `trace`
+and `render` read a template. `breaking` and `model set` read a
+document as aontu source. `model set` writes its overlay as aontu
+text, so a data overlay could not be written back. `jsonschema
+import` reads a JSON Schema. The file of `--vars` and `:load` in the
+REPL read aontu source.
+
 **Behaviour**
 
 - **File:** `aontu config.aontu` reads, unifies and prints the file.
@@ -3854,6 +3905,7 @@ into a context.
 | `deps`     | `object`    | Dependency record populated by `@"…"` loads. |
 | `log`      | `number`    | Parser log verbosity. |
 | `exactNumbers` | `boolean` | Read every number the document writes by its value, as `--exact-numbers` does: `1.0` is the integer `1` and `0.1` the bigdecimal `0d0.1`. Go sets `Aontu.ExactNumbers`. |
+| `readByExtension` | `boolean` | Read the entry document by its path's extension, as the CLI reads a document operand: a `.yaml` path is read as YAML. A `.json` path stays aontu source. The constructor's option alone decides, and the library verbs' options carry it to their engines. Go sets `Aontu.ReadByExtension`, and `VetOptions` and `SubsumeOptions` carry it too. |
 
 `@"…"` resolution tries an **in-memory** resolver, then the
 **filesystem**, then **package** resolution, in that order. The chain

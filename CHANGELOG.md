@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### A verb reads a data file operand by its extension
+
+Option E of `sketch/IO-FORMATS.0.md`, in both CLIs. A document operand
+is read by the table an include uses: `aontu config.yaml` prints the
+YAML file's value, and `aontu vet schema.aontu data.toml` vets the
+TOML as data, where both read the file as aontu source before. A
+`.yaml`, `.yml`, `.toml`, `.ini`, `.jsonc`, `.json5`, `.jsonic` or
+`.jsc` operand is data in that format; `.json`, `.jsonld`, `.aontu`,
+`.txt` and every other extension stay aontu source, so a `.json`
+operand keeps its exact numbers. A data file that doesn't parse is
+refused at the operand, framed in that file. The bare command, `vet`,
+`subsume`, `trim`, `relations`, `reaches`, `view`, `jsonschema`,
+`hash`, `model get`, `model why`, `allow` and `agentsmd` read so, and
+the other verbs as before. The engines gain the option that does it,
+`readByExtension` in TypeScript and `ReadByExtension` in Go, with
+`VetOptions` and `SubsumeOptions` carrying it in Go. Go's frame of a
+syntax error past a file's last newline now puts the caret where
+TypeScript puts it.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call

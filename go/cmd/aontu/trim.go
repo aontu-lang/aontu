@@ -71,7 +71,7 @@ func runTrim(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	report := aontuForFileTrust(files[0], trust).TrimCheck(string(src))
+	report := operand(aontuForFileTrust(files[0], trust)).TrimCheck(string(src))
 	text := renderTrimText(report)
 	if "json" == format {
 		text = renderTrimJSON(report)

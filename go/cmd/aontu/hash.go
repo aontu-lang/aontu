@@ -59,7 +59,7 @@ func runHash(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	v, uerr := aontuForFileTrust(files[0], trust).Unify(string(src))
+	v, uerr := operand(aontuForFileTrust(files[0], trust)).Unify(string(src))
 	if nil != uerr || nil == v || v.Nil() {
 		io.WriteString(stderr,
 			"aontu: "+files[0]+" does not evaluate on its own; nothing to hash\n"+

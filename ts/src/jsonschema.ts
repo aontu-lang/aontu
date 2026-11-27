@@ -57,6 +57,7 @@ export type SchemaOptions = {
   trust?: TrustOptions
 
   textExt?: string[]
+  readByExtension?: boolean
 }
 
 

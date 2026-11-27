@@ -31,6 +31,7 @@ export type QueryOptions = {
   // Rides beside `trust` because it is the other half of what an
   // include may read.
   textExt?: string[]
+  readByExtension?: boolean
 
   hostVars?: HostVars
 

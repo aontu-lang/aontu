@@ -18,6 +18,7 @@ export type RelationOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    readByExtension?: boolean;
     count?: boolean;
 };
 export declare function relationFindings(decls: Map<string, RelDecl>, graph: Graph): RelationFinding[];
