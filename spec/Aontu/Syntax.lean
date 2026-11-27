@@ -53,6 +53,7 @@ inductive Rider where
   | move (n : String)                       -- the value `move` makes of the path named `n` (`pathName`)
   | void                                    -- around `nil`, the `nil` a document writes, which forbids (`Val.void`)
   | parent                                  -- around `super(x)` in the `x | super(x)` a lone `*x` is (`Val.parentOf`)
+  | failed                                  -- around `super(x)`, a lone `*x` whose `x` admits nothing alone (`Val.failedOf`)
   | acyclic                                 -- `acyclic()`, a graph atom: the relation its key names holds no cycle
   | inverse (k : String)                    -- `inverse(k)`, a graph atom: each edge of its relation is mirrored under `k`
   | gen                                     -- `gen(r)`, the output annotation: `r` says how the value is written
@@ -145,6 +146,11 @@ def Val.isVoid : Val → Bool
 writes: it admits what it admitted, and a disjunction that takes the
 preference as an arm leaves it out (ruling 89). -/
 abbrev Val.parentOf (t : Val) : Val := .ride .parent t []
+
+/-- A lone preference whose own value fails, read as its parent type,
+marked: it admits what the preference admits, and the place it stands
+is a conflict, as both ports report it. -/
+abbrev Val.failedOf (t : Val) : Val := .ride .failed t []
 
 /-- Whether a term is a lone preference's parent type (`Val.parentOf`). -/
 def Val.isParent : Val → Bool
@@ -434,7 +440,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .ride .opened v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .void v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _
-  | .ride .lifts v _ | .ride .seals v _ | .ride .parent v _ | .ride .acyclic v _
+  | .ride .lifts v _ | .ride .seals v _ | .ride .parent v _ | .ride .failed v _ | .ride .acyclic v _
   | .ride (.inverse _) v _ | .ride .gen v _ => by
     simp only [Val.super]; exact Val.keyed_super v
   | .link v _ => by simp only [Val.super]; exact Val.keyed_super v
