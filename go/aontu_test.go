@@ -170,3 +170,19 @@ func TestAliasScopeFromThePackage(t *testing.T) {
 		}
 	}
 }
+
+func TestTemplateErrorPath(t *testing.T) {
+	cases := [][2]string{
+		{`x: { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }`, `$.x.h.0.s`},
+		{`x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ { at: "z" } ] }`, `$.x.h.0.s`},
+		{`x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }`, `$.x.h.0.at`},
+		{`x: { h: { &: { s: "a" | "b" } } } & { h: { k: {} } }`, `$.x.h.k.s`},
+	}
+	for _, c := range cases {
+		_, err := New().Generate(c[0])
+		want := regexp.MustCompile(`at path ` + regexp.QuoteMeta(c[1]) + `\b`)
+		if nil == err || !want.MatchString(err.Error()) {
+			t.Errorf("%s: want %s, got %v", c[0], c[1], err)
+		}
+	}
+}

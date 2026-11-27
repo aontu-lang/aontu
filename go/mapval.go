@@ -48,6 +48,29 @@ func (m *MapVal) aliasDeclarationsAreRooted(ctx *Ctx) Val {
 	return nv
 }
 
+// templateDeclares: a template stands below the root, so a declaration in it is refused there.
+func templateDeclares(spread Val, path []string) Val {
+	if nil == spread {
+		return nil
+	}
+	t, ok := unmarkedTemplate(spread).(*MapVal)
+	if !ok {
+		return nil
+	}
+	named := ""
+	if 0 < len(t.aliasKeys) {
+		named = aliasBareName(t.aliasKeys[0])
+	} else if 0 < len(t.exportKeys) {
+		named = exportDeclName
+	} else {
+		return nil
+	}
+	nv := newNil("alias_not_toplevel")
+	nv.site.sp = t.site.sp
+	nv.path = append(append([]string{}, path...), named)
+	return nv
+}
+
 func (m *MapVal) isAliasKey(k string) bool {
 	for _, a := range m.aliasKeys {
 		if a == k {
@@ -530,6 +553,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if nv := m.aliasDeclarationsAreRooted(ctx); nv != nil {
 		return nv
 	}
+	if nv := templateDeclares(m.spread, m.path); nv != nil {
+		return nv
+	}
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(m, ctx)
 	}
@@ -814,10 +840,11 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 // what it reports names this path rather than the template's.
 func placeShared(child Val, at []string) Val {
 	switch child.(type) {
-	case *MapVal, *ListVal:
-		if !pathEq(child.vpath(), at) {
-			return instanceClone(child, at)
-		}
+	case *ScalarVal, *ExpectVal:
+		return child
+	}
+	if !pathEq(child.vpath(), at) {
+		return instanceClone(child, at)
 	}
 	return child
 }

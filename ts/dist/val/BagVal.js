@@ -106,7 +106,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             const p = item[0];
             let child = item[1];
             const at = [...this.path, String(p)];
-            if (true === child.isBag && child.path.join('\u0000') !== at.join('\u0000')) {
+            if (true !== child.isScalar && true !== child.isExpect && child.path.join('\u0000') !== at.join('\u0000')) {
                 child = child.clone(ctx, { path: at });
                 (0, Val_1.repathInstance)(child, at);
             }

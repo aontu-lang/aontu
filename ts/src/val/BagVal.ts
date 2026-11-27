@@ -24,6 +24,7 @@ import { NilVal } from './NilVal'
 import { FeatureVal } from './FeatureVal'
 import { ExpectVal } from './ExpectVal'
 import { cmpCodePoint } from '../keyorder'
+import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
 import { genWriteBag, genWrites } from './genwrite'
 
 
@@ -138,7 +139,7 @@ abstract class BagVal extends FeatureVal {
       let child = item[1]
 
       const at = [...this.path, String(p)]
-      if (true === child.isBag && child.path.join('\u0000') !== at.join('\u0000')) {
+      if (true !== child.isScalar && true !== child.isExpect && child.path.join('\u0000') !== at.join('\u0000')) {
         child = child.clone(ctx, { path: at })
         repathInstance(child, at)
       }
@@ -310,6 +311,24 @@ export function putKey(out: any, key: string, val: any): void {
 // provisional, and the one ConjunctVal.gen knows how to finish. Kept
 // here rather than as a flag on the conjunct because it is a question
 // about the TERMS, and they can change until the meet converges.
+// A template stands below the root, so a declaration in it is refused there.
+export function templateDeclares(bag: any): Val | undefined {
+  const t = bag.spread?.cj
+  if (true !== t?.isMap) {
+    return undefined
+  }
+  const named = 0 < t.aliasKeys.length ? aliasBareName(t.aliasKeys[0]) :
+    0 < (t.exportKeys ?? []).length ? EXPORT_DECL_NAME : undefined
+  if (undefined === named) {
+    return undefined
+  }
+  const nv: any = new NilVal({ why: 'alias_not_toplevel' })
+  nv.site = t.site
+  nv.path = [...bag.path, named]
+  return nv
+}
+
+
 export function sizingResidue(v: any): { con: any, bag: any } | undefined {
   if (true !== v?.isConjunct || 2 !== v.peg?.length) {
     return undefined
