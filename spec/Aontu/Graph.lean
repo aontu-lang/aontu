@@ -270,7 +270,7 @@ theorem holdsB_iff {es : List Edge} : ∀ {d : String × Rider}, holdsB es d = t
       · exact .inl (of_decide_eq_false hd)
       · exact .inr (h e he (of_decide_eq_true hd))
   | (_, .metadata) | (_, .deprecate) | (_, .ident) | (_, .type) | (_, .hide) | (_, .opened)
-  | (_, .lifts) | (_, .seals) | (_, .move _) | (_, .void) | (_, .parent) | (_, .gen) => by
+  | (_, .lifts) | (_, .seals) | (_, .move _) | (_, .void) | (_, .parent) | (_, .failed) | (_, .gen) => by
     simp only [holdsB, Holds]
 
 /-- A normal form's graph keeps what its atoms ask: each declaration
