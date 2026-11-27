@@ -52,18 +52,6 @@ def Val.at : Val → List Seg → Option Val
   | _, .lands _ :: _ => none
 termination_by structural _ p => p
 
-/-- The index digits spell in canonical decimal: `0`, or digits that
-don't begin with `0`. -/
-def digitsOf? : List Char → Option ℕ
-  | ['0'] => some 0
-  | '0' :: _ => none
-  | [] => none
-  | cs => cs.foldl (fun acc c => acc.bind fun n =>
-      if c.isDigit then some (10 * n + (c.toNat - '0'.toNat)) else none) (some 0)
-
-/-- The index a step's text spells in canonical decimal. -/
-def indexOf? (k : String) : Option ℕ := digitsOf? k.toList
-
 /-- The step a written step takes in the container it meets, the riders
 around it read through: in a map, the key its text spells, and in a
 list, the index its text spells in canonical decimal. A variable names

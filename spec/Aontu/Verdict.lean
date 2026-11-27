@@ -447,6 +447,72 @@ def pickOf (ds : Decls) (b k : Val) : Made :=
     | none => .refused
   | _, _ => .refused
 
+/-- The index digits spell in canonical decimal: `0`, or digits that
+don't begin with `0`. -/
+def digitsOf? : List Char → Option ℕ
+  | ['0'] => some 0
+  | '0' :: _ => none
+  | [] => none
+  | cs => cs.foldl (fun acc c => acc.bind fun n =>
+      if c.isDigit then some (10 * n + (c.toNat - '0'.toNat)) else none) (some 0)
+
+/-- The index a step's text spells in canonical decimal. -/
+def indexOf? (k : String) : Option ℕ := digitsOf? k.toList
+
+/-- The term `at` steps in, read as a path reads its target: a name's
+bodies met with the marks they write kept, so that a step reads a
+marked member, and whether that term is a definition; any other term's
+normal form. -/
+def Decls.atData (ds : Decls) (d : Val) : Val × Bool :=
+  match d with
+  | .alias n =>
+    match ds.bodies n with
+    | [] => (normaliseD ds d, false)
+    | v :: vs => (normaliseD ds (vs.foldl .meet v).unident, ds.typed n)
+  | _ => (normaliseD ds d, d.hasMark .type)
+
+/-- The element of a list at the position a key of `at` names: an
+integer, counted from the end where it is negative, or a string that
+spells it in canonical decimal. -/
+def atIndex? (xs : List Val) : String ⊕ ℤ → Option Val
+  | .inl s => (indexOf? s).bind fun i => xs[i]?
+  | .inr i =>
+    if 0 ≤ i then xs[i.toNat]? else if 0 ≤ xs.length + i then xs[(xs.length + i).toNat]? else none
+
+/-- The member a key of `at` names in a term, its riders read through:
+in a map the member under the key a string is or an integer's digits
+write, and in a list the element at the position an integer is,
+counted from the end where it is negative, or a string spells in
+canonical decimal, among the elements that carry no mark of their own,
+as a list's copy holds them; none for any other step. -/
+def Val.atStep (v : Val) (k : String ⊕ ℤ) : Option Val :=
+  match v.unride with
+  | .map fs _ _ => (fs.find? fun f => f.1 = projKey k).map fun f => f.2.2
+  | .list items _ _ => atIndex? (items.filter fun x => !x.marked) k
+  | _ => none
+
+/-- The member a chain of keys names, each step read in the normal form
+of the last, and whether it is a definition's or inside one; none where
+a step names nothing. -/
+def Decls.atSteps (ds : Decls) : Val × Bool → List (String ⊕ ℤ) → Option (Val × Bool)
+  | w, [] => some w
+  | (v, t), k :: ks =>
+    (v.atStep k).bind fun w => ds.atSteps (normaliseD ds w, t || w.hasMark .type) ks
+
+/-- What `at` makes of its data and its keys: the member the keys name,
+copied as a reference copies it (`Decls.env`), without its identity and
+its marks, and sealed where it is a definition's (`Val.restrict`); a
+refusal where a key in normal form, its riders read through, is no
+string and no integer, and where a step names nothing. -/
+def atOf (ds : Decls) (d : Val) (ks : List Val) : Made :=
+  match ks.mapM fun k => (normaliseD ds k).projector? with
+  | none => .refused
+  | some ps =>
+    match ds.atSteps (ds.atData d) ps with
+    | some (w, t) =>
+      if t then .made (.meet w.unident.unmark w.unident.unmark.restrict) else .made w.unident.unmark
+    | none => .refused
+
 /-- The key `sort` orders a member by: a number or a string, read as a
 call reads its argument. -/
 def Val.sortKey? (v : Val) : Option Scalar :=
@@ -832,6 +898,7 @@ def Fn.takes : Fn → ℕ → Bool
   | .join, n | .esc, n | .usc, n | .parse, n => 1 ≤ n && n ≤ 2
   | .sort, n | .upper, n | .lower, n | .nom, n => 1 ≤ n && n ≤ 3
   | .translate, n => 2 ≤ n && n ≤ 3
+  | .at, n => 2 ≤ n
   | .rep, n => n == 3
   | .relate, n | .path, n => n ≤ 1
   | .cmp c, n => c.takes n
@@ -1037,7 +1104,7 @@ functions on numbers and the folds, `+`, and the calls on bags and
 text. -/
 def Fn.readsArms : Fn → Bool
   | .add | .sub | .mul | .div | .mod | .rem | .neg | .sum | .least | .greatest
-  | .plus | .join | .pick | .sort | .upper | .lower | .translate | .esc | .usc | .split | .rep
+  | .plus | .join | .pick | .at | .sort | .upper | .lower | .translate | .esc | .usc | .split | .rep
   | .nom => true
   | _ => false
 
@@ -1175,6 +1242,17 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
   | .refused => .nil
   | .waits => .call f (args.map (normaliseD ds))
 
+/-- The term a call `callTerm` leaves to the rest is: an `at` what
+`atOf` makes, and any other call the number `callValue` computes, where
+it computes one, and itself otherwise, which no reading makes. -/
+def restTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
+  match f, args with
+  | .at, d :: ks => (atOf ds d ks).term ds f args
+  | _, _ =>
+    match callValue ds f args with
+    | some n => .lit (.num n)
+    | none => .call f args
+
 /-- The term a call is, its arguments resolved: a `+` what `plusOf` makes
 of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a call on a bag or on text what
@@ -1197,9 +1275,8 @@ absence carrying the atom (`Rider.acyclic`, `Rider.inverse`), so that it
 rides the value it meets and leaves the value as it is, and an `inverse`
 whose argument is no name (`isRelName`) `nil`; a `gen` the annotation of
 the record its argument spells out (`genOf`); a bound
-written over terms the bound `bndOf` makes of them; any other call the
-number `callValue` computes, where it computes one, and itself
-otherwise, which no reading makes. -/
+written over terms the bound `bndOf` makes of them; and any other call
+the term `restTerm` makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   match f, args with
   | .plus, [a, b] => (plusOf (normaliseD ds a.operand) (normaliseD ds b.operand)).term ds f args
@@ -1245,10 +1322,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
     if c.takes args.length then (cmpOf ds c args.head? (args.drop 1).head?).term ds f args
     else .call f args
   | .bnd b, args => (bndOf ds b args).term ds f args
-  | _, _ =>
-    match callValue ds f args with
-    | some n => .lit (.num n)
-    | none => .call f args
+  | _, _ => restTerm ds f args
 
 mutual
 /-- Whether a term holds a node `p` picks out, at any depth: `p` tried at
@@ -1396,7 +1470,8 @@ end
 `maybe(v)` is `v` where it names something, and absence where all that
 is wrong with it is that it doesn't: a reference at the top of `v`, `v`
 itself, a side of a meet, an arm of a disjunction or the value under a
-rider, names nothing in the document read. Absence admits every value,
+rider, names nothing in the document read, or an `at` that is the
+argument names nothing at a step or in its data (`atMissD`). Absence admits every value,
 generates nothing, and is the unit of the meet, but met with `any` it
 stays absence; a map leaves it out of its output at a required key as
 at an optional one, a list holds no position for it, and a call that
@@ -1496,6 +1571,16 @@ def pendingArms (ds : Decls) : List (ℕ × Val) → Bool
   | [] => false
   | (_, a) :: arms => a.pending ds || pendingArms ds arms
 end
+
+/-- Whether `at` names nothing that its data and its keys, resolved, let
+it read: its data is a term, its keys are strings and integers, and a
+step names nothing, which `maybe` reads as a reference that names
+nothing. -/
+def Decls.atMisses (ds : Decls) (d : Val) (ks : List Val) : Bool :=
+  !(d :: ks).any (fun a => a.pending ds || (normaliseD ds a).isAbsent) && !(normaliseD ds d).dead &&
+    match ks.mapM fun k => (normaliseD ds k).projector? with
+    | some ps => (ds.atSteps (ds.atData d) ps).isNone
+    | none => false
 
 /-- The term a reference into an `emit`'s node names, `.p` in a body:
 the node's field at each key, its element at each position, the field
@@ -2445,7 +2530,10 @@ stays as written, a call no reading makes, where a template lacks its
 `match` or a list for its `body`, the selection is no bag, or a member
 makes no pieces (`emitPlan`), and where no position places a `key(n)`
 the table holds. A `maybe` is
-what `maybeOf` makes of its argument, and a call, a generator, a
+what `maybeOf` makes of its argument, but one whose argument is an `at`,
+which reads as a reference there (ruling 2 of C1): absence where the
+`at`'s data is a reference that names nothing, or an `at` that names
+nothing so, or a step names nothing (`atMissD`), and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence, nor for one a mark of its
 own, `hide()` or `type()`, leaves out, each element after
@@ -2559,6 +2647,10 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if (normaliseD ds (resolveD ds b here v)).isAbsent then .absent
       else if (resolveD ds b here v).pending ds then .call .apply [resolveD ds b here v, f]
       else resolveD ds (some (normaliseD ds (resolveD ds b here v))) here f
+    | .maybe, [.call .at (d :: ks)] =>
+      if (resolveD ds b here d).pathTop then .call .maybe [resolveD ds b here (.call .at (d :: ks))]
+      else if atMissD ds b here (.call .at (d :: ks)) then .absent
+      else maybeOf ds (resolveD ds b here (.call .at (d :: ks)))
     | .maybe, [v] => maybeOf ds (resolveD ds b here v)
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | .emit, [s, t] =>
@@ -2630,6 +2722,17 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .hole => b.getD .hole
   | .path p => nodeRef b p
   | v => v
+  termination_by structural v => v
+
+/-- Whether an `at` names nothing that `maybe` reads as a reference
+that names nothing: its data, resolved, is a reference that names
+nothing or an `at` that names nothing so, or a step names nothing
+(`Decls.atMisses`). -/
+def atMissD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Bool
+  | .call .at (d :: ks) =>
+    atMissD ds b here d || (resolveD ds b here d).missingTop ds ||
+      ds.atMisses (resolveD ds b here d) (resolveItems ds b here ks)
+  | _ => false
   termination_by structural v => v
 
 def resolveFields (ds : Decls) (b : Option Val) (here : Option (List Step)) :
@@ -3736,6 +3839,95 @@ theorem encodeOf_checkableA {ds : Decls} {enc : Bool} {s n v : Val}
       exact .lit
   · cases h
 
+theorem Decls.atData_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {d : Val}
+    (h : d.CheckableA) : (ds.atData d).1.CheckableA := by
+  unfold Decls.atData
+  split
+  · rename_i n
+    split
+    · exact normaliseD_checkableA hd h
+    · rename_i v vs hbs
+      have hall : ∀ w, w ∈ v :: vs → w.CheckableA := by
+        intro w hw
+        rw [← hbs] at hw
+        simp only [Decls.bodies, List.mem_map, List.mem_filter] at hw
+        obtain ⟨e, ⟨he, -⟩, rfl⟩ := hw
+        exact hd e he
+      have : ∀ (vs : List Val) (v : Val), v.CheckableA → (∀ w, w ∈ vs → w.CheckableA) →
+          (vs.foldl Val.meet v).CheckableA := by
+        intro vs
+        induction vs with
+        | nil => intro v hv _; exact hv
+        | cons w vs ih =>
+          intro v hv hws
+          exact ih (.meet v w) (.meet hv (hws w (List.mem_cons_self)))
+            (fun w' hw' => hws w' (List.mem_cons_of_mem _ hw'))
+      exact normaliseD_checkableA hd (Val.checkableA_unident
+        (this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw))))
+  · exact normaliseD_checkableA hd h
+
+theorem atIndex?_mem {xs : List Val} {k : String ⊕ ℤ} {w : Val} (h : atIndex? xs k = some w) :
+    w ∈ xs := by
+  cases k with
+  | inl s =>
+    simp only [atIndex?] at h
+    obtain ⟨i, -, hi⟩ := Option.bind_eq_some_iff.mp h
+    exact List.mem_of_getElem? hi
+  | inr i =>
+    simp only [atIndex?] at h
+    split at h
+    · exact List.mem_of_getElem? h
+    · split at h
+      · exact List.mem_of_getElem? h
+      · cases h
+
+theorem Val.atStep_checkableA {v w : Val} {k : String ⊕ ℤ} (h : v.CheckableA)
+    (hs : v.atStep k = some w) : w.CheckableA := by
+  have hu := Val.checkableA_unride h
+  unfold Val.atStep at hs
+  split at hs
+  · rename_i fs _ _ hm
+    rw [hm] at hu
+    cases hu with
+    | map hf _ =>
+      obtain ⟨f, hf', rfl⟩ := Option.map_eq_some_iff.mp hs
+      exact hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hf')
+  · rename_i items _ _ hm
+    rw [hm] at hu
+    cases hu with
+    | list hi _ => exact hi w (List.mem_filter.mp (atIndex?_mem hs)).1
+  · cases hs
+
+theorem Decls.atSteps_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ (ks : List (String ⊕ ℤ)) {v w : Val} {t u : Bool}, v.CheckableA →
+      ds.atSteps (v, t) ks = some (w, u) → w.CheckableA
+  | [], _, _, _, _, hv, h => by
+    simp only [Decls.atSteps, Option.some.injEq, Prod.mk.injEq] at h
+    obtain ⟨rfl, -⟩ := h
+    exact hv
+  | k :: ks, v, w, t, u, hv, h => by
+    simp only [Decls.atSteps] at h
+    obtain ⟨x, hx, h⟩ := Option.bind_eq_some_iff.mp h
+    exact Decls.atSteps_checkableA hd ks (normaliseD_checkableA hd (Val.atStep_checkableA hv hx)) h
+
+theorem atOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {d : Val} {ks : List Val}
+    {v : Val} (hd' : d.CheckableA) (h : atOf ds d ks = .made v) : v.CheckableA := by
+  unfold atOf at h
+  split at h
+  · cases h
+  · split at h
+    · rename_i w t hw
+      have hw' : w.CheckableA := Decls.atSteps_checkableA hd _ (Decls.atData_checkableA hd hd') hw
+      have hc := (Val.checkableA_unident hw').unmark
+      split at h
+      · obtain rfl := (Made.made.injEq _ _).mp h
+        refine .meet hc ?_
+        unfold Val.restrict
+        exact restrictF_checkableA _ _ (fun x hx => by rw [List.mem_singleton.mp hx]; exact hc)
+      · obtain rfl := (Made.made.injEq _ _).mp h
+        exact hc
+    · cases h
+
 theorem splitOf_checkableA {ds : Decls} {s sep v : Val}
     (h : splitOf ds s sep = .made v) : v.CheckableA := by
   unfold splitOf at h
@@ -4275,9 +4467,12 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         (fun k hk => h k (List.mem_of_mem_drop (List.mem_of_mem_head? hk))) hv
     · exact .call h
   · exact Made.term_checkableA hd h fun v hv => bndOf_checkableA hv
-  · split
-    · exact .lit
-    · exact .call h
+  · unfold restTerm
+    split
+    · exact Made.term_checkableA hd h fun v hv => atOf_checkableA hd (h _ List.mem_cons_self) hv
+    · split
+      · exact .lit
+      · exact .call h
 
 theorem mem_fillTopArms {ds : Decls} {w : Val} :
     ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
@@ -4614,7 +4809,14 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
         exact ih1 t (by simp) (b := some _) (here := here) fun m' hm' => by
           obtain rfl := Option.some.inj hm'
           exact hn
-    · rename_i v
+    · split
+      · refine .call fun a ha => ?_
+        simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+        rw [ha]; exact ih1 _ (by simp) hb
+      split
+      · exact .absent
+      · exact maybeOf_checkableA (ih1 _ (by simp) hb)
+    · rename_i v _
       exact maybeOf_checkableA (ih1 v (by simp) hb)
     · refine .call fun a ha => ?_
       obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha

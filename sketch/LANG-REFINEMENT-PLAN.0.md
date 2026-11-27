@@ -444,6 +444,28 @@ k33 and k37. The definition is owed: no Lean toolchain was installed
 where it was built, so `at` has no meaning under `spec/`, and `maybeOf`
 doesn't yet count it as a reference, as ruling 2 asks.
 
+The definition is built, on 2026-11-27, and the owed definition is
+paid. `at` is `Fn.at`, computed as `atOf` in `spec/Aontu/Verdict.lean`
+(`restTerm` makes the call): each step read by `Val.atStep` and
+`Decls.atSteps`, a list's position by `atIndex?` among the elements
+with no mark of their own, and the member copied as a reference copies
+it, sealed where it is a definition's or inside one. The data of an
+`at` that is a reference is read with its bodies' marks kept
+(`Decls.atRef` in `spec/Aontu/Alias.lean`), so that a `type()` member's
+copy is sealed as the path to it is. For ruling 2, `atMissD` and
+`Decls.atMisses` make `maybe(at(…))` absence where a step or the data
+names nothing, `Val.forgiveAt` forgives that data, and a key that names
+nothing stays `no_path`. The data is a call's data argument
+(`Fn.readsData`, ruling 93). The 96 cases of `spec/Oracle/At.lean`
+generate rows at0 to at287 of `test/spec/def-path.tsv`, 288 rows, and
+both engines answer every one as the definition does; no engine
+changed. Two readings the definition doesn't hold yet, both listed in
+`spec/README.md`: an `at` under `maybe` as a side of a meet, an arm or
+under a rider, `maybe(at($.m, b) & 2)`, which both engines read as
+absence; and `maybe(at(at($.m, true), b))`, whose inner key is of
+another kind, which both engines read as absence and the definition as
+an error. Neither has a row.
+
 ## C2: a key for each child of `pack`
 
 **Proposed:** `pack(d: map|list, template t: any, template k?: string) : map`

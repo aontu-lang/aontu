@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### `at`: the member at a key or a position
+
+A new built-in, in both engines. `at(d, k)` reads what a path step
+reads, the member of a map under a key or of a list at a position, and
+more keys step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key
+is read as its value, so a template can read a field of its member,
+`pack($.svc, at(_, port))`, and look a record up by one,
+`at($.teams, at(_, team), email)`. A negative position counts from the
+end of a list, so `at(xs, -1)` is the last member. A step that names
+nothing is `no_path`, and absence under `maybe`; a key that is neither
+a string nor an integer is `func_arg`. A member marked with `hide()` or
+`type()` is read as a path reads it. `test/spec/at.tsv` holds both
+engines to 105 rows, and `test/spec/comprehension.tsv` gains the `at`
+spelling beside each of the eight routes it replaces. The definition
+states `at` as `atOf` (`spec/Aontu/Verdict.lean`), and rows at0 to
+at287 of `test/spec/def-path.tsv` hold both engines to it.
+
+
 ### The definition leaves out an optional member that writes empty
 
 #1075, in the definition. The definition leaves out an optional member
@@ -350,21 +368,6 @@ be strings. A call of `pack` with three arguments was `func_arity`, and
 is now this. `test/spec/gen-pack-key.tsv` holds both engines to 45
 rows, and `test/spec/comprehension.tsv` gains the keyed spelling beside
 each of the six routes it replaces.
-
-### `at`: the member at a key or a position
-
-A new built-in, in both engines. `at(d, k)` reads what a path step
-reads, the member of a map under a key or of a list at a position, and
-more keys step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key
-is read as its value, so a template can read a field of its member,
-`pack($.svc, at(_, port))`, and look a record up by one,
-`at($.teams, at(_, team), email)`. A negative position counts from the
-end of a list, so `at(xs, -1)` is the last member. A step that names
-nothing is `no_path`, and absence under `maybe`; a key that is neither
-a string nor an integer is `func_arg`. A member marked with `hide()` or
-`type()` is read as a path reads it. `test/spec/at.tsv` holds both
-engines to 105 rows, and `test/spec/comprehension.tsv` gains the `at`
-spelling beside each of the eight routes it replaces.
 
 ### A how-to on carrying binary data
 

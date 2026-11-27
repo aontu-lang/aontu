@@ -222,13 +222,15 @@ mutual
 saying whether the term stands at the top of `maybe`'s argument: the
 argument itself, a side of a meet, an arm of a disjunction or the value
 under a rider, where a reference that names nothing makes absence
-rather than an error. A `filter`'s condition reads as `any` too, every
-reference in it, since a condition that names nothing refuses the
-member it tries rather than making the document an error, as both
-ports read it. -/
+rather than an error, and the data of an `at` that is the argument,
+which reads as a reference does (ruling 2 of C1). A `filter`'s
+condition reads as `any` too, every reference in it, since a condition
+that names nothing refuses the member it tries rather than making the
+document an error, as both ports read it. -/
 def Val.forgiveAt (top : Bool) : Val → Val
   | .alias n => if top then .any else .alias n
   | .path p => if top then .any else .path p
+  | .call .maybe [.call .at args] => .call .maybe [.call .at (forgiveData args)]
   | .call .maybe [v] => .call .maybe [v.forgiveAt true]
   | .meet a b => .meet (a.forgiveAt top) (b.forgiveAt top)
   | .or arms => .or (forgiveArms top arms)
@@ -258,6 +260,11 @@ def forgiveCovers : List Cover → List Cover
   | [] => []
   | (c, k, m) :: cs => (forgiveSpread c, forgiveSpread k, forgiveSpread m) :: forgiveCovers cs
   termination_by structural cs => cs
+
+def forgiveData : List Val → List Val
+  | [] => []
+  | v :: vs => v.forgiveAt true :: forgiveItems vs
+  termination_by structural vs => vs
 
 def forgiveFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
