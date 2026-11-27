@@ -197,6 +197,29 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		inst := instanceClone(cond, slot)
 		setPaths(inst, slot)
 		test := fillPlace(inst, child)
+		// Each value the child admits must be admitted: a disjunction is read arm by arm (ruling 51).
+		arms := []Val{child}
+		if d, ok := child.(*DisjunctVal); ok {
+			arms = d.peg
+		}
+		decided, all := true, true
+		for _, arm := range arms {
+			arm = prefInnerPeg(arm)
+			own, gens := ownJSON(arm, ctx, slot)
+			if !gens {
+				decided = false
+				break
+			}
+			admits, ok := admitsSettled(ctx, test, arm, own, slot)
+			if !ok {
+				decided = false
+				break
+			}
+			all = all && admits
+		}
+		if decided {
+			return all
+		}
 		met := trialUnify(ctx, clonePath(child, slot), test)
 		return nil != met && sameMembers(child, met, ctx, true)
 	}
