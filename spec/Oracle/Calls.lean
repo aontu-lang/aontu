@@ -718,6 +718,9 @@ theorem filterSources_generate : ∀ x ∈ filterSources,
 
 theorem filterSources_wf : ∀ x ∈ filterSources, x.1.wf = true := by decide
 
+theorem dataArg_term (ds : Decls) (j : Data) : ds.dataArg j.term = j.term := by
+  cases j <;> rfl
+
 theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
   intro c hc
   obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
@@ -727,11 +730,11 @@ theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c)
     (resolveD_checkableA (ds := []) (fun _ h => nomatch h) (Data.term_checkableA j) (b := none)
       (here := stepped (some []) (.seg (.key "v"))) (fun _ h => nomatch h)))
   refine readR_call_checkableA (.inr ⟨_, _, rfl⟩)
-    (fun k => by cases k <;> simp only [expandF, Val.filled, expandF_term, hw]) fun k => ?_
+    (fun k => by cases k <;> simp only [expandF, dataArg_term, Val.filled, expandF_term, hw]) fun k => ?_
   cases k with
   | zero => exact resolveD_filter_checkableA hj hn
   | succ k =>
-    simp only [expandF, expandF_term]
+    simp only [expandF, dataArg_term, expandF_term]
     exact resolveD_filter_checkableA hj hn
 
 /-- A `filter` in an `each` template binds its own hole, and its source

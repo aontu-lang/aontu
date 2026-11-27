@@ -4056,7 +4056,7 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
   | succ k =>
     have ha := hp k a (by simp)
     have hb := hp k b (by simp)
-    simp only [expandF, List.map, Decls.tableUnfold_of_ne _ (show Fn.split ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and,
+    simp only [expandF, List.map, Decls.dataArgs_of_not _ (show Fn.split.readsData = false by decide), Decls.tableUnfold_of_ne _ (show Fn.split ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and,
       Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
@@ -4087,7 +4087,7 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
     have ha := hp k a (by simp)
     have hb := hp k b (by simp)
     have hc := hp k c (by simp)
-    simp only [expandF, List.map, Decls.tableUnfold_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and,
+    simp only [expandF, List.map, Decls.dataArgs_of_not _ (show Fn.rep.readsData = false by decide), Decls.tableUnfold_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and,
       Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
