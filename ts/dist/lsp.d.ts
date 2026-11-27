@@ -65,6 +65,7 @@ declare function computeFormatting(text: string): TextEdit[] | null;
 declare function computePathAt(text: string, pos: Position, trust?: any): CursorPath | null;
 declare function computeSitesOf(text: string, path: string[], trust?: any): PathSite[] | null;
 declare function computeDefinition(src: string, position: Position, uri: string): Location | null;
+declare function computePathDefinition(src: string, position: Position, uri: string, trust?: any): Location[] | null;
 declare function computeHover(src: string, position: Position, provenance?: boolean, trust?: any): Hover | null;
 type CompletionItem = {
     label: string;
@@ -77,6 +78,7 @@ declare const COMPLETION_KEYWORD = 14;
 declare const BUILTIN_FUNCS: string[];
 declare function computeCompletions(src: string): CompletionItem[];
 export declare function uriToPath(uri: unknown): string | undefined;
+export declare function pathToUri(path: string): string;
 declare class LspHandler {
     private docs;
     private shutdownOK;
@@ -89,5 +91,5 @@ declare class LspHandler {
     handle(msg: Message): OutMessage[];
     private publish;
 }
-export { computeDiagnostics, computeHover, computeDefinition, computeCompletions, computeFormatting, computePathAt, computeSitesOf, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_VARIABLE, COMPLETION_KEYWORD, };
+export { computeDiagnostics, computeHover, computeDefinition, computePathDefinition, computeCompletions, computeFormatting, computePathAt, computeSitesOf, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_VARIABLE, COMPLETION_KEYWORD, };
 export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, CursorPath, PathSite, };

@@ -1,0 +1,4 @@
+inner: @"./cursor_base.aontu"
+own: { k: 1 }
+ports: @"./cursor_list.aontu"
+n: @"./cursor_num.aontu"

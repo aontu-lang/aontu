@@ -3,6 +3,7 @@
 
 import { Aontu } from './aontu'
 import { whyParts } from './query'
+import { anchorParts } from './vet'
 import { cmpCodePoint } from './keyorder'
 import type { TrustOptions } from './type'
 
@@ -24,7 +25,17 @@ type CursorPath = {
 
 type PathSite = { canon: string, file: string, range: Range, role: string }
 
+type PathValue = {
+  canon: string, kind: string, titles: string[], descriptions: string[]
+}
+
+type CursorValue = PathValue & { path: string[], range: Range }
+
+type PathPlace = { file: string, range: Range }
+
 type CursorOptions = { trust?: TrustOptions }
+
+type Parsed = { aontu: Aontu, ctx: any, root: any }
 
 type Hit = {
   on: CursorOn, path: string[], start: number, end: number, reads?: string[]
@@ -235,11 +246,17 @@ function hitsOf(src: string, root: any): { keys: Hit[], values: Hit[] } {
     }
     seen.add(v)
     const at = '' === (v.site?.url ?? '') ? siteOffset(starts, v) : -1
+    // A value another file wrote has its key where this document
+    // loaded it.
+    const load = v.site?.load
+    const from = 0 > at && null != load && '' === (load.url ?? '') ?
+      siteOffset(starts, { site: load }) : at
+    const span = 0 <= from && 0 < path.length ?
+      keySpan(src, from, path[path.length - 1]) : undefined
+    if (undefined !== span) {
+      keys.push({ on: 'key', path, start: span[0], end: span[1] })
+    }
     if (0 <= at) {
-      const span = 0 < path.length ? keySpan(src, at, path[path.length - 1]) : undefined
-      if (undefined !== span) {
-        keys.push({ on: 'key', path, start: span[0], end: span[1] })
-      }
       const hit = valueHit(src, v, at, path)
       if (undefined !== hit) {
         values.push(hit)
@@ -254,14 +271,15 @@ function hitsOf(src: string, root: any): { keys: Hit[], values: Hit[] } {
 }
 
 
-function pathAt(
-  src: string, pos: Position, opts?: CursorOptions): CursorPath | undefined {
+function parsed(src: string, opts?: CursorOptions): Parsed | undefined {
   const aontu = new Aontu(null == opts?.trust ? {} : { trust: opts.trust })
   const ctx = aontu.ctx({ collect: true })
   const root = aontu.parse(src, undefined, ctx)
-  if (0 < ctx.err.length) {
-    return undefined
-  }
+  return 0 < ctx.err.length ? undefined : { aontu, ctx, root }
+}
+
+
+function hitAt(src: string, pos: Position, root: any): CursorPath | undefined {
   const starts = lineStarts(src)
   if (0 > pos.line || starts.length <= pos.line) {
     return undefined
@@ -288,6 +306,78 @@ function pathAt(
 }
 
 
+function pathAt(
+  src: string, pos: Position, opts?: CursorOptions): CursorPath | undefined {
+  const doc = parsed(src, opts)
+  return undefined === doc ? undefined : hitAt(src, pos, doc.root)
+}
+
+
+// The path a cursor names: a key its own, a reference the one it reads,
+// and a plain value none.
+function namedPath(at: CursorPath | undefined): string[] | undefined {
+  return 'key' === at?.on ? at.path : at?.reads
+}
+
+
+// A short label for what a value is, the same word in both ports.
+function valKind(val: any): string {
+  if (val.isNil) return 'error'
+  if (val.isTop) return 'any'
+  if (val.isScalarKind) return 'type'
+  if (val.isConstraint) return 'constraint'
+  if (val.isRef) return 'reference'
+  if (val.isFunc) return 'function'
+  // NumberVal is the binary64 leaf, whose kind keyword is `float`;
+  // `number` is the supertype and never labels a concrete value.
+  if (val.isNumber) return 'float'
+  return val.constructor.name.replace(/Val$/, '').toLowerCase()
+}
+
+
+function metaTexts(val: any, key: string): string[] {
+  return ((val.meta ?? {})[key] ?? []).map((t: any) => t.peg)
+    .filter((t: any) => 'string' === typeof t)
+}
+
+
+function describeVal(val: any): PathValue {
+  return {
+    canon: val.canon,
+    kind: valKind(val),
+    titles: metaTexts(val, 'title'),
+    descriptions: metaTexts(val, 'description'),
+  }
+}
+
+
+// What stands, once the document has unified, at the path a key or a
+// reference under the cursor names; nothing where it names none, or
+// names a path that holds nothing.
+function describeAt(
+  src: string, pos: Position, opts?: CursorOptions): CursorValue | undefined {
+  const doc = parsed(src, opts)
+  const at = undefined === doc ? undefined : hitAt(src, pos, doc.root)
+  const path = namedPath(at)
+  if (undefined === doc || undefined === at || undefined === path) {
+    return undefined
+  }
+  const node = anchorParts(doc.aontu.unify(doc.root, undefined, doc.ctx), path)
+  return undefined === node ? undefined :
+    { path, range: at.range, ...describeVal(node) }
+}
+
+
+// Where the path a key or a reference under the cursor names is
+// written: its sites, as places to go to.
+function definitionAt(
+  src: string, pos: Position, opts?: CursorOptions): PathPlace[] | undefined {
+  const path = namedPath(pathAt(src, pos, opts))
+  return undefined === path ? undefined :
+    sitesOf(src, path, opts)?.map((s) => ({ file: s.file, range: s.range }))
+}
+
+
 // Every site that writes a path, as `model why` reads them; nothing
 // where the document does not evaluate or names no such path.
 function sitesOf(
@@ -307,6 +397,11 @@ function sitesOf(
 }
 
 
-export { pathAt, sitesOf, keySpan, hitsOf }
+export {
+  pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal,
+}
 
-export type { CursorPath, CursorOn, CursorOptions, PathSite, Position, Range }
+export type {
+  CursorPath, CursorOn, CursorOptions, CursorValue, PathPlace, PathSite,
+  PathValue, Position, Range,
+}

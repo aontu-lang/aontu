@@ -5,8 +5,12 @@ exports.pathAt = pathAt;
 exports.sitesOf = sitesOf;
 exports.keySpan = keySpan;
 exports.hitsOf = hitsOf;
+exports.describeAt = describeAt;
+exports.definitionAt = definitionAt;
+exports.describeVal = describeVal;
 const aontu_1 = require("./aontu");
 const query_1 = require("./query");
+const vet_1 = require("./vet");
 const keyorder_1 = require("./keyorder");
 const KEY_DELIMS = ' \t\r\n{}[](),:;"\'';
 const TOKEN_END = KEY_DELIMS + '&|';
@@ -194,11 +198,17 @@ function hitsOf(src, root) {
         }
         seen.add(v);
         const at = '' === (v.site?.url ?? '') ? siteOffset(starts, v) : -1;
+        // A value another file wrote has its key where this document
+        // loaded it.
+        const load = v.site?.load;
+        const from = 0 > at && null != load && '' === (load.url ?? '') ?
+            siteOffset(starts, { site: load }) : at;
+        const span = 0 <= from && 0 < path.length ?
+            keySpan(src, from, path[path.length - 1]) : undefined;
+        if (undefined !== span) {
+            keys.push({ on: 'key', path, start: span[0], end: span[1] });
+        }
         if (0 <= at) {
-            const span = 0 < path.length ? keySpan(src, at, path[path.length - 1]) : undefined;
-            if (undefined !== span) {
-                keys.push({ on: 'key', path, start: span[0], end: span[1] });
-            }
             const hit = valueHit(src, v, at, path);
             if (undefined !== hit) {
                 values.push(hit);
@@ -211,13 +221,13 @@ function hitsOf(src, root) {
     }
     return { keys, values };
 }
-function pathAt(src, pos, opts) {
+function parsed(src, opts) {
     const aontu = new aontu_1.Aontu(null == opts?.trust ? {} : { trust: opts.trust });
     const ctx = aontu.ctx({ collect: true });
     const root = aontu.parse(src, undefined, ctx);
-    if (0 < ctx.err.length) {
-        return undefined;
-    }
+    return 0 < ctx.err.length ? undefined : { aontu, ctx, root };
+}
+function hitAt(src, pos, root) {
     const starts = lineStarts(src);
     if (0 > pos.line || starts.length <= pos.line) {
         return undefined;
@@ -241,6 +251,68 @@ function pathAt(src, pos, opts) {
         range: { start: positionOf(starts, best.start), end: positionOf(starts, best.end) },
         ...(undefined === best.reads ? {} : { reads: best.reads }),
     };
+}
+function pathAt(src, pos, opts) {
+    const doc = parsed(src, opts);
+    return undefined === doc ? undefined : hitAt(src, pos, doc.root);
+}
+// The path a cursor names: a key its own, a reference the one it reads,
+// and a plain value none.
+function namedPath(at) {
+    return 'key' === at?.on ? at.path : at?.reads;
+}
+// A short label for what a value is, the same word in both ports.
+function valKind(val) {
+    if (val.isNil)
+        return 'error';
+    if (val.isTop)
+        return 'any';
+    if (val.isScalarKind)
+        return 'type';
+    if (val.isConstraint)
+        return 'constraint';
+    if (val.isRef)
+        return 'reference';
+    if (val.isFunc)
+        return 'function';
+    // NumberVal is the binary64 leaf, whose kind keyword is `float`;
+    // `number` is the supertype and never labels a concrete value.
+    if (val.isNumber)
+        return 'float';
+    return val.constructor.name.replace(/Val$/, '').toLowerCase();
+}
+function metaTexts(val, key) {
+    return ((val.meta ?? {})[key] ?? []).map((t) => t.peg)
+        .filter((t) => 'string' === typeof t);
+}
+function describeVal(val) {
+    return {
+        canon: val.canon,
+        kind: valKind(val),
+        titles: metaTexts(val, 'title'),
+        descriptions: metaTexts(val, 'description'),
+    };
+}
+// What stands, once the document has unified, at the path a key or a
+// reference under the cursor names; nothing where it names none, or
+// names a path that holds nothing.
+function describeAt(src, pos, opts) {
+    const doc = parsed(src, opts);
+    const at = undefined === doc ? undefined : hitAt(src, pos, doc.root);
+    const path = namedPath(at);
+    if (undefined === doc || undefined === at || undefined === path) {
+        return undefined;
+    }
+    const node = (0, vet_1.anchorParts)(doc.aontu.unify(doc.root, undefined, doc.ctx), path);
+    return undefined === node ? undefined :
+        { path, range: at.range, ...describeVal(node) };
+}
+// Where the path a key or a reference under the cursor names is
+// written: its sites, as places to go to.
+function definitionAt(src, pos, opts) {
+    const path = namedPath(pathAt(src, pos, opts));
+    return undefined === path ? undefined :
+        sitesOf(src, path, opts)?.map((s) => ({ file: s.file, range: s.range }));
 }
 // Every site that writes a path, as `model why` reads them; nothing
 // where the document does not evaluate or names no such path.

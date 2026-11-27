@@ -5897,10 +5897,34 @@ holds that only a float has a rounding its leaf does not hold, and
 it is. `Number.written` is the string, and `fixedText` its plain form.
 Rows gs0 and gw0 on of
 [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
-them. The annotation itself is not yet a term of the definition, nor
-are the options of the other types, and
+them.
+
+The annotation itself is a term of the definition, in
+[`spec/Aontu/Annotation.lean`](../spec/Aontu/Annotation.lean):
+`Val.annotation` is `any` carrying the record, `Shape.takes` holds the
+standard options of each type, and `Record.unify` unifies two records
+as maps. `Val.heldTo` holds a value to its record, and
+`admits_heldTo` proves that the result admits what the value admits,
+of the types that take the record. `Val.staged` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) meets the
+records each value carries, then holds each value to its own. A call
+whose argument holds an annotation that conflicts is the schema's error
+(`Decls.argClashes`), since both engines read each argument whole, and
+`genOf` hands a written `nil` on unchanged. Rows an0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it.
+
+What a document writes is `outputW` in
+[`spec/Aontu/Writing.lean`](../spec/Aontu/Writing.lean): `writeWith`
+generates the staged form as `genWith` does, and `Data.writeBy` writes
+each value by the record it carries, every option in this section but
+`custom`. `Addr.resolveAt` resolves an address from the place the
+document writes it at, and `writeWith_plain` proves that a term with no
+annotation writes what it generates. Rows wa0 on of
+[`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
+it. `custom` waits, and
 [`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
-both engines to each other on every other rule in this section.
+both engines to each other on it.
 
 ## Closed values: `close` / `open`
 

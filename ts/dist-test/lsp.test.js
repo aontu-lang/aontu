@@ -36,7 +36,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
+const Fs = __importStar(require("node:fs"));
+const Os = __importStar(require("node:os"));
+const Path = __importStar(require("node:path"));
 const lsp_1 = require("../dist/lsp");
+const srcpath_1 = require("./srcpath");
+const IntegerVal_1 = require("../dist/val/IntegerVal");
 const cursor_1 = require("../dist/cursor");
 const alias_1 = require("../dist/alias");
 const lsp_server_1 = require("../dist/lsp-server");
@@ -746,6 +751,98 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.deepStrictEqual((0, lsp_1.computeSitesOf)(src, ['c'])?.map((s) => [s.role, s.canon]), [['literal', '1'], ['ref', '$.a.b']]);
         Assert.strictEqual((0, lsp_1.computePathAt)(src, { line: 0, character: 2 }), null);
         Assert.strictEqual((0, lsp_1.computeSitesOf)(src, ['nope']), null);
+    });
+});
+// Twin: go/lsp/hover_test.go, the tests from TestHoverOnAKey on.
+(0, node_test_1.describe)('lsp-key-and-path', () => {
+    const SRC = 'base: { port: 8080 }\ndb: { port: $.base.port }\n';
+    const range = (l0, c0, l1, c1) => ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } });
+    (0, node_test_1.test)('hover-on-a-key-shows-what-unified-under-it', () => {
+        Assert.deepStrictEqual((0, lsp_1.computeHover)(SRC, { line: 0, character: 1 }), {
+            contents: { kind: 'markdown', value: '```aontu\n{"port":8080}\n```\n\n*map*' },
+            range: range(0, 0, 0, 4),
+        });
+    });
+    (0, node_test_1.test)('hover-on-a-reference-shows-the-path-it-reads', () => {
+        const h = (0, lsp_1.computeHover)(SRC, { line: 1, character: 15 }, true);
+        Assert.strictEqual(h.contents.value, '```aontu\n8080\n```\n\n*integer*' +
+            '\n\n---\n\nContributions:\n- `8080` — literal (1:15)');
+        Assert.deepStrictEqual(h.range, range(1, 12, 1, 23));
+    });
+    (0, node_test_1.test)('definition-goes-to-every-site-of-the-path', () => {
+        const at = (line, character) => (0, lsp_1.computePathDefinition)(SRC, { line, character }, 'file:///d.aontu');
+        Assert.deepStrictEqual(at(1, 15), [{ uri: 'file:///d.aontu', range: range(0, 14, 0, 18) }]);
+        Assert.deepStrictEqual(at(1, 7)?.map((l) => l.range.start), [{ line: 0, character: 14 }, { line: 1, character: 12 }]);
+        Assert.strictEqual(at(0, 14), null);
+        Assert.strictEqual((0, lsp_1.computePathDefinition)('a: }', { line: 0, character: 0 }, 'file:///d.aontu'), null);
+    });
+    (0, node_test_1.test)('across-an-include', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'));
+        try {
+            Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\n');
+            Fs.writeFileSync(Path.join(dir, 'far.aontu'), '   5\n');
+            Fs.writeFileSync(Path.join(dir, 'two.aontu'), '2\n');
+            Fs.writeFileSync(Path.join(dir, 'ref.aontu'), '\n\n\n$.missing\n');
+            Fs.writeFileSync(Path.join(dir, 'call.aontu'), '\n\nfoo(1)\n');
+            Fs.writeFileSync(Path.join(dir, 'deep.aontu'), '  a: $.nope\n');
+            const trust = { include: { root: dir } };
+            const src = `base: @"${(0, srcpath_1.srcPath)(dir)}/base.aontu"\nx: $.base.port\n`;
+            const [loc, ...more] = (0, lsp_1.computePathDefinition)(src, { line: 1, character: 5 }, 'file:///d.aontu', trust) ?? [];
+            Assert.deepStrictEqual(more, []);
+            Assert.ok(loc.uri.startsWith('file:///') && loc.uri.endsWith('/base.aontu'), loc.uri);
+            Assert.deepStrictEqual(loc.range, range(0, 6, 0, 10));
+            // The key that holds the include answers with what the file wrote.
+            Assert.match((0, lsp_1.computeHover)(src, { line: 0, character: 1 }, false, trust)
+                .contents.value, /\{"port":8080\}/);
+            // The loaded 5 is at 1:4 of its own file, which is the `@` here.
+            const far = `n: @"${(0, srcpath_1.srcPath)(dir)}/far.aontu"\n`;
+            Assert.strictEqual((0, lsp_1.computeHover)(far, { line: 0, character: 3 }, false, trust), null);
+            Assert.match((0, lsp_1.computeHover)(far, { line: 0, character: 0 }, false, trust)
+                .contents.value, /\n5\n/);
+            // A conflict with a loaded value is placed at the operand written here.
+            const ds = (0, lsp_1.computeDiagnostics)(`y: @"${(0, srcpath_1.srcPath)(dir)}/two.aontu"\ny: 3\n`, { trust });
+            Assert.deepStrictEqual(ds.map((d) => [d.code, d.range]), [['scalar_value', range(1, 3, 1, 4)]]);
+            // An error in what an include loads, with no operand here, is placed
+            // at the `@` that loaded it.
+            for (const [file, code] of [['ref', 'no_path'], ['call', 'unknown_function']]) {
+                const at = (0, lsp_1.computeDiagnostics)(`v: @"${(0, srcpath_1.srcPath)(dir)}/${file}.aontu"\n`, { trust });
+                Assert.deepStrictEqual(at.map((d) => [d.code, d.range]), [[code, range(0, 3, 0, 4)]]);
+            }
+            // Deeper in the file, it keeps the file's own row and column.
+            const deep = (0, lsp_1.computeDiagnostics)(`v: @"${(0, srcpath_1.srcPath)(dir)}/deep.aontu"\n`, { trust });
+            Assert.deepStrictEqual(deep.map((d) => [d.code, d.range]), [['no_path', range(0, 5, 0, 6)]]);
+        }
+        finally {
+            Fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+    // A parsed value has no text to read a line's end from.
+    (0, node_test_1.test)('a-parsed-value-hovers-at-its-own-site', () => {
+        const v = new IntegerVal_1.IntegerVal({ peg: 7 });
+        v.site = { row: 1, col: 1, url: '' };
+        Assert.deepStrictEqual((0, lsp_1.computeHover)(v, { line: 0, character: 0 }), {
+            contents: { kind: 'markdown', value: '```aontu\n7\n```\n\n*integer*' },
+            range: range(0, 0, 0, 1),
+        });
+    });
+    (0, node_test_1.test)('a-path-becomes-a-file-uri', () => {
+        Assert.deepStrictEqual(['/a/b c.aontu', 'C:\\a\\b.aontu', '/é/#?%.aontu', '\\\\host\\share\\b.aontu']
+            .map(lsp_1.pathToUri), ['file:///a/b%20c.aontu', 'file:///C:/a/b.aontu', 'file:///%C3%A9/%23%3F%25.aontu',
+            'file://host/share/b.aontu']);
+    });
+    (0, node_test_1.test)('the-handler-goes-to-an-alias-then-to-a-path', () => {
+        const h = new lsp_1.LspHandler();
+        h.handle({
+            method: 'textDocument/didOpen',
+            params: { textDocument: { uri: 'file:///d.aontu', text: '%p = 1\n' + SRC } },
+        });
+        const def = (line, character) => h.handle({
+            id: 1, method: 'textDocument/definition',
+            params: { textDocument: { uri: 'file:///d.aontu' }, position: { line, character } },
+        })[0].result;
+        Assert.deepStrictEqual(def(0, 1).range, range(0, 0, 0, 2));
+        Assert.deepStrictEqual(def(2, 15), [{ uri: 'file:///d.aontu', range: range(1, 14, 1, 18) }]);
+        Assert.strictEqual(def(1, 14), null);
     });
 });
 (0, node_test_1.describe)('lsp-diagnostics-once', () => {

@@ -5,6 +5,8 @@ package aontu
 import (
 	"math"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -37,6 +39,46 @@ func TestCheckCtxErrUnion(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected budget_passes problem, got %v", probs)
+	}
+}
+
+// The server's twin is TestKeyAndPathAcrossAnInclude in
+// go/lsp/hover_test.go.
+func TestCheckPlacesAnIncludedConflictAtTheDocumentsOperand(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "two.aontu"), []byte("2\n"), 0o644); nil != err {
+		t.Fatal(err)
+	}
+	src := `y: @"` + filepath.ToSlash(dir) + `/two.aontu"` + "\ny: 3\n"
+	probs := New().Check(src)
+	if 1 != len(probs) || "scalar_value" != probs[0].Why ||
+		strings.LastIndex(src, "3") != probs[0].Pos || 1 != probs[0].Len {
+		t.Fatalf("problems: %+v", probs)
+	}
+
+	// With no operand here, an error is placed at the `@` that loaded it.
+	if err := os.WriteFile(filepath.Join(dir, "ref.aontu"), []byte("\n\n\n$.missing\n"), 0o644); nil != err {
+		t.Fatal(err)
+	}
+	src = `v: @"` + filepath.ToSlash(dir) + `/ref.aontu"` + "\n"
+	if probs := New().Check(src); 1 != len(probs) || "no_path" != probs[0].Why ||
+		3 != probs[0].Pos || 1 != probs[0].Len {
+		t.Fatalf("problems: %+v", probs)
+	}
+}
+
+// A hover is evaluated under the caller's budgets, as the document is.
+func TestHoverKeepsTheTrustBudgets(t *testing.T) {
+	const src = "a: nof(1, 1, 2, 3) & 2\n"
+	a := New()
+	a.Trust = &TrustOptions{Budget: TrustBudget{Trials: 2}}
+	if d := a.DescribeAt(src, CursorPosition{0, 0}); nil == d || "error" != d.Kind {
+		t.Errorf("key: %+v", d)
+	}
+	for _, s := range a.Spans(src) {
+		if "error" != s.Kind {
+			t.Errorf("value: %+v", s)
+		}
 	}
 }
 
@@ -74,8 +116,8 @@ func TestCheckWalkersDirect(t *testing.T) {
 	if valKind(newNil("x")) != "error" {
 		t.Fatalf("nil kind")
 	}
-	if valKind(newMap()) != "value" {
-		t.Fatalf("default kind")
+	if valKind(newMap()) != "map" {
+		t.Fatalf("map kind")
 	}
 
 	var nils []*NilVal

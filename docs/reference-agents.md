@@ -32,7 +32,7 @@ the codes a report carries.
 |---|---|---|---|
 | the verbs | `aontu <verb>`, with `--format json` where a report is wanted | one report a verb | [command-line interface](reference-api.md#command-line-interface) |
 | the embedded API | a library call, in either implementation | the same reports, as values rather than text | [TypeScript API](reference-api.md#typescript-api), [Go API](reference-api.md#go-api) |
-| the language server | `aontu lsp`, or the `aontu-lsp` binary, over stdio | diagnostics, hover and completion as an editor asks for them | [the language server](lsp.md) |
+| the language server | `aontu lsp`, or the `aontu-lsp` binary, over stdio | diagnostics, hover, completion, and go to definition as an editor asks for them | [the language server](lsp.md) |
 | the tool server | `aontu mcp`, or the `aontu-mcp` binary, over stdio | a tool for each report it serves, which is a subset of the verbs, under the same JSON contract | [the MCP server](reference-api.md#the-mcp-server) |
 | the teaching pack | `aontu help <topic>` | the language, from inside the binary, with no network and no checkout | [`aontu help`](reference-api.md#aontu-help) |
 | the code index | `aontu explain <code>`, or `--list` | what one refusal means, or every registered code with its class | [errors reference](reference-errors.md#the-codes) |

@@ -40,7 +40,8 @@ on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
 `move` written as calls, `relate`, a link, `path`, `abnf` and `parse`,
 `load`, the source `@"p"` loads, the components, the generators `each`
 and `pack`, `maybe`, where absence is made, a bound written over
-terms, and the graph atoms `acyclic` and `inverse`. -/
+terms, the graph atoms `acyclic` and `inverse`, and `gen`, the output
+annotation. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
@@ -52,6 +53,7 @@ inductive Fn where
   | maybe
   | bnd (b : Bnd)
   | acyclic | inverse
+  | gen
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/

@@ -50,7 +50,7 @@ const SHAPES = [
         what: 'a value\'s source site',
         ts: { file: 'ts/src/site.ts', open: /^class Site \{$/ },
         go: { file: 'go/val.go', open: /^type site struct \{$/ },
-        both: ['url', 'src', 'via'],
+        both: ['url', 'src', 'via', 'load'],
         tsOnly: { row: WHY_POSITION, col: WHY_POSITION, len: WHY_POSITION },
         goOnly: {
             sp: WHY_POSITION,
@@ -63,6 +63,14 @@ const SHAPES = [
         go: { file: 'go/val.go', open: /^type viaSite struct \{$/ },
         both: ['url', 'name'],
         tsOnly: { row: WHY_POSITION, col: WHY_POSITION, src: WHY_POSITION },
+        goOnly: { sp: WHY_POSITION },
+    },
+    {
+        what: 'where an include loaded a value another file wrote',
+        ts: { file: 'ts/src/site.ts', open: /^type LoadSite = \{$/ },
+        go: { file: 'go/val.go', open: /^type loadSite struct \{$/ },
+        both: ['url'],
+        tsOnly: { row: WHY_POSITION, col: WHY_POSITION },
         goOnly: { sp: WHY_POSITION },
     },
 ];

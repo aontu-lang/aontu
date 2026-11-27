@@ -8,6 +8,7 @@ import Aontu.Profiles
 import Aontu.Reorder
 import Aontu.Written
 import Aontu.Graph
+import Aontu.Writing
 
 /-!
 # The oracle
@@ -944,6 +945,233 @@ def declLines (ds : Decls) : IO (List String) :=
   ds.mapM fun d => do
     let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
     pure ("%" ++ d.1 ++ " = " ++ bsrc)
+
+/-! ## What generation writes -/
+
+mutual
+/-- Written data as JSON, each number as the text it is written with, as
+both engines print it: the decimal a float shows, and a big decimal
+with its one place. -/
+def Aontu.Data.writtenJson : Data → String
+  | .num x => x.text
+  | .str s => quote s
+  | .bool b => if b then "true" else "false"
+  | .null => "null"
+  | .map fs => "{" ++ ",".intercalate (writtenMembers fs) ++ "}"
+  | .list xs => "[" ++ ",".intercalate (writtenElems xs) ++ "]"
+  | .addr a => quote a.text
+
+def writtenMembers : List (String × Data) → List String
+  | [] => []
+  | (k, x) :: fs => (quote k ++ ":" ++ x.writtenJson) :: writtenMembers fs
+
+def writtenElems : List Data → List String
+  | [] => []
+  | x :: xs => x.writtenJson :: writtenElems xs
+end
+
+/-- Documents an output annotation writes: a number rounded, at so many
+places and as text; a boolean as a number and as its name; a string in
+each case; a value written empty left out of a map, a list and a
+spread's member, and a map of them left out in turn; an address in
+each form, resolved where it is written, through a link, a copy and a
+spread's template; a map's keys in each style, a key with no word, a
+hidden member, a map inside a styled one; and the record riding a
+reference, a copy, a spread, a name, a default and a list, beside a
+fold, a call and `+`, which read the value. -/
+def writeCases : List (Decls × Val) :=
+  let g (fs : List (String × Val)) : Val := c .gen [m fs]
+  let gs (t : String) : Val := c .gen [str t]
+  let fl (a : ℤ) (d : ℕ) : Val := match Float.nearest a d with | some f => .lit (.num (.float f)) | none => .nil
+  let sig (n : Val) : Val := g [("significant", n)]
+  let pl (n : Val) : Val := g [("places", n)]
+  let as (t : String) : Val := g [("as", str t)]
+  let upr : Val := g [("case", str "upper")]
+  let low : Val := g [("case", str "lower")]
+  let omt : Val := g [("empty", str "omit")]
+  let keep : Val := g [("empty", str "keep")]
+  let ks (t : String) : Val := g [("keys", str t)]
+  let form (t : String) : Val := g [("form", str t)]
+  let v (t : Val) : Val := m [("v", t)]
+  let dflt (x y : Val) : Val := .or [(1, x), (0, y)]
+  let arms (x y : Val) : Val := .or [(0, x), (0, y)]
+  let mlo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  [([], (v (.meet (fl 314159 100000) (sig (int 2))))),
+    ([], (v (.meet (int 1234) (sig (int 2))))),
+    ([], (v (.meet (fl 15 10) (as "string")))),
+    ([], (v (.meet (int 24) (g [("places", int 2), ("as", str "string")])))),
+    ([], (m [("v", .meet (.meet (int 7) (as "string")) (.max (nb 9))), ("w", c .add [p ["v"], int 1])])),
+    ([], (v (.meet (.lit (.bool true)) (as "number")))),
+    ([], (v (.meet (.lit (.bool false)) (as "number")))),
+    ([], (v (.meet (.lit (.bool true)) (as "string")))),
+    ([], (v (.meet (.lit (.bool false)) (as "string")))),
+    ([], (v (.meet (.meet .boolean (as "number")) (.lit (.bool true))))),
+    ([], (v (.or [(1, .meet (.lit (.bool false)) (as "string")), (0, .boolean)]))),
+    ([], (v (.meet (str "Ada") upr))),
+    ([], (v (.meet (str "Ada") low))),
+    ([], (v (.meet (.meet .string upr) (str "ada")))),
+    ([], (m [("m", .meet (tmpl (.meet .string upr)) (m [("a", str "x"), ("b", str "y")]))])),
+    ([], (v (.meet (.meet (arms (str "active") (str "closed")) upr) (str "active")))),
+    ([], (m [("u", m [("name", str "ada"), ("nick", .meet (str "") omt)])])),
+    ([], (m [("u", m [("nick", .meet (str "") keep)])])),
+    ([], (m [("u", m [("nick", .meet (str "x") omt)])])),
+    ([], (m [("u", m [("note", .meet (.lit .null) omt), ("n", int 1)])])),
+    ([], (m [("u", m [("note", .meet (.lit .null) keep)])])),
+    ([], (m [("u", m [("note", .or [(1, .meet (.lit .null) omt), (0, .string)])])])),
+    ([], (m [("u", m [("m", .meet (m []) omt), ("n", int 1)])])),
+    ([], (m [("u", m [("m", .meet (m []) keep)])])),
+    ([], (m [("u", m [("m", .meet (m [("a", int 1)]) omt)])])),
+    ([], (m [("u", m [("m", .meet (m [("a", hide (int 1))]) omt)])])),
+    ([], (m [("u", m [("m", .meet (m [("a", .meet (.lit .null) omt)]) omt)])])),
+    ([], (m [("u", m [("m", m [("a", .meet (.lit .null) omt)])])])),
+    ([], (m [("a", m [("b", .meet (m [("c", .meet (m [("d", .meet (str "") omt)]) omt)]) omt)])])),
+    ([], (m [("u", m [("l", .meet (lst []) omt), ("n", int 1)])])),
+    ([], (m [("u", m [("l", .meet (lst [hide (int 1)]) omt)])])),
+    ([], (m [("l", lst [int 1, .meet (str "") omt, .meet (.lit .null) omt, .meet (lst []) omt, .meet (m []) omt, int 2])])),
+    ([], (m [("m", .meet (tmpl (.meet .anyString omt)) (m [("a", str ""), ("b", str "x"), ("c", str "")]))])),
+    ([], (m [("u", mlo [("a", true, .meet (str "") omt), ("b", true, .meet (.lit .null) omt)])])),
+    ([], (.meet (m []) omt)),
+    ([], (m [("u", m [("note", .meet (.meet (arms (.lit .null) .string) omt) (.lit .null))])])),
+    ([], (m [("u", m [("note", .meet (.meet (arms (.lit .null) .string) omt) (str "s"))])])),
+    ([], (m [("a", hide (.meet (str "") omt)), ("u", m [("b", p ["a"]), ("c", int 1)])])),
+    ([], (m [("a", m [("x", .meet (ad 2 ["b", "c"]) (form "verbatim"))])])),
+    ([], (m [("a", m [("x", .meet (ad 2 ["b", "c"]) (form "absolute"))])])),
+    ([], (m [("a", m [("x", .meet (ad 2 ["b", "c"]) (form "pointer"))])])),
+    ([], (m [("a", m [("x", .meet (ad 2 ["b", "c"]) (form "key"))])])),
+    ([], (m [("x", .meet (ad 0 ["a", "b"]) (form "absolute"))])),
+    ([], (m [("x", .meet (ad 0 ["a", "b"]) (form "pointer"))])),
+    ([], (m [("x", .meet (ad 0 ["a", "b"]) (form "key"))])),
+    ([], (m [("a", m [("x", .meet (ad 1 ["b"]) (form "absolute"))])])),
+    ([], (m [("x", .meet (ad 1 ["b"]) (form "pointer"))])),
+    ([], (m [("l", lst [.meet (ad 1 ["b"]) (form "absolute"), m [("q", .meet (ad 1 ["b"]) (form "absolute"))]])])),
+    ([], (m [("a/b", m [("x", int 1), ("p", .meet (ad 1 ["x"]) (form "pointer"))])])),
+    ([], (m [("c~d", m [("x", int 1), ("p", .meet (ad 1 ["x"]) (form "pointer"))])])),
+    ([], (m [("~/", m [("x", int 1), ("p", .meet (ad 1 ["x"]) (form "pointer"))])])),
+    ([], (m [("a", m [("r", .meet (c .relate []) (.meet (ad 1 ["b"]) (form "absolute"))), ("b", m [])])])),
+    ([], (m [("a", m [("r", .meet (c .relate []) (.meet (ad 1 ["b"]) (form "pointer"))), ("b", m [])])])),
+    ([], (m [("a", m [("r", .meet (c .relate []) (.meet (ad 1 ["b"]) (form "key"))), ("b", m [])])])),
+    ([], (m [("a", m [("x", .meet (ad 2 ["b", "c"]) (gs "key"))])])),
+    ([], (m [("a", m [("x", .meet (ad 2 ["b", "c"]) (gs "absolute"))])])),
+    ([], (m [("a", m [("x", .meet (ad 2 ["b", "c"]) (gs "pointer"))])])),
+    ([], (m [("a", m [("x", .meet (ad 1 ["b"]) (form "absolute"))]), ("c", m [("d", m [("e", p ["a", "x"])])])])),
+    ([], (m [("y", .meet (tmpl (m [("p", .meet (ad 1 ["b"]) (form "absolute"))])) (m [("k", m []), ("j", m [])]))])),
+    ([], (m [("x", .or [(1, .meet (ad 1 ["b"]) (form "absolute")), (0, .pathKind)])])),
+    ([], (m [("x", .meet (arms (ad 1 ["b"]) (int 1)) (form "pointer"))])),
+    ([], (m [("x", .meet (ad 2 ["b"]) (form "key"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("shipTo", str "Cork")]) (ks "snake"))])),
+    ([], (m [("o", .meet (m [("order_id", int 7), ("ship-to", str "Cork")]) (ks "camel"))])),
+    ([], (m [("o", .meet (m [("order_id", int 7), ("ship-to", str "Cork")]) (ks "pascal"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("shipTo", str "Cork")]) (ks "kebab"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("shipTo", str "Cork")]) (ks "upper"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("shipTo", str "Cork")]) (ks "dot"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("shipTo", str "Cork")]) (ks "path"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("shipTo", str "Cork")]) (ks "title"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("shipTo", str "Cork")]) (ks "text"))])),
+    ([], (m [("o", .meet (m [("HTTPServer2Go", int 1)]) (ks "kebab")), ("n", c .nom [str "HTTPServer2Go", str "kebab"])])),
+    ([], (m [("o", .meet (m [("orderId", m [("innerKey", int 1)])]) (ks "snake"))])),
+    ([], (m [("o", .meet (m [("orderId", .meet (m [("innerKey", int 1)]) (ks "upper"))]) (ks "snake"))])),
+    ([], (m [("o", .meet (m [("_", int 1), ("-", int 2), ("aB", int 3)]) (ks "snake"))])),
+    ([], (m [("o", .meet (m [("zebra_one", int 1), ("AlphaTwo", int 2)]) (ks "camel"))])),
+    ([], (m [("o", .meet (.meet .mapKind (ks "snake")) (m [("orderId", int 7)]))])),
+    ([], (m [("m", .meet (tmpl (.meet .mapKind (ks "snake"))) (m [("a", m [("orderId", int 1)]), ("bB", m [("shipTo", int 2)])]))])),
+    ([], (m [("l", .meet (.list [] (some (.meet .mapKind (ks "snake"))) false) (lst [m [("orderId", int 1)]]))])),
+    ([], (m [("o", .meet (m [("orderId", int 7), ("a_b", hide (int 1)), ("aB", int 2)]) (ks "snake"))])),
+    ([], (m [("o", .meet (m [("orderId", int 7)]) (ks "snake")), ("w", p ["o", "orderId"])])),
+    ([], (m [("u", m [("o", .meet (m [("a", hide (int 1))]) (g [("keys", str "snake"), ("empty", str "omit")]))])])),
+    ([], (m [("o", .meet (m [("a_b", int 1), ("aB", int 2)]) (ks "verbatim"))])),
+    ([], (m [("o", .meet (m [("__proto__", int 2), ("a", int 1)]) (ks "snake"))])),
+    ([], (m [("x", .meet (fl 12345 10000) (sig (int 3))), ("y", p ["x"])])),
+    ([], (m [("m", .meet (tmpl (.meet .number (sig (int 2)))) (m [("a", fl 1234 1000), ("b", int 5678)]))])),
+    ([], (v (.meet (.pref 1 (fl 12345 10000)) (sig (int 2))))),
+    ([], (v (.meet (.meet (dflt (fl 12345 10000) .float) (sig (int 2))) (fl 98765 10000)))),
+    ([], (m [("x", type (.meet (fl 125 100) (sig (int 2)))), ("y", p ["x"])])),
+    ([], (m [("x", hide (.meet (fl 125 100) (sig (int 2)))), ("y", p ["x"])])),
+    ([], (m [("a", m [("b", .meet (fl 125 100) (sig (int 2)))]), ("c", c .sum [p ["a"]])])),
+    ([], (m [("x", .meet (fl 12345 10000) (sig (int 3))), ("y", c .add [p ["x"], int 0])])),
+    ([], (v (c .plus [.meet (fl 125 100) (sig (int 2)), int 1]))),
+    ([], (v (arms (.meet (fl 12345 10000) (sig (int 2))) (.meet (fl 12345 10000) (sig (int 2)))))),
+    ([], (v (arms (m [("a", .meet (fl 125 100) (sig (int 2)))]) (mlo [("a", false, .meet (fl 125 100) (sig (int 2))), ("b", true, .string)])))),
+    ([], (v (.or [(1, .meet (fl 1255 1000) (sig (int 2))), (2, .meet (fl 1255 1000) (sig (int 1)))]))),
+    ([], (v (.meet (.meet (arms .float .string) (sig (int 1))) (fl 15 10)))),
+    ([], (v (.meet (.meet (arms .boolean .number) (as "string")) (int 7)))),
+    ([], (v (.meet (.meet (arms .boolean .number) (as "string")) (.lit (.bool true))))),
+    ([], (m [("x", .meet (.meet (fl 15 10) (pl (int 0))) (as "string")), ("y", .meet (.meet (ad 1 ["b"]) (gs "key")) (g []))])),
+    ([], (v (.meet (fl 314159 100000) (pl (int 2))))),
+    ([], (v (.meet (fl 125 1000) (pl (int 2))))),
+    ([], (v (.meet (int 24) (pl (int 2))))),
+    ([], (v (.meet (fl (-4) 1000) (pl (int 2))))),
+    ([], (v (.meet (fl 12451 10000) (g [("significant", int 4), ("places", int 2)])))),
+    ([], (v (.meet (.meet (fl 12451 10000) (pl (int 2))) (sig (int 4))))),
+    ([], (v (.meet (fl 314159 100000) (g [("significant", str "all")])))),
+    ([], (v (.meet (fl 314159 100000) (g [])))),
+    ([], (v (.meet (fl 314159 100000) (as "number")))),
+    ([], (v (.meet (.meet .number (as "string")) (int 7)))),
+    ([], (v (.meet (fl 245 10) (g [("places", int 2), ("as", str "string")])))),
+    ([], (v (.meet (fl (-4) 1000) (g [("places", int 2), ("as", str "string")])))),
+    ([], (m [("m", .meet (tmpl (.meet .number (g [("places", int 2), ("as", str "string")]))) (m [("a", fl 1999 100), ("b", int 5)]))])),
+    ([], (v (.meet (fl (-314159) 100000) (sig (int 3))))),
+    ([], (v (.meet (fl 9996 100) (sig (int 3))))),
+    ([], (v (.meet (int 25) (sig (int 1))))),
+    ([], (v (.meet (int 999) (sig (int 2))))),
+    ([("m", .meet .number (sig (int 2)))], (m [("v", .meet (.alias "m") (fl 1255 1000)), ("w", .meet (.alias "m") (fl 7777 1000))])),
+    ([], (m [("x", .meet (fl 125 100) (sig (int 2))), ("y", c .copy [p ["x"]])])),
+    ([], (m [("a", m [("b", .meet (fl 125 100) (sig (int 2)))]), ("c", p ["a"])])),
+    ([], (v (lst [.meet (fl 12345 10000) (sig (int 2)), fl 23456 10000]))),
+    ([], (m [("l", .meet (.list [] (some (.meet .number (sig (int 1)))) false) (lst [fl 125 100, int 35]))])),
+    ([], (v (.meet (.pref 2 (fl 125 100)) (sig (int 2))))),
+    ([], (v (.pref 1 (.meet (fl 12345 10000) (sig (int 2)))))),
+    ([], (v (.meet (.ride .metadata (fl 12345 10000) [("title", .str "t")]) (sig (int 2))))),
+    ([], (v (.meet (.meet (.meet .float (sig (int 2))) (.min (nb 1))) (fl 12345 10000)))),
+    ([], (v (.meet (sig (int 2)) (fl 12345 10000)))),
+    ([], (m [("v", .meet (fl 125 100) (g [("significant", p ["n"])])), ("n", int 2)])),
+    ([], (v (.meet (fl 125 100) (g [("significant", c .add [int 1, int 1])])))),
+    ([], (m [("s", hide (m [("money", m [("significant", int 2)])])), ("p", .meet (fl 314159 100000) (c .gen [p ["s", "money"]]))])),
+    ([], (v (.meet (.meet (fl 12345 10000) (sig (int 2))) (.max (.num (.float ((Float.nearest 124 100).getD Float.zero))))))),
+    ([], (v (.select (.meet (fl 125 100) (sig (int 1))) [(.number, str "n")] (some (str "other"))))),
+    ([], (v (c .upper [.meet (fl 125 100) (sig (int 1))]))),
+    ([], (m [("x", .meet (fl 12345 10000) (sig (int 3))), ("y", c .plus [str "v", p ["x"]])])),
+    ([], (v (.or [(1, .meet (fl 1255 1000) (sig (int 2))), (1, .meet (fl 1255 1000) (sig (int 2)))]))),
+    ([], (v (.meet (dflt (fl 12345 10000) .float) (sig (int 2))))),
+    ([], (v (.meet (.meet (dflt (fl 1255 1000) .float) (sig (int 2))) (sig (int 2))))),
+    ([], (v (.meet (.meet (dflt (fl 1255 1000) .float) (sig (int 2))) (dflt (fl 1255 1000) .float)))),
+    ([], (m [("l", .meet (.list [] (some (.meet .boolean (as "number"))) false) (lst [.lit (.bool true), .lit (.bool false)]))])),
+    ([], (m [("v", .meet (.lit (.bool true)) (as "number")), ("w", .select (p ["v"]) [(.lit (.bool true), str "yes")] (some (str "no")))])),
+    ([], (m [("l", lst [.meet (str "a") upr, .meet (str "B") low, str "c"])])),
+    ([], (m [("l", lst [lst [.meet (str "") omt, int 1], .meet (lst [.meet (.lit .null) omt]) omt, int 2])])),
+    ([], (m [("o", .meet (m [("fooBar", .meet (str "") omt), ("bazQux", int 1)]) (ks "snake"))])),
+    ([], (m [("a", .meet (str "") keep), ("b", .meet (str "") omt)])),
+    ([], (m [("l", lst [.meet (m [("aB", m [("cD", int 1)])]) (ks "kebab")])])),
+    ([], (m [("o", .meet (m [("a_b", .meet (str "") omt), ("aB", int 2)]) (ks "snake"))])),
+    ([], (m [("m", .meet (tmpl (.meet .mapKind (ks "upper"))) (m [("x", m [("someKey", int 1)])]))])),
+    ([], (m [("o", .meet (m [("orderId", int 7)]) (ks "snake")), ("c", p ["o"])])),
+    ([], (m [("t", type (m [("p", .meet (ad 1 ["b"]) (form "absolute"))])), ("y", m [("z", p ["t"])])])),
+    ([], (m [("y", .meet (tmpl (m [("p", .or [(1, .meet (ad 1 ["b"]) (form "absolute")), (0, .pathKind)])])) (m [("k", m [])]))])),
+    ([], (m [("a", .meet (m [("r", .meet (c .relate []) (form "key")), ("b", m [])]) (m [("r", ad 0 ["a", "b"])]))])),
+    ([], (.meet (m [("aB", int 1)]) (ks "snake"))),
+    ([], (.meet (m [("a", int 1)]) omt)),
+    ([], (m [("a", .meet (str "s") (g [])), ("b", .meet (.lit (.bool true)) (g [])), ("c", .meet (.lit .null) (g [])), ("d", .meet (m [("x", int 1)]) (g [])), ("e", .meet (lst [int 1]) (g [])), ("f", .meet (ad 0 ["a"]) (g []))])),
+    ([], (v (.meet (fl 314159 100000) (g [("significant", str "all"), ("places", str "all"), ("as", str "number")])))),
+    ([], (v (.meet (str "Ada") (g [("case", str "verbatim"), ("empty", str "keep")])))),
+    ([], (v (.meet (.lit (.bool true)) (as "boolean")))),
+    ([], (v (.meet (ad 1 ["b"]) (form "verbatim")))),
+    ([], (v (.meet (m [("aB", int 1), ("c", m [])]) (g [("keys", str "verbatim"), ("empty", str "keep")])))),
+    ([], (v (.meet (lst []) keep))),
+    ([], (v (.meet (arms (fl 15 10) (str "a")) (sig (int 1))))),
+    ([], (v (.meet (.meet (ad 1 ["b"]) (gs "key")) (g [("form", str "key")]))))]
+
+/-- The `gens` rows of what a document writes: each case as a document,
+its declarations first, with the JSON `outputW` gives. A document that
+writes nothing has no row. -/
+def writeRows (tag : String) (cases : List (Decls × Val)) : IO Unit := do
+  let mut i := 0
+  for c in cases do
+    if let some j := outputW c.1 c.2 then
+      let lines ← declLines c.1
+      let some ssrc := c.2.cell | throw (IO.userError "a schema of the fragment has no text")
+      let body := match c.2 with | .map _ _ _ => (ssrc.drop 1).dropRight 1 | _ => ssrc
+      IO.println (tag ++ toString i ++ "\tgens\t" ++ "\\n".intercalate (lines ++ [body]) ++ "\t" ++ j.writtenJson)
+    i := i + 1
+
 
 /-- The `verdict` rows: each case in the default mode, without the fill
 and under `--partial`, with the one class `vet` gives. -/
@@ -5043,6 +5271,244 @@ theorem below_root_verdict_exact : ∀ c ∈ belowRootCases, ∀ (m : Mode) (v :
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (belowRootCases_checkable c hc).1 (belowRootCases_checkable c hc).2 v
 
+/-- Documents with the output annotation `gen`, each run in the three
+modes. What an annotation alone admits, for each type's options and for
+a record no type takes; a record held to its value's type where that
+type is known, a literal, a kind alone, a map, a list and an address,
+and left waiting where a bound or a kind beside one leaves it open; two
+records that unify, on one value, across a reference and inside another
+rider, and two that disagree, at the top of a record and inside it; an
+arm of another type dropped, and an arm whose own record disagrees; a
+default, whose record rides its parent type only where the annotation
+stands outside it, and a lone default whose own value the record
+refuses; the argument, which is one map of concrete data or one string,
+read through a rider, a reference and a call; and the record riding a
+spread's template, a name, absence, and a map whose keys the data
+writes as the document does. Then a written `nil` as the argument,
+which `gen` hands on; an annotation that conflicts, or not, in a call's
+argument, `gen`'s own among them; and a lone default whose own value's
+records disagree, or whose type doesn't take its record, in each arm it
+prefers or in one, alone, met, as an arm, inside one, and in a
+spread's template. -/
+def annotationCases : List (Decls × Val × Data) :=
+  let g (fs : List (String × Val)) : Val := c .gen [m fs]
+  let gs (t : String) : Val := c .gen [str t]
+  let sig (n : Val) : Val := g [("significant", n)]
+  let pl (n : Val) : Val := g [("places", n)]
+  let as (t : String) : Val := g [("as", str t)]
+  let cs : Val := g [("case", str "upper")]
+  let omt : Val := g [("empty", str "omit")]
+  let ks (t : String) : Val := g [("keys", str t)]
+  let v (t : Val) : Val := m [("v", t)]
+  let dv (d : Data) : Data := dm [("v", d)]
+  let E : Data := dm []
+  let big (n : ℤ) : Val := .lit (.num (.biginteger ⟨n⟩))
+  let dflt (x y : Val) : Val := .or [(1, x), (0, y)]
+  let arms (x y : Val) : Val := .or [(0, x), (0, y)]
+  [-- What an annotation alone admits.
+    ([], v (sig (int 2)), E), ([], v (sig (int 2)), dv (j 7)), ([], v (sig (int 2)), dv (js "s")),
+    ([], v (sig (int 2)), dv (dm [])),
+    ([], v (as "string"), dv (.bool true)), ([], v (as "string"), dv (j 2)),
+    ([], v (as "string"), dv (js "x")), ([], v (as "string"), dv .null),
+    ([], v omt, dv .null), ([], v omt, dv (jl [])), ([], v omt, dv (js "")), ([], v omt, dv (j 0)),
+    ([], v cs, dv (js "s")), ([], v cs, dv (j 1)),
+    ([], m [("o", ks "snake")], dm [("o", dm [("aB", j 1)])]), ([], m [("o", ks "snake")], dm [("o", jl [])]),
+    ([], v (gs "key"), dv (j 3)), ([], v (gs "key"), E),
+    ([], v (g [("custom", str "none")]), dv (jl [j 1])), ([], v (g [("custom", str "none")]), dv (j 5)),
+    ([], v (g []), dv (j 0)),
+    ([], v (g [("empty", str "omit"), ("case", str "upper")]), dv (js "")),
+    ([], v (g [("empty", str "omit"), ("case", str "upper")]), dv .null),
+    -- A record no type takes.
+    ([], v (g [("digits", int 2)]), E), ([], v (g [("digits", int 2)]), dv (j 1)),
+    ([], v (sig (int 0)), E), ([], v (sig (int 0)), dv (j 7)),
+    ([], v (pl (int 4097)), dv (j 7)), ([], v (pl (int 4096)), dv (j 7)), ([], v (pl (int 0)), dv (j 7)),
+    ([], v (pl (int (-1))), dv (j 7)), ([], v (sig (str "all")), dv (j 7)), ([], v (sig (big 2)), dv (j 7)),
+    ([], v (as "boolean"), dv (j 7)), ([], m [("o", ks "train")], dm [("o", dm [])]), ([], v (gs ""), E),
+    -- A record is held to its value's type once the type is known.
+    ([], v (.meet .integer (sig (int 2))), dv (j 7)), ([], v (.meet .integer (sig (int 2))), dv (js "s")),
+    ([], v (.meet .string (sig (int 2))), dv (js "s")), ([], v (.meet (str "ada") (sig (int 2))), E),
+    ([], v (.meet .integer cs), E), ([], v (.meet .mapKind (sig (int 2))), E),
+    ([], v (.meet (m []) (sig (int 2))), E), ([], v (.meet (tmpl .integer) (sig (int 2))), E),
+    ([], v (.meet (.list [] (some .integer) false) (sig (int 2))), E), ([], v (.meet .pathKind cs), E),
+    ([], v (.meet .boolean (pl (int 2))), E), ([], v (.meet (.lit .null) cs), E),
+    ([], mo [("v", true, .meet .string (sig (int 2)))], E),
+    ([], v (.meet (m [("a", int 1)]) (sig (int 2))), E), ([], v (.meet (lst [int 1]) (ks "snake")), E),
+    ([], m [("v", .meet (ad 0 ["a"]) cs), ("a", int 1)], E),
+    -- A bound, and a kind beside one, leave the type open.
+    ([], v (.meet (.min (nb 1)) cs), E), ([], v (.meet (.min (nb 1)) cs), dv (j 5)),
+    ([], v (.meet (.min (nb 1)) (sig (int 2))), dv (j 5)),
+    ([], v (.meet (.mulof (.integer (Integer.of 2))) cs), E),
+    ([], v (.meet (.mulof (.integer (Integer.of 2))) cs), dv (j 4)),
+    ([], v (.meet (.len (int 2)) (sig (int 2))), E), ([], v (.meet (.neq [nb 1]) cs), E),
+    ([], v (.meet (.meet .integer (.min (nb 1))) cs), E),
+    ([], v (.meet (.meet .integer (.min (nb 1))) cs), dv (j 5)),
+    ([], v (.meet .any cs), dv (j 1)), ([], v (.meet .any cs), E),
+    ([], v (.meet (.meet .integer (.max (nb 9))) (sig (int 1))), dv (j 9)),
+    ([], v (.meet (.meet .integer (.max (nb 9))) (sig (int 1))), dv (j 10)),
+    -- Two annotations whose types are apart wait for a value.
+    ([], v (.meet (sig (int 2)) cs), E), ([], v (.meet (sig (int 2)) cs), dv (j 1)),
+    ([], v (.meet (sig (int 2)) cs), dv (js "a")), ([], v (.meet (.meet (sig (int 2)) cs) (int 1)), E),
+    -- Two records unify as maps.
+    ([], v (.meet (.meet (int 7) (pl (int 2))) (as "string")), E),
+    ([], v (.meet (.meet (int 7) (sig (int 2))) (sig (int 2))), E),
+    ([], v (.meet (as "string") (as "string")), dv (.bool true)),
+    ([], v (.meet (.meet .integer (sig (int 2))) (.meet .integer (sig (int 3)))), dv (j 7)),
+    ([], v (.meet (.meet .integer (sig (int 2))) (.meet .integer (sig (int 3)))), E),
+    ([], v (.meet (sig (int 2)) (sig (int 3))), dv (j 7)),
+    ([], mo [("v", true, .meet (sig (int 2)) (sig (int 3)))], E),
+    ([], v (.meet (.meet (int 7) (sig (str "all"))) (sig (int 2))), E),
+    ([], v (.meet (.meet (int 7) (as "string")) (as "number")), E),
+    ([], v (.meet (g [("a", m [("b", int 1)])]) (g [("a", m [("b", int 2)])])), E),
+    ([], v (.meet (g [("a", m [("b", int 1)])]) (g [("a", m [("c", int 2)])])), dv (j 1)),
+    ([], v (.meet (g [("a", lst [int 1, int 2])]) (g [("a", lst [int 1, int 2])])), dv (j 1)),
+    ([], v (.meet (g [("a", lst [int 1, int 2])]) (g [("a", lst [int 1, int 3])])), E),
+    ([], v (.meet (g [("a", lst [int 1])]) (g [("a", lst [int 1, int 2])])), E),
+    ([], v (.meet (g [("a", lst [m [("x", int 1)]])]) (g [("a", lst [m [("y", int 2)]])])), dv (j 1)),
+    ([], v (.meet (g [("a", int 1)]) (g [("a", big 1)])), E),
+    ([], v (.meet (g [("a", m [("b", int 1)])]) (g [("a", int 1)])), E),
+    ([], v (.meet (.ride .metadata (.meet (int 7) (pl (int 1))) [("t", .str "x")]) (pl (int 2))), E),
+    ([], v (.meet (.ride .metadata (.meet (int 7) (pl (int 1))) [("t", .str "x")]) (pl (int 1))), dv (j 7)),
+    ([], v (.meet (hide (.meet (int 7) (pl (int 1)))) (pl (int 2))), E),
+    ([], m [("x", .meet (int 7) (sig (int 2))), ("y", .meet (p ["x"]) (sig (int 3)))], E),
+    ([], m [("x", .meet (int 7) (sig (int 2))), ("y", .meet (p ["x"]) (sig (int 2)))], E),
+    ([], m [("x", .meet (int 7) (sig (int 2))), ("y", .meet (p ["x"]) .string)], E),
+    -- An arm of another type drops, and so does an arm whose record disagrees.
+    ([], v (.meet (arms (int 7) (str "a")) (sig (int 1))), dv (js "a")),
+    ([], v (.meet (arms (int 7) (str "a")) (sig (int 1))), dv (j 7)),
+    ([], v (.meet (arms .integer .string) (sig (int 1))), dv (js "a")),
+    ([], v (.meet (arms .integer .string) (sig (int 1))), dv (j 7)),
+    ([], v (.meet (arms .integer .string) (sig (int 1))), E),
+    ([], v (.meet (arms (str "a") (str "b")) (sig (int 2))), E),
+    ([], v (.meet (arms .boolean .number) (as "string")), dv (j 7)),
+    ([], v (.meet (arms .boolean .number) (as "string")), dv (.bool true)),
+    ([], v (.meet (arms (.meet (.lit (.bool true)) (as "number")) (int 7)) (as "string")), dv (.bool true)),
+    ([], v (.meet (arms (.meet (.lit (.bool true)) (as "number")) (int 7)) (as "string")), dv (j 7)),
+    ([], v (.meet (arms (.meet (.lit (.bool true)) (as "number")) (int 7)) (as "string")), E),
+    ([], v (.meet (arms (.meet .boolean (as "number")) .number) (as "string")), dv (.bool true)),
+    ([], v (.meet (arms (.meet .boolean (as "number")) .number) (as "string")), dv (j 2)),
+    ([], v (.meet (.meet (dflt (int 7) .integer) (sig (int 2))) (.meet (dflt (int 7) .integer) (sig (int 1)))), E),
+    ([], v (arms (.meet (int 7) (sig (int 5))) (.meet (int 7) (sig (int 6)))), E),
+    ([], v (arms (.meet (int 7) (pl (int 1))) (.meet (int 7) (pl (int 1)))), dv (j 7)),
+    ([], v (arms (int 1) (.meet (int 2) (c .gen [int 7]))), dv (j 1)),
+    -- A default: the record rides its parent type from outside it only.
+    ([], v (.meet (.pref 1 (int 7)) (sig (int 2))), dv (j 9)),
+    ([], v (.meet (.pref 1 (int 7)) (sig (int 2))), dv (js "s")),
+    ([], v (.pref 1 (.meet (int 7) (sig (int 2)))), dv (j 9)),
+    ([], v (.pref 1 (.meet (int 7) (sig (int 2)))), dv (js "s")),
+    ([], v (.meet (.pref 1 (.meet (int 7) (sig (int 2)))) (.meet (int 9) (sig (int 3)))), E),
+    ([], v (.pref 1 (.meet (int 1) (as "string"))), dv (.bool true)),
+    ([], v (.meet (.pref 1 (.meet (int 7) (sig (int 3)))) (sig (int 2))), E),
+    ([], v (.meet (.pref 1 (.meet (int 7) (sig (int 3)))) (sig (int 2))), dv (j 9)),
+    ([], v (.meet (.pref 1 (str "a")) (sig (int 2))), E),
+    ([], v (.meet (.pref 1 (str "a")) (sig (int 2))), dv (js "b")),
+    ([], v (.meet (dflt (.meet (int 7) (sig (int 3))) .integer) (sig (int 2))), E),
+    ([], v (.meet (dflt (.meet (int 7) (sig (int 3))) .integer) (sig (int 2))), dv (j 9)),
+    ([], v (.meet (dflt (.meet (int 7) (sig (int 3))) (int 8)) (sig (int 2))), E),
+    ([], v (.meet (dflt (int 7) (.meet (int 8) (sig (int 3)))) (sig (int 2))), E),
+    ([], v (.meet (dflt (str "a") (int 7)) (sig (int 2))), E),
+    ([], v (.meet (dflt (str "a") (int 7)) (sig (int 2))), dv (j 7)),
+    ([], v (.meet (dflt (str "a") .integer) (sig (int 2))), E),
+    ([], v (.or [(1, .meet (int 7) (g [])), (1, int 7)]), E),
+    ([], v (.or [(1, .meet (int 7) (g [("places", int 1), ("as", str "string")])),
+      (1, .meet (int 7) (g [("as", str "string"), ("places", int 1)]))]), E),
+    ([], v (.or [(1, .meet (int 7) (sig (int 2))), (1, .meet (int 7) (sig (int 2)))]), E),
+    ([], v (.or [(1, .meet (int 7) (sig (int 2))), (2, .meet (int 7) (sig (int 1)))]), E),
+    ([], v (.meet (.meet (.pref 1 (int 7)) (sig (int 2))) (.meet (.pref 1 (int 7)) (sig (int 1)))), E),
+    ([], v (.meet (.meet (.pref 1 (int 7)) (sig (int 2))) (.meet (.pref 1 (int 7)) (sig (int 2)))), E),
+    ([], v (.meet (.meet (dflt (int 7) .integer) (sig (int 2))) (.meet (dflt (int 7) .integer) (sig (int 2)))), E),
+    -- The argument is one map of concrete data, or one string.
+    ([], v (.meet (int 7) (sig .integer)), dv (j 7)),
+    ([], m [("v", .meet (int 7) (sig (p ["n"]))), ("n", .integer)], dm [("n", j 2)]),
+    ([], m [("v", .meet .integer (c .gen [p ["r"]])), ("r", m [("significant", .integer)])],
+      dm [("v", j 7), ("r", dm [("significant", j 2)])]),
+    ([], v (.meet (int 7) (sig (dflt (int 2) .integer))), E),
+    ([], v (.meet (int 7) (sig (.pref 1 (int 2)))), E),
+    ([], v (.meet (int 7) (c .gen [.pref 1 (m [("significant", int 2)])])), E),
+    ([], v (.meet (int 7) (c .gen [int 2])), dv (j 7)), ([], v (.meet (ad 1 ["b"]) (c .gen [.string])), E),
+    ([], v (.meet (int 7) (c .gen [lst [int 2]])), E), ([], v (.meet (int 7) (c .gen [.lit .null])), E),
+    ([], v (.meet (int 7) (c .gen [mo [("significant", true, int 2)]])), E),
+    ([], v (.meet (int 7) (c .gen [tmpl .integer])), E),
+    ([], v (.meet (int 7) (c .gen [])), E), ([], v (.meet (int 7) (c .gen [m [], m []])), E),
+    ([], v (.meet (int 7) (c .gen [p ["nosuch"]])), E), ([], mo [("v", true, c .gen [int 7])], E),
+    ([], v (.meet (int 7) (c .gen [hide (m [("significant", int 2)])])), E),
+    ([], v (.meet (int 7) (c .gen [.ride .metadata (m [("significant", int 2)]) [("t", j 1)]])), E),
+    ([], v (.meet (int 7) (c .gen [cl [("significant", int 2)]])), E),
+    ([], v (g [("a", ad 0 ["x"])]), E),
+    ([], m [("s", hide (m [("money", m [("significant", int 2)])])), ("p", .meet (int 7) (c .gen [p ["s", "money"]]))], E),
+    ([], m [("v", .meet (int 7) (sig (p ["n"]))), ("n", int 2)], E),
+    ([], v (.meet (int 7) (sig (c .add [int 1, int 1]))), E),
+    ([], m [("s", hide (str "key")), ("x", .meet (ad 0 ["a", "b"]) (c .gen [p ["s"]]))], E),
+    ([], m [("x", .meet (ad 0 ["a", "b"]) (c .gen [c .plus [str "k", str "ey"]]))], E),
+    ([], v (.meet (.meet (ad 1 ["b"]) (gs "key")) (g [("form", str "key")])), E),
+    ([], v (.meet (.meet (ad 1 ["b"]) (gs "key")) (gs "pointer")), E),
+    ([], v (.meet (int 7) (gs "string")), E), ([], v (.meet (int 7) (gs "significant")), E),
+    -- The record rides: a spread's template, a name, absence, and what vet reads.
+    ([], m [("m", tmpl (.meet .number (sig (int 2))))], dm [("m", dm [("a", j 7), ("b", js "s")])]),
+    ([], m [("m", tmpl (.meet .number (sig (int 2))))], dm [("m", dm [("a", j 7)])]),
+    ([], m [("m", tmpl (sig (int 1)))], dm [("m", dm [("a", j 7), ("b", js "s")])]),
+    ([], m [("m", tmpl (sig (int 1)))], dm [("m", dm [("a", j 7)])]),
+    ([], m [("m", .meet (tmpl (sig (int 1))) (m [("a", int 7), ("b", str "s")]))], E),
+    ([], m [("m", .meet (m [("a", int 7), ("b", str "s")]) (tmpl (g [])))], E),
+    ([], m [("l", .list [] (some cs) false)], dm [("l", jl [js "a", j 1])]),
+    ([], m [("l", .list [] (some cs) false)], dm [("l", jl [js "a"])]),
+    ([], m [("x", .meet .number (sig (int 3))), ("y", p ["x"])], dm [("x", j 7), ("y", j 7)]),
+    ([], m [("x", .meet .number (sig (int 3))), ("y", p ["x"])], dm [("x", j 7), ("y", j 8)]),
+    ([("m", .meet .number (sig (int 2)))], m [("v", .alias "m"), ("w", .meet (.alias "m") .string)], dv (j 1)),
+    ([("m", .meet .number (sig (int 2)))], m [("v", .alias "m"), ("w", .alias "m")], dm [("v", j 1), ("w", j 2)]),
+    ([], m [("a", .meet (c .maybe [p ["nope"]]) (sig (int 2))), ("b", int 1)], E),
+    ([], m [("o", .meet (cl [("orderId", .integer)]) (ks "snake"))], dm [("o", dm [("order_id", j 7)])]),
+    ([], m [("o", .meet (cl [("orderId", .integer)]) (ks "snake"))], dm [("o", dm [("orderId", j 7)])]),
+    ([], m [("o", .meet .mapKind (ks "snake"))], dm [("o", dm [("aB", j 1)])]),
+    ([], m [("o", .meet (m [("orderId", .integer)]) (ks "snake"))], dm [("o", dm [("orderId", j 7)])]),
+    ([], m [("u", m [("a", .meet .anyString omt), ("b", .integer)])], dm [("u", dm [("a", js ""), ("b", j 1)])]),
+    ([], v (.meet .string omt), E), ([], v (.meet .anyString omt), dv (js "")),
+    ([], v (arms (mo [("a", false, .meet .anyString omt), ("b", true, .integer)]) (m [("a", .integer)])),
+      dv (dm [("a", js "")])),
+    ([], v (.meet .number (as "string")), dv (j 7)), ([], v (.meet .number (as "string")), dv (js "7")),
+    ([], m [("a", .meet (str "s") (g [])), ("b", .meet (.lit (.bool true)) (g [])), ("c", .meet (.lit .null) (g [])),
+      ("d", .meet (m [("x", int 1)]) (g [])), ("e", .meet (lst [int 1]) (g []))], E),
+    ([], v (.meet (int 7) (g [("significant", str "all"), ("places", str "all"), ("as", str "number")])), E),
+    ([], v (.meet (m [("aB", int 1), ("c", m [])]) (g [("keys", str "verbatim"), ("empty", str "keep")])), E),
+    ([], v (.meet (sig (int 2)) (str "ada")), E),
+    ([], m [("s", type (m [("money", sig (int 2))])), ("p", .meet (p ["s", "money"]) (str "ada"))], E),
+    -- A written `nil` as the argument, which `gen` hands on as it is.
+    ([], mo [("v", true, c .gen [Val.void])], E), ([], v (c .gen [Val.void]), E),
+    ([], mo [("v", true, c .gen [Val.void])], dv (j 1)),
+    ([], mo [("v", true, .meet (int 1) (c .gen [Val.void]))], E),
+    ([], mo [("v", true, c .gen [.meet (m [("places", int 2)]) Val.void])], E),
+    ([], mo [("x", true, Val.void), ("v", true, c .gen [p ["x"]])], E),
+    ([], mo [("v", true, c .gen [.ride .metadata Val.void [("a", j 1)]])], E),
+    -- An annotation in a call's argument, `gen`'s own among them.
+    ([], v (.meet (int 7) (c .gen [.meet (m [("places", int 2)]) (sig (int 2))])), E),
+    ([], v (.meet (int 7) (c .gen [.meet (m [("places", int 2)]) omt])), E),
+    ([], v (.meet (int 7) (g [("places", .meet (int 2) (sig (int 2)))])), E),
+    ([], v (.meet (int 7) (g [("places", .meet (int 2) (ks "camel"))])), E),
+    ([], v (c .upper [.meet (str "a") (ks "camel")]), E), ([], v (c .upper [.meet (str "a") cs]), E),
+    ([], v (c .add [.meet (int 1) (ks "camel"), int 2]), E),
+    ([], v (c .join [lst [.meet (str "a") (ks "camel"), str "b"]]), E),
+    -- A lone default whose own value's records disagree, or that its type doesn't take.
+    ([], v (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2)))), E),
+    ([], v (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2)))), dv (j 7)),
+    ([], mo [("v", true, .pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))))], E),
+    ([], v (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 1)))), E),
+    ([], v (dflt (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))) (int 8)), E),
+    ([], v (.pref 1 (arms (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))) (int 8))), E),
+    ([], v (.pref 1 (arms (.meet (.meet (int 7) (pl (int 1))) (pl (int 2)))
+      (.meet (.meet (int 8) (pl (int 1))) (pl (int 2))))), E),
+    ([], v (.pref 1 (arms (.meet (int 7) (ks "camel")) (int 8))), E),
+    ([], v (.pref 1 (arms (.meet (int 7) (ks "camel")) (.meet (int 8) (ks "camel")))), E),
+    ([], v (.meet (.pref 1 (arms (.meet (int 7) (ks "camel")) (int 8))) .integer), E),
+    ([], v (arms (m [("a", .pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))))]) (int 3)), E),
+    ([], v (tmpl (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))))), dv (dm [("x", j 7)]))]
+
+set_option maxRecDepth 16384 in
+theorem annotationCases_checkable : ∀ c ∈ annotationCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem annotation_verdict_exact : ∀ c ∈ annotationCases, ∀ (m : Mode) (v : Verdict),
+    vetG m c.1 c.2.1 c.2.2 = v ↔ VetG m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetG_iff (annotationCases_checkable c hc).1 (annotationCases_checkable c hc).2 v
+
 /-- Names a source publishes, `export({ %a })`, and the destructures
 that take them, `{ %a } = @"p"`: a name taken by its own name, all of a
 source's names at once, and under another name; at the top and under a
@@ -7340,7 +7806,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
-    ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
+    ("call", "call", "usc"), ("call", "call", "encode"), ("call", "call", "decode"),
+    ("call", "call", "super"), ("call", "call", "pref"),
     ("call", "call", "move"), ("call", "call", "copy"), ("call", "call", "relate"), ("call", "syntax", "@"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
@@ -7349,7 +7816,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
     ("call", "call", "each"), ("call", "call", "pack"), ("call", "call", "maybe"),
     ("call", "call", "emit"), ("call", "call", "apply"), ("absent", "call", "maybe"),
-    ("call", "call", "acyclic"), ("call", "call", "inverse"),
+    ("call", "call", "acyclic"), ("call", "call", "inverse"), ("call", "call", "gen"),
     ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
@@ -7374,7 +7841,9 @@ def formSamples : List (String × Val) :=
     ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
-    ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
+    ("esc", .call .esc [.string]), ("usc", .call .usc [.string]),
+    ("encode", .call .encode [.string, .string]), ("decode", .call .decode [.string, .string]),
+    ("super", .call .super [.integer]),
     ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("copy", .call .copy [.integer]), ("relate", .call .relate []),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
@@ -7385,7 +7854,8 @@ def formSamples : List (String × Val) :=
     ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole]),
     ("pack", .call .pack [.listKind, .hole]), ("maybe", .call .maybe [.string]),
     ("emit", .call .emit [.listKind, .mapKind]), ("apply", .call .apply [.integer, .hole]),
-    ("acyclic", .call .acyclic []), ("inverse", .call .inverse [.lit (.str "k")])]
+    ("acyclic", .call .acyclic []), ("inverse", .call .inverse [.lit (.str "k")]),
+    ("gen", .call .gen [.mapKind])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -10150,6 +10620,23 @@ def pathRowsLate : IO Unit := do
   IO.println "# a source that declares nothing."
   pathRows "lu" belowRootCases
 
+/-- The output annotation's rows, a function of their own so that the
+late rows' block stays within what the C compiler nests. -/
+def pathRowsAnnotation : IO Unit := do
+  IO.println "# The output annotation `gen(r)`, in rows an0 on, with the one class `vetG`"
+  IO.println "# gives, which `vetG_iff` makes the definition's own. An annotation is `any`"
+  IO.println "# carrying its record, and `vet` never reads an option: it reads the value, and"
+  IO.println "# that the record is one the value's type takes. Alone it admits the values of"
+  IO.println "# the types whose standard options take the record. Beside a value whose type"
+  IO.println "# is known, a literal, a kind alone, a map, a list or an address, a record the"
+  IO.println "# type doesn't take is the schema's error, and a bound or a kind beside one"
+  IO.println "# leaves the type open. Two records unify as maps, and a disagreement is the"
+  IO.println "# schema's error, an arm's its arm's alone, and a lone default's own value's"
+  IO.println "# the place's. The argument is one map of concrete data, or one string."
+  IO.println "# An annotation that conflicts inside any call's argument is the schema's"
+  IO.println "# error, and a written `nil` passes through `gen` as it is."
+  pathRows "an" annotationCases (verdict := vetG)
+
 set_option maxRecDepth 2048 in
 def main (args : List String) : IO UInt32 := do
   match args with
@@ -10213,9 +10700,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# reads them: the list holds no position for the element."
     IO.println "# Numbers at so many significant digits follow in rows gs0 on:"
     IO.println "# `Number.significant` (spec/Aontu/Written.lean), written as the gen() call"
-    IO.println "# both engines read, whose annotation is not yet a term of the definition."
+    IO.println "# both engines read."
     IO.println "# Numbers at so many places, at both counts, and as strings follow in rows gw0"
     IO.println "# on: `Number.rounded` and `Number.written`, in the same module."
+    IO.println "# What a document writes under its output annotations follows in rows wa0 on:"
+    IO.println "# `outputW` (spec/Aontu/Writing.lean), each value written by the record it"
+    IO.println "# carries, a number rounded or as text, a boolean as a number or its name, a"
+    IO.println "# string in a case, an address in a form, a map's keys in a style, and a value"
+    IO.println "# written empty left out under empty: \"omit\"."
     genRows "g" genVals
     varRows "i"
     genRows "k" addrVals
@@ -10223,6 +10715,7 @@ def main (args : List String) : IO UInt32 := do
     readGenRows "gl" listGenVals
     significantRows "gs" significantCases
     writtenRows "gw" writtenCases
+    writeRows "wa" writeCases
     return 0
   | ["verdict"] =>
     IO.println "# Generated by `lake exe oracle verdict` (spec/Oracle.lean) from the definition"
@@ -10544,6 +11037,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# that declares it, by name and by path."
     pathRows "mp" mutualPathCases
     pathRowsLate
+    pathRowsAnnotation
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

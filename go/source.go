@@ -531,6 +531,9 @@ func stampResolved(node any, full string) {
 			stampURL(n, full)
 		}
 	case map[string]any:
+		if _, stamped := n[urlKey]; !stamped {
+			n[urlKey] = full
+		}
 		for _, child := range n {
 			stampResolved(child, full)
 		}
