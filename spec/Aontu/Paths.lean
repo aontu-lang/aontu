@@ -1629,11 +1629,15 @@ termination_by structural _ p => p
 
 /-- The names of the paths the moves a document's reading makes read,
 `r` reading the document to its roots: those the last root holds
-(`Val.moves`), and those each body that writes a `move` holds, read
+(`Val.moves`), those the document read at its positions holds, where a
+`key(n)` a template writes reads its key so that a move beside it is
+made (#1065), and those each body that writes a `move` holds, read
 with the paths the roots declare, used or not, as both ports read a
 body where it's declared. -/
 def Decls.movesMade (ds : Decls) (r : Decls → Val → List Val) (S : Val) : List String :=
   ((r ds S).getLast?.getD .any).moves ++
+    (normaliseD (ds.withPathsFrom S (r ds S)).1.callsMade
+      ((ds.withPathsFrom S (r ds S)).1.callsMade.readR (ds.withPathsFrom S (r ds S)).2)).moves ++
     (ds.filter fun d => !d.2.moved.isEmpty).flatMap fun d =>
       (normaliseD (ds.withPathsFrom S (r ds S)).1
         ((ds.withPathsFrom S (r ds S)).1.readU (((ds.withPathsFrom S (r ds S)).1.env d.1).getD .any))).moves
