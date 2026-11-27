@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The language servers rename a key and every reference to it
+
+Task LS7, in both servers. `textDocument/rename` renames the key at the
+position, or the path up to the segment of a reference there, and the
+segment that names it in every reference that reads the path or a path
+inside it, as one `WorkspaceEdit` across the open document and the
+files it includes under the workspace root. `textDocument/prepareRename`
+answers the range and the name, and `renameProvider: { prepareProvider:
+true }` is advertised. A key keeps its quotes and a name that is not a
+plain name is quoted. The whole rename is refused, with a `-32803`
+error that names the site, where no edit of text keeps the document
+true: a key a generator makes, a pattern matches, `key()` reads or a
+spread's template writes, a path a reference copies where the copy is
+written or read, a site in a bundled model, a package or a file outside
+the root or unread, a key the cursor cannot find, and a name that
+needs an escape or is taken. The library answers are `renameAt` and
+`RenameAt`; a new shared-row mode, `rename`, holds both ports to one
+answer in 79 rows of `test/spec/cursor.tsv`.
+
 ### The language servers find references and highlight them
 
 Task LS6, in both servers. `textDocument/references` answers, on a key

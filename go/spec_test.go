@@ -80,7 +80,7 @@ func TestSpec(t *testing.T) {
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode ||
 				"at" == mode || "describe" == mode || "define" == mode ||
-				"members" == mode || "refs" == mode
+				"members" == mode || "refs" == mode || "rename" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -645,6 +645,39 @@ func TestSpec(t *testing.T) {
 					if !jsonEqual(got, expect) {
 						gj, _ := json.Marshal(got)
 						t.Fatalf("refs mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "rename":
+					// The position, then the name to rename to after a colon; none asks
+					// the prepare step. The fixtures are the workspace root.
+					parts := strings.SplitN(data, ":", 3)
+					line, lerr := strconv.Atoi(parts[0])
+					character, cerr := strconv.Atoi(parts[1])
+					if nil != lerr || nil != cerr {
+						t.Fatalf("bad rename position %q", data)
+					}
+					name := ""
+					if 3 == len(parts) {
+						name = parts[2]
+					}
+					asWritten := func(text string) string {
+						for _, dir := range []string{fixturesDir, filepath.FromSlash(fixturesDir)} {
+							text = strings.ReplaceAll(text, dir, "__FIXTURES__")
+						}
+						return strings.ReplaceAll(text, `__FIXTURES__\`, "__FIXTURES__/")
+					}
+					var got any
+					if r := New().RenameAt(src, CursorPosition{line, character}, name,
+						RenameOptions{Root: fixturesDir, Prepare: 3 != len(parts)}); nil != r {
+						r.Refused = asWritten(r.Refused)
+						for i := range r.Edits {
+							r.Edits[i].File = asWritten(r.Edits[i].File)
+						}
+						got = r
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("rename mismatch\n want: %s\n got:  %s", expect, gj)
 					}
 
 				case "symbols":

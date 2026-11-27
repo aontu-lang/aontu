@@ -1,6 +1,9 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 
+import { readFileSync } from 'node:fs'
+import { isAbsolute, relative, resolve } from 'node:path'
+
 import { Aontu } from './aontu'
 import { whyParts } from './query'
 import { anchorParts, throughResidue } from './vet'
@@ -195,23 +198,35 @@ function kids(v: any, path: string[]): [any, string[]][] {
 }
 
 
+type RefText = { end: number, spelt: string, segs: [number, number][] }
+
 // A reference as written at a site, read to its end, with a quoted
-// segment read as its text: `$."a b"` spells `$.a b`.
-function refSpan(src: string, at: number): [number, string] {
+// segment read as its text: `$."a b"` spells `$.a b`. Each segment's
+// span is kept, an empty one standing for a step up.
+function refText(src: string, at: number): RefText {
   let p = at
   let out = '$' === src[p] ? (p++, '$') : ''
+  const segs: [number, number][] = []
   while ('.' === src[p]) {
     p++
     const s = p
     if ('"' === src[p] || '\'' === src[p]) {
       p = quoteEnd(src, p) + 1
       out += '.' + src.slice(s + 1, p - 1)
-      continue
     }
-    while (p < src.length && '.' !== src[p] && !TOKEN_END.includes(src[p])) p++
-    out += '.' + src.slice(s, p)
+    else {
+      while (p < src.length && '.' !== src[p] && !TOKEN_END.includes(src[p])) p++
+      out += '.' + src.slice(s, p)
+    }
+    segs.push([s, p])
   }
-  return [p, out]
+  return { end: p, spelt: out, segs }
+}
+
+
+function refSpan(src: string, at: number): [number, string] {
+  const r = refText(src, at)
+  return [r.end, r.spelt]
 }
 
 
@@ -450,11 +465,11 @@ function closersOf(open: [string, number][]): string {
 }
 
 
-type RefText = { start: number, abs: boolean }
+type RefStart = { start: number, abs: boolean }
 
 // A reference written from s up to the dot before w: dots, then segments,
 // each a name or quoted text and a dot. Where it starts, or nothing.
-function refAt(src: string, s: number, w: number): RefText | undefined {
+function refAt(src: string, s: number, w: number): RefStart | undefined {
   let i = s
   while (i < w && '.' === src[i]) i++
   const up = i - s
@@ -797,13 +812,394 @@ function sitesOf(
 }
 
 
+type FileEdit = { file: string, range: Range, newText: string }
+
+// A rename at a cursor: the path it renames, the key or the segment the
+// cursor is on, and the edits; or why no edit of text keeps it true.
+type CursorRename =
+  { path: string[], range: Range, placeholder: string, edits?: FileEdit[] } |
+  { refused: string }
+
+type RenameOptions = CursorOptions & { root?: string, prepare?: boolean }
+
+type Entry = { v: any, path: string[], calls: any[], arg: boolean, step: boolean, kid: number }
+
+type Place = { file: string, off: number }
+
+type KeyAt = Place & { path: string[], end: number, kid: number }
+
+type RefAt = Place & { e: Entry, reads: string[], ref?: RefText }
+
+type Candidate = Place & { why: string }
+
+
+const GENERATORS = ['pack', 'each', 'apply', 'emit', 'match']
+
+const BARE_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+const NEEDS_ESCAPE = /["\\\u0000-\u001f\u007f]/
+
+const VALUE_SEGMENTS = ['_', 'false', 'nil', 'null', 'true']
+
+const MAX_ALIASES = 64
+
+
+// Every value of the parse, an included file's too, with its path, the
+// calls it stands in, and whether a map's key was the step to it.
+function renameEntries(root: any): Entry[] {
+  const out: Entry[] = []
+  const seen = new Set<any>()
+  const stack: Entry[] = [{ v: root, path: [], calls: [], arg: false, step: false, kid: -1 }]
+  while (0 < stack.length) {
+    const e = stack.pop() as Entry
+    if (null == e.v || true !== e.v.isVal || seen.has(e.v)) {
+      continue
+    }
+    seen.add(e.v)
+    const kid = e.step ? out.length : e.kid
+    out.push({ ...e, kid })
+    const v = e.v
+    const calls = true === v.isFunc ? [...e.calls, e] : e.calls
+    for (const [k, path] of kids(v, e.path)) {
+      const step = path.length > e.path.length
+      stack.push({
+        v: k, path, calls, arg: e.arg,
+        step: step && true !== v.isList && '&' !== path[path.length - 1], kid: step ? -1 : kid,
+      })
+    }
+    for (const k of true === v.isConstraint && Array.isArray(v.peg) ? v.peg : []) {
+      stack.push({ v: k, path: e.path, calls, arg: true, step: false, kid })
+    }
+  }
+  return out
+}
+
+
+// Whether a and b are one path, where `&` stands for any key.
+function alike(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((s, i) => s === b[i] || '&' === s || '&' === b[i])
+}
+
+
+function prefixOf(a: string[], b: string[]): boolean {
+  return a.length < b.length && alike(a, b.slice(0, a.length))
+}
+
+
+function same(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((s, i) => s === b[i])
+}
+
+
+function callName(e: Entry): string {
+  return e.v.funcname()
+}
+
+
+// A call that holds a spread's keys to a pattern.
+function isPattern(e: Entry): boolean {
+  const name = callName(e)
+  return 'keyed' === name || ('match' === name && '&' === e.path[e.path.length - 1])
+}
+
+
+// A name written as a key, or as a reference's segment, in the quotes it
+// had where it had them.
+function writtenName(name: string, quote: string, segment: boolean): string {
+  if ('\'' === quote && !name.includes('\'')) {
+    return '\'' + name + '\''
+  }
+  return '' === quote && BARE_KEY.test(name) && !(segment && VALUE_SEGMENTS.includes(name)) ?
+    name : '"' + name + '"'
+}
+
+
+function quoteAt(text: string, off: number): string {
+  return '"' === text[off] || '\'' === text[off] ? text[off] : ''
+}
+
+
+// Why a file a rename would edit cannot be edited, if it cannot.
+function fileRefusal(file: string, root: string | undefined, readable: boolean): string | undefined {
+  if (file.startsWith('aontu:')) {
+    return file + ' is a bundled model'
+  }
+  const abs = resolve(file)
+  if (abs.split(/[\\/]/).includes('aontu_meta')) {
+    return file + ' is in a package'
+  }
+  const rel = undefined === root || '' === root ? '..' : relative(resolve(root), abs)
+  if ('..' === rel.split(/[\\/]/)[0] || isAbsolute(rel)) {
+    return file + ' is outside the workspace root'
+  }
+  return readable ? undefined : 'the text of ' + file + ' cannot be read'
+}
+
+
+function byPlace(a: Place, b: Place): number {
+  return cmpCodePoint(a.file, b.file) || a.off - b.off
+}
+
+
+// The reason of the first candidate in order of file and place.
+function firstWhy(cs: Candidate[]): string | undefined {
+  return cs.sort(byPlace)[0]?.why
+}
+
+
+// What a rename at a cursor edits: the key at every site that writes the
+// path, and the segment that names it in every reference that reads it;
+// or the site no edit of text can keep true. Under `prepare` no name is
+// given and no edit is made.
+function renameAt(
+  src: string, pos: Position, name: string, opts?: RenameOptions): CursorRename | undefined {
+  const doc = parsed(src, opts)
+  const at = undefined === doc ? undefined : hitAt(src, pos, doc.root)
+  if (undefined === doc || undefined === at || 'value' === at.on) {
+    return undefined
+  }
+  const mem = (opts?.trust?.include as any)?.mem
+  const texts = new Map<string, string | undefined>([['', src]])
+  const text = (file: string): string | undefined => {
+    if (!texts.has(file)) {
+      let t: string | undefined
+      try {
+        // An included file's text is the one the parse read, which an
+        // include from memory does not keep.
+        t = file.startsWith('aontu:') || 'string' === typeof mem?.[file] ? undefined :
+          readFileSync(file, 'utf8')
+      }
+      // A file the parse has just read can be gone by now.
+      /* node:coverage ignore next 3 */
+      catch {
+        t = undefined
+      }
+      texts.set(file, t)
+    }
+    return texts.get(file)
+  }
+  const starts = new Map<string, number[]>()
+  const linesOf = (file: string): number[] => {
+    if (!starts.has(file)) {
+      starts.set(file, lineStarts(text(file) ?? ''))
+    }
+    return starts.get(file) as number[]
+  }
+  const placeOf = (file: string, site: any): Place =>
+    ({ file, off: undefined === text(file) ? -1 : siteOffset(linesOf(file), { site }) })
+  const where = (p: Place): string => {
+    if (0 > p.off) {
+      return p.file
+    }
+    const lc = positionOf(linesOf(p.file), p.off)
+    return ('' === p.file ? '' : p.file + ':') + (lc.line + 1) + ':' + (lc.character + 1)
+  }
+
+  const entries = renameEntries(doc.root)
+  const keys: KeyAt[] = []
+  const refs: RefAt[] = []
+  const keyFile = new Map<Entry, Place>()
+  for (const e of entries) {
+    const v = e.v
+    const url: string = v.site?.url ?? ''
+    const load = v.site?.load
+    const from = '' !== url && null != load ? placeOf(load.url ?? '', load) : placeOf(url, v.site)
+    keyFile.set(e, from)
+    const ktext = text(from.file)
+    const span = undefined === ktext || 0 > from.off || 0 === e.path.length ? undefined :
+      keySpan(ktext, from.off, e.path[e.path.length - 1])
+    if (undefined !== span) {
+      keys.push({ file: from.file, off: span[0], end: span[1], path: e.path, kid: e.kid })
+    }
+    if (true === v.isRef && undefined === v.aliasName && null != v.plainRefPath()) {
+      const p = placeOf(url, v.site)
+      const rtext = text(url)
+      let q = p.off
+      while (undefined !== rtext && 0 <= q && q < rtext.length && '( \t\r\n'.includes(rtext[q])) q++
+      const ref = undefined === rtext || 0 > q ? undefined : refText(rtext, q)
+      refs.push({
+        file: url, off: q, e, reads: v.plainRefPath().map(String),
+        ...(undefined !== ref && ref.spelt === v.spelling ? { ref } : {}),
+      })
+    }
+  }
+
+  const docStarts = lineStarts(src)
+  let P = 'key' === at.on ? at.path : at.reads as string[]
+  let range = at.range
+  if ('ref' === at.on) {
+    const start = offsetAt(src, docStarts, at.range.start)
+    const segs = refText(src, start).segs.filter(([s, e]) => s < e)
+    const cur = offsetAt(src, docStarts, pos)
+    const j = segs.findIndex(([, e]) => cur < e)
+    const keep = P.length - segs.length + j + 1
+    if ('$' === src[start] && cur === start || 0 > j || 1 > keep) {
+      return undefined
+    }
+    P = P.slice(0, keep)
+    range = { start: positionOf(docStarts, segs[j][0]), end: positionOf(docStarts, segs[j][1]) }
+  }
+  const last = P[P.length - 1]
+  const named = 'cannot rename ' + P.join('.')
+  const refuse = (why: string): CursorRename => ({ refused: named + ': ' + why })
+  const placeOfEntry = (e: Entry) => placeOf(e.v.site?.url ?? '', e.v.site)
+
+  if (true !== opts?.prepare) {
+    if ('' === name) {
+      return refuse('the new name is empty')
+    }
+    if (NEEDS_ESCAPE.test(name)) {
+      return { refused: named + ' to ' + name + ': the name needs an escape' }
+    }
+  }
+  if (P.includes('&')) {
+    return refuse('a spread\'s template writes the key at ' +
+      where({ file: '', off: offsetAt(src, docStarts, range.start) }))
+  }
+  const written = keys.filter((k) => same(k.path, P))
+  const reads = refs.filter((r) => r.reads.length >= P.length && same(r.reads.slice(0, P.length), P))
+  const calls = entries.filter((e) => true === e.v.isFunc)
+  const steps = entries.filter((e) => e.step && same(e.path, P))
+
+  const refusal =
+    firstWhy(written.filter((k) => '%' === text(k.file)?.[k.off])
+      .map((k) => ({ ...k, why: 'the key at ' + where(k) + ' also declares the alias %' + last }))) ??
+    firstWhy(calls.filter((e) => GENERATORS.includes(callName(e)) && !isPattern(e) && prefixOf(e.path, P))
+      .map((e) => ({ ...placeOfEntry(e), why: 'a generator, ' + callName(e) + ', makes the key at ' +
+        where(placeOfEntry(e)) }))) ??
+    firstWhy(calls.filter((e) => isPattern(e) && alike(e.path, [...P.slice(0, -1), '&']))
+      .map((e) => ({ ...placeOfEntry(e), why: 'a pattern matches the key at ' + where(placeOfEntry(e)) }))) ??
+    firstWhy(calls.filter((e) => 'key' === callName(e) && !e.calls.some(isPattern) &&
+      e.path.length >= P.length && alike(e.path.slice(0, P.length), P))
+      .map((e) => ({ ...placeOfEntry(e), why: 'key() reads the key at ' + where(placeOfEntry(e)) }))) ??
+    firstWhy(keys.filter((k) => !same(k.path, P) && alike(k.path, P) && '&' !== k.path[k.path.length - 1])
+      .map((k) => ({ ...k, why: 'a spread\'s template writes the key at ' + where(k) }))) ??
+    firstWhy([...steps.map((e) => keyFile.get(e) as Place), ...reads]
+      .filter((p) => '' !== p.file).flatMap((p) => {
+        const why = fileRefusal(p.file, opts?.root, undefined !== text(p.file))
+        return undefined === why ? [] : [{ file: p.file, off: 0, why }]
+      })) ??
+    firstWhy([
+      ...steps.filter((e) => !keys.some((k) => k.kid === e.kid)).map((e) => keyFile.get(e) as Place)
+        .map((p) => ({ ...p, why: 'cannot locate the key written at ' + where(p) })),
+      ...reads.filter((r) => undefined === segmentOf(r, P, text(r.file) as string))
+        .map((r) => ({ ...r, why: 'cannot locate the reference at ' + where(r) })),
+    ]) ??
+    aliasRefusal(P, keys, refs, where) ??
+    (0 === written.length ? 'no key is written for it' : undefined)
+  if (undefined !== refusal) {
+    return refuse(refusal)
+  }
+  if (true === opts?.prepare) {
+    return { path: P, range, placeholder: last }
+  }
+
+  const P2 = [...P.slice(0, -1), name]
+  if (name !== last) {
+    const clash =
+      firstWhy(keys.filter((k) => same(k.path, P2))
+        .map((k) => ({ ...k, why: P2.join('.') + ' is already written at ' + where(k) }))) ??
+      firstWhy(refs.filter((r) => r.reads.length >= P2.length && same(r.reads.slice(0, P2.length), P2))
+        .map((r) => ({ ...r, why: P2.join('.') + ' is already read at ' + where(r) }))) ??
+      (undefined === anchorParts(doc.aontu.unify(doc.root, undefined, doc.ctx), P2) ? undefined :
+        P2.join('.') + ' already holds a value')
+    if (undefined !== clash) {
+      return { refused: named + ' to ' + name + ': ' + clash }
+    }
+  }
+
+  const edits = new Map<string, Place & { end: number, newText: string }>()
+  for (const k of written) {
+    const t = text(k.file) as string
+    edits.set(k.file + ':' + k.off, { ...k, newText: writtenName(name, quoteAt(t, k.off), false) })
+  }
+  for (const r of reads) {
+    const seg = segmentOf(r, P, text(r.file) as string)
+    if (null != seg) {
+      const t = text(r.file) as string
+      edits.set(r.file + ':' + seg[0],
+        { file: r.file, off: seg[0], end: seg[1], newText: writtenName(name, quoteAt(t, seg[0]), true) })
+    }
+  }
+  return {
+    path: P, range, placeholder: last,
+    edits: [...edits.values()].sort(byPlace).map((e) => ({
+      file: e.file,
+      range: { start: positionOf(linesOf(e.file), e.off), end: positionOf(linesOf(e.file), e.end) },
+      newText: e.newText,
+    })),
+  }
+}
+
+
+// The span of the segment of a reference that names the last segment of
+// path, null where the reference does not spell it, or nothing where the
+// reference cannot be found as written.
+function segmentOf(r: RefAt, path: string[], text: string): [number, number] | null | undefined {
+  if (undefined === r.ref) {
+    return undefined
+  }
+  const segs = r.ref.segs.filter(([s, e]) => s < e)
+  const i = path.length - 1 - (r.reads.length - segs.length)
+  if (0 > i) {
+    return null
+  }
+  const [s, e] = segs[i]
+  const spelt = '' === quoteAt(text, s) ? text.slice(s, e) : text.slice(s + 1, e - 1)
+  return spelt === path[path.length - 1] ? segs[i] : undefined
+}
+
+
+// Where the path is also written, or read, through a reference: a path a
+// reference copies from it, or one it copies from, which the rename
+// would leave behind.
+function aliasRefusal(
+  P: string[], keys: KeyAt[], refs: RefAt[], where: (p: Place) => string): string | undefined {
+  const pairs = refs.filter((r) => !r.e.arg && 0 < r.reads.length)
+  const found = new Map<string, { path: string[], via: RefAt }>()
+  const queue = [P]
+  while (0 < queue.length) {
+    const A = queue.shift() as string[]
+    for (const r of pairs) {
+      const Q = r.e.path
+      const T = r.reads
+      for (const B of [
+        prefixOf(T, A) ? [...Q, ...A.slice(T.length)] : undefined,
+        prefixOf(Q, A) ? [...T, ...A.slice(Q.length)] : undefined,
+      ]) {
+        const id = JSON.stringify(B)
+        if (undefined !== B && !same(B, P) && !found.has(id)) {
+          if (MAX_ALIASES <= found.size) {
+            return 'too many paths reach the key through references'
+          }
+          found.set(id, { path: B, via: r })
+          queue.push(B)
+        }
+      }
+    }
+  }
+  const cs: Candidate[] = []
+  for (const { path, via } of found.values()) {
+    const through = ', through the reference at ' + where(via)
+    for (const k of keys.filter((k) => alike(k.path, path) && '&' !== k.path[k.path.length - 1])) {
+      cs.push({ ...k, why: 'the key is also written as ' + path.join('.') + ' at ' + where(k) + through })
+    }
+    for (const r of refs.filter((r) => r.reads.length >= path.length &&
+      alike(r.reads.slice(0, path.length), path))) {
+      cs.push({ ...r, why: 'the key is also read as ' + path.join('.') + ' at ' + where(r) + through })
+    }
+  }
+  return firstWhy(cs)
+} /* node:coverage ignore next 12 */
+
+
 export {
   pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal,
-  membersAt, mapAt, symbolsOf, symbolTree, referencesAt,
+  membersAt, mapAt, symbolsOf, symbolTree, referencesAt, renameAt, renameEntries, fileRefusal,
 }
 
 export type {
-  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorValue, DocSymbol,
-  Member,
+  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename, CursorValue,
+  DocSymbol, FileEdit, Member, RenameOptions,
   PathPlace, PathSite, PathValue, Position, Range,
 }

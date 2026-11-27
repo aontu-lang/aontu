@@ -3,6 +3,7 @@
 package lsp
 
 import (
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -299,6 +300,81 @@ func Symbols(src string, trust *aontu.TrustOptions) []aontu.DocSymbol {
 	a := aontu.New()
 	a.Trust = trust
 	return a.SymbolsOf(src)
+}
+
+// RequestFailed is the JSON-RPC code LSP gives a request the server
+// refuses.
+const RequestFailed = -32803
+
+type WorkspaceEdit struct {
+	Changes map[string][]TextEdit `json:"changes"`
+}
+
+type PrepareRenameResult struct {
+	Range       Range  `json:"range"`
+	Placeholder string `json:"placeholder"`
+}
+
+// renamed is a rename's answer under the workspace root, the open
+// document's folder where there is none, and the refusal of a document
+// outside it.
+func renamed(uri, root string, ask func(root string) *aontu.CursorRename) (*aontu.CursorRename, string) {
+	path := uriToPath(uri)
+	if "" != path {
+		if "" == root {
+			root = filepath.Dir(path)
+		}
+		if why := aontu.FileRefusal(path, root, true); "" != why {
+			return nil, "cannot rename: the document" + why[len(path):]
+		}
+	}
+	r := ask(root)
+	if nil != r && "" != r.Refused {
+		return nil, r.Refused
+	}
+	return r, ""
+}
+
+// PrepareRename is the range and the name a rename at the position would
+// replace, or why it is refused.
+func PrepareRename(
+	src string, line, character int, uri, root string, trust *aontu.TrustOptions,
+) (*PrepareRenameResult, string) {
+	r, refused := renamed(uri, root, func(root string) *aontu.CursorRename {
+		a := aontu.New()
+		a.Trust = trust
+		return a.RenameAt(src, aontu.CursorPosition{Line: line, Character: character}, "",
+			aontu.RenameOptions{Root: root, Prepare: true})
+	})
+	if nil == r {
+		return nil, refused
+	}
+	return &PrepareRenameResult{Range: toRange(*r.Range), Placeholder: *r.Placeholder}, ""
+}
+
+// Rename is the edits of a rename, each in its own document, or why no
+// edit of text keeps the document true.
+func Rename(
+	src string, line, character int, uri, newName, root string, trust *aontu.TrustOptions,
+) (*WorkspaceEdit, string) {
+	r, refused := renamed(uri, root, func(root string) *aontu.CursorRename {
+		a := aontu.New()
+		a.Trust = trust
+		return a.RenameAt(src, aontu.CursorPosition{Line: line, Character: character}, newName,
+			aontu.RenameOptions{Root: root})
+	})
+	if nil == r {
+		return nil, refused
+	}
+	out := &WorkspaceEdit{Changes: map[string][]TextEdit{}}
+	for _, e := range r.Edits {
+		at := uri
+		if "" != e.File {
+			at = pathToURI(e.File)
+		}
+		out.Changes[at] = append(out.Changes[at], TextEdit{Range: toRange(e.Range), NewText: e.NewText})
+	}
+	return out, ""
 }
 
 // LSP DocumentHighlightKind subset.

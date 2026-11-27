@@ -84,5 +84,33 @@ declare function symbolsOf(src: string, opts?: CursorOptions): DocSymbol[] | und
 declare function symbolTree(src: string, root: any): DocSymbol[];
 declare function referencesAt(src: string, pos: Position, opts?: CursorOptions): CursorRefs | undefined;
 declare function sitesOf(src: string, path: string[], opts?: CursorOptions): PathSite[] | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, };
-export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorValue, DocSymbol, Member, PathPlace, PathSite, PathValue, Position, Range, };
+type FileEdit = {
+    file: string;
+    range: Range;
+    newText: string;
+};
+type CursorRename = {
+    path: string[];
+    range: Range;
+    placeholder: string;
+    edits?: FileEdit[];
+} | {
+    refused: string;
+};
+type RenameOptions = CursorOptions & {
+    root?: string;
+    prepare?: boolean;
+};
+type Entry = {
+    v: any;
+    path: string[];
+    calls: any[];
+    arg: boolean;
+    step: boolean;
+    kid: number;
+};
+declare function renameEntries(root: any): Entry[];
+declare function fileRefusal(file: string, root: string | undefined, readable: boolean): string | undefined;
+declare function renameAt(src: string, pos: Position, name: string, opts?: RenameOptions): CursorRename | undefined;
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, renameAt, renameEntries, fileRefusal, };
+export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename, CursorValue, DocSymbol, FileEdit, Member, RenameOptions, PathPlace, PathSite, PathValue, Position, Range, };

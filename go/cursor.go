@@ -3,6 +3,8 @@
 package aontu
 
 import (
+	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -274,29 +276,43 @@ func cursorKids(v Val, path []string) []cursorKid {
 	return nil
 }
 
-// refSpan reads a reference as written at a site, to its end, with a
-// quoted segment read as its text: `$."a b"` spells `$.a b`.
-func refSpan(src string, at int) (int, string) {
+// refText is a reference as written at a site, read to its end, with a
+// quoted segment read as its text: `$."a b"` spells `$.a b`. Each
+// segment's span is kept, an empty one standing for a step up.
+type refText struct {
+	end   int
+	spelt string
+	segs  [][2]int
+}
+
+func readRef(src string, at int) refText {
 	p := at
 	out := ""
 	if p < len(src) && '$' == src[p] {
 		out = "$"
 		p++
 	}
+	segs := [][2]int{}
 	for p < len(src) && '.' == src[p] {
 		p++
 		s := p
 		if p < len(src) && ('"' == src[p] || '\'' == src[p]) {
 			p = quoteEnd(src, p) + 1
 			out += "." + src[s+1:min(p-1, len(src))]
-			continue
+		} else {
+			for p < len(src) && '.' != src[p] && strings.IndexByte(tokenEnd, src[p]) < 0 {
+				p++
+			}
+			out += "." + src[s:p]
 		}
-		for p < len(src) && '.' != src[p] && strings.IndexByte(tokenEnd, src[p]) < 0 {
-			p++
-		}
-		out += "." + src[s:p]
+		segs = append(segs, [2]int{s, p})
 	}
-	return p, out
+	return refText{end: p, spelt: out, segs: segs}
+}
+
+func refSpan(src string, at int) (int, string) {
+	r := readRef(src, at)
+	return r.end, r.spelt
 }
 
 // valueEnd is where the value sited at `at` ends: a sign runs to its
@@ -522,14 +538,14 @@ func closersOf(open []openBracket) string {
 	return out
 }
 
-type refText struct {
+type refStart struct {
 	start int
 	abs   bool
 }
 
 // refAt is a reference written from s up to the dot before w: dots, then
 // segments, each a name or quoted text and a dot. Where it starts.
-func refAt(src string, s, w int) (refText, bool) {
+func refAt(src string, s, w int) (refStart, bool) {
 	i := s
 	for i < w && '.' == src[i] {
 		i++
@@ -545,7 +561,7 @@ func refAt(src string, s, w int) (refText, bool) {
 			}
 		}
 		if i == j || w <= j || '.' != src[j] {
-			return refText{}, false
+			return refStart{}, false
 		}
 		i = j + 1
 	}
@@ -555,12 +571,12 @@ func refAt(src string, s, w int) (refText, bool) {
 		before = src[s-1]
 	}
 	if 0 == up || '.' != src[w-1] || (abs && 1 < up) || (!abs && strings.IndexByte(refAfter, before) < 0) {
-		return refText{}, false
+		return refStart{}, false
 	}
 	if abs {
 		s--
 	}
-	return refText{start: s, abs: abs}, true
+	return refStart{start: s, abs: abs}, true
 }
 
 // cursorWalk visits every value a walk from root meets, with its path, a
@@ -1001,4 +1017,629 @@ func (a *Aontu) ReferencesAt(src string, pos CursorPosition) *CursorRefs {
 		writes = append(writes, PathPlace{File: s.File, Range: s.Range})
 	}
 	return &CursorRefs{Path: path, Writes: writes, Reads: reads}
+}
+
+// FileEdit is one edit of a rename, in the document where File is empty
+// and in an included file where it names one.
+type FileEdit struct {
+	File    string      `json:"file"`
+	Range   CursorRange `json:"range"`
+	NewText string      `json:"newText"`
+}
+
+// CursorRename is a rename at a cursor: the path it renames, the key or
+// the segment the cursor is on, and the edits; or why no edit of text
+// keeps the document true.
+type CursorRename struct {
+	Path        []string     `json:"path,omitempty"`
+	Range       *CursorRange `json:"range,omitempty"`
+	Placeholder *string      `json:"placeholder,omitempty"`
+	Edits       []FileEdit   `json:"edits,omitempty"`
+	Refused     string       `json:"refused,omitempty"`
+}
+
+type RenameOptions struct {
+	Root    string
+	Prepare bool
+}
+
+type renameEntry struct {
+	v     Val
+	path  []string
+	calls []*renameEntry
+	arg   bool
+	step  bool
+	kid   int
+}
+
+type place struct {
+	file string
+	off  int
+}
+
+type keyAt struct {
+	place
+	path []string
+	end  int
+	kid  int
+}
+
+type refAtPlace struct {
+	place
+	e     *renameEntry
+	reads []string
+	ref   *refText
+}
+
+type candidate struct {
+	place
+	why string
+}
+
+var generators = []string{"pack", "each", "apply", "emit", "match"}
+
+var bareKey = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+var valueSegments = []string{"_", "false", "nil", "null", "true"}
+
+const maxAliases = 64
+
+// renameEntries is every value of the parse, an included file's too,
+// with its path, the calls it stands in, and whether a map's key was the
+// step to it.
+func renameEntries(root Val) []*renameEntry {
+	out := []*renameEntry{}
+	seen := map[Val]bool{}
+	stack := []*renameEntry{{v: root, path: []string{}, kid: -1}}
+	for 0 < len(stack) {
+		e := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if nil == e.v || seen[e.v] {
+			continue
+		}
+		seen[e.v] = true
+		if e.step {
+			e.kid = len(out)
+		}
+		out = append(out, e)
+		calls := e.calls
+		if _, isFunc := e.v.(*FuncVal); isFunc {
+			calls = append(append([]*renameEntry{}, e.calls...), e)
+		}
+		_, isList := e.v.(*ListVal)
+		for _, k := range cursorKids(e.v, e.path) {
+			step := len(k.path) > len(e.path)
+			kid := e.kid
+			if step {
+				kid = -1
+			}
+			stack = append(stack, &renameEntry{v: k.v, path: k.path, calls: calls, arg: e.arg,
+				step: step && !isList && "&" != k.path[len(k.path)-1], kid: kid})
+		}
+		if c, ok := e.v.(*ConstraintVal); ok {
+			for _, arg := range c.asWritten {
+				stack = append(stack, &renameEntry{v: arg, path: e.path, calls: calls, arg: true, kid: e.kid})
+			}
+		}
+	}
+	return out
+}
+
+// alike is whether a and b are one path, where `&` stands for any key.
+func alike(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] && "&" != a[i] && "&" != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func prefixOf(a, b []string) bool {
+	return len(a) < len(b) && alike(a, b[:len(a)])
+}
+
+func hasPrefix(p, prefix []string) bool {
+	return len(p) >= len(prefix) && slices.Equal(p[:len(prefix)], prefix)
+}
+
+func callName(e *renameEntry) string {
+	return e.v.(*FuncVal).callName()
+}
+
+// isPattern is whether a call holds a spread's keys to a pattern.
+func isPattern(e *renameEntry) bool {
+	name := callName(e)
+	return "keyed" == name || ("match" == name && 0 < len(e.path) && "&" == e.path[len(e.path)-1])
+}
+
+// writtenName is a name written as a key, or as a reference's segment,
+// in the quotes it had where it had them.
+func writtenName(name, quote string, segment bool) string {
+	if "'" == quote && !strings.Contains(name, "'") {
+		return "'" + name + "'"
+	}
+	if "" == quote && bareKey.MatchString(name) && !(segment && slices.Contains(valueSegments, name)) {
+		return name
+	}
+	return `"` + name + `"`
+}
+
+func quoteAt(text string, off int) string {
+	if off < len(text) && ('"' == text[off] || '\'' == text[off]) {
+		return text[off : off+1]
+	}
+	return ""
+}
+
+func needsEscape(name string) bool {
+	for _, r := range name {
+		if '"' == r || '\\' == r || r < 0x20 || 0x7f == r {
+			return true
+		}
+	}
+	return false
+}
+
+// FileRefusal is why a file a rename would edit cannot be edited, or "".
+func FileRefusal(file, root string, readable bool) string {
+	if strings.HasPrefix(file, aontuScheme) {
+		return file + " is a bundled model"
+	}
+	abs, _ := filepath.Abs(file)
+	if slices.Contains(strings.FieldsFunc(abs, func(r rune) bool { return '/' == r || '\\' == r }),
+		"aontu_meta") {
+		return file + " is in a package"
+	}
+	rel := ".."
+	if "" != root {
+		absRoot, _ := filepath.Abs(root)
+		if r, err := filepath.Rel(absRoot, abs); nil == err {
+			rel = r
+		}
+	}
+	if ".." == strings.Split(filepath.ToSlash(rel), "/")[0] {
+		return file + " is outside the workspace root"
+	}
+	if !readable {
+		return "the text of " + file + " cannot be read"
+	}
+	return ""
+}
+
+// firstWhy is the reason of the first candidate in order of file and
+// place.
+func firstWhy(cs []candidate) string {
+	if 0 == len(cs) {
+		return ""
+	}
+	slices.SortStableFunc(cs, func(a, b candidate) int {
+		if a.file != b.file {
+			return strings.Compare(a.file, b.file)
+		}
+		return a.off - b.off
+	})
+	return cs[0].why
+}
+
+// renameTexts reads the text of each file a rename meets, as the parse
+// read it.
+type renameTexts struct {
+	src   string
+	inc   map[string]string
+	lines map[string]srcLines
+}
+
+func (t *renameTexts) text(file string) (string, bool) {
+	if "" == file {
+		return t.src, true
+	}
+	if strings.HasPrefix(file, aontuScheme) {
+		return "", false
+	}
+	text, ok := t.inc[file]
+	return text, ok
+}
+
+func (t *renameTexts) linesOf(file string) srcLines {
+	if l, ok := t.lines[file]; ok {
+		return l
+	}
+	text, _ := t.text(file)
+	l := newSrcLines(text)
+	t.lines[file] = l
+	return l
+}
+
+func (t *renameTexts) placeOf(file string, sp int) place {
+	text, ok := t.text(file)
+	if !ok || 0 > sp || len(text) < sp {
+		return place{file, -1}
+	}
+	return place{file, sp}
+}
+
+func (t *renameTexts) where(p place) string {
+	if 0 > p.off {
+		return p.file
+	}
+	lc := t.linesOf(p.file).positionOf(p.off)
+	at := itoa(lc.Line+1) + ":" + itoa(lc.Character+1)
+	if "" == p.file {
+		return at
+	}
+	return p.file + ":" + at
+}
+
+func entryPlace(t *renameTexts, e *renameEntry) place {
+	return t.placeOf(e.v.srcurl(), e.v.pos())
+}
+
+// RenameAt is what a rename at a cursor edits: the key at every site
+// that writes the path, and the segment that names it in every
+// reference that reads it; or the site no edit of text can keep true.
+// Under Prepare no name is given and no edit is made.
+func (a *Aontu) RenameAt(src string, pos CursorPosition, name string, opts RenameOptions) *CursorRename {
+	root, err := a.parseEntry(src)
+	if nil != err || nil == root {
+		return nil
+	}
+	at := cursorAt(src, pos, root)
+	if nil == at || "value" == at.On {
+		return nil
+	}
+	t := &renameTexts{src: src, inc: a.IncludeText, lines: map[string]srcLines{}}
+
+	entries := renameEntries(root)
+	keys := []keyAt{}
+	refs := []refAtPlace{}
+	keyFile := map[*renameEntry]place{}
+	for _, e := range entries {
+		v := e.v
+		url := v.srcurl()
+		from := t.placeOf(url, v.pos())
+		if sp, lurl, ok := v.load(); "" != url && ok {
+			from = t.placeOf(lurl, sp)
+		}
+		keyFile[e] = from
+		if ktext, ok := t.text(from.file); ok && 0 <= from.off && 0 < len(e.path) {
+			if s, end, found := keySpan(ktext, from.off, e.path[len(e.path)-1]); found {
+				keys = append(keys, keyAt{place: place{from.file, s}, path: e.path, end: end, kid: e.kid})
+			}
+		}
+		ref, isRef := v.(*RefVal)
+		if !isRef {
+			continue
+		}
+		reads := ref.plainRefPath()
+		if _, alias := ref.aliasName(); alias || nil == reads {
+			continue
+		}
+		p := t.placeOf(url, v.pos())
+		rtext, _ := t.text(url)
+		q := p.off
+		for 0 <= q && q < len(rtext) && strings.IndexByte("( \t\r\n", rtext[q]) >= 0 {
+			q++
+		}
+		r := refAtPlace{place: place{url, q}, e: e, reads: reads}
+		if 0 <= q {
+			if rt := readRef(rtext, q); rt.spelt == ref.spelling() {
+				r.ref = &rt
+			}
+		}
+		refs = append(refs, r)
+	}
+
+	lines := newSrcLines(src)
+	P := at.Path
+	if "key" != at.On {
+		P = at.Reads
+	}
+	rng := at.Range
+	if "ref" == at.On {
+		start := lines.offsetAt(at.Range.Start)
+		segs := realSegs(readRef(src, start).segs)
+		cur := lines.offsetAt(pos)
+		j := slices.IndexFunc(segs, func(s [2]int) bool { return cur < s[1] })
+		keep := len(P) - len(segs) + j + 1
+		if ('$' == src[start] && cur == start) || 0 > j || 1 > keep {
+			return nil
+		}
+		P = P[:keep]
+		rng = CursorRange{Start: lines.positionOf(segs[j][0]), End: lines.positionOf(segs[j][1])}
+	}
+	last := P[len(P)-1]
+	named := "cannot rename " + strings.Join(P, ".")
+	refuse := func(why string) *CursorRename { return &CursorRename{Refused: named + ": " + why} }
+
+	if !opts.Prepare {
+		if "" == name {
+			return refuse("the new name is empty")
+		}
+		if needsEscape(name) {
+			return &CursorRename{Refused: named + " to " + name + ": the name needs an escape"}
+		}
+	}
+	if slices.Contains(P, "&") {
+		return refuse("a spread's template writes the key at " +
+			t.where(place{"", lines.offsetAt(rng.Start)}))
+	}
+	written := []keyAt{}
+	for _, k := range keys {
+		if slices.Equal(k.path, P) {
+			written = append(written, k)
+		}
+	}
+	reads := []refAtPlace{}
+	for _, r := range refs {
+		if hasPrefix(r.reads, P) {
+			reads = append(reads, r)
+		}
+	}
+	steps := []*renameEntry{}
+	calls := []*renameEntry{}
+	for _, e := range entries {
+		if e.step && slices.Equal(e.path, P) {
+			steps = append(steps, e)
+		}
+		if _, isFunc := e.v.(*FuncVal); isFunc {
+			calls = append(calls, e)
+		}
+	}
+	callsWhere := func(take func(*renameEntry) bool, why func(*renameEntry, string) string) string {
+		cs := []candidate{}
+		for _, e := range calls {
+			if take(e) {
+				p := entryPlace(t, e)
+				cs = append(cs, candidate{p, why(e, t.where(p))})
+			}
+		}
+		return firstWhy(cs)
+	}
+	parent := append(append([]string{}, P[:len(P)-1]...), "&")
+
+	checks := []func() string{
+		func() string {
+			cs := []candidate{}
+			for _, k := range written {
+				if text, _ := t.text(k.file); '%' == text[k.off] {
+					cs = append(cs, candidate{k.place, "the key at " + t.where(k.place) +
+						" also declares the alias %" + last})
+				}
+			}
+			return firstWhy(cs)
+		},
+		func() string {
+			return callsWhere(func(e *renameEntry) bool {
+				return slices.Contains(generators, callName(e)) && !isPattern(e) && prefixOf(e.path, P)
+			}, func(e *renameEntry, at string) string {
+				return "a generator, " + callName(e) + ", makes the key at " + at
+			})
+		},
+		func() string {
+			return callsWhere(func(e *renameEntry) bool {
+				return isPattern(e) && alike(e.path, parent)
+			}, func(_ *renameEntry, at string) string { return "a pattern matches the key at " + at })
+		},
+		func() string {
+			return callsWhere(func(e *renameEntry) bool {
+				return "key" == callName(e) && !slices.ContainsFunc(e.calls, isPattern) &&
+					len(e.path) >= len(P) && alike(e.path[:len(P)], P)
+			}, func(_ *renameEntry, at string) string { return "key() reads the key at " + at })
+		},
+		func() string {
+			cs := []candidate{}
+			for _, k := range keys {
+				if !slices.Equal(k.path, P) && alike(k.path, P) && "&" != k.path[len(k.path)-1] {
+					cs = append(cs, candidate{k.place, "a spread's template writes the key at " + t.where(k.place)})
+				}
+			}
+			return firstWhy(cs)
+		},
+		func() string {
+			files := []place{}
+			for _, e := range steps {
+				files = append(files, keyFile[e])
+			}
+			for _, r := range reads {
+				files = append(files, r.place)
+			}
+			cs := []candidate{}
+			for _, p := range files {
+				if "" == p.file {
+					continue
+				}
+				_, readable := t.text(p.file)
+				if why := FileRefusal(p.file, opts.Root, readable); "" != why {
+					cs = append(cs, candidate{place{p.file, 0}, why})
+				}
+			}
+			return firstWhy(cs)
+		},
+		func() string {
+			cs := []candidate{}
+			for _, e := range steps {
+				if !slices.ContainsFunc(keys, func(k keyAt) bool { return k.kid == e.kid }) {
+					p := keyFile[e]
+					cs = append(cs, candidate{p, "cannot locate the key written at " + t.where(p)})
+				}
+			}
+			for _, r := range reads {
+				if _, ok := segmentOf(t, r, P); !ok {
+					cs = append(cs, candidate{r.place, "cannot locate the reference at " + t.where(r.place)})
+				}
+			}
+			return firstWhy(cs)
+		},
+		func() string { return aliasRefusal(t, P, keys, refs) },
+		func() string {
+			if 0 == len(written) {
+				return "no key is written for it"
+			}
+			return ""
+		},
+	}
+	for _, check := range checks {
+		if why := check(); "" != why {
+			return refuse(why)
+		}
+	}
+	if opts.Prepare {
+		return &CursorRename{Path: P, Range: &rng, Placeholder: &last}
+	}
+
+	P2 := append(append([]string{}, P[:len(P)-1]...), name)
+	if name != last {
+		cs := []candidate{}
+		for _, k := range keys {
+			if slices.Equal(k.path, P2) {
+				cs = append(cs, candidate{k.place, strings.Join(P2, ".") + " is already written at " + t.where(k.place)})
+			}
+		}
+		clash := firstWhy(cs)
+		for _, r := range refs {
+			if hasPrefix(r.reads, P2) {
+				cs = append(cs, candidate{r.place, strings.Join(P2, ".") + " is already read at " + t.where(r.place)})
+			}
+		}
+		if "" == clash {
+			clash = firstWhy(cs)
+		}
+		if "" == clash {
+			if res, _, _ := a.unifyCtx(root, nil, src); nil != anchorParts(res, P2) {
+				clash = strings.Join(P2, ".") + " already holds a value"
+			}
+		}
+		if "" != clash {
+			return &CursorRename{Refused: named + " to " + name + ": " + clash}
+		}
+	}
+
+	type edit struct {
+		place
+		end     int
+		newText string
+	}
+	edits := map[place]edit{}
+	for _, k := range written {
+		text, _ := t.text(k.file)
+		edits[k.place] = edit{k.place, k.end, writtenName(name, quoteAt(text, k.off), false)}
+	}
+	for _, r := range reads {
+		if seg, _ := segmentOf(t, r, P); nil != seg {
+			text, _ := t.text(r.file)
+			p := place{r.file, seg[0]}
+			edits[p] = edit{p, seg[1], writtenName(name, quoteAt(text, seg[0]), true)}
+		}
+	}
+	sorted := make([]edit, 0, len(edits))
+	for _, e := range edits {
+		sorted = append(sorted, e)
+	}
+	slices.SortFunc(sorted, func(a, b edit) int {
+		if a.file != b.file {
+			return strings.Compare(a.file, b.file)
+		}
+		return a.off - b.off
+	})
+	out := &CursorRename{Path: P, Range: &rng, Placeholder: &last, Edits: []FileEdit{}}
+	for _, e := range sorted {
+		l := t.linesOf(e.file)
+		out.Edits = append(out.Edits, FileEdit{File: e.file, NewText: e.newText,
+			Range: CursorRange{Start: l.positionOf(e.off), End: l.positionOf(e.end)}})
+	}
+	return out
+}
+
+func realSegs(segs [][2]int) [][2]int {
+	out := [][2]int{}
+	for _, s := range segs {
+		if s[0] < s[1] {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// segmentOf is the span of the segment of a reference that names the
+// last segment of path, nil where the reference does not spell it, and
+// not ok where the reference cannot be found as written.
+func segmentOf(t *renameTexts, r refAtPlace, path []string) (*[2]int, bool) {
+	if nil == r.ref {
+		return nil, false
+	}
+	segs := realSegs(r.ref.segs)
+	i := len(path) - 1 - (len(r.reads) - len(segs))
+	if 0 > i {
+		return nil, true
+	}
+	text, _ := t.text(r.file)
+	s, e := segs[i][0], min(segs[i][1], len(text))
+	spelt := text[s:e]
+	if "" != quoteAt(text, s) {
+		spelt = text[s+1 : max(s+1, e-1)]
+	}
+	return &segs[i], spelt == path[len(path)-1]
+}
+
+// aliasRefusal is where the path is also written, or read, through a
+// reference: a path a reference copies from it, or one it copies from,
+// which the rename would leave behind.
+func aliasRefusal(t *renameTexts, P []string, keys []keyAt, refs []refAtPlace) string {
+	type alias struct {
+		path []string
+		via  refAtPlace
+	}
+	pairs := []refAtPlace{}
+	for _, r := range refs {
+		if !r.e.arg && 0 < len(r.reads) {
+			pairs = append(pairs, r)
+		}
+	}
+	found := []alias{}
+	seen := map[string]bool{strings.Join(P, "\x00"): true}
+	queue := [][]string{P}
+	for 0 < len(queue) {
+		A := queue[0]
+		queue = queue[1:]
+		for _, r := range pairs {
+			Q, T := r.e.path, r.reads
+			for i, B := range [][]string{nil, nil} {
+				if 0 == i && prefixOf(T, A) {
+					B = append(append([]string{}, Q...), A[len(T):]...)
+				} else if 1 == i && prefixOf(Q, A) {
+					B = append(append([]string{}, T...), A[len(Q):]...)
+				}
+				id := strings.Join(B, "\x00")
+				if nil == B || seen[id] {
+					continue
+				}
+				if maxAliases <= len(found) {
+					return "too many paths reach the key through references"
+				}
+				seen[id] = true
+				found = append(found, alias{B, r})
+				queue = append(queue, B)
+			}
+		}
+	}
+	cs := []candidate{}
+	for _, al := range found {
+		through := ", through the reference at " + t.where(al.via.place)
+		as := strings.Join(al.path, ".")
+		for _, k := range keys {
+			if alike(k.path, al.path) && "&" != k.path[len(k.path)-1] {
+				cs = append(cs, candidate{k.place, "the key is also written as " + as + " at " + t.where(k.place) + through})
+			}
+		}
+		for _, r := range refs {
+			if len(r.reads) >= len(al.path) && alike(r.reads[:len(al.path)], al.path) {
+				cs = append(cs, candidate{r.place, "the key is also read as " + as + " at " + t.where(r.place) + through})
+			}
+		}
+	}
+	return firstWhy(cs)
 }

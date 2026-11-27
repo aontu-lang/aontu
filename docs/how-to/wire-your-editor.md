@@ -9,10 +9,13 @@ order: 90
 Both implementations serve the Language Server Protocol from the
 command itself, `aontu lsp`: unification problems as diagnostics
 while you type, with hover, completion, go to definition, find
-references, highlights and an outline of the document's keys beside
-them. Completion offers the keys a type declares and the members of a
-path after a dot; hover, definition and references work on a key and on
-a reference, across the files a document includes. Ready-made
+references, highlights, rename and an outline of the document's keys
+beside them. Completion offers the keys a type declares and the members
+of a path after a dot; hover, definition, references and rename work on
+a key and on a reference, across the files a document includes. A
+rename edits only files under the workspace root your client names, the
+document's folder where it names none, and refuses the whole rename,
+naming the site, where an edit of text cannot keep the document true. Ready-made
 clients for VS Code, Emacs, Vim/Neovim, and the JetBrains IDEs live in
 [`editors/`](../../editors/), each a thin client that launches the
 server, with install steps in its README. The recipes below are for

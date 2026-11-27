@@ -1120,3 +1120,134 @@ func TestReferencesAndHighlightsThroughTheHandler(t *testing.T) {
 		t.Errorf("malformed: %+v", out)
 	}
 }
+
+const renameSrc = "base: { port: 8080 }\ndb: { port: $.base.port }\nx: $.base.port\n"
+
+func TestRenameEditsTheKeyAndEveryReference(t *testing.T) {
+	const u = "file:///w/r.aontu"
+	if got, refused := PrepareRename(renameSrc, 1, 20, u, "", nil); "" != refused ||
+		!reflect.DeepEqual(got, &PrepareRenameResult{Range: rangeOf(1, 19, 1, 23), Placeholder: "port"}) {
+		t.Errorf("prepare: %+v %q", got, refused)
+	}
+	got, refused := Rename(renameSrc, 0, 9, u, "listen", "", nil)
+	if want := (&WorkspaceEdit{Changes: map[string][]TextEdit{u: {
+		{Range: rangeOf(0, 8, 0, 12), NewText: "listen"},
+		{Range: rangeOf(1, 19, 1, 23), NewText: "listen"},
+		{Range: rangeOf(2, 10, 2, 14), NewText: "listen"},
+	}}}); "" != refused || !reflect.DeepEqual(got, want) {
+		t.Errorf("rename: %+v %q", got, refused)
+	}
+	if _, refused := Rename(renameSrc, 0, 9, u, `a"b`, "", nil); `cannot rename base.port to a"b: the name needs an escape` != refused {
+		t.Errorf("escape: %q", refused)
+	}
+	if got, refused := PrepareRename(renameSrc, 0, 15, u, "", nil); nil != got || "" != refused {
+		t.Errorf("prepare on a value: %+v %q", got, refused)
+	}
+	if got, refused := Rename(renameSrc, 0, 15, u, "q", "", nil); nil != got || "" != refused {
+		t.Errorf("rename on a value: %+v %q", got, refused)
+	}
+}
+
+func TestRenameKeepsToTheWorkspaceRoot(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "root")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, text := range map[string]string{
+		filepath.Join(root, "base.aontu"): "port: 8080\nr: $.top.k\n",
+		filepath.Join(dir, "away.aontu"):  "port: 1\n",
+	} {
+		if err := os.WriteFile(name, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	doc := pathToURI(srcPath(filepath.Join(root, "doc.aontu")))
+	there := pathToURI(srcPath(filepath.Join(root, "base.aontu")))
+	src := "top: { k: 1 }\nbase: @\"" + srcPath(root) + "/base.aontu\"\naway: @\"" + srcPath(dir) + "/away.aontu\"\n"
+	trust := &aontu.TrustOptions{IncludeRoot: dir}
+	got, refused := Rename(src, 0, 7, doc, "j", "", trust)
+	if want := (&WorkspaceEdit{Changes: map[string][]TextEdit{
+		doc:   {{Range: rangeOf(0, 7, 0, 8), NewText: "j"}},
+		there: {{Range: rangeOf(1, 9, 1, 10), NewText: "j"}},
+	}}); "" != refused || !reflect.DeepEqual(got, want) {
+		t.Errorf("under the root: %+v %q", got, refused)
+	}
+	if got, _ := Rename(src, 1, 1, doc, "b", srcPath(root), trust); 1 != len(got.Changes) || nil == got.Changes[doc] {
+		t.Errorf("the include's key: %+v", got)
+	}
+	if _, refused := Rename(src+"y: $.away.port\n", 3, 11, doc, "p", srcPath(root), trust); !strings.HasPrefix(refused,
+		"cannot rename away.port: ") || !strings.HasSuffix(refused, "away.aontu is outside the workspace root") {
+		t.Errorf("outside: %q", refused)
+	}
+	if got, refused := Rename("a: 1\n", 0, 0, doc, "b", srcPath(dir), nil); "" != refused || !reflect.DeepEqual(got,
+		&WorkspaceEdit{Changes: map[string][]TextEdit{doc: {{Range: rangeOf(0, 0, 0, 1), NewText: "b"}}}}) {
+		t.Errorf("inside: %+v %q", got, refused)
+	}
+	if _, refused := Rename("a: 1\n", 0, 0, doc, "b", srcPath(filepath.Join(dir, "x")), nil); "cannot rename: the document is outside the workspace root" != refused {
+		t.Errorf("document outside: %q", refused)
+	}
+	pkg := pathToURI(srcPath(filepath.Join(root, "aontu_meta", "vendor", "p", "main.aontu")))
+	if _, refused := PrepareRename("a: 1\n", 0, 0, pkg, "", nil); "cannot rename: the document is in a package" != refused {
+		t.Errorf("package: %q", refused)
+	}
+	if _, refused := Rename(src+"y: $.base.port\n", 3, 11, "untitled:1", "q", "", trust); !strings.HasPrefix(refused,
+		"cannot rename base.port: ") || !strings.HasSuffix(refused, "base.aontu is outside the workspace root") {
+		t.Errorf("untitled: %q", refused)
+	}
+}
+
+func TestRenameNamesAFileWhoseTextItCannotRead(t *testing.T) {
+	const u = "file:///w/r.aontu"
+	trust := &aontu.TrustOptions{IncludeMem: map[string]string{"m.aontu": "k: { n: key() }\n"}}
+	if _, refused := Rename("a: @\"m.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust); "cannot rename a.k: key() reads the key at m.aontu" != refused {
+		t.Errorf("key(): %q", refused)
+	}
+	trust = &aontu.TrustOptions{IncludeMem: map[string]string{"n.aontu": "k: 1\n"}}
+	if _, refused := Rename("a: @\"n.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust); "cannot rename a.k: the text of n.aontu cannot be read" != refused {
+		t.Errorf("unread: %q", refused)
+	}
+}
+
+func TestRenameThroughTheHandler(t *testing.T) {
+	const u = "file:///w/r.aontu"
+	h := NewHandler()
+	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize",
+		Params: json.RawMessage(`{"rootUri":"file:///w"}`)})[0])
+	if !strings.Contains(string(init), `"renameProvider":{"prepareProvider":true}`) {
+		t.Errorf("initialize: %s", init)
+	}
+	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": u, "text": renameSrc}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
+	ask := func(method string, extra map[string]any) string {
+		params := map[string]any{"textDocument": map[string]any{"uri": u}}
+		for k, v := range extra {
+			params[k] = v
+		}
+		raw, _ := json.Marshal(params)
+		out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("2"), Method: method, Params: raw})[0])
+		return string(out)
+	}
+	at := map[string]any{"line": 0, "character": 9}
+	if got := ask("textDocument/prepareRename", map[string]any{"position": at}); !strings.Contains(got, `"placeholder":"port"`) {
+		t.Errorf("prepare: %s", got)
+	}
+	if got := ask("textDocument/rename", map[string]any{"position": at, "newName": "p"}); 3 != strings.Count(got, `"newText":"p"`) {
+		t.Errorf("rename: %s", got)
+	}
+	if got := ask("textDocument/rename", map[string]any{"position": at, "newName": 7}); !strings.Contains(got,
+		`"error":{"code":-32803,"message":"cannot rename base.port: the new name is empty"}`) {
+		t.Errorf("no name: %s", got)
+	}
+	if got := ask("textDocument/rename", nil); !strings.Contains(got, `"result":null`) {
+		t.Errorf("no position: %s", got)
+	}
+	if out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/prepareRename",
+		Params: json.RawMessage(`{}`)})[0]); !strings.Contains(string(out), `"result":null`) {
+		t.Errorf("no document: %s", out)
+	}
+	if out := h.Handle(Message{ID: json.RawMessage("4"), Method: "textDocument/rename",
+		Params: json.RawMessage(`[`)}); 1 != len(out) {
+		t.Errorf("malformed: %+v", out)
+	}
+}
