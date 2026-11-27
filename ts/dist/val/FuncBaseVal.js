@@ -309,9 +309,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     }
     get canon() {
         return '' +
-            // (this.type ? '<type>' : '') +
-            // (this.done ? '<done>' : '') +
-            // (this.id + '=') +
             this.funcname() + '(' + (this.peg.map((p) => p.canon).join(',')) + ')';
     }
     funcname() {

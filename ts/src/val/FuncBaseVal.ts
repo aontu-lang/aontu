@@ -410,9 +410,6 @@ class FuncBaseVal extends FeatureVal {
 
   get canon() {
     return '' +
-      // (this.type ? '<type>' : '') +
-      // (this.done ? '<done>' : '') +
-      // (this.id + '=') +
       this.funcname() + '(' + (this.peg.map((p: any) => p.canon).join(',')) + ')'
   }
 
