@@ -161,6 +161,35 @@ a string nor an integer is `func_arg`. A member marked with `hide()` or
 engines to 105 rows, and `test/spec/comprehension.tsv` gains the `at`
 spelling beside each of the eight routes it replaces.
 
+### A how-to on carrying binary data
+
+`docs/how-to/carry-binary-data.md` carries bytes through a JSON
+document as base64, base64url or hex text with `encode` and `decode`,
+keeps bytes that are not UTF-8 in their encoded form, and bounds the
+numbers of a binary record with the sized names of `aontu:num`.
+
+### The sized numbers, as the bundled model `aontu:num`
+
+In both engines. `@"aontu:num"` names the integer types CUE builds in
+and `Float32` under `$.aontu.Num`: `Int8`, `Int16`, `Int32`, `Int64`,
+`Int128`, `Uint8`, `Uint16`, `Uint32`, `Uint64`, `Uint128` and
+`Float32`, each a `type()`, so naming one neither generates it nor asks
+the document to fill it. The 64-bit and 128-bit names admit a
+`biginteger`, with exact bounds, and `Float32` bounds a number's
+magnitude by the largest finite float32. There is no keyword: a bare
+`int8` is still the string `"int8"`, and each name is an ordinary value
+a project narrows. A name the scheme does not serve is refused naming
+seven models. Rows in the new `test/spec/num.tsv`.
+
+### A frame under a site in a built-in model shows the model's text
+
+#658, in TypeScript. A refusal sited in a built-in model, such as
+`aontu:system:11:29` when a document narrows
+`$.aontu.System.Service`'s `kind`, frames the lines of that model, as
+Go does. TypeScript framed the lines of the entry document at the same
+row and column. The message is now byte-identical in both engines, and
+a full-message twin test in each port holds it.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call

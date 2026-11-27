@@ -4758,7 +4758,7 @@ same key as an ordinary string.
 
 ### The bundled vocabularies
 
-**Six vocabularies ship with the engine**, served from it rather than
+**Seven vocabularies ship with the engine**, served from it rather than
 from disk, and **every one of them is named under `aontu:`**. That is
 the whole rule: a language-supplied schema has one spelling, and the
 scheme is what stops a file on disk from standing in front of it.
@@ -4771,6 +4771,7 @@ scheme is what stops a file on disk from standing in front of it.
 | `aontu:lang/text` | the text profile |
 | `aontu:lang/markdown` | the markdown profile |
 | `aontu:gen` | the standard options of each type of value, which a [`gen()`](#output-options-gen) record is held to |
+| `aontu:num` | the sized numbers, `Int8` to `Uint128` and `Float32`: [below](#the-aontunum-sized-numbers) |
 
 The three profile models are described [after the system vocabulary](#the-aontu-models).
 
@@ -4790,8 +4791,9 @@ rather than looked for on disk.
 | `@"aontu:system"` | `$.aontu.System.Port`, `.Component`, `.Service`, `.Semver` |
 | `@"aontu:view"` | `$.aontu.View.Figure` |
 | `@"aontu:profile"` | `$.aontu.Profile`, `$.aontu.Lang` |
+| `@"aontu:num"` | `$.aontu.Num.Int8` to `.Int128`, `.Uint8` to `.Uint128`, `.Float32` |
 
-One key is reserved instead of six, it is named for the language
+One key is reserved instead of seven, it is named for the language
 rather than for a domain, and `$.aontu` anywhere tells a reader at once
 that the subtree is not the document's own.
 
@@ -4849,7 +4851,7 @@ the set. Write this as `nope.aontu`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aontu
-[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:num, aontu:profile, aontu:system, aontu:view)
 ...
 $ echo $?
 1
@@ -5029,6 +5031,87 @@ Two of its behaviours are the language rather than the vocabulary:
 Everything here is ordinary unification, so an author who wants a
 different vocabulary writes one the same way, and nothing in the
 language knows these names.
+
+### The `aontu:num` sized numbers
+
+The sized numbers are names, not keywords: `@"aontu:num"` defines the
+integer types CUE builds in and `Float32` under `$.aontu.Num`, each
+one `type()`-marked, so naming one neither generates it nor asks the
+document to fill it. A bare `int8` is still the string `"int8"`.
+
+| Name | Admits | From | To |
+|------|--------|------|----|
+| `Int8` | `integer` | -128 | 127 |
+| `Int16` | `integer` | -32768 | 32767 |
+| `Int32` | `integer` | -2147483648 | 2147483647 |
+| `Int64` | `integer \| biginteger` | -9223372036854775808 | 9223372036854775807 |
+| `Int128` | `integer \| biginteger` | -2^127 | 2^127 - 1 |
+| `Uint8` | `integer` | 0 | 255 |
+| `Uint16` | `integer` | 0 | 65535 |
+| `Uint32` | `integer` | 0 | 4294967295 |
+| `Uint64` | `integer \| biginteger` | 0 | 18446744073709551615 |
+| `Uint128` | `integer \| biginteger` | 0 | 2^128 - 1 |
+| `Float32` | `number` | -3.4028234663852886e38 | 3.4028234663852886e38 |
+
+The 64-bit and 128-bit bounds are past 2^53, so the model writes them
+as exact `0d` literals, the lower one `-0d…`, and admits a
+`biginteger` beside an `integer`. `Float32` bounds the magnitude only: a
+constraint cannot say a precision, so `16777217`, which a float32
+rounds, is admitted.
+
+Each name is an ordinary value, so a project narrows one in a name of
+its own. Write this as `sizes.aontu`:
+
+<!-- test: scenario aontu-num -->
+<!-- test: file sizes.aontu -->
+```aontu
+@"aontu:num"
+
+Port: type($.aontu.Num.Uint16 & min(1))
+
+listen: $.Port & 8080
+retries: $.aontu.Num.Uint8 & 3
+offset: $.aontu.Num.Int64 & -0d9223372036854775808
+ratio: $.aontu.Num.Float32 & 0.25
+kind: int8
+```
+
+<!-- test: run -->
+```sh
+$ aontu sizes.aontu
+{
+  "aontu": {
+    "Num": {}
+  },
+  "kind": "int8",
+  "listen": 8080,
+  "offset": -9223372036854775808,
+  "ratio": 0.25,
+  "retries": 3
+}
+```
+
+A value past a name's bound is refused, and the frame shows the
+bound in the model. Write this as `wide.aontu`:
+
+<!-- test: file wide.aontu -->
+```aontu
+@"aontu:num"
+
+level: $.aontu.Num.Int8 & 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu wide.aontu
+[aontu/constraint]: Cannot unify values at path $.level
+...
+ Cannot unify value: integer&min(-128)&max(127) with value: 200
+  --> aontu:num:6:36
+...
+$ echo $?
+1
+```
 
 ### Declared relations
 

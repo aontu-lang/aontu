@@ -12,6 +12,8 @@ const node_path_1 = require("node:path");
 const jsonic_1 = require("@tabnas/jsonic");
 const NilVal_1 = require("./val/NilVal");
 const hints_1 = require("./hints");
+const aontumodel_1 = require("./aontumodel");
+const MODEL_TEXT = new Map(Object.entries(aontumodel_1.AONTU_SOURCES));
 const { errmsg, strinject } = jsonic_1.util;
 let COLOR;
 function setColor(on) {
@@ -168,6 +170,10 @@ function resolveSrc(v, errctx) {
     const cache = errctx ? (errctx._srcCache ??= new Map()) : null;
     if (undefined !== errctx?.texts?.[url]) {
         return errctx.texts[url];
+    }
+    const model = MODEL_TEXT.get(url);
+    if (undefined !== model) {
+        return model;
     }
     if (null != url) {
         if (cache && cache.has(url)) {

@@ -63,6 +63,13 @@ errm-frame-map-primary	err	a:1 a:{b:1}	Cannot unify value: {"b":1} with value: 1
 errm-frame-list-pos	err	a:1 a:[2]	--> <no-file>:1:7
 errm-frame-list-primary	err	a:1 a:[2]	Cannot unify value: [2] with value: 1
 #
+# A site in a built-in model frames the model's own text, not the
+# entry document's (#658). The byte-level guard is the built-in model
+# twin pair (ts/test/error.test.ts full-message-builtin-model-twin,
+# go/hints_test.go TestFullMessageBuiltinModelTwin).
+errm-frame-builtin-model-arrow	err	@"aontu:system"\ns: $.aontu.System.Service & {kind: database}	--> aontu:system:11:29
+errm-frame-builtin-model-text	err	@"aontu:system"\ns: $.aontu.System.Service & {kind: database}	Service: type(open({ kind:service ports?
+#
 # Clone-carried operands (#36 review): a bag reached through a
 # reference keeps its source site through the clone, AND a cloned
 # operand meeting a parsed one keeps the driving operand primary

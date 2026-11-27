@@ -1870,6 +1870,40 @@ formats, so it needs no change for BT2. The rows are 60 more in
 `test/spec/format.tsv`, two in `test/spec/jsonschema.tsv` and three in
 `test/spec/jsonschema-import.tsv`, each answer agreed by both engines.
 
+Progress on 2026-11-27. BT4 is built in both engines, after #658, so a
+refusal sited in a bundled model frames the model's text in both.
+`@"aontu:num"` is `aontu/num/num.aontu`, and `$.aontu.Num` holds
+`Int8`, `Int16`, `Int32`, `Int64`, `Int128`, `Uint8`, `Uint16`,
+`Uint32`, `Uint64`, `Uint128` and `Float32`, each a `type()`. A bare
+`int8` is still a string. Three things were settled in the building,
+and each is the maintainer's to change:
+
+- The members are PascalCase, as `aontu:system`'s are, so the model
+  writes `$.aontu.Num.Uint8` where the example above writes
+  `$.Num.uint8`.
+- The names to 32 bits are `integer` alone, as the example's `uint8`
+  is, so `0d5` is refused by them. The 64-bit and 128-bit names are
+  `(integer | biginteger)` with `0d` bounds, the lower one `-0d…`.
+- `Float32` is a `number` from `-0d340282346638528859811704183484516925440`
+  to `0d340282346638528859811704183484516925440`, the largest finite
+  float32 magnitude, 3.4028234663852886e38, written exactly. A
+  constraint cannot say a precision, so it bounds the magnitude only:
+  `16777217`, which a float32 rounds, is admitted.
+
+The rows are `test/spec/num.tsv`: each name at both its bounds and one
+past each, a project narrowing a name, `vet` against one, the model's
+canon and hash, and the bare word. The model is listed in
+`docs/reference-language.md`, and `name-a-reusable-constraint.md`
+points at it.
+
+BT5 is written: `docs/how-to/carry-binary-data.md` carries a string's
+bytes through `encode` and `decode` in the three encodings, keeps raw
+bytes in their encoded form, and bounds a binary record's numbers with
+`aontu:num`, pointing to `name-a-reusable-constraint.md` for names
+built on the bundled ones. It names no `format()`, which waits on BT2.
+Every example on it runs in the documentation tests, and both engines
+print each answer it shows.
+
 ### Questions for the ruling on part 7
 
 25. **Bytes: a kind, or text.** Ruled 2026-11-21: text in a named

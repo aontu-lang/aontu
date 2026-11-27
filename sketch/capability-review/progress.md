@@ -687,6 +687,27 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to/name-a-reusable-constraint.md`, both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**BEYOND THE PHASES: the sized numbers, landed on 2026-11-27 as the
+bundled model `@"aontu:num"`**, which adds no phase to the table and
+keeps the decision above: there is no keyword, and `a: int8` is still
+the bare string `"int8"`. Ruling 27 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
+took the names up as a model, and its task BT4 built it, in
+[`aontu/num/num.aontu`](../../aontu/num/num.aontu), copied by
+`make aontu` into `ts/src/aontumodel.ts` and `go/aontumodel/num/`.
+`$.aontu.Num` holds the integer names CUE predeclares, `Int8` to
+`Int128` and `Uint8` to `Uint128`, and `Float32`, each `type()`-marked
+and each an ordinary value a project narrows. The 64-bit and 128-bit
+names are `(integer | biginteger)` with exact `0d` bounds, the lower
+one `-0d…`, and `Float32` is a `number` within the largest finite
+float32 magnitude written exactly, with no precision constraint, since
+a constraint cannot say one. The members are PascalCase as
+`aontu:system`'s are, which is the maintainer's to change. Held by
+`test/spec/num.tsv`, every expectation from both engines; documented in
+`docs/reference-language.md` "The `aontu:num` sized numbers", with a
+pointer from `docs/how-to/name-a-reusable-constraint.md`. No code is
+registered.
+
 **RECURSION P3 LANDED 2026-10-10** (sketch/RECURSION.0.md,
 [ADR-067](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names)),
 in both ports: subsumption reads a recursive position as the
