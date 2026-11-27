@@ -88,10 +88,6 @@ None of these has a rule here, so the definition says nothing about
 it. Each waits on a later phase of the plan, on a ruling of its §7
 not yet built, or, where neither owns it, on the issue that tracks it:
 
-- a lone default whose own value is a conflict, `v: *(1 & 2)`, which the
-  definition reads as its parent type, since the meet drops the failed
-  arm before staging can see it, where both ports read the conflict
-  where the default stands (#1042);
 - a preference under a call: a written `*1 | integer` reads as the lone
   `*1` it has the shape of, and `(*1 | string) & integer`, a preferred
   arm the meet leaves alone, reads as a choice, each the other way
@@ -155,9 +151,7 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - the rows of `test/spec/subsume.tsv` whose documents write a path, a
   relation, a pattern or a call `tools/subsume_rows.py` doesn't read,
   45 of 201, which the subsume differential doesn't yet hold to their
-  profile's contract; and one row, `list-witness`, whose general side
-  both ports' `subsume` read otherwise than their `vet` does, which #1071
-  tracks;
+  profile's contract;
 - the proof that the verdict is independent of the order a document is
   written in: `Val.Reordered.judge` proves it of what a
   document admits, and `OrderIndependent` states it of any reading, but
