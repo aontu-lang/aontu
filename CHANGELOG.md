@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### `view`, `reaches` and `graph` read a default's edges
+
+Both ports, as ruled on 27 November (decision 94, #1029). The link
+graph that `aontu view`, `aontu reaches` and the library's `graph` read
+now holds the edges generation writes. A default's links are edges,
+alone (`*[path($.b)]`, `pref(...)`) or as the preferred arm of a
+disjunction, and the arms generation doesn't take are neither edges
+nor in `view`'s loss report. Before, a link under a preference was read
+by none of them and reported by nothing, though `aontu relations` and
+generation counted it. A disjunction with no preferred arm is
+unchanged: its links are undecided, and `view` reports them as
+`edges_in_disjunct`.
+
 ### A call that waits, inside `contains`, `rest`, `len`, a starred branch or a spread's template, waits
 
 **Breaking.** Ruling 91 (#977), in both engines. A call still waiting

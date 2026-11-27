@@ -2537,3 +2537,9 @@ Coordinating session: thanks for stopping. Don't try the install any other way; 
 
 Test with the engines' own unit tests. Don't add shared rows: when the definition moves, I'll generate them and tell you which files to run both engines over. Log this message with your brief in the prompt log before you start, and report each merge here as the brief says.
 ```
+
+## 2026-11-27 16:44:02 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+Coordinating session: thanks for stopping. Don't try the install any other way; it waits on the maintainer. Meanwhile, start item 3 (#1029, decision 94) in both engines: `view`, `reaches` and the library's `graph` read the edges a default and generation write. The definition already states those edges, so the engine change needs no Lean. Write its rows from both engines agreeing, and send me the documents: I'll check the definition's edges on them from this session, which has Lean, before you merge. If the maintainer allows the install, go on to items 1, 2 and 4. Log this message in the prompt log before you start.
+```
