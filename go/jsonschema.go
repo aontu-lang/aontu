@@ -328,15 +328,18 @@ func schemaCountEndpoint(b *constraintBound, isLo bool) (*big.Int, bool) {
 const schemaNotYet = "this is not a value yet, so there is nothing to constrain a " +
 	"consumer to; the schema admits anything here"
 
-func schemaFormatAnnotates(name string) string {
-	return "the format \"" + name + "\" asserts here, and " +
+func schemaFormatAnnotates(f constraintFormat) string {
+	return "the format \"" + f.name + "\" asserts here, and " +
 		"JSON Schema 2020-12 asserts a format only where a validator is asked to, so the " +
 		"schema may admit a string it refuses"
 }
 
-func schemaFormatUnread(name string) string {
-	return "JSON Schema has no keyword for a grammar, so the " +
-		"format \"" + name + "\" is written as x-aontu-format, which only aontu reads; the schema " +
+func schemaFormatUnread(f constraintFormat) string {
+	what := "JSON Schema has no keyword for a grammar, so the format \"" + f.name + "\""
+	if f.src == f.name {
+		what = "JSON Schema defines no format \"" + f.name + "\", so it"
+	}
+	return what + " is written as x-aontu-format, which only aontu reads; the schema " +
 		"admits any string here"
 }
 
@@ -415,16 +418,16 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		}
 	}
 
-	// ADR-105: a committed format by its name, a grammar under
+	// ADR-105: a JSON Schema format by its name, a grammar or an encoding under
 	// x-aontu-format, which only aontu reads.
 	for _, kind := range []struct {
 		key    string
 		named  bool
-		reason func(string) string
+		reason func(constraintFormat) string
 	}{{"format", true, schemaFormatAnnotates}, {"x-aontu-format", false, schemaFormatUnread}} {
 		fs := []constraintFormat{}
 		for _, f := range c.fmts {
-			if (f.src == f.name) == kind.named {
+			if (f.src == f.name && IsDefinedFormat(f.name)) == kind.named {
 				fs = append(fs, f)
 			}
 		}
@@ -436,7 +439,7 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 			}
 		}
 		for _, f := range fs {
-			sc.lose(path, "format", kind.reason(f.name))
+			sc.lose(path, "format", kind.reason(f))
 		}
 	}
 

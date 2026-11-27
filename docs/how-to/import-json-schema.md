@@ -341,6 +341,12 @@ vocabulary, asserts its formats without the flag, and there a format
 with no grammar refuses the import with `format_unknown`, as JSON
 Schema asks.
 
+JSON Schema doesn't define `base64`, `base64url` or `hex`, so neither
+mode asserts a `format` of those names without a grammar from
+`--format-grammar`. The import reads each as aontu's
+[encoding format](../reference-language.md#formats-format) under
+`x-aontu-format`, which is where the export writes one.
+
 ## What to watch for
 
 - Each loss names a pointer into the schema, `#/properties/a/format`,

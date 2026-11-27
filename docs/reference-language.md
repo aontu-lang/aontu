@@ -4228,6 +4228,10 @@ writes in lowercase.
 are not UTF-8: `decode("ff", hex)` has no string to answer with. Binary
 data stays in its encoded form from the source to the output.
 
+**Each encoding is also a format.** `format(base64)`, `format(base64url)`
+and `format(hex)` admit the text `encode` writes, and hold data that
+carries bytes as text: see [Formats](#formats-format).
+
 <!-- test: scenario encode-refusal -->
 <!-- test: run -->
 ```sh
@@ -8083,8 +8087,36 @@ The names are the nineteen JSON Schema formats: `date-time`, `date`,
 `ipv4`, `ipv6`, `uri`, `uri-reference`, `iri`, `iri-reference`, `uuid`,
 `uri-template`, `json-pointer`, `relative-json-pointer` and `regex`.
 Every name but `regex` is committed under `grammar/format/`, and
-`regex` admits a pattern `re()` admits. Any other name refuses with
-`format_unknown`.
+`regex` admits a pattern `re()` admits.
+
+Three more names are the [encodings](#encodings-encode-and-decode)
+that `encode` writes. Each is a grammar of RFC 4648, committed beside
+the others:
+
+| name | admits |
+|------|--------|
+| `base64` | the alphabet of section 4, padded with one or two `=` to a multiple of four characters |
+| `base64url` | the alphabet of section 5, with no padding and a length that is never one more than a multiple of four |
+| `hex` | an even number of hexadecimal digits, in either case |
+
+Any other name refuses with `format_unknown`.
+
+```aontu
+token: format(base64url) & encode("hello", base64url)
+bytes: format(hex) & "FF"
+```
+
+```json
+{"token": "aGVsbG8", "bytes": "FF"}
+```
+
+Each encoding admits the empty string, which `encode` writes for `""`.
+Each holds the bits that pad the last character to zero, as `decode`
+does, so `format(base64) & "aG=="` refuses with `parse_failed`. A format
+reads characters and never the bytes they spell. So `format(base64)`
+admits `"/w=="`, whose one byte is not UTF-8, and `decode("/w==",
+base64)` refuses it. Every other text that `decode` refuses, its format
+refuses too.
 
 A committed format is one grammar or several, and a string meets every
 one: `date-time` holds a leap second to the last minute of a UTC day
@@ -8133,7 +8165,8 @@ matches it. Canon sorts formats by their argument, writes each once,
 and puts them after `re`. Subsumption compares two formats as text,
 as it compares two patterns. `aontu jsonschema import --format-assert`
 writes a JSON Schema `format` as this atom, and `aontu jsonschema`
-writes it back as `format`, or a grammar as `x-aontu-format`: see
+writes it back as `format`. It writes a grammar, or an encoding, which
+JSON Schema doesn't define, as `x-aontu-format`: see
 [Import JSON Schema](how-to/import-json-schema.md#assert-formats).
 
 ### Band B: `must`

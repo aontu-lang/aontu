@@ -7,6 +7,7 @@
 
 
 import { FORMAT_GRAMMARS, FORMAT_LIBRARY } from './formatgrammars'
+import { isEncodeName } from './encode'
 
 
 type Ranges = [number, number][]
@@ -787,9 +788,10 @@ function formatOf(src: string):
 
 
 // Whether a name is one of the formats JSON Schema defines, which
-// format(name) reads without a grammar from its caller.
+// format(name) reads without a grammar from its caller. The encodings
+// are committed too, and JSON Schema defines none of them.
 function isDefinedFormat(name: string): boolean {
-  return FORMAT_GRAMMARS.has(name) || 'regex' === name
+  return (FORMAT_GRAMMARS.has(name) && !isEncodeName(name)) || 'regex' === name
 } /* node:coverage ignore next 12 */
 
 

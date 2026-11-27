@@ -1,0 +1,2 @@
+; RFC 4648 section 8, base 16, read in either case.
+hex = *(HEXDIG HEXDIG)

@@ -1745,6 +1745,40 @@ aren't UTF-8. The rows are `test/spec/encode.tsv`, the definition is
 its generated rows are ec0 on of `test/spec/def-call.tsv`. The law that
 `decode(encode(s, n), n)` is `s` is held by rows, and isn't proved.
 
+Progress on 2026-11-27. BT2 is built in both engines. `base64`,
+`base64url` and `hex` are names `format()` reads, each a grammar of
+RFC 4648 in `grammar/format/`: `base64.abnf`, `base64url.abnf` and
+`hex.abnf`. Both engines read the directory, so the grammars are their
+whole registration. Four things were settled in the building, and each
+is the maintainer's to change:
+
+- Each format admits the empty string, which `encode` writes for `""`.
+- The grammars hold the bits that pad the last character to zero, as
+  `decode` does. One character of lookahead can hold them: the second
+  character of a group is split by its low four bits and the third by
+  its low two, so `aG==` and `aGVsbG9=` are refused. Over 1.5 million
+  texts, generated and mutated, each grammar admits exactly the texts
+  whose bytes `decode` reads. What remains is the one difference a
+  grammar can't close: a format reads no bytes, so it admits text whose
+  bytes are not UTF-8, `/w==` among them, which `decode` refuses.
+- The three are not JSON Schema formats. `isDefinedFormat` and
+  `IsDefinedFormat` leave them out, so the import asserts a `format` of
+  those names only with `--format-grammar`, and refuses one under the
+  format-assertion vocabulary, as before. `--format-grammar` can still
+  name them. The export writes one as `x-aontu-format`, which the
+  import reads back as the same format, with a loss reason of its own.
+- The step bound of the recognizer, 1,000,000 steps, admits a base64
+  text of about 210,000 characters, a base64url text of about 170,000
+  and a hex text of about 500,000. A longer text is refused with
+  `parse_failed`, as for any format.
+
+The plan named ADR-059 as the record BT2 changes. The record has since
+been rewritten, ADR-059 is gone, and ADR-105 covers formats now. It
+says aontu reads and runs format grammars itself and names no list of
+formats, so it needs no change for BT2. The rows are 60 more in
+`test/spec/format.tsv`, two in `test/spec/jsonschema.tsv` and three in
+`test/spec/jsonschema-import.tsv`, each answer agreed by both engines.
+
 ### Questions for the ruling on part 7
 
 25. **Bytes: a kind, or text.** Ruled 2026-11-21: text in a named

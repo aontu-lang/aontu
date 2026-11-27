@@ -2,7 +2,8 @@
 # string domain that accumulates like `re`. `g` is a grammar, RFC 5234
 # ABNF with RFC 7405's `%s` and `%i`, or a name: a string that is one rule
 # name names one of the nineteen JSON Schema formats, eighteen committed
-# grammars and `regex`, which the pattern dialect decides. aontu reads
+# grammars and `regex`, which the pattern dialect decides, or one of the
+# encodings encode() writes, each a committed grammar. aontu reads
 # and runs the grammar itself, and refuses one it cannot decide by one
 # character of lookahead (`format_grammar`). A string the grammar refuses
 # is `parse_failed`, naming the format or the grammar's first rule. The
@@ -225,3 +226,70 @@ format-errc-uri-the-empty-string	errc	a: format("uri") & ""	parse_failed
 format-err-uri-names-the-format	err	a: format("uri") & "//example.org"	format uri: character 1, %x2F, is not admitted
 format-gens-uri-template-the-empty-string	gens	a: format("uri-template") & ""	{"a":""}
 format-gens-uri-template-an-apostrophe	gens	a: format("uri-template") & "'{var}'"	{"a":"'{var}'"}
+# The encodings encode() writes, by RFC 4648: base64 padded to a multiple
+# of four, base64url unpadded, and hex in pairs of either case. Each
+# admits the empty string, which encode() writes for "", and holds the
+# pad bits of the last character to zero, as decode() does.
+format-canon-base64-a-bare-name	canon	a: format(base64)	{"a":format("base64")}
+format-gens-base64-one-pad	gens	a: format(base64) & "aGVsbG8="	{"a":"aGVsbG8="}
+format-gens-base64-two-pads	gens	a: format(base64) & "aA=="	{"a":"aA=="}
+format-gens-base64-no-pad	gens	a: format(base64) & "aGV5"	{"a":"aGV5"}
+format-gens-base64-the-whole-alphabet	gens	a: format(base64) & "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"	{"a":"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"}
+format-gens-base64-the-empty-string	gens	a: format(base64) & ""	{"a":""}
+format-errc-base64-padding-missing	errc	a: format(base64) & "aGVsbG8"	parse_failed
+format-errc-base64-a-length-not-a-multiple-of-four	errc	a: format(base64) & "aGk=="	parse_failed
+format-errc-base64-three-pads	errc	a: format(base64) & "a==="	parse_failed
+format-errc-base64-a-pad-alone	errc	a: format(base64) & "="	parse_failed
+format-errc-base64-a-pad-inside	errc	a: format(base64) & "aG=k"	parse_failed
+format-errc-base64-text-after-padding	errc	a: format(base64) & "aGk=aGk="	parse_failed
+format-errc-base64-stray-bits-before-one-pad	errc	a: format(base64) & "aGVsbG9="	parse_failed
+format-errc-base64-stray-bits-before-two-pads	errc	a: format(base64) & "aG=="	parse_failed
+format-errc-base64-the-url-alphabet	errc	a: format(base64) & "-_-_"	parse_failed
+format-errc-base64-a-line-break	errc	a: format(base64) & "aGVs\\nbG8="	parse_failed
+format-errc-base64-a-space	errc	a: format(base64) & "aGVs bG8="	parse_failed
+format-err-base64-names-the-format	err	a: format(base64) & "aGVsbG9="	format base64: character 8, %x3D, is not admitted
+format-errc-base64-is-case-sensitive	errc	a: format("Base64") & "aGk="	format_unknown
+format-gens-base64url-unpadded	gens	a: format(base64url) & "aGVsbG8"	{"a":"aGVsbG8"}
+format-gens-base64url-two-characters	gens	a: format(base64url) & "aA"	{"a":"aA"}
+format-gens-base64url-whole-groups	gens	a: format(base64url) & "aGV5"	{"a":"aGV5"}
+format-gens-base64url-the-whole-alphabet	gens	a: format(base64url) & "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"	{"a":"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"}
+format-gens-base64url-the-empty-string	gens	a: format(base64url) & ""	{"a":""}
+format-errc-base64url-padded	errc	a: format(base64url) & "aGVsbG8="	parse_failed
+format-errc-base64url-one-character	errc	a: format(base64url) & "a"	parse_failed
+format-errc-base64url-five-characters	errc	a: format(base64url) & "aGVsb"	parse_failed
+format-errc-base64url-stray-bits-in-two	errc	a: format(base64url) & "aG"	parse_failed
+format-errc-base64url-stray-bits-in-three	errc	a: format(base64url) & "aGVsbG9"	parse_failed
+format-errc-base64url-the-standard-alphabet	errc	a: format(base64url) & "+/+/"	parse_failed
+format-err-base64url-names-the-format	err	a: format(base64url) & "a"	format base64url: the text ends too soon
+format-gens-hex-lowercase	gens	a: format(hex) & "6b"	{"a":"6b"}
+format-gens-hex-uppercase	gens	a: format(hex) & "6B"	{"a":"6B"}
+format-gens-hex-mixed-case	gens	a: format(hex) & "00fF"	{"a":"00fF"}
+format-gens-hex-the-empty-string	gens	a: format(hex) & ""	{"a":""}
+format-errc-hex-odd	errc	a: format(hex) & "6"	parse_failed
+format-errc-hex-odd-after-pairs	errc	a: format(hex) & "6b6"	parse_failed
+format-errc-hex-not-a-digit	errc	a: format(hex) & "6g"	parse_failed
+format-errc-hex-a-prefix	errc	a: format(hex) & "0x6b"	parse_failed
+format-err-hex-names-the-format	err	a: format(hex) & "6b6"	format hex: the text ends too soon
+format-gens-base64-admits-what-encode-writes	gens	a: format(base64) & encode("hello", base64)\nb: format(base64) & encode("hi", base64)\nc: format(base64) & encode("é", base64)\nd: format(base64) & encode("", base64)	{"a":"aGVsbG8=","b":"aGk=","c":"w6k=","d":""}
+format-gens-base64url-admits-what-encode-writes	gens	a: format(base64url) & encode("hello", base64url)\nb: format(base64url) & encode("hi", base64url)\nc: format(base64url) & encode("é", base64url)\nd: format(base64url) & encode("", base64url)	{"a":"aGVsbG8","b":"aGk","c":"w6k","d":""}
+format-gens-hex-admits-what-encode-writes	gens	a: format(hex) & encode("k", hex)\nb: format(hex) & encode("é", hex)\nc: format(hex) & encode("", hex)	{"a":"6b","b":"c3a9","c":""}
+# Beside decode() on the same text: a format refuses what decode()
+# refuses, but reads no bytes, so it admits text whose bytes are not
+# UTF-8, which decode() refuses.
+format-gens-base64-beside-decode	gens	a: format(base64) & "aGVsbG8="\nb: decode("aGVsbG8=", base64)	{"a":"aGVsbG8=","b":"hello"}
+format-gens-base64url-beside-decode	gens	a: format(base64url) & "aGVsbG8"\nb: decode("aGVsbG8", base64url)	{"a":"aGVsbG8","b":"hello"}
+format-gens-hex-beside-decode	gens	a: format(hex) & "6B"\nb: decode("6B", hex)	{"a":"6B","b":"k"}
+format-errc-base64-refuses-what-decode-refuses	errc	a: format(base64) & "aGVsbG8"	parse_failed
+format-errc-decode-base64-refuses-the-same	errc	b: decode("aGVsbG8", base64)	decode_malformed
+format-errc-base64-stray-bits-as-decode	errc	a: format(base64) & "aG=="	parse_failed
+format-errc-decode-base64-stray-bits	errc	b: decode("aG==", base64)	decode_malformed
+format-errc-base64url-padding-as-decode	errc	a: format(base64url) & "aGk="	parse_failed
+format-errc-decode-base64url-padding	errc	b: decode("aGk=", base64url)	decode_malformed
+format-errc-hex-odd-as-decode	errc	a: format(hex) & "6b6"	parse_failed
+format-errc-decode-hex-odd	errc	b: decode("6b6", hex)	decode_malformed
+format-gens-base64-admits-bytes-that-are-not-utf-8	gens	a: format(base64) & "/w=="	{"a":"/w=="}
+format-errc-decode-base64-refuses-bytes-that-are-not-utf-8	errc	b: decode("/w==", base64)	decode_malformed
+format-gens-base64url-admits-bytes-that-are-not-utf-8	gens	a: format(base64url) & "_w"	{"a":"_w"}
+format-errc-decode-base64url-refuses-bytes-that-are-not-utf-8	errc	b: decode("_w", base64url)	decode_malformed
+format-gens-hex-admits-bytes-that-are-not-utf-8	gens	a: format(hex) & "ff"	{"a":"ff"}
+format-errc-decode-hex-refuses-bytes-that-are-not-utf-8	errc	b: decode("ff", hex)	decode_malformed
