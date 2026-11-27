@@ -240,8 +240,9 @@ spec:
 	cd spec && lake exe oracle subsumedocs > ../test/spec/def-subsume-docs.tsv
 	cd spec && lake exe oracle calls > ../test/spec/def-call.tsv
 	cd spec && lake exe oracle custom > ../test/spec/def-custom.tsv
+	cd spec && lake exe oracle gaps > ../test/spec/def-gaps.tsv
 	cd spec && lake exe oracle forms > forms.tsv
-	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv test/spec/def-verdict.tsv test/spec/def-alias.tsv test/spec/def-path.tsv test/spec/def-trial.tsv test/spec/def-subsume.tsv test/spec/def-subsume-docs.tsv test/spec/def-call.tsv test/spec/def-custom.tsv spec/forms.tsv
+	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv test/spec/def-verdict.tsv test/spec/def-alias.tsv test/spec/def-path.tsv test/spec/def-trial.tsv test/spec/def-subsume.tsv test/spec/def-subsume-docs.tsv test/spec/def-call.tsv test/spec/def-custom.tsv test/spec/def-gaps.tsv spec/forms.tsv
 
 clean-go:
 	cd go && go clean

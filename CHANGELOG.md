@@ -23,6 +23,14 @@ ranked such an arm before reading it, so it counted one rank too low.
 
 The canon of the first two is `**1|*2`, and each generates `2`.
 
+### The definition writes a left-out root as `null`
+
+#1075, in the definition. A document whose root carries `hide()` or
+`type()` writes `null`, as the reference says and both engines do for a
+map or a list root. The definition wrote the root's value. Rows gr0 on
+in the new `test/spec/def-gaps.tsv`, which `ts/scripts/defcheck.cjs`'s
+gaps fill. Both ports answer every one as the definition does.
+
 ### A `match` reads the value its scrutinee generates, and a `filter` each value of a member
 
 **Breaking.** #963, #964 and #965, in both engines.
