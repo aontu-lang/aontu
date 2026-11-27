@@ -149,14 +149,24 @@ func shownText(v Val) string {
 // compared separately by the `defaults` and `gen` profiles.
 func subAdmission(v Val) Val {
 	if p, ok := v.(*PrefVal); ok {
-		return p.superpeg
+		return subSealed(p.superpeg)
 	}
 	return v
 }
 
+// subMemberAdmission: a list literal standing as an arm, or as a default's value, admits only its own length, as vet reads it.
 func subMemberAdmission(v Val) Val {
 	if p, ok := v.(*PrefVal); ok {
-		return prefInnerPeg(p)
+		v = prefInnerPeg(p)
+	}
+	return subSealed(v)
+}
+
+func subSealed(v Val) Val {
+	if l, ok := v.(*ListVal); ok && !l.closed && nil == l.spread {
+		sealed := *l
+		sealed.closed = true
+		return &sealed
 	}
 	return v
 }

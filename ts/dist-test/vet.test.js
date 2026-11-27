@@ -710,4 +710,17 @@ const SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal((0, vet_1.vet)('x: *pref(1) | **2', '{}').verdict, 'error');
     });
 });
+(0, node_test_1.describe)('subsume-a-list-arm-is-its-own-length', () => {
+    const CASES = [
+        ['a:[1]|[2]', 'a:[1,5]', 'does_not_subsume'],
+        ['a:[1]|[2]', 'a:close([1])|close([2])', 'subsumes'],
+        ['a:close([1])|close([2])', 'a:[1]|[2]', 'subsumes'],
+        ['a: *[1]', 'a:[1,5]', 'does_not_subsume'],
+    ];
+    for (const [g, s, verdict] of CASES) {
+        (0, node_test_1.test)(g + ' over ' + s, () => {
+            Assert.equal((0, subsume_1.subsume)(g, s, { profile: 'values' }).verdict, verdict);
+        });
+    }
+});
 //# sourceMappingURL=vet.test.js.map

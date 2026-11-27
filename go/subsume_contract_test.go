@@ -44,7 +44,7 @@ func contractSame(t *testing.T, a, b string) bool {
 }
 
 // contractAwaits holds rows both ports' subsume read otherwise than their vet.
-var contractAwaits = map[string]int{"list-witness": 1071}
+var contractAwaits = map[string]int{}
 
 func TestSubsumeContract(t *testing.T) {
 	golden := map[string][]string{}
