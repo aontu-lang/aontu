@@ -132,19 +132,14 @@ function computeDiagnostics(
 // Convert a NilVal (1-based site row/col) to an LSP diagnostic (0-based
 // line/character).
 function nilToDiagnostic(nil: any): Diagnostic {
-  // An included file's row and column mean nothing here: use this
-  // file's operand.
-  const elsewhere = (v: any): boolean => '' !== (v?.site?.url ?? '')
-  const other = null != nil.secondary &&
-    elsewhere(nil.primary) && !elsewhere(nil.secondary)
-  const row = (other ? nil.secondary : nil).site?.row ?? -1
-  const col = (other ? nil.secondary : nil).site?.col ?? -1
+  const { site, len } = placeOf(nil)
+  const row = site?.row ?? -1
+  const col = site?.col ?? -1
 
   let start: Position
   let end: Position
   if (row >= 1 && col >= 1) {
     start = { line: row - 1, character: col - 1 }
-    const len = other ? siteExtent(nil.secondary) : labelLength(nil)
     end = { line: row - 1, character: col - 1 + len }
   }
   else {
@@ -159,6 +154,23 @@ function nilToDiagnostic(nil: any): Diagnostic {
     source: 'aontu',
     message: nilMessage(nil),
   }
+}
+
+
+// An included file's row and column mean nothing here: use this file's
+// operand, or else where this file loaded the value.
+function placeOf(nil: any): { site: any, len: number } {
+  const elsewhere = (v: any): boolean => '' !== (v?.site?.url ?? '')
+  const from = nil.primary ?? nil
+  if (!elsewhere(from)) {
+    return { site: nil.site, len: labelLength(nil) }
+  }
+  if (null != nil.secondary && !elsewhere(nil.secondary)) {
+    return { site: nil.secondary.site, len: siteExtent(nil.secondary) }
+  }
+  const load = from.site.load
+  return null != load && !load.url ?
+    { site: load, len: 1 } : { site: nil.site, len: labelLength(nil) }
 }
 
 
@@ -663,8 +675,8 @@ function percentDecode(text: string): string {
 
 // The inverse of uriToPath, as pathToURI is in go/lsp/handler.go.
 export function pathToUri(path: string): string {
-  const p = driveLetterPath('/' + path) ?
-    '/' + path.replaceAll('\\', '/') : path
+  const p = driveLetterPath('/' + path) ? '/' + path.replaceAll('\\', '/') :
+    path.startsWith('\\\\') ? path.slice(2).replaceAll('\\', '/') : path
   let out = 'file://'
   for (const ch of p) {
     out += URI_PLAIN.includes(ch) ? ch : utf8Bytes(ch).map((b) =>

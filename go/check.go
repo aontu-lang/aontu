@@ -71,9 +71,18 @@ func (a *Aontu) CheckVars(src string, vars map[string]Val) []Problem {
 		if n.primary != nil {
 			p.Len = srcSpanLen(n.primary)
 		}
-		// An included file's offset means nothing here: use this file's operand.
-		if nil != n.secondary && "" != n.primary.srcurl() && "" == n.secondary.srcurl() {
-			p.Pos, p.Len = n.secondary.pos(), srcSpanLen(n.secondary)
+		// An included file's offset means nothing here: use this file's
+		// operand, or else where this file loaded the value.
+		from := Val(n)
+		if nil != n.primary {
+			from = n.primary
+		}
+		if "" != from.srcurl() {
+			if nil != n.secondary && "" == n.secondary.srcurl() {
+				p.Pos, p.Len = n.secondary.pos(), srcSpanLen(n.secondary)
+			} else if sp, url, ok := from.load(); ok && "" == url {
+				p.Pos, p.Len = sp, 1
+			}
 		}
 		out = append(out, p)
 	}
@@ -110,9 +119,7 @@ func (a *Aontu) Spans(src string) []ValueSpan {
 	if perr != nil {
 		return nil
 	}
-	ctx := &Ctx{root: v, src: src}
-	res := unifyRoot(v, ctx)
-	ctx.root = res
+	res, _, _ := a.unifyCtx(v, nil, src)
 
 	var out []ValueSpan
 	collectSpans(res, &out, map[Val]bool{})

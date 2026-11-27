@@ -782,6 +782,9 @@ const lsp_server_1 = require("../dist/lsp-server");
             Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\n');
             Fs.writeFileSync(Path.join(dir, 'far.aontu'), '   5\n');
             Fs.writeFileSync(Path.join(dir, 'two.aontu'), '2\n');
+            Fs.writeFileSync(Path.join(dir, 'ref.aontu'), '\n\n\n$.missing\n');
+            Fs.writeFileSync(Path.join(dir, 'call.aontu'), '\n\nfoo(1)\n');
+            Fs.writeFileSync(Path.join(dir, 'deep.aontu'), '  a: $.nope\n');
             const trust = { include: { root: dir } };
             const src = `base: @"${(0, srcpath_1.srcPath)(dir)}/base.aontu"\nx: $.base.port\n`;
             const [loc, ...more] = (0, lsp_1.computePathDefinition)(src, { line: 1, character: 5 }, 'file:///d.aontu', trust) ?? [];
@@ -799,6 +802,15 @@ const lsp_server_1 = require("../dist/lsp-server");
             // A conflict with a loaded value is placed at the operand written here.
             const ds = (0, lsp_1.computeDiagnostics)(`y: @"${(0, srcpath_1.srcPath)(dir)}/two.aontu"\ny: 3\n`, { trust });
             Assert.deepStrictEqual(ds.map((d) => [d.code, d.range]), [['scalar_value', range(1, 3, 1, 4)]]);
+            // An error in what an include loads, with no operand here, is placed
+            // at the `@` that loaded it.
+            for (const [file, code] of [['ref', 'no_path'], ['call', 'unknown_function']]) {
+                const at = (0, lsp_1.computeDiagnostics)(`v: @"${(0, srcpath_1.srcPath)(dir)}/${file}.aontu"\n`, { trust });
+                Assert.deepStrictEqual(at.map((d) => [d.code, d.range]), [[code, range(0, 3, 0, 4)]]);
+            }
+            // Deeper in the file, it keeps the file's own row and column.
+            const deep = (0, lsp_1.computeDiagnostics)(`v: @"${(0, srcpath_1.srcPath)(dir)}/deep.aontu"\n`, { trust });
+            Assert.deepStrictEqual(deep.map((d) => [d.code, d.range]), [['no_path', range(0, 5, 0, 6)]]);
         }
         finally {
             Fs.rmSync(dir, { recursive: true, force: true });
@@ -814,7 +826,9 @@ const lsp_server_1 = require("../dist/lsp-server");
         });
     });
     (0, node_test_1.test)('a-path-becomes-a-file-uri', () => {
-        Assert.deepStrictEqual(['/a/b c.aontu', 'C:\\a\\b.aontu', '/é/#?%.aontu'].map(lsp_1.pathToUri), ['file:///a/b%20c.aontu', 'file:///C:/a/b.aontu', 'file:///%C3%A9/%23%3F%25.aontu']);
+        Assert.deepStrictEqual(['/a/b c.aontu', 'C:\\a\\b.aontu', '/é/#?%.aontu', '\\\\host\\share\\b.aontu']
+            .map(lsp_1.pathToUri), ['file:///a/b%20c.aontu', 'file:///C:/a/b.aontu', 'file:///%C3%A9/%23%3F%25.aontu',
+            'file://host/share/b.aontu']);
     });
     (0, node_test_1.test)('the-handler-goes-to-an-alias-then-to-a-path', () => {
         const h = new lsp_1.LspHandler();

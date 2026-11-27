@@ -1110,9 +1110,11 @@ way. The kind under a hover is one word in both ports, which settles
 sited in its own file in both ports, which settles #845, and the site
 keeps a record of where the include is written, from which the cursor
 finds the key. A conflict between a value from an included file and
-one the document wrote is placed at the document's operand, which
-settles the part of #320 a conflict reaches; an error with no operand
-in the document is still placed at the included file's row and column.
+one the document wrote is placed at the document's operand, and an
+error in the value an include loads at the include's `@`, which
+settles the part of #320 those reach; an error deeper in the included
+file, with no operand in the document, is still placed at that file's
+row and column.
 One limit is documented, not fixed: the servers evaluate an open
 document's text, so a relative include is read from the server's
 working directory, not from the document's folder.

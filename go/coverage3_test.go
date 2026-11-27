@@ -55,6 +55,31 @@ func TestCheckPlacesAnIncludedConflictAtTheDocumentsOperand(t *testing.T) {
 		strings.LastIndex(src, "3") != probs[0].Pos || 1 != probs[0].Len {
 		t.Fatalf("problems: %+v", probs)
 	}
+
+	// With no operand here, an error is placed at the `@` that loaded it.
+	if err := os.WriteFile(filepath.Join(dir, "ref.aontu"), []byte("\n\n\n$.missing\n"), 0o644); nil != err {
+		t.Fatal(err)
+	}
+	src = `v: @"` + filepath.ToSlash(dir) + `/ref.aontu"` + "\n"
+	if probs := New().Check(src); 1 != len(probs) || "no_path" != probs[0].Why ||
+		3 != probs[0].Pos || 1 != probs[0].Len {
+		t.Fatalf("problems: %+v", probs)
+	}
+}
+
+// A hover is evaluated under the caller's budgets, as the document is.
+func TestHoverKeepsTheTrustBudgets(t *testing.T) {
+	const src = "a: nof(1, 1, 2, 3) & 2\n"
+	a := New()
+	a.Trust = &TrustOptions{Budget: TrustBudget{Trials: 2}}
+	if d := a.DescribeAt(src, CursorPosition{0, 0}); nil == d || "error" != d.Kind {
+		t.Errorf("key: %+v", d)
+	}
+	for _, s := range a.Spans(src) {
+		if "error" != s.Kind {
+			t.Errorf("value: %+v", s)
+		}
+	}
 }
 
 // The collectSpans / collectNils walkers and the valKind labels, on

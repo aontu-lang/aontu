@@ -375,6 +375,8 @@ func uriToPath(uri string) string {
 func pathToURI(path string) string {
 	if driveLetterPath("/" + path) {
 		path = "/" + strings.ReplaceAll(path, "\\", "/")
+	} else if strings.HasPrefix(path, `\\`) {
+		path = strings.ReplaceAll(path[2:], "\\", "/")
 	}
 	var b strings.Builder
 	b.WriteString("file://")

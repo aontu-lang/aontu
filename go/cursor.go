@@ -428,7 +428,8 @@ func (a *Aontu) DescribeAt(src string, pos CursorPosition) *CursorValue {
 	if nil == path {
 		return nil
 	}
-	node := anchorParts(unifyRoot(root, &Ctx{root: root, src: src}), path)
+	res, _, _ := a.unifyCtx(root, nil, src)
+	node := anchorParts(res, path)
 	if nil == node {
 		return nil
 	}

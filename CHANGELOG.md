@@ -41,9 +41,15 @@ include, and Go sited a map from an included file at the right row
 and column of the wrong file. The key an include stands under is still
 found, from where the include is written. A conflict between a value
 an included file wrote and one the document wrote is now placed at the
-document's operand in both servers: Go had placed it at the included
-file's row and column, and TypeScript would have with the siting
-fixed.
+document's operand in both servers, and an error in the value an
+include loads, with no operand in the document, at the include's `@`.
+Go had placed both at the included file's row and column, read in the
+document, and TypeScript would have with the siting fixed.
+
+Go's hovers now evaluate under the caller's budgets, as TypeScript's
+do: under a trials budget, Go showed a value where TypeScript showed
+the refusal. And a definition in a file on a Windows network share is
+a `file://host/share/…` URI.
 
 Two new shared-row modes, `describe` and `define`, hold both ports to
 one answer, in 99 new rows of `test/spec/cursor.tsv`, 26 of them across

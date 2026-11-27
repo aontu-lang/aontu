@@ -935,6 +935,9 @@ describe('lsp-key-and-path', () => {
       Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\n')
       Fs.writeFileSync(Path.join(dir, 'far.aontu'), '   5\n')
       Fs.writeFileSync(Path.join(dir, 'two.aontu'), '2\n')
+      Fs.writeFileSync(Path.join(dir, 'ref.aontu'), '\n\n\n$.missing\n')
+      Fs.writeFileSync(Path.join(dir, 'call.aontu'), '\n\nfoo(1)\n')
+      Fs.writeFileSync(Path.join(dir, 'deep.aontu'), '  a: $.nope\n')
       const trust = { include: { root: dir } }
       const src = `base: @"${srcPath(dir)}/base.aontu"\nx: $.base.port\n`
 
@@ -958,6 +961,16 @@ describe('lsp-key-and-path', () => {
       const ds = computeDiagnostics(`y: @"${srcPath(dir)}/two.aontu"\ny: 3\n`, { trust })
       Assert.deepStrictEqual(ds.map((d) => [d.code, d.range]),
         [['scalar_value', range(1, 3, 1, 4)]])
+
+      // An error in what an include loads, with no operand here, is placed
+      // at the `@` that loaded it.
+      for (const [file, code] of [['ref', 'no_path'], ['call', 'unknown_function']]) {
+        const at = computeDiagnostics(`v: @"${srcPath(dir)}/${file}.aontu"\n`, { trust })
+        Assert.deepStrictEqual(at.map((d) => [d.code, d.range]), [[code, range(0, 3, 0, 4)]])
+      }
+      // Deeper in the file, it keeps the file's own row and column.
+      const deep = computeDiagnostics(`v: @"${srcPath(dir)}/deep.aontu"\n`, { trust })
+      Assert.deepStrictEqual(deep.map((d) => [d.code, d.range]), [['no_path', range(0, 5, 0, 6)]])
     }
     finally {
       Fs.rmSync(dir, { recursive: true, force: true })
@@ -976,8 +989,10 @@ describe('lsp-key-and-path', () => {
 
   test('a-path-becomes-a-file-uri', () => {
     Assert.deepStrictEqual(
-      ['/a/b c.aontu', 'C:\\a\\b.aontu', '/é/#?%.aontu'].map(pathToUri),
-      ['file:///a/b%20c.aontu', 'file:///C:/a/b.aontu', 'file:///%C3%A9/%23%3F%25.aontu'])
+      ['/a/b c.aontu', 'C:\\a\\b.aontu', '/é/#?%.aontu', '\\\\host\\share\\b.aontu']
+        .map(pathToUri),
+      ['file:///a/b%20c.aontu', 'file:///C:/a/b.aontu', 'file:///%C3%A9/%23%3F%25.aontu',
+        'file://host/share/b.aontu'])
   })
 
   test('the-handler-goes-to-an-alias-then-to-a-path', () => {

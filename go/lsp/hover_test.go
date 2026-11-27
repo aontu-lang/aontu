@@ -329,6 +329,8 @@ func TestKeyAndPathAcrossAnInclude(t *testing.T) {
 	dir := t.TempDir()
 	for name, text := range map[string]string{
 		"base.aontu": "port: 8080\n", "far.aontu": "   5\n", "two.aontu": "2\n",
+		"ref.aontu": "\n\n\n$.missing\n", "call.aontu": "\n\nfoo(1)\n",
+		"deep.aontu": "  a: $.nope\n",
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); nil != err {
 			t.Fatal(err)
@@ -364,13 +366,28 @@ func TestKeyAndPathAcrossAnInclude(t *testing.T) {
 	if 1 != len(ds) || "scalar_value" != ds[0].Code || rangeOf(1, 3, 1, 4) != ds[0].Range {
 		t.Errorf("diagnostics: %+v", ds)
 	}
+
+	// An error in what an include loads, with no operand here, is placed
+	// at the `@` that loaded it.
+	for file, code := range map[string]string{"ref": "no_path", "call": "unknown_function"} {
+		at := DiagnosticsTrust(`v: @"`+srcPath(dir)+`/`+file+`.aontu"`+"\n", nil, trust)
+		if 1 != len(at) || code != at[0].Code || rangeOf(0, 3, 0, 4) != at[0].Range {
+			t.Errorf("%s: %+v", file, at)
+		}
+	}
+	// Deeper in the file, it keeps the file's own row and column.
+	deep := DiagnosticsTrust(`v: @"`+srcPath(dir)+`/deep.aontu"`+"\n", nil, trust)
+	if 1 != len(deep) || "no_path" != deep[0].Code || rangeOf(0, 5, 0, 6) != deep[0].Range {
+		t.Errorf("deep: %+v", deep)
+	}
 }
 
 func TestAPathBecomesAFileURI(t *testing.T) {
 	for path, want := range map[string]string{
-		"/a/b c.aontu": "file:///a/b%20c.aontu",
-		`C:\a\b.aontu`: "file:///C:/a/b.aontu",
-		"/é/#?%.aontu": "file:///%C3%A9/%23%3F%25.aontu",
+		"/a/b c.aontu":         "file:///a/b%20c.aontu",
+		`C:\a\b.aontu`:         "file:///C:/a/b.aontu",
+		"/é/#?%.aontu":         "file:///%C3%A9/%23%3F%25.aontu",
+		`\\host\share\b.aontu`: "file://host/share/b.aontu",
 	} {
 		if got := pathToURI(path); want != got {
 			t.Errorf("%q: %q, want %q", path, got, want)

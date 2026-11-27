@@ -534,7 +534,8 @@ The analysis layer turns source into diagnostics in three steps:
    frames) identical in both languages. A conflict between a value an
    included file wrote and one the document wrote is placed at the
    document's operand, since the included file's row and column mean
-   nothing in the document.
+   nothing in the document. An error in the value an include loads,
+   with no operand in the document, is placed at the include's `@`.
 
 A hard **syntax error** (which prevents producing a tree) is reported as a
 single diagnostic with code `parse`, positioned where the parser failed if
@@ -592,8 +593,9 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   with a relative path is resolved against the server's working
   directory, which the editor sets, and not against the document's
   folder as `aontu` resolves it at the command line. An error raised
-  inside an included file, with no operand in the document, is placed
-  at that file's row and column in the document.
+  deeper inside an included file than the value it loads, with no
+  operand in the document, is placed at that file's row and column in
+  the document.
 - **The alias features read the document's text**, not its tree, so
   they answer while a document is half-written and would not parse. The
   cost is that they know only what the text says: a name arriving
