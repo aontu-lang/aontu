@@ -2932,6 +2932,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     | move n => exact .ride ih
     | opened => exact .ride ih
     | void => exact .ride ih
+    | gen => exact .ride ih
     | _ => exact ih
   | link _ _ ih _ => exact ih
   | @meet a b ha hb iha ihb =>

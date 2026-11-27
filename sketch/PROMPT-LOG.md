@@ -2617,3 +2617,37 @@ Next engine-side work, in this order:
 3. #983 (Go holds no arm where defaults of two ranks both stand) and #984 (a map holding a path that names nothing, as an argument of `when` or `nof`), if their own texts say which side moves. Ask me before changing anything they leave open.
 Log this message in the prompt log first.
 ```
+
+## 2026-11-27 21:45:15 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
+
+```text
+#1075 gen-boolean-default-overridden needs no new ruling: build the engines' reading.
+
+Ruling 40 lifts the value `x` on its own, so `(*false) & gen(…)` reads as `(false | boolean) & gen(…)`. A `gen()` annotation is a rider, not part of the value, so the parent arm keeps it.
+- Make `Val.super` keep the `.gen` rider, or read the meet per ruling 40.
+- Require every generated file to regenerate byte for byte, apart from your new rows.
+- If any order or subsume row moves, stop and send me those rows.
+
+#1073 hide-computed-pack-copy goes to the maintainer as a ruling, so leave it. I probed both engines:
+- They make a copied fold again at the copy: `s: sum(.l)` and `s: join(.l, "-")` behind `d: $.a.s` give `no_path`, per #944.
+- They read `"|" + .se`, `.n + 1` and `upper(.se)` at the target.
+So the engines split by kind of call. The question goes to the maintainer with both options.
+
+`null-guard-generates` and #1074 go to A (P9).
+
+Yours, in order:
+1. #1065: place keys by position in the roots `movesMade` reads.
+2. #1072.
+3. #1064.
+4. `atom-relation-member-is-a-link-target`.
+
+Next time you regenerate `def-gaps.tsv`, add these to `leftRootCases`:
+- `hide (int 1)`
+- `.meet (type (int 1)) .number`
+- `hide (str "x")`
+- `hide (*{a: 1} | {b: 2})`
+
+I probed the first three, and `type(1)` and `type(1) & integer` too. The definition writes `null` for each, as both engines and `marks.tsv` now do after E's #1091.
+
+Don't stop between items. Report to me at each merge.
+```

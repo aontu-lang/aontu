@@ -282,7 +282,9 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. A rider is left behind, but the one around a written
 `nil` (`Val.void`), whose parent is no value either, the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
-it, and `open(v)`'s, so that the parent stays open where `v` is. -/
+it, `open(v)`'s, so that the parent stays open where `v` is, and
+`gen(r)`'s, an annotation that rides the value and is no part of it, so
+that the parent a default widens to writes as the default does. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -313,6 +315,7 @@ def Val.super : Val → Val
   | .ride (.move n) v r => .ride (.move n) v.super r
   | .ride .opened v r => .ride .opened v.super r
   | .ride .void v r => .ride .void v.super r
+  | .ride .gen v r => .ride .gen v.super r
   | .ride _ v _ => v.super
   | .link v _ => v.super
   | .key | .keyUp _ => .anyString
