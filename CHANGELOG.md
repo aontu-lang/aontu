@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### A guide for CUE users
+
+Task CG4 of the lang refinement plan. A new how-to,
+`docs/how-to/aontu-for-cue-users.md`, takes a CUE user through four
+things: the aontu spelling of each CUE form, the text that answers
+differently in the two languages, the five CUE forms aontu has none
+of with the nearest spelling of each, and the aontu verb for each `cue`
+command. Its row for a key pattern gives `keyed`. Every example pair is
+a probe of the CUE corpus under `test/cue/`, or for `keyed` a new row of
+`test/spec/keyed.tsv`, and `ts/test/cuecorpus.test.ts` holds each fence
+and each table row of the page to the corpus. The how-to index gains a
+group for readers coming from another language. Neither engine changes.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call

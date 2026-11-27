@@ -941,6 +941,27 @@ probes beyond k1 to k38 are the rows of `test/spec/cue.tsv`, byte-exact
 `ts/test/cuecorpus.test.ts` holds each file to its row. CG3, the CUE
 half in the daily workflow, is not started.
 
+Progress on 2026-11-27. CG4 is written, as
+`docs/how-to/aontu-for-cue-users.md`, in the four sections above. The
+first gives four pairs of examples and three tables, 43 rows from a CUE
+form to its aontu spelling, with KP2's row for `keyed` beside the
+guarded spread and a pair of its own. The second gives two examples
+and the 22 rows of the comparison's table, each with both answers, and
+a table of the three that move with the CUE release, n2, x8 and g12.
+The third takes the five forms aontu has none of, with k30 and x3 as
+examples, and the fourth puts each `cue` command beside its verb. The
+comprehension idioms are linked to the reference's sections on `pack`,
+`each`, `filter`, `match` and `emit`, since C8's page is not written.
+Every CUE fence quotes a file of `test/cue/` under `test: quote`, and
+every aontu fence quotes one too, but for the `keyed` pair, whose source
+is a new row of `test/spec/keyed.tsv` that both engines answer alike.
+A test in `ts/test/cuecorpus.test.ts` holds the page to that, and holds
+each code span of a table row to the files and the `index.tsv` line of
+the probes a comment above the table names for it. No `cue` binary is
+here, so the CUE answers are the corpus's, which the comparison
+recorded. The how-to index gains a group, "Coming from another
+language", and `docs/index.md` points a CUE user to the page.
+
 C7 and CG2 are one mechanism: whichever starts first writes the rows
 of the other. CG3 edits `.github/workflows/`, so its push needs an
 account with the `workflow` scope. H3 also asks for a guide for JSON

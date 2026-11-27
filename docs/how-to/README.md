@@ -10,6 +10,12 @@ the reference for depth. Every example is executed by
      re-running the snippet in the docs rewrite PR, or edit by hand
      and keep order consistent with each guide's `order` field. -->
 
+## Coming from another language
+
+Mapping what you already write elsewhere to aontu.
+
+- [Move from CUE to aontu](aontu-for-cue-users.md). Map what you write in CUE to what aontu writes, know where the same text gives another answer, and find the aontu verb for each `cue` command.
+
 ## Run, embed and integrate
 
 Getting aontu into your process or pipeline, and its answers out.
