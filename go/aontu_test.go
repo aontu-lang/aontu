@@ -222,3 +222,11 @@ func TestMatchByTheValueGenerated(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkedRootGeneratesNothing(t *testing.T) {
+	for _, src := range []string{`hide(1)`, `type(1)`, `hide("x")`, `hide(*{a: 1} | {b: 2})`, `hide({a: 1})`} {
+		if out, err := New().Generate(src); nil != err || nil != out {
+			t.Errorf("%s: want nothing, got %v (%v)", src, out, err)
+		}
+	}
+}
