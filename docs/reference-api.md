@@ -950,8 +950,8 @@ $ echo $?
   from the finished model. It reads the model as generation writes it,
   so a default's edges count and an arm generation doesn't take brings
   none, as [`reaches`](#aontu-reaches) and [`view`](#aontu-view) read
-  it. Where no arm is preferred, the verb reads every arm, and `reaches`
-  and `view` read none. There is no reserved `relations:` key: a document
+  it. Where the disjunction prefers no arm, the verb reads every arm,
+  and `reaches` and `view` read none. There is no reserved `relations:` key: a document
   that writes one has written ordinary data.
 - **These are not lattice constraints, deliberately.** Both properties
   are global and non-monotone (one more edge makes an acyclic graph
@@ -1319,9 +1319,9 @@ the name over it and for each message that spans it.
   subtree, not drawn, because a committed figure discloses what it
   draws), `edges_in_disjunct` (a link under a disjunction with no
   preferred arm, which is not a fact, so the figure reports it rather
-  than picking an arm; a default's links are drawn, as generation
-  writes them, and the arms it does not take are neither drawn nor
-  reported), `unresolved_field` (a node without a value for
+  than picking an arm; the figure draws a default's links, as
+  generation writes them, and neither draws nor reports the arms it
+  doesn't take), `unresolved_field` (a node without a value for
   `--group-by` or `--label`), `lattice_unplaced` (a value at no single
   point of the lattice, named rather than drawn), `cycle_block`,
   `cols_elided`, `column_unplaced` (an ER column whose value is at no
