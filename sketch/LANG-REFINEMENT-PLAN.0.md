@@ -882,6 +882,40 @@ order and CUE in source order:
   "pairs": ["a=2", "b=1"] }
 ```
 
+Progress on 2026-11-27. C8 is written, as
+`docs/how-to/map-cue-comprehensions.md`, after C1 and C2. It takes the
+idioms in the order a CUE user reaches for them: a list from each
+member, flattening and joining, a choice under a condition, a local
+value, the keys of a map, a field of the member, two fields compared, a
+lookup, a pairing by position, the last member, a map keyed by a field,
+and the members another list names, then the longer constructions. All
+38 probes are shown. The 35 CUE fences quote `test/cue/`. Of the 42
+aontu fences, one quotes `k30.aontu` and 41 are executed, each followed
+by its answer. The corpus files aren't in the agreed form, which the
+docs fence check requires, so an executed fence is the agreed form of a
+row's source: a `routes-kNN`, `-at` or `-pack` row, `at.tsv`'s
+`at-condition-bound-reads-nothing`, or one of four `guide-*` rows added
+to `test/spec/comprehension.tsv` for the three entries above and one
+more. `ts/test/cuecorpus.test.ts` holds each fence to that, each answer
+to its row's, and the page to every probe. Both engines give every
+answer, formatted alike. Three things were settled in the writing, and
+each is the maintainer's to change:
+
+- The direct entries give only the direct spelling, for C1's and C2's
+  rows. The long routes those replace stay as rows and aren't shown.
+- k26 has a direct spelling with C1 that the table doesn't list,
+  `filter(each($.xs, apply(mul(at(_, a), 2), { v:_ })), { v:above(2) })`,
+  and the guide gives it as the `let` entry.
+- The page says that a bound reading the member in a `filter` pattern
+  keeps nothing and isn't refused, with k4's route as the example, and
+  writes the comparison with `match` and `sub`.
+
+The longer constructions are shown as today's routes and shorten as
+the rest lands: k7, k8 and the outer half of k12, k13 and k17 with C5,
+k34 with C3, and k30 to k32, k35 and k36 with C4. The CUE-users guide
+now links this page for the comprehensions, in place of the reference
+sections.
+
 ## Which task makes which idiom direct
 
 | What the comprehension does | Probes | Direct with |

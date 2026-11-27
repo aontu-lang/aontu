@@ -356,11 +356,9 @@ out: each($.n, "node-" + key())
 
 A number can still bound a loop over a list the document writes:
 `each(filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], below($.n)), "node-" + _)`
-answers `["node-0","node-1","node-2"]`. For the spelling of each
+answers `["node-0","node-1","node-2"]`. For the aontu spelling of each
 comprehension, see
-[Generating children: `pack` and `each`](../reference-language.md#generating-children-pack-and-each),
-[Selecting: `filter` and `match`](../reference-language.md#selecting-filter-and-match),
-and [Transforming: `emit`](../reference-language.md#transforming-emit).
+[Map CUE comprehensions to aontu](map-cue-comprehensions.md).
 
 ### User-defined functions
 
