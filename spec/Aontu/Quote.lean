@@ -17,13 +17,16 @@ other term is a **node**, a map whose one key is `quoteKey` and whose
 value lists the constructor's name and then its parts, each a term
 quoted in turn or a part written as data: a string, a count as its
 digits, a number, a flag, a record. An optional part is a list of none
-or one, and a list of parts is a list.
+or one, and a list of parts is a list, but a map's declarations, which
+a map holds by key, so that the record's key order is theirs too.
 -/
 
 namespace Aontu
 
-/-- The key of a node: a string no document writes as a key. -/
-def quoteKey : String := "\u0000term"
+/-- The key of a node, under the prefix `\u0000aontu_` that both ports
+refuse in a document's key (`reserved_key`), so no map a document
+writes has it. -/
+def quoteKey : String := "\u0000aontu_term"
 
 /-- A node: the constructor's name, then its parts. -/
 def quoteNode (t : String) (xs : List Data) : Data := .map [(quoteKey, .list (.str t :: xs))]
@@ -90,7 +93,7 @@ def Val.quote : Val → Data
   | .addr a => .addr a
   | .map fs spread closed =>
     if spread.isNone && !closed && requiredFields fs then .map (quoteMembers fs)
-    else quoteNode "map" [.list (quoteFields fs), quoteOpt spread, .bool closed]
+    else quoteNode "map" [.map (quoteFields fs), quoteOpt spread, .bool closed]
   | .list items spread closed =>
     if spread.isNone && !closed then .list (quoteItems items)
     else quoteNode "list" [.list (quoteItems items), quoteOpt spread, .bool closed]
@@ -143,9 +146,9 @@ def quoteMembers : List (String × Bool × Val) → List (String × Data)
   | [] => []
   | (k, _, v) :: fs => (k, v.quote) :: quoteMembers fs
 
-def quoteFields : List (String × Bool × Val) → List Data
+def quoteFields : List (String × Bool × Val) → List (String × Data)
   | [] => []
-  | (k, o, v) :: fs => .list [.str k, .bool o, v.quote] :: quoteFields fs
+  | (k, o, v) :: fs => (k, .list [.bool o, v.quote]) :: quoteFields fs
 
 def quoteItems : List Val → List Data
   | [] => []
@@ -235,10 +238,15 @@ def Val.seg? (v : Val) : Option Seg :=
   | some [.lit (.str "lands"), n] => n.nat?.map .lands
   | _ => none
 
-/-- A map's declaration from its parts. -/
-def Val.field? (v : Val) : Option (String × Bool × Val) :=
-  match v.items? with
-  | some [k, o, x] => do pure (← k.str?, ← o.flag?, x)
+/-- A map's declaration from its key and its parts. -/
+def fieldOf? (f : String × Bool × Val) : Option (String × Bool × Val) :=
+  match f.2.2.items? with
+  | some [o, x] => do pure (f.1, ← o.flag?, x)
+  | _ => none
+
+/-- A map's declarations from the map that holds them by key. -/
+def Val.fields? : Val → Option (List (String × Bool × Val))
+  | .map fs none false => fs.mapM fieldOf?
   | _ => none
 
 /-- A cover from its parts. -/
@@ -257,7 +265,7 @@ def requoteCustom : List (String × Bool × Val) → List (String × Bool × Val
 /-- The term a node reads back as, from its name and its parts each
 read back as a term. -/
 def quotedNode : String → List Val → Option Val
-  | "map", [fs, sp, cl] => do pure (.map (← (← fs.items?).mapM Val.field?) (← sp.opt?) (← cl.flag?))
+  | "map", [fs, sp, cl] => do pure (.map (← fs.fields?) (← sp.opt?) (← cl.flag?))
   | "list", [xs, sp, cl] => do pure (.list (← xs.items?) (← sp.opt?) (← cl.flag?))
   | "integer", [] => some .integer
   | "float", [] => some .float

@@ -20,4 +20,15 @@ partial def Aontu.Val.readCustom : Val → Val
   | .or arms => .or (arms.map fun a => (a.1, a.2.readCustom))
   | .pref r x => .pref r x.readCustom
   | .ride k v r => .ride k v.readCustom r
+  | .link v t => .link v.readCustom t.readCustom
+  | .len c' => .len c'.readCustom
+  | .nof n cs => .nof n.readCustom (cs.map Val.readCustom)
+  | .must c' msg => .must c'.readCustom msg
+  | .when c' t e => .when c'.readCustom t.readCustom (e.map Val.readCustom)
+  | .contains c' n => .contains c'.readCustom n.readCustom
+  | .rest t cs => .rest t.readCustom
+    (cs.map fun x => (x.1.map Val.readCustom, x.2.1.map Val.readCustom, x.2.2.map Val.readCustom))
+  | .select s arms d => .select s.readCustom (arms.map fun a => (a.1.readCustom, a.2.readCustom))
+    (d.map Val.readCustom)
+  | .filter s c' => .filter s.readCustom c'.readCustom
   | v => v

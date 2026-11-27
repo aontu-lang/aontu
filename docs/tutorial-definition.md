@@ -10470,11 +10470,24 @@ engines. Rows ll0 to ll20 and lr0 to lr41 hold the definition to the
 ruling, and both engines answer each as the definition does, as #661
 asked: a path that stays inside the template waits where the document
 writes the link, and each engine reads it at the target once the
-template has landed there. One reading isn't settled. A path that
-climbs past the template, as `..k` does in `relate({v: ..k})`, names a
-place that many steps up from the target here, by `climb`, and both
-engines read it where the document writes the link. The two agree wherever the target is the
-link's sibling, as in every row, and #1001 asks which holds elsewhere.
+template has landed there. A path that climbs past the template, as
+`..k` does in `relate({v: ..k})`, has left what lands, so it reads
+where the document writes the link. `climb` counts the steps it takes
+past the template, and `Val.atTarget` takes them from the link's own
+place, where a path that stays inside reads from the target:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+  | .path (.lands 0 :: p) => .path (T ++ p)
+  | .path (.lands c :: p) => if c ≤ L.length then .path (L.take (L.length - c) ++ p) else .nil
+```
+
+So with `k: 7`, `x: {k: 3, n: relate({v: ..k}) & path($.out)}` and
+`out: {}`, the link sends `v: 3` into `out`, as both engines read it,
+where the target alone would give `v: 7`. Rows lc0 to lc50 hold the
+definition to this, one step past the template and two, from deeper in
+it, under a call, past the top, and in a declaration's body, and both
+engines answer each as the definition does.
 
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
@@ -10600,7 +10613,7 @@ def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
 ```lean
 def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
     (a : Addr) : Val :=
-  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget p) with
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget pos p) with
   | some u => .meet acc u
   | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
 ```

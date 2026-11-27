@@ -15,8 +15,9 @@ integer; a map and a list given as what their members write, a
 member's own `custom` among them; a hole a generator inside the
 expression binds; `empty: "omit"` read on what it writes; a `null`
 written and a value it hides left out; the record riding a kind, a
-spread, a default, an arm and a template; one expression twice; and an
-expression that is annotated in turn. -/
+spread, a default, an arm and a template; one expression twice, a
+map's keys in either order; an expression that is annotated in turn;
+and an annotation inside a selection's arm. -/
 def customCases : List (Decls × Val) :=
   let g (fs : List (String × Val)) : Val := c .gen [m fs]
   let cu (e : Val) : Val := g [("custom", e)]
@@ -65,7 +66,10 @@ def customCases : List (Decls × Val) :=
     ([], .meet (m [("x", .meet (.or [(0, nul), (0, .string)]) (cu (pl (pl (str "<") .hole) (str ">"))))]) (m [("x", str "a")])),
     ([], x (.meet (.meet (str "a") (cu up)) (cu up))),
     ([], x (.meet (str "a") (cu (.meet up (cu (pl .hole (str "!"))))))),
-    ([], m [("x", .meet (str "a") (cu up)), ("y", p ["x"])])]
+    ([], m [("x", .meet (str "a") (cu up)), ("y", p ["x"])]),
+    ([], x (.meet (.meet (str "v") (cu (.map [("a", true, int 1), ("b", false, int 2)] none false)))
+      (cu (.map [("b", false, int 2), ("a", true, int 1)] none false)))),
+    ([], x (.select (str "a") [(str "a", .meet (str "b") (cu up))] (some (str "c"))))]
 
 /-- The `gens` rows of what a `custom` expression writes: each case
 printed as it is written, with the JSON `outputW` gives for the

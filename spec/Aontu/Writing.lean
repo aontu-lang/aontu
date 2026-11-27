@@ -140,25 +140,27 @@ theorem Data.writeBy_nil (place : List String) : ∀ d : Data, d.writeBy [] plac
 mutual
 /-- Data as the hole of a `custom` expression is given it: what the
 value writes read back as data, so an address as its text and a float
-written as a whole number, digits alone, as the integer it is where the
-`integer` leaf holds it. -/
-def Data.given : Data → Data
-  | .addr a => .str a.text
+written as a whole number, digits alone, as the integer it is; none
+where the `integer` leaf doesn't hold that integer, as the reader
+refuses such digits. -/
+def Data.given : Data → Option Data
+  | .addr a => some (.str a.text)
   | .num (.float x) =>
     let n := x.shortest.1 * 10 ^ x.shortest.2.toNat
-    if h : 0 ≤ x.shortest.2 ∧ x.text.all (fun c => c.isDigit || c == '-') = true ∧ IntegerLeaf n
-    then .num (.integer ⟨n, h.2.2⟩) else .num (.float x)
-  | .map ms => .map (givenMembers ms)
-  | .list xs => .list (givenElems xs)
-  | d => d
+    if 0 ≤ x.shortest.2 ∧ x.text.all (fun c => c.isDigit || c == '-') = true then
+      if h : IntegerLeaf n then some (.num (.integer ⟨n, h⟩)) else none
+    else some (.num (.float x))
+  | .map ms => (givenMembers ms).map .map
+  | .list xs => (givenElems xs).map .list
+  | d => some d
 
-def givenMembers : List (String × Data) → List (String × Data)
-  | [] => []
-  | (k, x) :: ms => (k, x.given) :: givenMembers ms
+def givenMembers : List (String × Data) → Option (List (String × Data))
+  | [] => some []
+  | (k, x) :: ms => do pure ((k, ← x.given) :: (← givenMembers ms))
 
-def givenElems : List Data → List Data
-  | [] => []
-  | x :: xs => x.given :: givenElems xs
+def givenElems : List Data → Option (List Data)
+  | [] => some []
+  | x :: xs => do pure ((← x.given) :: (← givenElems xs))
 end
 
 /-- A `custom` expression's writing of the data `d`, by the writer `cw`
@@ -166,7 +168,7 @@ it is given (`customW`), or as the record's other options leave it
 where the record holds none. -/
 def customWrites (cw : Val → Data → Option (Option Data)) (r : Record) (d : Data) : Option (Option Data) :=
   match lookup "custom" r with
-  | some q => q.unquote.bind fun e => cw e d.given
+  | some q => q.unquote.bind fun e => d.given.bind (cw e)
   | none => some (some d)
 
 /-- A value's writing under a record that rides it: the data written by
@@ -317,9 +319,10 @@ def customW : ℕ → Val → Data → Option (Option Data)
     | _ => none
 
 /-- What a document writes (`outputWBy`), each `custom` expression
-evaluated by `customW`, with as many levels as the document has terms,
-more than the expressions it holds can nest. -/
-def outputW (ds : Decls) (S : Val) : Option Data := outputWBy (customW S.size) ds S
+evaluated by `customW`, with as many levels as the document and its
+declarations have terms, more than the expressions they hold can
+nest, since the reader holds each in the term it writes. -/
+def outputW (ds : Decls) (S : Val) : Option Data := outputWBy (customW (S.size + ds.bodiesSize + 1)) ds S
 
 /-! ## Writing without an annotation is generating -/
 
