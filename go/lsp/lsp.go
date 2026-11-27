@@ -3,6 +3,7 @@
 package lsp
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -402,15 +403,54 @@ func toRange(r aontu.CursorRange) Range {
 // LSP CompletionItemKind subset.
 const (
 	CompletionFunction = 3
+	CompletionField    = 5
 	CompletionVariable = 6
 	CompletionKeyword  = 14
 )
 
 // CompletionItem is a single LSP completion suggestion.
 type CompletionItem struct {
-	Label  string `json:"label"`
-	Kind   int    `json:"kind,omitempty"`
-	Detail string `json:"detail,omitempty"`
+	Label      string `json:"label"`
+	Kind       int    `json:"kind,omitempty"`
+	Detail     string `json:"detail,omitempty"`
+	InsertText string `json:"insertText,omitempty"`
+}
+
+// The keys `aontu fmt` writes bare, and a list's positions.
+var plainKey = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*|0|[1-9][0-9]*)$`)
+
+// memberItem writes a key that is not a plain name in quotes.
+func memberItem(m aontu.Member) CompletionItem {
+	detail := m.Canon
+	if m.Optional {
+		detail += " (optional)"
+	}
+	item := CompletionItem{Label: m.Key, Kind: CompletionField, Detail: detail}
+	if !plainKey.MatchString(m.Key) {
+		item.InsertText = `"` + strings.ReplaceAll(strings.ReplaceAll(m.Key, `\`, `\\`), `"`, `\"`) + `"`
+	}
+	return item
+}
+
+// CompletionsAt is the members at a position where there are any, or the
+// path a dot began; else the built-ins and names, except after a dot.
+func CompletionsAt(
+	src string, line, character int, trigger string, trust *aontu.TrustOptions,
+) []CompletionItem {
+	a := aontu.New()
+	a.Trust = trust
+	at := a.MembersAt(src, aontu.CursorPosition{Line: line, Character: character})
+	if nil != at && ("path" == at.On || 0 < len(at.Members)) {
+		out := make([]CompletionItem, 0, len(at.Members))
+		for _, m := range at.Members {
+			out = append(out, memberItem(m))
+		}
+		return out
+	}
+	if "." == trigger {
+		return []CompletionItem{}
+	}
+	return Completions(src)
 }
 
 // Completions returns the built-in functions, scalar-kind keywords and

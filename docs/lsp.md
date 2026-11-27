@@ -33,8 +33,11 @@ The server provides these features:
 - **Hover**: the resolved value and kind under the cursor, what stands
   at the path a key or a reference names, or the declaration of the
   alias name it is on.
-- **Completion**: the built-in functions, scalar-kind keywords and
-  literals, and the alias names the document binds.
+- **Completion**: at a key, the keys a type or a spread's template
+  declares and the map has not written; after a dot in a reference,
+  the members of the path; elsewhere, the built-in functions,
+  scalar-kind keywords and literals, and the alias names the document
+  binds.
 - **Go to definition**: from a key or a reference to every site that
   writes its path, across includes, and from an alias name to where
   the file binds it.
@@ -100,13 +103,27 @@ A value an include loads is written in its own file, so the
 definition of `base` in `base: @"./base.aontu"` is in `base.aontu`.
 On an alias name, it goes to where the file binds the name.
 
-**Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions (the engine's full roster, 68 today, the
-constraint atoms (`min`, `re`, `len`, …) and the relation atoms
-(`relate`, `acyclic`, `inverse`) included), the kind keywords
-(`string`, `number`, `integer`, `float`, `biginteger`, `bigdecimal`,
-`boolean`, `map`, `list`, `constraint`) and the literals (`_`, `true`,
-`false`, `null`, `any`).
+**Completion** reads what may be written at the cursor. At a key, it
+offers the keys the map there takes once the document has unified and
+that the map has not written: the fields of a type it meets, and what
+a spread's template declares. Each comes with its value's canon, and
+an optional key says so. After a dot in a reference, it offers the
+members of the path the reference has reached: a map's keys, or a
+list's positions. One dot reads the map the cursor is in, and each
+more dot one level up. A key that `aontu fmt` would not write bare is
+inserted in quotes. A dot is a trigger character, and a dot that
+begins no path offers nothing.
+
+Both read the document with the word being typed taken out, the
+reference being typed standing as `any`, and every bracket left open
+closed. Elsewhere, and at a key where nothing is declared, completion
+offers the general list (clients filter by the typed prefix): the
+built-in functions (the engine's full roster, the constraint atoms
+(`min`, `re`, `len`, …) and the relation atoms (`relate`, `acyclic`,
+`inverse`) included), the kind keywords (`string`, `number`,
+`integer`, `float`, `biginteger`, `bigdecimal`, `boolean`, `map`,
+`list`, `constraint`), the literals (`_`, `true`, `false`, `null`,
+`any`), and the alias names the document binds.
 
 
 ## Architecture: library vs. server
@@ -272,13 +289,26 @@ computeHover('base: { port: 8080 }', { line: 0, character: 1 })
 //   range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } } }
 ```
 
-#### `computeCompletions(src) => CompletionItem[]`
+#### `computeCompletions(src, position?, opts?) => CompletionItem[]`
 
-Return the completion list: the built-in functions, scalar-kind
+Return the completion list. With a 0-based `position`, it is the keys
+or the members that may be written there, where there are any, each
+with `kind` `COMPLETION_FIELD` (5), its value's canon as `detail`, and
+an `insertText` where the key needs quotes. Otherwise, and without a
+position, it is the general list: the built-in functions, scalar-kind
 keywords and literals, which do not depend on `src`, and the alias
-names `src` binds, which do. `CompletionItem` is
-`{ label, kind?, detail? }`. The exported `BUILTIN_FUNCS` is the
-function-name list.
+names `src` binds, which do. `opts` is `{ trust?, trigger? }`; a
+`trigger` of `.` that begins no path answers `[]`. `CompletionItem` is
+`{ label, kind?, detail?, insertText? }`. The exported `BUILTIN_FUNCS`
+is the function-name list.
+
+<!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by ts/test/lsp.test.ts -->
+```ts
+const src = 'S: type({ port: integer, tier?: string })\napi: $.S & {  }\n'
+computeCompletions(src, { line: 1, character: 13 })
+// [{ label: 'port', kind: 5, detail: 'integer' },
+//  { label: 'tier', kind: 5, detail: 'string (optional)' }]
+```
 
 #### `computeDefinition(src, position, uri) => Location | null`
 
@@ -409,12 +439,17 @@ positioned non-container values.
 
 #### `func Completions(src string) []CompletionItem`
 
-The completion list: the built-in functions, scalar-kind keywords and
-literals, which do not depend on `src`, and the alias names `src`
-binds, which do. `CompletionItem` is
-`{ Label string; Kind int; Detail string }`. The function names come from
-the engine via `aontu.BuiltinFuncNames()`, and the alias names via
-`aontu.AliasScope()`.
+The general completion list: the built-in functions, scalar-kind
+keywords and literals, which do not depend on `src`, and the alias
+names `src` binds, which do. `CompletionItem` is
+`{ Label string; Kind int; Detail string; InsertText string }`. The
+function names come from the engine via `aontu.BuiltinFuncNames()`, and
+the alias names via `aontu.AliasScope()`.
+
+#### `func CompletionsAt(src string, line, character int, trigger string, trust *aontu.TrustOptions) []CompletionItem`
+
+The completion at a 0-based position, as `computeCompletions` answers
+it with one. Built on the core `(*aontu.Aontu).MembersAt`.
 
 #### `func Definition(src string, line, character int, uri string) *Location`
 
@@ -477,7 +512,8 @@ positions.
 `textDocumentSync` is **Full** (the client sends the whole document on
 each change). Advertised capabilities: `textDocumentSync: 1`,
 `hoverProvider: true`, `definitionProvider: true`,
-`completionProvider: {}`, `signatureHelpProvider` with the trigger
+`completionProvider` with the trigger character `.`,
+`signatureHelpProvider` with the trigger
 characters `(` and `,`, and `documentFormattingProvider: true`.
 
 | Method | Kind | Behaviour |
@@ -488,7 +524,7 @@ characters `(` and `,`, and `documentFormattingProvider: true`.
 | `textDocument/didChange` | notification | Replaces the document with the last content change (Full sync), publishes diagnostics. |
 | `textDocument/didClose` | notification | Drops the document, publishes an empty diagnostic list (clears markers). |
 | `textDocument/hover` | request | Replies with a hover for the alias name at the position, else for what stands at the path a key or a reference there names, else for the value there, else `null`. |
-| `textDocument/completion` | request | Replies with the completion item list for the open document. |
+| `textDocument/completion` | request | Replies with the keys or the members that may be written at the position, where there are any; else with `[]` after a dot that begins no path; else with the general list for the open document. |
 | `textDocument/definition` | request | Replies with the `Location` where the document binds the alias name at the position, else with a `Location` for every site that writes the path a key or a reference there names, in the document or in a file it includes, else `null`. |
 | `textDocument/signatureHelp` | request | Replies with the signature of the call the position is inside, or `null`. |
 | `textDocument/formatting` | request | Replies with one edit that replaces the document with the text `aontu fmt` writes, no edit where it already is that text, and `null` where it doesn't parse, which its diagnostics report. |
@@ -578,11 +614,13 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   It uses canon length to size the hit span, stopping at the end of the
   line; a value resolved from a reference is shown at its definition
   site. Hovering the cursor exactly on a `{` brace may not resolve.
-- **Completion** offers the built-ins and the names the document
-  binds, but not sibling keys yet. The analysis layer maps a cursor to
-  a path and a path to its sites (`computePathAt`, `computeSitesOf`),
-  which hover and definition on a key or a reference use, and which
-  key completion and references will use.
+- **Completion** of keys and members needs the document to parse once
+  the word being typed is taken out, so a second unfinished edit
+  elsewhere leaves the general list. A relative reference inside a
+  list, or a quoted segment holding an escaped quote, offers nothing.
+  The analysis layer maps a cursor to a path and a path to its sites
+  (`computePathAt`, `computeSitesOf`), which hover, definition and
+  completion use, and which references will use.
 - **The cursor mapping** answers nothing on a key spelled with an
   escape, on the key of an include written in parentheses,
   `p: (@"./x.aontu")`, or on what an included file holds. The sites of

@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.COMPLETION_KEYWORD = exports.COMPLETION_VARIABLE = exports.COMPLETION_FUNCTION = exports.SEVERITY_HINT = exports.SEVERITY_INFORMATION = exports.SEVERITY_WARNING = exports.SEVERITY_ERROR = exports.BUILTIN_FUNCS = exports.LSP_VERSION = exports.LspHandler = void 0;
+exports.COMPLETION_KEYWORD = exports.COMPLETION_VARIABLE = exports.COMPLETION_FIELD = exports.COMPLETION_FUNCTION = exports.SEVERITY_HINT = exports.SEVERITY_INFORMATION = exports.SEVERITY_WARNING = exports.SEVERITY_ERROR = exports.BUILTIN_FUNCS = exports.LSP_VERSION = exports.LspHandler = void 0;
 exports.contributionsMarkdown = contributionsMarkdown;
 exports.uriToPath = uriToPath;
 exports.pathToUri = pathToUri;
@@ -182,7 +182,7 @@ function initializeResult() {
             textDocumentSync: 1,
             hoverProvider: true,
             definitionProvider: true,
-            completionProvider: {},
+            completionProvider: { triggerCharacters: ['.'] },
             signatureHelpProvider: { triggerCharacters: ['(', ','] },
             documentFormattingProvider: true,
         },
@@ -489,6 +489,8 @@ const alias_1 = require("./alias");
 // LSP CompletionItemKind subset.
 const COMPLETION_FUNCTION = 3;
 exports.COMPLETION_FUNCTION = COMPLETION_FUNCTION;
+const COMPLETION_FIELD = 5;
+exports.COMPLETION_FIELD = COMPLETION_FIELD;
 const COMPLETION_VARIABLE = 6;
 exports.COMPLETION_VARIABLE = COMPLETION_VARIABLE;
 const COMPLETION_KEYWORD = 14;
@@ -521,7 +523,29 @@ const KIND_KEYWORDS = [
 const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'any'];
 // The built-in functions, scalar-kind keywords and literals, and the
 // names this document binds. Clients filter by the typed prefix.
-function computeCompletions(src) {
+// The keys `aontu fmt` writes bare, and a list's positions.
+const PLAIN_KEY = /^([A-Za-z_][A-Za-z0-9_]*|0|[1-9][0-9]*)$/;
+// A key that is not a plain name is written in quotes.
+function memberItem(m) {
+    return {
+        label: m.key,
+        kind: COMPLETION_FIELD,
+        detail: m.canon + (m.optional ? ' (optional)' : ''),
+        ...(PLAIN_KEY.test(m.key) ? {} :
+            { insertText: '"' + m.key.replaceAll('\\', '\\\\').replaceAll('"', '\\"') + '"' }),
+    };
+}
+// The members at the position where there are any, or the path a dot
+// began; else the built-ins and names, except after a dot.
+function computeCompletions(src, position, opts) {
+    const at = undefined === position ? undefined :
+        (0, cursor_1.membersAt)(src, position, { trust: opts?.trust });
+    if (undefined !== at && ('path' === at.on || 0 < at.members.length)) {
+        return at.members.map(memberItem);
+    }
+    if ('.' === opts?.trigger) {
+        return [];
+    }
     const out = [];
     for (const f of BUILTIN_FUNCS) {
         // The detail is the rendered SIGNATURE (sketch/SIGNATURES.0.md)
@@ -676,7 +700,10 @@ class LspHandler {
                 const text = null != uri ? this.docs.get(uri) : undefined;
                 return [{
                         jsonrpc: '2.0', id: msg.id,
-                        result: computeCompletions(text ?? ''),
+                        result: computeCompletions(text ?? '', msg.params?.position, {
+                            trust: this.trust,
+                            trigger: msg.params?.context?.triggerCharacter,
+                        }),
                     }];
             }
             case 'textDocument/formatting': {
@@ -720,6 +747,6 @@ class LspHandler {
     publish(uri) {
         return publishDiagnosticsMsg(uri, computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }));
     }
-} /* node:coverage ignore next 37 */
+} /* node:coverage ignore next 38 */
 exports.LspHandler = LspHandler;
 //# sourceMappingURL=lsp.js.map

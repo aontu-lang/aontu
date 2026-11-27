@@ -33,6 +33,12 @@ type CursorValue = PathValue & { path: string[], range: Range }
 
 type PathPlace = { file: string, range: Range }
 
+type Member = { key: string, canon: string, optional: boolean }
+
+// What may be written at a cursor: the keys a map there may take, or the
+// members of the path a reference there has reached.
+type CursorMembers = { on: 'key' | 'path', path: string[], members: Member[] }
+
 type CursorOptions = { trust?: TrustOptions }
 
 type Parsed = { aontu: Aontu, ctx: any, root: any }
@@ -45,6 +51,15 @@ type Hit = {
 const KEY_DELIMS = ' \t\r\n{}[](),:;"\''
 
 const TOKEN_END = KEY_DELIMS + '&|'
+
+const WORD = /[A-Za-z0-9_\-\u0080-\uffff]/
+
+const CLOSER: Record<string, string> = { '{': '}', '[': ']', '(': ')' }
+
+// What a relative reference may follow, and what a key may not.
+const REF_AFTER = ' \t\r\n:{[(,&|'
+
+const VALUE_AFTER = ':([&|=.$@%'
 
 
 function lineStarts(src: string): number[] {
@@ -271,11 +286,18 @@ function hitsOf(src: string, root: any): { keys: Hit[], values: Hit[] } {
 }
 
 
+// A text the parser throws on, where it should refuse, answers nothing,
+// as a refused one does.
 function parsed(src: string, opts?: CursorOptions): Parsed | undefined {
   const aontu = new Aontu(null == opts?.trust ? {} : { trust: opts.trust })
   const ctx = aontu.ctx({ collect: true })
-  const root = aontu.parse(src, undefined, ctx)
-  return 0 < ctx.err.length ? undefined : { aontu, ctx, root }
+  try {
+    const root = aontu.parse(src, undefined, ctx)
+    return 0 < ctx.err.length ? undefined : { aontu, ctx, root }
+  }
+  catch {
+    return undefined
+  }
 }
 
 
@@ -378,6 +400,158 @@ function definitionAt(
 }
 
 
+// The brackets open before off, the innermost last, or nothing where off
+// is inside quoted text or a comment.
+function openBrackets(src: string, off: number): [string, number][] | undefined {
+  const open: [string, number][] = []
+  for (let k = 0; k < off; k++) {
+    if ('"\'`'.includes(src[k])) {
+      k = quoteEnd(src, k)
+    }
+    else if ('#' === src[k]) {
+      k = src.indexOf('\n', k)
+    }
+    if (off <= k || 0 > k) {
+      return undefined
+    }
+    else if ('{[('.includes(src[k])) {
+      open.push([src[k], k])
+    }
+    else if ('}])'.includes(src[k])) {
+      open.pop()
+    }
+  }
+  return open
+}
+
+
+// The segments of a reference read up to its last dot, with a quoted
+// segment read as its text, or nothing where it is not one.
+function refSegments(text: string): [number, string[]] | undefined {
+  let i = 0
+  while ('.' === text[i]) i++
+  const up = i
+  const segs: string[] = []
+  while (i < text.length) {
+    let j = i
+    if ('"' === text[i]) {
+      j = quoteEnd(text, i)
+      segs.push(text.slice(i + 1, j).replace(/\\([\s\S])/g, '$1'))
+      j++
+    }
+    else {
+      while (j < text.length && WORD.test(text[j])) j++
+      segs.push(text.slice(i, j))
+    }
+    if (i === j || '.' !== text[j]) {
+      return undefined
+    }
+    i = j + 1
+  }
+  return 0 === up ? undefined : [up, segs]
+}
+
+
+type RefText = { start: number, abs: boolean, up: number, segs: string[] }
+
+// A reference written up to the dot before w: where it starts, and the
+// dots that lead it and its segments.
+function refAt(src: string, w: number): RefText | undefined {
+  let s = w
+  while (0 < s && (WORD.test(src[s - 1]) || '.' === src[s - 1] || '"' === src[s - 1])) {
+    s = '"' === src[s - 1] ? src.slice(0, s - 1).lastIndexOf('"') : s - 1
+  }
+  const read = '.' === src[w - 1] && 0 <= s ? refSegments(src.slice(s, w)) : undefined
+  const abs = '$' === src[s - 1]
+  if (undefined === read || (abs ? 1 < read[0] : !REF_AFTER.includes(src[s - 1] ?? ' '))) {
+    return undefined
+  }
+  return { start: abs ? s - 1 : s, abs, up: read[0], segs: read[1] }
+}
+
+
+// The path a reference reads: `$.a.` reads `a`, and `.` and `..b.` read
+// from the map at inMap.
+function refPath(ref: RefText, inMap: string[] | undefined): string[] | undefined {
+  return ref.abs ? ref.segs : undefined === inMap || inMap.length < ref.up - 1 ? undefined :
+    inMap.slice(0, inMap.length - ref.up + 1).concat(ref.segs)
+}
+
+
+// The map literal whose brace is at off, with its path.
+function mapAt(src: string, root: any, off: number): { val: any, path: string[] } | undefined {
+  const starts = lineStarts(src)
+  const seen = new Set<any>()
+  const stack: [any, string[]][] = [[root, []]]
+  while (0 < stack.length) {
+    const [v, path] = stack.pop() as [any, string[]]
+    if (null == v || true !== v.isVal || seen.has(v)) {
+      continue
+    }
+    seen.add(v)
+    if (true === v.isMap && '' === (v.site?.url ?? '') && off === siteOffset(starts, v)) {
+      return { val: v, path }
+    }
+    stack.push(...kids(v, path))
+  }
+  return undefined
+}
+
+
+function membersOf(node: any, written: string[]): Member[] {
+  if (true === node?.isMap) {
+    return Object.keys(node.peg).sort(cmpCodePoint)
+      .filter((k) => !node.aliasKeys.includes(k) && !written.includes(k))
+      .map((k) => ({ key: k, canon: node.peg[k].canon, optional: node.optionalKeys.includes(k) }))
+  }
+  return true === node?.isList ?
+    node.peg.map((v: any, i: number) => ({ key: '' + i, canon: v.canon, optional: false })) : []
+}
+
+
+// What may be written at a cursor, read from the document with the word
+// being typed taken out and every bracket left open closed: at a key, the
+// keys the map there takes once unified and has not written; after a dot
+// in a reference, the members of the path it has reached.
+function membersAt(
+  src: string, pos: Position, opts?: CursorOptions): CursorMembers | undefined {
+  const starts = lineStarts(src)
+  if (0 > pos.line || starts.length <= pos.line) {
+    return undefined
+  }
+  const cur = offsetAt(src, starts, pos)
+  let w = cur
+  while (0 < w && WORD.test(src[w - 1])) w--
+  const open = openBrackets(src, w)
+  const ref = undefined === open ? undefined : refAt(src, w)
+  // The reference being written stands as `any`, so that it reads nothing.
+  const text = src.slice(0, ref?.start ?? w) + (undefined === ref ? '' : 'any') + src.slice(cur)
+  const doc = undefined === open ? undefined : parsed(text +
+    (openBrackets(text, text.length) ?? []).reverse().map(([c]) => CLOSER[c]).join(''), opts)
+  if (undefined === open || undefined === doc) {
+    return undefined
+  }
+  const brace = open.map(([c]) => c).lastIndexOf('{')
+  const lit = 0 > brace ? { val: doc.root, path: [] } : mapAt(text, doc.root, open[brace][1])
+  const listed = open.slice(brace + 1).some(([c]) => '[' === c)
+  const reads = undefined === ref ? undefined : refPath(ref, listed ? undefined : lit?.path)
+  const prev = skipTrivia(src, w - 1)
+  const atKey = true === lit?.val.isMap && brace === open.length - 1 &&
+    (0 > prev || !VALUE_AFTER.includes(src[prev]))
+  if (undefined === reads && !atKey) {
+    return undefined
+  }
+  const written = undefined === reads ? Object.keys(lit?.val.peg) : []
+  const at = reads ?? (lit as { path: string[] }).path
+  const res = doc.aontu.unify(doc.root, undefined, doc.ctx)
+  return {
+    on: undefined === reads ? 'key' : 'path',
+    path: at,
+    members: membersOf(anchorParts(res, at), written),
+  }
+}
+
+
 // Every site that writes a path, as `model why` reads them; nothing
 // where the document does not evaluate or names no such path.
 function sitesOf(
@@ -399,9 +573,10 @@ function sitesOf(
 
 export {
   pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal,
+  membersAt, mapAt,
 }
 
 export type {
-  CursorPath, CursorOn, CursorOptions, CursorValue, PathPlace, PathSite,
-  PathValue, Position, Range,
+  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorValue, Member,
+  PathPlace, PathSite, PathValue, Position, Range,
 }
