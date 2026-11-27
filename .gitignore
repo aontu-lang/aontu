@@ -65,3 +65,6 @@ go/covdata/
 # in ts/dist (which IS committed, and ships in the npm tarball)
 # until tsBuildInfoFile moved it here.
 ts/.tsbuild/
+
+# The Lean batches ts/scripts/defcheck.cjs writes.
+sketch/defcheck/lean/

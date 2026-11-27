@@ -30,6 +30,32 @@ them, and where a document reads otherwise than the definition read it.
 They found #1071: both ports' `subsume` read a list literal in an arm as
 open, where their `vet` reads it as its own length.
 
+### The definition reads a call's data argument where its target stands
+
+Ruling 93 (#1012), in the definition. A path that is data a call
+reads, the source of `each`, `pack`, `apply` or `filter`, the bag of a
+fold or `sort`, the list `pick` and `join` read, or a `match`'s
+scrutinee, now reads its target where the target stands, as both
+engines already read it, and no longer as a copy placed at the call.
+With `src: {w: 1, a: {v: ..w}}` and `c: {w: 2, d: each($.src.a, _)}`,
+`c.d` is `[1]`. A `key()` in such a target still reads where the call
+stands in the definition (#1064). Rows dx0 to dx89 of
+`test/spec/def-path.tsv` hold the definition and both engines to it.
+Neither engine changes.
+
+### The definition writes the output option `custom`
+
+`gen(spec)` writes every output option in the definition now, `custom`
+among them. The reader holds the expression quoted in the record
+(`spec/Aontu/Quote.lean`), so the record rides, unifies and is held to
+its type as any other, and two records meet only where their
+expressions are one. `spec/Aontu/Writing.lean` evaluates it after the
+record's other options, as `apply()` evaluates one, in the document
+`out: apply(d, e)`, its hole bound to what the value writes read as
+data. Rows cw0 on in the new `test/spec/def-custom.tsv`, and rows anc0
+on in `test/spec/def-path.tsv` for `vet`, which reads the expression as
+any option; both ports answer every one as the definition does.
+
 ### An error under a spread's template names the member
 
 #1018, in both engines. An error inside a member that a `&:` template

@@ -32,8 +32,8 @@ known.
 - The **argument** is one map of concrete data, or one string, which is
   the `form` (`Val.record?`).
 
-What an option writes is `Aontu/Written.lean`'s, for a number. The
-other types' options and `custom`, an expression, wait.
+What an option writes is `Aontu/Writing.lean`'s, and `custom`, an
+expression, the record holds quoted (`Aontu/Quote.lean`).
 -/
 
 namespace Aontu
@@ -331,9 +331,12 @@ def sortedElems : List Data → List Data
 end
 
 /-- Two records unified as maps, the result in key order; none where
-they disagree. -/
+they disagree. Two `custom` expressions agree only where they are one
+expression, which the record holds quoted (`Aontu/Quote.lean`). -/
 def Record.unify (r s : Record) : Option Record :=
-  (unifyMembers r s).map fun fs => sortMembers (sortedMembers fs)
+  match lookup "custom" r, lookup "custom" s with
+  | some x, some y => if x = y then (unifyMembers r s).map fun fs => sortMembers (sortedMembers fs) else none
+  | _, _ => (unifyMembers r s).map fun fs => sortMembers (sortedMembers fs)
 
 /-! ## The argument -/
 
