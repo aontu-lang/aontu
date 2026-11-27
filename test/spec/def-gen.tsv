@@ -467,3 +467,9 @@ wa158	gens	"v": ({"aB": 1, "c": {}}) & (gen({"keys": "verbatim", "empty": "keep"
 wa159	gens	"v": ([]) & (gen({"empty": "keep"}))	{"v":[]}
 wa160	gens	"v": ((1.5) | ("a")) & (gen({"significant": 1}))	{"v":2}
 wa161	gens	"v": ((path(.b)) & (gen("key"))) & (gen({"form": "key"}))	{"v":"b"}
+# A filter keeps a child each of whose values its condition admits, whatever
+# ranks the meet stacks on a preferred arm (ruling 51, #963), in rows fr0 on.
+fr0	gens	"x": filter({"a": *(1) | (2), "b": (2) | *(1), "c": 1}, *(1) | (2))	{"x":{"a":1,"b":1,"c":1}}
+fr1	gens	"x": filter({"h": *(1) | (3)}, *(1) | (2))	{"x":{}}
+fr2	gens	"x": filter({"a": *(1) | (2), "d": 3}, *(1) | (2))	{"x":{"a":1}}
+fr3	gens	"x": filter({"a": *(1) | (2), "b": (2) | *(1)}, (1) | (2))	{"x":{"a":1,"b":1}}

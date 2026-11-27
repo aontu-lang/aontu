@@ -8,6 +8,16 @@ each change affects.
 
 ## Unreleased
 
+### The definition's `filter` reads a preferred disjunction arm by arm
+
+In the definition, a `filter` now takes a child that is a disjunction
+preferring an arm when its condition takes each arm. Before, the meet
+stacked a rank on the preferred arm, and the child was dropped as no
+longer alike. So `filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)` keeps
+all three members, as both engines do since #1083 (#963). Rows fq0 to
+fq11 of `test/spec/def-path.tsv` and fr0 to fr3 of
+`test/spec/def-gen.tsv` hold the definition and both engines to it.
+
 ### A `match` reads the value its scrutinee generates, and a `filter` each value of a member
 
 **Breaking.** #963, #964 and #965, in both engines.

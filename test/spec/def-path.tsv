@@ -5539,6 +5539,21 @@ wx41	verdict	"v": rest(integer)	{"v": [5]}	{"verdict":"valid","opts":{"partial":
 wx42	verdict	"v": nof(0, *(6))	{"v": 5}	{"verdict":"invalid"}
 wx43	verdict	"v": nof(0, *(6))	{"v": 5}	{"verdict":"invalid","opts":{"noFill":true}}
 wx44	verdict	"v": nof(0, *(6))	{"v": 5}	{"verdict":"invalid","opts":{"partial":true}}
+# A filter keeps a child each of whose values its condition admits, whatever
+# ranks the meet stacks on a preferred arm (ruling 51, #963), in rows fq0 on:
+# under --no-fill, data that leaves a kept member out is incomplete.
+fq0	verdict	"x": filter({"a": *(1) | (2), "b": (2) | *(1), "c": 1}, *(1) | (2))	{"x": {"c": 1}}	{"verdict":"valid"}
+fq1	verdict	"x": filter({"a": *(1) | (2), "b": (2) | *(1), "c": 1}, *(1) | (2))	{"x": {"c": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+fq2	verdict	"x": filter({"a": *(1) | (2), "b": (2) | *(1), "c": 1}, *(1) | (2))	{"x": {"c": 1}}	{"verdict":"valid","opts":{"partial":true}}
+fq3	verdict	"x": filter({"h": *(1) | (3)}, *(1) | (2))	{"x": {}}	{"verdict":"valid"}
+fq4	verdict	"x": filter({"h": *(1) | (3)}, *(1) | (2))	{"x": {}}	{"verdict":"valid","opts":{"noFill":true}}
+fq5	verdict	"x": filter({"h": *(1) | (3)}, *(1) | (2))	{"x": {}}	{"verdict":"valid","opts":{"partial":true}}
+fq6	verdict	"x": filter({"a": *(1) | (2), "d": 3}, *(1) | (2))	{"x": {}}	{"verdict":"valid"}
+fq7	verdict	"x": filter({"a": *(1) | (2), "d": 3}, *(1) | (2))	{"x": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+fq8	verdict	"x": filter({"a": *(1) | (2), "d": 3}, *(1) | (2))	{"x": {}}	{"verdict":"valid","opts":{"partial":true}}
+fq9	verdict	"x": filter({"a": *(1) | (2), "b": (2) | *(1)}, (1) | (2))	{"x": {}}	{"verdict":"valid"}
+fq10	verdict	"x": filter({"a": *(1) | (2), "b": (2) | *(1)}, (1) | (2))	{"x": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+fq11	verdict	"x": filter({"a": *(1) | (2), "b": (2) | *(1)}, (1) | (2))	{"x": {}}	{"verdict":"valid","opts":{"partial":true}}
 # A path in a lone preference's value that names nothing there is the schema's
 # error whatever the data, as it is outside a preference (ruling 53), in rows
 # sy0 on; a path the term beside the preference answers stands, and one in a

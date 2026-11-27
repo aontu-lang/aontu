@@ -2713,7 +2713,14 @@ until the phase that encodes it lands.
    normal form is no map or list, a preference between two maps among
    them, is tried by the data it generates, as before. Rows ft0 on of
    `test/spec/def-path.tsv`, 45 in all, both ports answering every row
-   as the definition does; no other row moved.
+   as the definition does; no other row moved. **Built further
+   2026-11-27** for #963: a disjunction that prefers an arm is taken arm
+   by arm, each arm read preferring nothing (`filterTakesArm`,
+   `Val.unranked`), so that a meet stacking a rank on the preferred arm
+   no longer drops it, and `filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)`
+   keeps all three, as both ports do since #1083. Rows fq0 to fq11 of
+   `test/spec/def-path.tsv` and fr0 to fr3 of `test/spec/def-gen.tsv`
+   hold it.
 
 52. **A `key(n)` in an `emit` body.** Raised 2026-10-23 by Codex on
    #521 (#524): the two ports read a different position. TypeScript
