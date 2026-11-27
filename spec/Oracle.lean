@@ -17,6 +17,7 @@ import Oracle.Forms
 import Oracle.Calls
 import Oracle.CallsTemplates
 import Oracle.LinkClimb
+import Oracle.DataArgs
 
 /-!
 # The oracle
@@ -354,6 +355,12 @@ def main (args : List String) : IO UInt32 := do
     pathRows "cp" copyCases
     pathRows "lt" linkTemplateCases
     pathRows "ar" applyPathCases
+    IO.println "# A path that is a call's data argument reads its target where the target"
+    IO.println "# stands (ruling 93), in rows dx0 on: the source of each, pack, apply and"
+    IO.println "# filter, the bag sum, least, greatest and sort read, the list join and pick"
+    IO.println "# read, a match's scrutinee, a path nested in a source, and a call deeper"
+    IO.println "# down; a match's result and a plain path reference stay copies."
+    pathRows "dx" dataArgCases
     IO.println "# A bare close() and a bare open() beside path references follow in rows"
     IO.println "# dirp0 on: a sealed place's copy sealed, close() beside a reference sealing"
     IO.println "# the terms read there, open() beside one lifting the target's seal, and"

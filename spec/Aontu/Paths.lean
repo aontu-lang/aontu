@@ -374,6 +374,14 @@ def refUse (p pos : List Seg) : Option Val → Val
   | some d => .meet (.alias (useName (Use.place p).key pos)) d
   | none => .alias (useName (Use.place p).key pos)
 
+/-- Whether a call's first argument is data the call reads: a
+generator's source, the bag a fold or `sort` reads, and the list `pick`
+and `join` read. A path there reads its target where the target stands,
+and nothing is placed (ruling 93). -/
+def Fn.readsData : Fn → Bool
+  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
+  | _ => false
+
 mutual
 /-- The term standing at `pos` with each use of a name that `rs` reads
 as a copy where the use stands read as the copy of the name's body at
@@ -383,8 +391,10 @@ reference to a place `rt` holds, one whose terms read their own place
 (`refUse`), met with what `dl` reads at the place, at the positions
 `Val.placed` places a relative path: not in a generator's template or a
 spread, which are read at each member, not the path a `move` reads,
-which names its source, and not a reference that stands inside its own
-place, a recursion, which reads as it's written. -/
+which names its source, not in the data a call reads (`Fn.readsData`),
+a `filter`'s source or a `match`'s scrutinee, read where their targets
+stand, and not a reference that stands inside its own place, a
+recursion, which reads as it's written. -/
 def Val.atUses (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) :
     Val → Val
   | .alias n => if rs pos n then .alias (useName n pos) else .alias n
@@ -402,9 +412,11 @@ def Val.atUses (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl 
   | .when c t e => .when (c.atUses rs rt dl pos) (t.atUses rs rt dl pos) (auSpread rs rt dl pos e)
   | .contains c n => .contains (c.atUses rs rt dl pos) (n.atUses rs rt dl pos)
   | .rest t cs => .rest (t.atUses rs rt dl pos) (auCovers rs rt dl pos cs)
-  | .select s arms d => .select (s.atUses rs rt dl pos) (auPairs rs rt dl pos arms) (auSpread rs rt dl pos d)
-  | .filter s c => .filter (s.atUses rs rt dl pos) (c.atUses rs rt dl (pos ++ [.up 0]))
-  | .call f args => .call f (auArgs rs (if f = .move then fun _ => false else rt) dl pos f args)
+  | .select s arms d => .select (s.atUses rs (fun _ => false) dl pos) (auPairs rs rt dl pos arms) (auSpread rs rt dl pos d)
+  | .filter s c => .filter (s.atUses rs (fun _ => false) dl pos) (c.atUses rs rt dl (pos ++ [.up 0]))
+  | .call f args =>
+    .call f (auArgs rs (if f = .move then fun _ => false else rt)
+      (if f = .move ∨ f.readsData then fun _ => false else rt) dl pos f args)
   | .ride k v r => .ride k (v.atUses rs rt dl pos) r
   | .link v lt => .link (v.atUses rs rt dl pos) lt
   | v => v
@@ -429,9 +441,10 @@ def auItems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : L
   | [] => []
   | v :: vs => v.atUses rs rt dl pos :: auItems rs rt dl pos vs
 
-def auArgs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) (f : Fn) : List Val → List Val
+def auArgs (rs : List Seg → String → Bool) (rt rt₀ : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) (f : Fn) :
+    List Val → List Val
   | [] => []
-  | v :: vs => v.atUses rs rt dl pos :: (if f = .each ∨ f = .pack then vs else auArgs rs rt dl pos f vs)
+  | v :: vs => v.atUses rs rt₀ dl pos :: (if f = .each ∨ f = .pack then vs else auArgs rs rt rt dl pos f vs)
 
 def auSpread (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : Option Val → Option Val
   | none => none
@@ -460,9 +473,10 @@ def Val.usesAt (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos
   | .when c t e => c.usesAt rs rt pos ++ t.usesAt rs rt pos ++ usSpread rs rt pos e
   | .contains c n => c.usesAt rs rt pos ++ n.usesAt rs rt pos
   | .rest t cs => t.usesAt rs rt pos ++ usCovers rs rt pos cs
-  | .select s arms d => s.usesAt rs rt pos ++ usPairs rs rt pos arms ++ usSpread rs rt pos d
-  | .filter s c => s.usesAt rs rt pos ++ c.usesAt rs rt (pos ++ [.up 0])
-  | .call f args => usArgs rs (if f = .move then fun _ => false else rt) pos f args
+  | .select s arms d => s.usesAt rs (fun _ => false) pos ++ usPairs rs rt pos arms ++ usSpread rs rt pos d
+  | .filter s c => s.usesAt rs (fun _ => false) pos ++ c.usesAt rs rt (pos ++ [.up 0])
+  | .call f args =>
+    usArgs rs (if f = .move then fun _ => false else rt) (if f = .move ∨ f.readsData then fun _ => false else rt) pos f args
   | .ride _ v _ => v.usesAt rs rt pos
   | .link v _ => v.usesAt rs rt pos
   | _ => []
@@ -487,9 +501,10 @@ def usItems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : 
   | [] => []
   | v :: vs => v.usesAt rs rt pos ++ usItems rs rt pos vs
 
-def usArgs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) (f : Fn) : List Val → List (Use × List Seg)
+def usArgs (rs : List Seg → String → Bool) (rt rt₀ : List Seg → Bool) (pos : List Seg) (f : Fn) :
+    List Val → List (Use × List Seg)
   | [] => []
-  | v :: vs => v.usesAt rs rt pos ++ (if f = .each ∨ f = .pack then [] else usArgs rs rt pos f vs)
+  | v :: vs => v.usesAt rs rt₀ pos ++ (if f = .each ∨ f = .pack then [] else usArgs rs rt rt pos f vs)
 
 def usSpread (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : Option Val → List (Use × List Seg)
   | none => []
@@ -3887,13 +3902,13 @@ theorem mem_auItems {rs : List Seg → String → Bool} {rt : List Seg → Bool}
     w ∈ auItems rs rt dl pos items ↔ ∃ v, v ∈ items ∧ w = v.atUses rs rt dl pos :=
   mem_mapItems rfl fun _ _ => rfl
 
-theorem mem_auArgs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
-    w ∈ auArgs rs rt dl pos f args → ∃ v, v ∈ args ∧ (w = v.atUses rs rt dl pos ∨ w = v)
+theorem mem_auArgs {rs : List Seg → String → Bool} {rt rt₀ : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
+    w ∈ auArgs rs rt rt₀ dl pos f args → ∃ v, v ∈ args ∧ ((∃ r, w = v.atUses rs r dl pos) ∨ w = v)
   | [], _, h => by simp [auArgs] at h
   | v :: vs, w, h => by
     simp only [auArgs, List.mem_cons] at h
     rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, .inl rfl⟩
+    · exact ⟨v, List.mem_cons_self, .inl ⟨rt₀, rfl⟩⟩
     · split at h
       · exact ⟨w, List.mem_cons_of_mem _ h, .inr rfl⟩
       · obtain ⟨u, hu, hw⟩ := mem_auArgs h
@@ -3973,8 +3988,8 @@ theorem atUses_checkableA {rs : List Seg → String → Bool} {dl : List Seg →
   | @call f args hargs ih =>
     intro rt pos
     refine .call fun w hm => ?_
-    obtain ⟨a, ha, hw | hw⟩ := mem_auArgs hm
-    · rw [hw]; exact ih a ha _ pos
+    obtain ⟨a, ha, ⟨r, hw⟩ | hw⟩ := mem_auArgs hm
+    · rw [hw]; exact ih a ha r pos
     · rw [hw]; exact hargs a ha
   | must _ ih => intro rt pos; exact .must (ih rt pos)
   | @when c t e _ _ _ ihc iht ihe =>

@@ -3340,7 +3340,26 @@ schema and in a body at its own place alike. Each copy is declared
 under a name of its own (`useName`, `Decls.copies`), and each meets what
 the data writes at the place it copies (`dataLit`). A use of a
 recursive name reads as a copy only where something reaches it
-(`Decls.reachesAt`), as the next paragraphs show:
+(`Decls.reachesAt`), as the next paragraphs show. Data a call reads is
+no copy, by ruling 93: a generator's, a fold's or a `filter`'s source,
+the list `sort`, `pick` and `join` read, and a `match`'s scrutinee read
+their target where it stands, so `Val.atUses` and `Val.usesAt` leave
+them out of the copies, for the calls `Fn.readsData` names:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Fn.readsData : Fn → Bool
+  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
+  | _ => false
+```
+
+So with `src: {w: 1, a: {v: ..w}}` and `c: {w: 2, d: each($.src.a, _)}`,
+`c.d` is `[1]`, as both engines read it, where the copy `d: $.src.a` is
+`{v: 2}`. Rows dx0 to dx89 hold the definition and both engines to it.
+A `key()` in such a target still reads where the call stands here,
+where both engines read the target's key, which #1064 tracks.
+
+The placing itself, the schema's and each body's:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
