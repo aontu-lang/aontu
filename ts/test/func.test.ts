@@ -489,11 +489,12 @@ describe('func', function() {
     const a0 = new Aontu()
     const G = a0.generate.bind(a0)
 
-    expect(G('type(1) & number')).equal(1)
-    expect(G('type(hello) & string')).equal('hello')
-    expect(G('type(true) & boolean')).equal(true)
-    expect(G('number & type(42)')).equal(42)
-    expect(G('string & type(world)')).equal('world')
+    expect(G('type(1) & number')).equal(undefined)
+    expect(G('type(hello) & string')).equal(undefined)
+    expect(G('type(true) & boolean')).equal(undefined)
+    expect(G('number & type(42)')).equal(undefined)
+    expect(G('string & type(world)')).equal(undefined)
+    expect(G('a: type(1) & number')).equal({})
   })
 
 
@@ -531,12 +532,13 @@ describe('func', function() {
     const a0 = new Aontu()
     const G = a0.generate.bind(a0)
 
-    // hide() should mark values as hidden from generation
-    expect(G('hide(1) & number')).equal(1)
-    expect(G('hide(hello) & string')).equal('hello')
-    expect(G('hide(true) & boolean')).equal(true)
-    expect(G('number & hide(42)')).equal(42)
-    expect(G('string & hide(world)')).equal('world')
+    // A marked root generates nothing, whatever its kind.
+    expect(G('hide(1) & number')).equal(undefined)
+    expect(G('hide(hello) & string')).equal(undefined)
+    expect(G('hide(true) & boolean')).equal(undefined)
+    expect(G('number & hide(42)')).equal(undefined)
+    expect(G('string & hide(world)')).equal(undefined)
+    expect(G('a: hide(1) & number')).equal({})
   })
 
   test('hide-canon', () => {

@@ -24,7 +24,7 @@ import { codeClasses } from '../dist/hints'
 import { canonRiders } from '../dist/utility'
 import { tlogRunGroup } from './tlog-vectors'
 import { computePathAt, computeSitesOf } from '../dist/lsp'
-import { describeAt, definitionAt, membersAt, symbolsOf } from '../dist/cursor'
+import { describeAt, definitionAt, membersAt, referencesAt, symbolsOf } from '../dist/cursor'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
@@ -141,7 +141,8 @@ function loadRows(): Row[] {
         'diff' === parts[1] || 'agentsmd' === parts[1] ||
         'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
         'jsonschema-output' === parts[1] || 'at' === parts[1] ||
-        'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1]
+        'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1] ||
+        'refs' === parts[1]
       const want = vetRow ? 5 : 4
       if (parts.length < want) {
         throw new Error(
@@ -505,6 +506,20 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       exactJSON(membersAt(row.src, { line, character }) ?? null),
       exactJSON(JSON.parse(row.expect)),
       `members mismatch: ${row.name}`)
+  }
+  else if ('refs' === row.mode) {
+    const [line, character] = (row.data as string).split(':').map(Number)
+    const got = referencesAt(row.src, { line, character })
+    const named = (ps: any[]) => ps.map((p) => ({
+      ...p,
+      file: '' === p.file ? '' :
+        '__FIXTURES__/' + p.file.replaceAll('\\', '/').split('/').pop(),
+    }))
+    Assert.strictEqual(
+      exactJSON(null == got ? null :
+        { ...got, writes: named(got.writes), reads: named(got.reads) }),
+      exactJSON(JSON.parse(row.expect)),
+      `refs mismatch: ${row.name}`)
   }
   else if ('symbols' === row.mode) {
     Assert.strictEqual(

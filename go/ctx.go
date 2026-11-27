@@ -36,6 +36,7 @@ type Ctx struct {
 	wroteNull bool
 
 	argsnap bool
+	feeds   []string
 
 	budgetPasses int
 	budgetDepth  int

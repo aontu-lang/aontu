@@ -23,6 +23,10 @@ import {
   computePathAt,
   computeSitesOf,
   computeSymbols,
+  computeReferences,
+  computeHighlights,
+  HIGHLIGHT_READ,
+  HIGHLIGHT_WRITE,
   computePathDefinition,
   pathToUri,
   COMPLETION_FIELD,
@@ -367,7 +371,7 @@ describe('lsp-completion', () => {
 
   test('completion-list', () => {
     const c = computeCompletions('')
-    Assert.equal(c.length, 90)
+    Assert.equal(c.length, 91)
     const byLabel = new Map(c.map(i => [i.label, i]))
     Assert.equal(byLabel.get('upper')?.kind, COMPLETION_FUNCTION)
     Assert.equal(byLabel.get('string')?.kind, COMPLETION_KEYWORD)
@@ -387,7 +391,7 @@ describe('lsp-completion', () => {
     const byLabel = new Map(c.map(i => [i.label, i]))
     Assert.equal(byLabel.get('upper')?.detail,
       'upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string')
-    Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any) : map')
+    Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any, template k?: string) : map')
     Assert.equal(byLabel.get('path')?.detail, 'path(capture p?: path) : path')
   })
 
@@ -494,13 +498,18 @@ describe('lsp-completion', () => {
     // Inside the call: the declared signature, first parameter active.
     open('x: pack($.names, {a:1})')
     let r = help(0, 8)
-    Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any) : map')
-    Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 2)
+    Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any, template k?: string) : map')
+    Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 3)
     Assert.equal(r.activeParameter, 0)
 
     // After the comma: the second parameter is active.
     r = help(0, 18)
     Assert.equal(r.activeParameter, 1)
+
+    // After the second comma: the key template is active.
+    open('x: pack($.names, {a:1}, key(0))')
+    r = help(0, 26)
+    Assert.equal(r.activeParameter, 2)
 
     // A comma or paren inside a string does not miscount.
     open('x: join(["a,b"], ",")')
@@ -551,7 +560,7 @@ describe('lsp-completion', () => {
   test('builtin-funcs-match-engine', () => {
     // Drift guard: every BUILTIN_FUNCS name must be recognised by the
     // parser, and a bogus name must not be.
-    Assert.equal(BUILTIN_FUNCS.length, 75)
+    Assert.equal(BUILTIN_FUNCS.length, 76)
     for (const name of BUILTIN_FUNCS) {
       const errs = computeDiagnostics('x:' + name + '(1)')
         .filter(d => d.code === 'unknown_function')
@@ -626,7 +635,7 @@ describe('lsp-handler', () => {
     Assert.match(hov[0].result.contents.value, /8080/)
 
     const comp = h.handle({ id: 6, method: 'textDocument/completion', params: {} })
-    Assert.equal(comp[0].result.length, 90)
+    Assert.equal(comp[0].result.length, 91)
   })
 
 
@@ -698,7 +707,7 @@ describe('lsp-handler', () => {
 
   test('unknown-request-is-method-not-found', () => {
     const h = new LspHandler()
-    const outs = h.handle({ id: 3, method: 'textDocument/references' })
+    const outs = h.handle({ id: 3, method: 'textDocument/codeLens' })
     Assert.equal(outs.length, 1)
     Assert.equal(outs[0].error?.code, -32601)
     // Unknown notification (no id) is ignored.
@@ -1150,6 +1159,89 @@ describe('lsp-symbols', () => {
       ask('file:///s.aontu').map((s: any) => [s.name, s.range, s.children.map((c: any) => c.name)]),
       [['a', range(0, 0, 0, 7), ['b']], ['a', range(1, 0, 1, 4), []]])
     Assert.strictEqual(ask('file:///none.aontu'), null)
+    Assert.strictEqual(h.handle({ id: 3, method: 'textDocument/documentSymbol', params: {} })[0]
+      .result, null)
+  })
+
+})
+
+
+// Twin: go/lsp/lsp_test.go, the tests from TestReferencesListTheSitesAndTheReads on.
+describe('lsp-references', () => {
+
+  const SRC = 'base: { port: 8080 }\ndb: { port: $.base.port }\nx: $.base.port\n'
+  const range = (l0: number, c0: number, l1: number, c1: number) =>
+    ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } })
+  const U = 'file:///r.aontu'
+
+  test('references-list-the-sites-and-the-reads', () => {
+    Assert.deepStrictEqual(computeReferences(SRC, { line: 0, character: 9 }, U, true), [
+      { uri: U, range: range(0, 14, 0, 18) },
+      { uri: U, range: range(1, 12, 1, 23) },
+      { uri: U, range: range(2, 3, 2, 14) },
+    ])
+    Assert.deepStrictEqual(computeReferences(SRC, { line: 2, character: 5 }, U, false), [
+      { uri: U, range: range(1, 12, 1, 23) },
+      { uri: U, range: range(2, 3, 2, 14) },
+    ])
+    Assert.strictEqual(computeReferences(SRC, { line: 0, character: 15 }, U, true), null)
+    Assert.strictEqual(computeReferences('a: )\n', { line: 0, character: 0 }, U, true), null)
+  })
+
+  test('highlights-tell-a-write-from-a-read', () => {
+    Assert.deepStrictEqual(computeHighlights(SRC, { line: 1, character: 20 }), [
+      { range: range(0, 14, 0, 18), kind: HIGHLIGHT_WRITE },
+      { range: range(1, 12, 1, 23), kind: HIGHLIGHT_READ },
+      { range: range(2, 3, 2, 14), kind: HIGHLIGHT_READ },
+    ])
+    Assert.deepStrictEqual(computeHighlights('x: $.nope\n', { line: 0, character: 5 }),
+      [{ range: range(0, 3, 0, 9), kind: HIGHLIGHT_READ }])
+    Assert.strictEqual(computeHighlights(SRC, { line: 0, character: 15 }), null)
+  })
+
+  test('references-across-an-include', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'))
+    try {
+      Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\nr: ( $.top )\ns: $."top"\n')
+      const trust = { include: { root: dir } }
+      const src = `top: 1\nbase: @"${srcPath(dir)}/base.aontu"\n`
+      const [own, there, quoted, ...more] =
+        computeReferences(src, { line: 0, character: 1 }, U, true, trust) ?? []
+      Assert.deepStrictEqual(more, [])
+      Assert.deepStrictEqual(own, { uri: U, range: range(0, 5, 0, 6) })
+      Assert.ok(there.uri.startsWith('file:///') && there.uri.endsWith('/base.aontu'), there.uri)
+      // A reference there is ranged by its span as written there.
+      Assert.deepStrictEqual([there.range, quoted.range], [range(1, 5, 1, 10), range(2, 3, 2, 10)])
+      // A highlight is in the open document alone.
+      Assert.deepStrictEqual(computeHighlights(src, { line: 0, character: 1 }, trust),
+        [{ range: range(0, 5, 0, 6), kind: HIGHLIGHT_WRITE }])
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('references-and-highlights-through-the-handler', () => {
+    const h = new LspHandler()
+    const caps = h.handle({ id: 1, method: 'initialize', params: {} })[0].result.capabilities
+    Assert.deepStrictEqual([caps.referencesProvider, caps.documentHighlightProvider], [true, true])
+    h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } })
+    const ask = (method: string, params: any) => h.handle({
+      id: 2, method, params: { textDocument: { uri: U }, ...params },
+    })[0].result
+    const at = { position: { line: 0, character: 9 } }
+    Assert.strictEqual(ask('textDocument/references',
+      { ...at, context: { includeDeclaration: true } }).length, 3)
+    Assert.strictEqual(ask('textDocument/references', at).length, 2)
+    Assert.deepStrictEqual(ask('textDocument/documentHighlight', at)
+      .map((x: any) => x.kind), [HIGHLIGHT_WRITE, HIGHLIGHT_READ, HIGHLIGHT_READ])
+    Assert.strictEqual(ask('textDocument/references', {}), null)
+    Assert.strictEqual(h.handle({ id: 4, method: 'textDocument/references', params: {} })[0].result,
+      null)
+    Assert.strictEqual(h.handle({
+      id: 3, method: 'textDocument/documentHighlight',
+      params: { textDocument: { uri: 'file:///none.aontu' }, ...at },
+    })[0].result, null)
   })
 
 })

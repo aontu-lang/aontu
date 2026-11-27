@@ -237,6 +237,7 @@ function aonFiles(dir, out = []) {
             'aontu:gen',
             'aontu:lang/markdown',
             'aontu:lang/text',
+            'aontu:num',
             'aontu:profile',
             'aontu:system',
             'aontu:view',

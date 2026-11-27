@@ -79,8 +79,8 @@ func TestHoverMiss(t *testing.T) {
 
 func TestCompletionsList(t *testing.T) {
 	c := Completions("")
-	if len(c) != 90 {
-		t.Fatalf("expected 90 completions, got %d", len(c))
+	if len(c) != 91 {
+		t.Fatalf("expected 91 completions, got %d", len(c))
 	}
 	byLabel := map[string]CompletionItem{}
 	for _, it := range c {
@@ -136,7 +136,7 @@ func TestBuiltinFuncNamesParity(t *testing.T) {
 	// The completion function list must match the engine's recognised
 	// functions exactly (guards against drift).
 	got := aontu.BuiltinFuncNames()
-	want := []string{"abnf", "above", "acyclic", "add", "apply", "below", "close", "contains", "content", "copy", "copyfiles", "decode", "deprecate", "div", "each", "emit", "empty", "encode", "esc", "file", "filter", "folder", "format", "fragment", "gen", "greatest", "hide", "ident", "inject", "inverse", "join", "key", "keyed", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "meta", "min", "mod", "move", "mul", "mulof", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "relate", "rem", "rep", "rest", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
+	want := []string{"abnf", "above", "acyclic", "add", "apply", "at", "below", "close", "contains", "content", "copy", "copyfiles", "decode", "deprecate", "div", "each", "emit", "empty", "encode", "esc", "file", "filter", "folder", "format", "fragment", "gen", "greatest", "hide", "ident", "inject", "inverse", "join", "key", "keyed", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "meta", "min", "mod", "move", "mul", "mulof", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "relate", "rem", "rep", "rest", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
 	if len(got) != len(want) {
 		t.Fatalf("BuiltinFuncNames = %v, want %v", got, want)
 	}
@@ -181,8 +181,8 @@ func TestHandlerCompletion(t *testing.T) {
 	if err := json.Unmarshal(outs[0].Result, &items); err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 90 {
-		t.Errorf("expected 90 completion items, got %d", len(items))
+	if len(items) != 91 {
+		t.Errorf("expected 91 completion items, got %d", len(items))
 	}
 }
 

@@ -64,7 +64,7 @@ class AggFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(ctx, 1)) {
+    if (!this.foldReady(ctx, 1)) {
       return this.residuate(peer, ctx)
     }
 
@@ -168,7 +168,7 @@ class PickFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(ctx, 2)) {
+    if (!this.foldReady(ctx, 2)) {
       return this.residuate(peer, ctx)
     }
 
@@ -301,7 +301,7 @@ class SortFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(ctx, 3)) {
+    if (!this.foldReady(ctx, 3)) {
       return this.residuate(peer, ctx)
     }
 
@@ -434,7 +434,7 @@ class JoinFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(ctx, 2)) {
+    if (!this.foldReady(ctx, 2)) {
       return this.residuate(peer, ctx)
     }
 

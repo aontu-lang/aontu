@@ -640,8 +640,9 @@ combinators.
   *(Reopened on 2026-11-21: ruling 5 of
   [LANG-REFINEMENT-PLAN.0.md](../LANG-REFINEMENT-PLAN.0.md#the-rulings)
   adds the key-selector, as an optional third argument. A `pack` with
-  no key argument refuses as before, and so does every `pack` until
-  that phase lands.)*
+  no key argument refuses as before. Landed on 2026-11-27 as task C2:
+  with the argument, each key is the string it answers for the
+  member, and a list of records is packed; see the register.)*
 - **`_` scoping under nesting.** When a `pack` template contains an
   `each`, which generator's child does an inner `_` bind? Innermost-
   binder lexical scoping is the presumption, but the alternative

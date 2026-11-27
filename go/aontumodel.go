@@ -19,6 +19,9 @@ var aontuLangMarkdown string
 //go:embed aontumodel/lang/text.aontu
 var aontuLangText string
 
+//go:embed aontumodel/num/num.aontu
+var aontuNum string
+
 //go:embed aontumodel/profile/profile.aontu
 var aontuProfile string
 
@@ -32,6 +35,7 @@ var aontuSources = map[string]string{
 	"aontu:gen":           aontuGen,
 	"aontu:lang/markdown": aontuLangMarkdown,
 	"aontu:lang/text":     aontuLangText,
+	"aontu:num":           aontuNum,
 	"aontu:profile":       aontuProfile,
 	"aontu:system":        aontuSystem,
 	"aontu:view":          aontuView,
@@ -44,6 +48,7 @@ var aontuModels = []string{
 	"aontu:gen",
 	"aontu:lang/markdown",
 	"aontu:lang/text",
+	"aontu:num",
 	"aontu:profile",
 	"aontu:system",
 	"aontu:view",

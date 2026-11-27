@@ -395,6 +395,63 @@ pairs: each($.ks, { k: _, y: at($.ys, key()) })
    path `$.xs.-1` is today. A position further back than the first
    member is still a miss.
 
+Progress on 2026-11-27. C1 is built in both engines. `at(d, ...k)`
+steps as a path steps and copies the member as a reference does, its
+marks cleared and a type's copy sealed, through `liftCopy`, which the
+reference's copy now shares. The three spellings proposed above for a
+field of each member and for a lookup are the ones both engines answer;
+the pairing by position answers as proposed. Five things the rulings
+left open were settled in the building, and each is the maintainer's to
+change:
+
+- The signature is `at(d: map|list, ...k: string|integer) : any`. The
+  parenthesised group proposed above doesn't parse, since a group's
+  member is one word, and the rest slot written as `neq`'s is means the
+  same.
+- A key of another kind is `func_arg`, the signature gate's code, read
+  off the rest slot the gate stops at; no code is added. A choice of
+  keys such as `*a | b` is refused with it too, where the gate lets a
+  choice through to a fixed slot.
+- Only an integer counts from the end. A string names a position as a
+  path segment does, in canonical digits, so `at(xs, "-1")` and
+  `at(xs, "01")` name nothing.
+- Under `maybe`, a miss of a step and a miss of the data are absence,
+  `maybe(at($.gone, a))` as `maybe($.gone.a)` is; a key that is itself a
+  reference naming nothing is still `no_path`, as `maybe(upper($.gone))`
+  is.
+- `key()` reads the level it reads anywhere: at the top of a `pack`
+  template it is the template's own key, so the lookup by the member's
+  key is written in a map, `{v: at($.m, key())}`, or as `key(0)`.
+
+The condition over two fields doesn't answer as proposed. In
+`filter($.xs, {a: above(at(_, b))})` the bound's argument holds the
+hole, and in the trial it reads nothing, in either engine, so the
+condition keeps no member, the answer k4 pins. `above(sum(pick([_], b)))`
+does the same, and a `match` whose pattern is such a bound never
+resolves. In TypeScript the fill of the hole doesn't reach a bound that
+waits on its argument (`rebuild` in `ts/src/val/PlaceVal.ts` leaves the
+bound's `pending` arguments as they were); the Go cause isn't traced.
+It is not filed. The direct spelling is a `match` over
+the difference,
+`each($.xs, match(sub(at(_, a), at(_, b)), above(0), at(_, a), maybe($.none)))`,
+and a row pins the silent answer beside it. `at($.xs, -1, -1)` overflows
+the TypeScript stack, the parser defect IS3 holds, where Go answers;
+`at(at($.xs, -1), -1)` answers in both.
+
+Review then found that a lookup a reference copied before it answered
+never answered in TypeScript, `b: at($.a, y)` with `c: $.b` where `a.y`
+is the relative read `.x`. The waiting call held its driven bag, and the
+copy moved the bag's `.x` to read from `c`. A waiting `at` now keeps the
+arguments it was written with, as Go's does; ten rows hold it. `pick`
+and the folds share the defect in TypeScript, `b: pick([$.a], y)` with
+`c: $.b` answering a residue where Go answers, and it is not filed.
+
+The rows are the 115 of `test/spec/at.tsv`, and the eight `-at` rows of
+`test/spec/comprehension.tsv`, one beside each of k4, k5, k18 to k21,
+k33 and k37. The definition is owed: no Lean toolchain was installed
+where it was built, so `at` has no meaning under `spec/`, and `maybeOf`
+doesn't yet count it as a reference, as ruling 2 asks.
+
 ## C2: a key for each child of `pack`
 
 **Proposed:** `pack(d: map|list, template t: any, template k?: string) : map`
@@ -461,6 +518,50 @@ key(0))`, and an inverted map once each member carries its key.
    as it does in a spread's template.
 8. **The key's kind.** Ruled 2026-11-21: a string only, as `pack_key`
    holds today. The other reading took a number by its text.
+
+Progress on 2026-11-27. C2 is built in both engines.
+`pack(d, t, k)` reads `k` once for each member and puts the member's
+child under the string it answers; the two idioms above, the prefix and
+the inverted map answer as proposed, and children whose keys collide
+unify. Six things the rulings left open were settled in the building,
+and each is the maintainer's to change:
+
+- `k` is read at the place the member's child would take under its own
+  key. There `key(0)` is the member's key in a map and its position in
+  a list, as text, and `key()` is the call's own key. A relative path
+  reads from that place, as one in `t` does, so `.n` doesn't name the
+  member's field: it reads the output being made, waits on the call,
+  and never settles, `mapval_no_gen` when generated. An absolute path
+  reads the document.
+- `k` is run to a fixpoint with an error sink of its own, as the
+  admission trial runs its meet. While any member's key waits the call
+  waits, and it fires once every key has settled. A refusal `k`
+  answers, such as `at`'s `no_path`, is the call's.
+- Only a string is a key: a number, a kind, a choice with a default, a
+  map, a boolean, and the absence `maybe` makes of a missing field are
+  `pack_key`. The other reading of the last was to leave that member
+  out.
+- With `k`, a list's members need not be strings, since `k` makes the
+  key.
+- `t` reads `key(0)` at the child's place, so there it is the key `k`
+  answered: `pack($.m, key(0), _)` is `{x: "x"}` for `{a: x}`. The
+  inverted map is the route through a hidden `pack` that carries each
+  key, `pack($.st, at(_, k), at(_, v))`.
+- A call with three arguments was `func_arity` and is now this; the
+  `gen-pack.tsv` row that pinned it holds four. The hint of `pack_key`
+  gains a sentence for the new case, the same in both ports.
+
+k12, k13 and k17 still wait on C5. In TypeScript a call whose first
+argument is an absolute path and whose second a relative one, with a
+third after it, such as `pack($.xs, .q, "a")`, overflows the stack in
+the parser, where Go answers; it isn't `pack`'s, since
+`match($.xs, .q, 1)` does the same, and it is not filed.
+
+The rows are the 45 of `test/spec/gen-pack-key.tsv`, and the six `-pack`
+rows of `test/spec/comprehension.tsv`, one beside each of k9, k10,
+k11, k14, k15 and k16, each answer agreed by both engines. The
+definition is owed: `spec/` doesn't read a third argument, so `pack`
+with a key has no meaning there yet.
 
 ## C3: a position as an integer
 
@@ -703,6 +804,26 @@ case of #868 were another, fixed in TypeScript the same day: a later
 argument of a call was pathed as an element of the argument list, so a
 relative reference in it read from the wrong place. #754 is not
 started.
+
+Progress on 2026-11-27. #754 is fixed in both engines. The cause: a
+member a generator makes is unified in the pass that makes it, while
+the tree a path reads still holds the call, so a `filter` in it tried
+its condition before the member was there, every path in the condition
+found nothing, and each candidate was refused. Now a `filter` whose
+condition holds a path waits while any place above it is a `pack`,
+`each`, `apply` or `match` still to fire, and is tried once the
+member is in the tree (`unmade` in `ts/src/val/FilterFuncVal.ts` and
+`go/generate.go`). A filter in a call's data, or in a `match`'s
+pattern, is the call's input and does not wait for it. A condition with
+no path fires as before, so no document without one takes more passes.
+The 23 rows `filter-in-*` of
+`test/spec/gen-filter.tsv` pin it, each expectation from the parity
+probe. No C7 row pinned the empty answer: k4 reads a path inside the
+member it tries, which names nothing by the reference, and stays `[]`,
+and k36 avoids the climb. An `emit`'s body is left as it is: the same
+wait there moves rows eh7 and eh9 to eh11 of `test/spec/def-path.tsv`,
+which the definition answers, so that route waits on a ruling. #850
+and #868 still wait on the parser release.
 
 ## C7: pin today's routes
 
@@ -1184,6 +1305,38 @@ are, so both runners count a place after the fixture's name as the row
 writes it. A probe of both servers over 50 documents found no
 difference. A key the cursor cannot find, spelled with an escape or an
 include in parentheses, has no symbol, as it has no hover.
+
+Progress on 2026-11-27, LS6. References and highlights are built in
+both servers, which advertise `referencesProvider` and
+`documentHighlightProvider`. On a key or a reference, references answer
+the sites that write the path it names, the ones go to definition
+answers, where the client asks for the declaration, then every
+reference that reads the path, in order of file, line and character;
+a highlight answers the same within the open document, a site as Write
+and a reference as Read. The references are found by a walk of the
+parsed tree that enters a constraint's arguments, each read by the
+path the parser records for it, as the engine's `plainRefPath` reads
+it, so a relative reference, one under a key chain and one in a list
+are all read where they stand, and so is one alone in a group. By
+ruling 16, a reference in an included file is a location in that file,
+ranged by its span as written there, read from the text the include
+loaded: Go's parse keeps it, and TypeScript's include record now keeps
+it too. Review found the first build ranging such a reference by its
+spelling from its site, which a group or a quoted segment made wrong;
+three rows over a second fixture, `cursor_refs_written.aontu`, hold
+the fix. The library answer is `referencesAt` (`ReferencesAt` in Go),
+with `computeReferences`, `computeHighlights`, `References` and
+`Highlights` in the servers, held by a new row mode, `refs`, in 34 rows
+of `test/spec/cursor.tsv`, 37 with the review's, which both engines
+wrote alike, with a new fixture, `cursor_refs.aontu`, whose references read the including
+document. A probe of both servers, references with and without the
+declaration and highlights at every character of 57 documents, found no
+difference. Three limits stand. The sites are those `model why` lists,
+so a path that a reference writes has that reference and the value it
+reads among its sites, and a document that does not evaluate has none.
+An alias name's uses are not followed. Hover, definition and
+references still do not start from a reference in a group or among a
+constraint's arguments, which the cursor does not find.
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
@@ -1820,6 +1973,40 @@ says aontu reads and runs format grammars itself and names no list of
 formats, so it needs no change for BT2. The rows are 60 more in
 `test/spec/format.tsv`, two in `test/spec/jsonschema.tsv` and three in
 `test/spec/jsonschema-import.tsv`, each answer agreed by both engines.
+
+Progress on 2026-11-27. BT4 is built in both engines, after #658, so a
+refusal sited in a bundled model frames the model's text in both.
+`@"aontu:num"` is `aontu/num/num.aontu`, and `$.aontu.Num` holds
+`Int8`, `Int16`, `Int32`, `Int64`, `Int128`, `Uint8`, `Uint16`,
+`Uint32`, `Uint64`, `Uint128` and `Float32`, each a `type()`. A bare
+`int8` is still a string. Three things were settled in the building,
+and each is the maintainer's to change:
+
+- The members are PascalCase, as `aontu:system`'s are, so the model
+  writes `$.aontu.Num.Uint8` where the example above writes
+  `$.Num.uint8`.
+- The names to 32 bits are `integer` alone, as the example's `uint8`
+  is, so `0d5` is refused by them. The 64-bit and 128-bit names are
+  `(integer | biginteger)` with `0d` bounds, the lower one `-0d…`.
+- `Float32` is a `number` from `-0d340282346638528859811704183484516925440`
+  to `0d340282346638528859811704183484516925440`, the largest finite
+  float32 magnitude, 3.4028234663852886e38, written exactly. A
+  constraint cannot say a precision, so it bounds the magnitude only:
+  `16777217`, which a float32 rounds, is admitted.
+
+The rows are `test/spec/num.tsv`: each name at both its bounds and one
+past each, a project narrowing a name, `vet` against one, the model's
+canon and hash, and the bare word. The model is listed in
+`docs/reference-language.md`, and `name-a-reusable-constraint.md`
+points at it.
+
+BT5 is written: `docs/how-to/carry-binary-data.md` carries a string's
+bytes through `encode` and `decode` in the three encodings, keeps raw
+bytes in their encoded form, and bounds a binary record's numbers with
+`aontu:num`, pointing to `name-a-reusable-constraint.md` for names
+built on the bundled ones. It names no `format()`, which waits on BT2.
+Every example on it runs in the documentation tests, and both engines
+print each answer it shows.
 
 ### Questions for the ruling on part 7
 

@@ -26,6 +26,7 @@ the [Explanation](explanation.md).
 - [Spreads `&:`](#spreads-)
 - [Key patterns: `keyed`](#key-patterns-keyed)
 - [Generating children: `pack` and `each`](#generating-children-pack-and-each)
+  - [A key for each child](#a-key-for-each-child)
   - [Making elements: `each`](#each-the-order-preserving-map)
   - [One instance: `apply`](#apply-one-instance)
   - [The `_ & …` idiom](#the-_---idiom-construction-and-bound)
@@ -40,6 +41,7 @@ the [Explanation](explanation.md).
 - [Functions](#functions)
 - [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
 - [Projecting fields: `pick`](#projecting-fields-pick)
+- [The member at a key: `at`](#the-member-at-a-key-at)
 - [Optional input: `maybe`](#optional-input-maybe)
 - [Ordering: `sort`](#ordering-sort)
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
@@ -1223,6 +1225,8 @@ deploy: billing: replicas: 4  # an override composes as usual
 `pack(data, tmpl)` makes one **keyed child** per child of `data`. The
 keys are **data, never position**: for a list, the strings themselves
 (a non-string element is an error, `pack_key`); for a map, its keys.
+A third argument makes each key instead, as
+[A key for each child](#a-key-for-each-child) shows.
 Each generated child is `tmpl` cloned at that destination, so `key()`
 and relative references inside the template answer for the child
 rather than for the call. Duplicate keys are not an error: the
@@ -1278,7 +1282,84 @@ Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:
 evaluation still terminates by construction.
 
-The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else.
+The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else. The definition doesn't yet read a third argument.
+
+### A key for each child
+
+`pack(data, tmpl, key)` puts each member's child under the key that
+`key` answers for that member, in place of the member's own key or
+text. `key` is read once for each member: `_` is the member, and
+`key(0)` is its own key in a map or its position in a list. A field of
+the member is read with [`at`](#the-member-at-a-key-at), so a list of
+records can be keyed by a field, or by two joined:
+
+```aontu
+xs: [{ ns:a name:web port:80 } { ns:b name:db port:5432 }]
+byname: pack($.xs, _, at(_, name))
+ports: pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))
+```
+
+```json
+{"byname":{"db":{"name":"db","ns":"b","port":5432},"web":{"name":"web","ns":"a","port":80}},"ports":{"a/web":80,"b/db":5432},"xs":[{"name":"web","ns":"a","port":80},{"name":"db","ns":"b","port":5432}]}
+```
+
+The members of a list need not be strings here, since `key` makes the
+key. `key(0)` gives every key a prefix, and over a list it is the
+position. Children whose keys collide unify, as they do without the
+third argument:
+
+```aontu
+m: { a:1 b:2 }
+svc: pack($.m, _, "svc-" + key(0))
+xs: [p q]
+pos: pack($.xs, _, "n" + key(0))
+same: pack([{ n:a v:1 } { n:a w:2 }], _, at(_, n))
+```
+
+```json
+{"m":{"a":1,"b":2},"pos":{"n0":"p","n1":"q"},"same":{"a":{"n":"a","v":1,"w":2}},"svc":{"svc-a":1,"svc-b":2},"xs":["p","q"]}
+```
+
+The template is read at the child's place, as it is without a key, so
+its `key(0)` is the key the third argument answered, not the member's
+own. A map is inverted once each member carries its own key:
+
+```aontu
+m: { a:x b:y }
+st: hide(pack($.m, { k:key() v:_ }))
+inv: pack($.st, at(_, k), at(_, v))
+own: pack($.m, key(0), _)
+```
+
+```json
+{"inv":{"x":"a","y":"b"},"m":{"a":"x","b":"y"},"own":{"x":"x","y":"y"}}
+```
+
+The key must settle to a string, or the call is refused as `pack_key`:
+a number, a kind such as `string`, a choice, a map, and the absence
+`maybe` makes of a field that isn't there are not keys. A field that
+isn't there is `no_path`, refused at the call:
+
+<!-- test: run -->
+```sh
+$ echo 'xs: [{n: 1}]  x: pack($.xs, _, at(_, n))' | aontu
+[aontu/pack_key]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+$ echo 'xs: [{n: a}]  x: pack($.xs, _, at(_, id))' | aontu
+[aontu/no_path]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+```
+
+The key reads the member through `_` and its key through `key(0)`, and
+a relative path in it doesn't name a field of the member. It reads from
+the place the member's child would take under its own key, as one in
+the template does, so `pack($.xs, _, .n)` reads the output being made,
+which waits on the call and never settles. An absolute path reads the
+document as anywhere.
 
 ### `each`, the order-preserving map
 
@@ -2891,9 +2972,10 @@ and `text` supplies literal text. An unmarked argument supplies a value.
 For collection operations, compare [pack and each](#generating-children-pack-and-each),
 [the `_ & …` idiom](#the-_---idiom-construction-and-bound), [filter and
 match](#selecting-filter-and-match), [pick](#projecting-fields-pick),
-and [emit](#transforming-emit).
+[at](#the-member-at-a-key-at), and [emit](#transforming-emit).
 `pack` and `each` construct collections; `filter` selects members;
-`pick` projects a field; `emit` applies a rule table and flattens its output.
+`pick` projects a field; `at` reads one member; `emit` applies a rule
+table and flattens its output.
 
 ### `abnf(g: string) : string`
 
@@ -2924,6 +3006,12 @@ Example: `add(2, 3)` → `5`
 The one instance `each([v], f)` would make, standing where the call stands: `f` with each hole that no generator or `apply` inside it binds standing for `v`. See [form](#apply-one-instance).
 
 Example: `apply("hello", upper(_))` → `"HELLO"`
+
+### `at(d: map|list, ...k: string|integer) : any`
+
+Read the member of a map at a key, or of a list at a position, as a path step reads it; more keys step further, and a negative position counts from the end of a list. See [the member at a key](#the-member-at-a-key-at).
+
+Example: `at([a, b, c], -1)` → `"c"`
 
 ### `below(n: number|string) : constraint`
 
@@ -3249,11 +3337,11 @@ whatever map or list it meets: `open() & close({x:1}) & {y:2}` admits
 
 Example: `open(close({x:1})) & {y:2}`→`{x:1,y:2}`
 
-### `pack(d: map|list, template t: any) : map`
+### `pack(d: map|list, template t: any, template k?: string) : map`
 
-One keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each).
+One keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map, or with `k` the string `k` answers for each member, `_` being the member and `key(0)` its own key. See [Generating children](#generating-children-pack-and-each) and [A key for each child](#a-key-for-each-child).
 
-Example: `deploy: pack($.names, {replicas:*2|integer})`
+Example: `deploy: pack($.names, {replicas:*2|integer})`; `byname: pack($.xs, _, at(_, name))`
 
 ### `parse(g: string, v?: string) : map|list|constraint`
 
@@ -3670,6 +3758,108 @@ member's information rather than extracting one field from it.
 
 Compose the resulting list with [sum](#aggregating-sum-least-greatest)
 for a total or [join](#folding-to-a-string-join) for a line of text.
+
+## The member at a key: `at`
+
+`at(d, k)` reads what a path step reads: in a map, the member under the
+key `k` spells, and in a list, the member at the index it spells. More
+keys step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key is
+read as its value, so it can be computed, and that is what a written
+path can't do: `at(_, port)` is a field of the member a template is
+made for, and `at($.teams, at(_, team), email)` looks a record up by a
+field of that member.
+
+```aontu
+svc: { a: { port:1 team:core } b: { port:2 team:web } }
+teams: { core:email:"core@x" web:email:"web@x" }
+ports: pack($.svc, at(_, port))
+owners: pack($.svc, at($.teams, at(_, team), email))
+```
+
+```json
+{"owners":{"a":"core@x","b":"web@x"},"ports":{"a":1,"b":2},"svc":{"a":{"port":1,"team":"core"},"b":{"port":2,"team":"web"}},"teams":{"core":{"email":"core@x"},"web":{"email":"web@x"}}}
+```
+
+A key is a string or an integer. In a map, an integer names the key
+its digits write, so `at({"1": z}, 1)` is `"z"`. In a list, a string
+names the index its digits write in canonical decimal, as a path
+segment does, so `at(xs, "1")` and `$.xs.1` agree, and `"01"` names
+nothing. A key given by a reference, a sum, `key()` or another `at` is
+read once it settles:
+
+```aontu
+m: { a:b:1 k:a }
+x: at($.m, $.m.k, b)
+y: at($.m, "a" + "", b)
+```
+
+```json
+{"m":{"a":{"b":1},"k":"a"},"x":1,"y":1}
+```
+
+### Positions from the end
+
+A negative integer counts from the end of a list, which a path step
+doesn't: `at(xs, -1)` is the last member and `at(xs, -2)` the one
+before it. A position before the first member or past the last names
+nothing. A negative integer in a map names the key its digits write,
+and a string that starts with `-` names no position in a list. Paired
+with `key()`, a position reads the member of another list:
+
+```aontu
+xs: [a b c]
+last: at($.xs, -1)
+first: at($.xs, -3)
+pairs: each([x y], { k:_ v:at($.xs, key()) })
+```
+
+```json
+{"first":"a","last":"c","pairs":[{"k":"x","v":"a"},{"k":"y","v":"b"}],"xs":["a","b","c"]}
+```
+
+### The answer is a copy
+
+The answer is a copy of the member, as a reference's is: it meets what
+it's met with, and the member it was read from is unchanged. A member
+marked with `hide()` or `type()` is read as a path reads it. The copy is
+unmarked, so it is generated where it lands, and a type's copy is
+sealed, so a meet that adds a key is refused as `closed`:
+
+```aontu
+m: { a:hide({ b:1 }) t:type({ n:integer }) }
+x: at($.m, a, b)
+y: at($.m, t) & { n:2 }
+```
+
+```json
+{"m":{},"x":1,"y":{"n":2}}
+```
+
+### What `at` refuses
+
+A step that names nothing is refused as a path's is, `no_path`: a key
+the map doesn't hold, a position the list doesn't reach, and any step
+into a scalar. `maybe` counts `at` as a reference, so `maybe(at(…))` is
+[absence](#optional-input-maybe) where a step names nothing, or where
+the data is a reference that names nothing:
+
+<!-- test: run -->
+```sh
+$ echo 'xs: [a, b, c]  x: at($.xs, 3)' | aontu
+[aontu/no_path]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+$ echo 'm: {a: 1}  x: maybe(at($.m, b))  y: [1, maybe(at($.m, b))]' | aontu -c
+{"m":{"a":1},"x":maybe(),"y":[1]}
+```
+
+`maybe` forgives the step and nothing else, as it forgives a reference
+at the top of its argument and no call: a key that is itself a
+reference naming nothing is still `no_path`, and so is
+`maybe(upper(at($.m, b)))`. A key that is neither a string nor an
+integer, such as `true`, `1.5`, a kind or a list, is `func_arg`, and a
+call with no key is `func_arity`.
 
 ## Optional input: `maybe`
 
@@ -4648,7 +4838,7 @@ same key as an ordinary string.
 
 ### The bundled vocabularies
 
-**Six vocabularies ship with the engine**, served from it rather than
+**Seven vocabularies ship with the engine**, served from it rather than
 from disk, and **every one of them is named under `aontu:`**. That is
 the whole rule: a language-supplied schema has one spelling, and the
 scheme is what stops a file on disk from standing in front of it.
@@ -4661,6 +4851,7 @@ scheme is what stops a file on disk from standing in front of it.
 | `aontu:lang/text` | the text profile |
 | `aontu:lang/markdown` | the markdown profile |
 | `aontu:gen` | the standard options of each type of value, which a [`gen()`](#output-options-gen) record is held to |
+| `aontu:num` | the sized numbers, `Int8` to `Uint128` and `Float32`: [below](#the-aontunum-sized-numbers) |
 
 The three profile models are described [after the system vocabulary](#the-aontu-models).
 
@@ -4680,8 +4871,9 @@ rather than looked for on disk.
 | `@"aontu:system"` | `$.aontu.System.Port`, `.Component`, `.Service`, `.Semver` |
 | `@"aontu:view"` | `$.aontu.View.Figure` |
 | `@"aontu:profile"` | `$.aontu.Profile`, `$.aontu.Lang` |
+| `@"aontu:num"` | `$.aontu.Num.Int8` to `.Int128`, `.Uint8` to `.Uint128`, `.Float32` |
 
-One key is reserved instead of six, it is named for the language
+One key is reserved instead of seven, it is named for the language
 rather than for a domain, and `$.aontu` anywhere tells a reader at once
 that the subtree is not the document's own.
 
@@ -4739,7 +4931,7 @@ the set. Write this as `nope.aontu`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aontu
-[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:num, aontu:profile, aontu:system, aontu:view)
 ...
 $ echo $?
 1
@@ -4919,6 +5111,87 @@ Two of its behaviours are the language rather than the vocabulary:
 Everything here is ordinary unification, so an author who wants a
 different vocabulary writes one the same way, and nothing in the
 language knows these names.
+
+### The `aontu:num` sized numbers
+
+The sized numbers are names, not keywords: `@"aontu:num"` defines the
+integer types CUE builds in and `Float32` under `$.aontu.Num`, each
+one `type()`-marked, so naming one neither generates it nor asks the
+document to fill it. A bare `int8` is still the string `"int8"`.
+
+| Name | Admits | From | To |
+|------|--------|------|----|
+| `Int8` | `integer` | -128 | 127 |
+| `Int16` | `integer` | -32768 | 32767 |
+| `Int32` | `integer` | -2147483648 | 2147483647 |
+| `Int64` | `integer \| biginteger` | -9223372036854775808 | 9223372036854775807 |
+| `Int128` | `integer \| biginteger` | -2^127 | 2^127 - 1 |
+| `Uint8` | `integer` | 0 | 255 |
+| `Uint16` | `integer` | 0 | 65535 |
+| `Uint32` | `integer` | 0 | 4294967295 |
+| `Uint64` | `integer \| biginteger` | 0 | 18446744073709551615 |
+| `Uint128` | `integer \| biginteger` | 0 | 2^128 - 1 |
+| `Float32` | `number` | -3.4028234663852886e38 | 3.4028234663852886e38 |
+
+The 64-bit and 128-bit bounds are past 2^53, so the model writes them
+as exact `0d` literals, the lower one `-0d…`, and admits a
+`biginteger` beside an `integer`. `Float32` bounds the magnitude only: a
+constraint cannot say a precision, so `16777217`, which a float32
+rounds, is admitted.
+
+Each name is an ordinary value, so a project narrows one in a name of
+its own. Write this as `sizes.aontu`:
+
+<!-- test: scenario aontu-num -->
+<!-- test: file sizes.aontu -->
+```aontu
+@"aontu:num"
+
+Port: type($.aontu.Num.Uint16 & min(1))
+
+listen: $.Port & 8080
+retries: $.aontu.Num.Uint8 & 3
+offset: $.aontu.Num.Int64 & -0d9223372036854775808
+ratio: $.aontu.Num.Float32 & 0.25
+kind: int8
+```
+
+<!-- test: run -->
+```sh
+$ aontu sizes.aontu
+{
+  "aontu": {
+    "Num": {}
+  },
+  "kind": "int8",
+  "listen": 8080,
+  "offset": -9223372036854775808,
+  "ratio": 0.25,
+  "retries": 3
+}
+```
+
+A value past a name's bound is refused, and the frame shows the
+bound in the model. Write this as `wide.aontu`:
+
+<!-- test: file wide.aontu -->
+```aontu
+@"aontu:num"
+
+level: $.aontu.Num.Int8 & 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu wide.aontu
+[aontu/constraint]: Cannot unify values at path $.level
+...
+ Cannot unify value: integer&min(-128)&max(127) with value: 200
+  --> aontu:num:6:36
+...
+$ echo $?
+1
+```
 
 ### Declared relations
 

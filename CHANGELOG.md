@@ -210,6 +210,23 @@ They answer `"aGVsbG8"` and `"FF"`.
 agreed by both, `test/spec/jsonschema.tsv` to two and
 `test/spec/jsonschema-import.tsv` to three.
 
+### The language servers find references and highlight them
+
+Task LS6, in both servers. `textDocument/references` answers, on a key
+or a reference, every site that writes the path it names, as go to
+definition answers them, where the client asks for the declaration,
+then every reference that reads the path, across includes: a reference
+in an included file is a location in that file, ranged by its span as
+written there.
+`textDocument/documentHighlight` answers the same within the open
+document, a site with the kind Write and a reference with the kind
+Read. `referencesProvider` and `documentHighlightProvider` are
+advertised. A relative reference is read from where it stands, as the
+engine reads it, and a reference among a constraint's arguments or
+alone in a group is found too. The library answers are `referencesAt`
+and `ReferencesAt`; a new shared-row mode, `refs`, holds both ports to
+one answer in 37 rows of `test/spec/cursor.tsv`.
+
 ### The language servers outline a document's keys
 
 Task LS5, in both servers. `textDocument/documentSymbol` answers the
@@ -244,6 +261,94 @@ the other verbs as before. The engines gain the option that does it,
 `VetOptions` and `SubsumeOptions` carrying it in Go. Go's frame of a
 syntax error past a file's last newline now puts the caret where
 TypeScript puts it.
+
+### `pack`: a key for each child
+
+`pack(d, t, k)` takes an optional third argument, in both engines. Each
+member's child stands under the key `k` answers for that member, in
+place of the member's own key or text, so a list of records is keyed by
+a field, `pack($.xs, _, at(_, name))`, or by two joined,
+`pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))`. `k` is read
+once for each member, with `_` the member and `key(0)` its own key or
+position, and a relative path in it does not name a field of the
+member. The template is read at the child's place, as before, and
+children whose keys collide unify. A key that is not a string is
+`pack_key`, whose hint now says so; the absence `maybe` makes of a
+missing field is not a key either. With `k`, a list's members need not
+be strings. A call of `pack` with three arguments was `func_arity`, and
+is now this. `test/spec/gen-pack-key.tsv` holds both engines to 45
+rows, and `test/spec/comprehension.tsv` gains the keyed spelling beside
+each of the six routes it replaces.
+
+### `at`: the member at a key or a position
+
+A new built-in, in both engines. `at(d, k)` reads what a path step
+reads, the member of a map under a key or of a list at a position, and
+more keys step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key
+is read as its value, so a template can read a field of its member,
+`pack($.svc, at(_, port))`, and look a record up by one,
+`at($.teams, at(_, team), email)`. A negative position counts from the
+end of a list, so `at(xs, -1)` is the last member. A step that names
+nothing is `no_path`, and absence under `maybe`; a key that is neither
+a string nor an integer is `func_arg`. A member marked with `hide()` or
+`type()` is read as a path reads it. `test/spec/at.tsv` holds both
+engines to 115 rows, and `test/spec/comprehension.tsv` gains the `at`
+spelling beside each of the eight routes it replaces.
+
+### A how-to on carrying binary data
+
+`docs/how-to/carry-binary-data.md` carries bytes through a JSON
+document as base64, base64url or hex text with `encode` and `decode`,
+keeps bytes that are not UTF-8 in their encoded form, and bounds the
+numbers of a binary record with the sized names of `aontu:num`.
+
+### The sized numbers, as the bundled model `aontu:num`
+
+In both engines. `@"aontu:num"` names the integer types CUE builds in
+and `Float32` under `$.aontu.Num`: `Int8`, `Int16`, `Int32`, `Int64`,
+`Int128`, `Uint8`, `Uint16`, `Uint32`, `Uint64`, `Uint128` and
+`Float32`, each a `type()`, so naming one neither generates it nor asks
+the document to fill it. The 64-bit and 128-bit names admit a
+`biginteger`, with exact bounds, and `Float32` bounds a number's
+magnitude by the largest finite float32. There is no keyword: a bare
+`int8` is still the string `"int8"`, and each name is an ordinary value
+a project narrows. A name the scheme does not serve is refused naming
+seven models. Rows in the new `test/spec/num.tsv`.
+
+### A frame under a site in a built-in model shows the model's text
+
+#658, in TypeScript. A refusal sited in a built-in model, such as
+`aontu:system:11:29` when a document narrows
+`$.aontu.System.Service`'s `kind`, frames the lines of that model, as
+Go does. TypeScript framed the lines of the entry document at the same
+row and column. The message is now byte-identical in both engines, and
+a full-message twin test in each port holds it.
+
+### A `filter` in a member a generator makes reads the member
+
+#754, in both engines. A `filter` whose condition holds a path, and
+which stands in a member that `pack`, `each`, `apply` or `match`
+makes, now reads the member as the same `filter` in a written
+member does. Before, it was tried before the member was in place, read
+nothing, and kept nothing, with no error. Rows `filter-in-*` of
+`test/spec/gen-filter.tsv` hold both engines to it.
+
+| Document, with `l: [1, 2, 3]` | Was | Now |
+|---|---|---|
+| `p: pack(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p.x.f` is `[]` | `[2]` |
+| `p: each(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p[0].f` is `[]` | `[2]` |
+| `p: pack(["x"], {lim: 2, f: filter($.l, $.p.x.lim)})` | `p.x.f` is `[]` | `[2]` |
+| `p: pack(["x"], {lim: 2, f: filter($.l, min(..lim))})` | `p.x.f` is `[]` | `[2, 3]` |
+
+### A fold copied before it answers reads its data where the data stands
+
+In TypeScript, a fold that a reference copied before it answered never
+answered where its data held a relative read: with `a: {x: 1, y: .x}`,
+`b: pick([$.a], y)` and `c: $.b`, `b` and `c` stayed residues where Go
+answers `[1]`. `sum`, `least`, `greatest`, `pick`, `sort`, `join` and
+`at` each now keep the arguments they were written with while they
+wait, as Go's do. Rows in `test/spec/agg.tsv`, `gen-join.tsv` and
+`sort.tsv` hold both engines to it.
 
 ### The definition reads a call's data argument where its target stands
 

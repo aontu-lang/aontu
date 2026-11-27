@@ -45,8 +45,8 @@ are BUNDLED with the engine: `@"aontu:system"` and `@"aontu:view"`, the
 [system and view vocabularies](reference-language.md#the-bundled-vocabularies),
 and every `@"aontu:…"` name: the
 [language-supplied models](reference-language.md#the-aontu-models),
-`aontu:profile`, `aontu:lang/text`, `aontu:lang/markdown` and
-`aontu:gen`. An
+`aontu:profile`, `aontu:lang/text`, `aontu:lang/markdown`,
+`aontu:gen` and `aontu:num`. An
 `aontu:` name resolves from the
 engine's own table and nowhere else: the memory, module, file and
 package legs are never asked, so nothing on disk can shadow one, and a

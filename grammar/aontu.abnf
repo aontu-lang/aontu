@@ -81,8 +81,8 @@ func      = name %s"(" ws [ value *( ws %s"," ws value ) ws ] %s")"
 ; ORDER MATTERS where one name is a prefix of another: `relate` is
 ; listed before `re`, `rem` before `re` as well, `mulof` before `mul`,
 ; and `keyed` before `key`.
-name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"apply" / %s"below" / %s"close"
-          / %s"contains"
+name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"apply" / %s"at"
+          / %s"below" / %s"close" / %s"contains"
           / %s"copyfiles" / %s"copy" / %s"decode" / %s"deprecate" / %s"div"
           / %s"each" / %s"emit" / %s"empty" / %s"encode" / %s"esc"
           / %s"filter" / %s"gen" / %s"greatest"

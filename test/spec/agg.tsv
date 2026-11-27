@@ -167,3 +167,20 @@ pick-astral-key-order-three	canon	m:{"😀":{v:1},"￰":{v:2},"a":{v:3}} p:pick(
 # totals. The rule is gen-join.tsv's, shared.
 pick-skips-a-hidden-member	gens	x: pick({p: {a: 1}, q: hide({a: 2})}, a)	{"x":[1]}
 agg-sum-skips-a-hidden-member	gens	s: sum({a: 1, b: hide(2)})	{"s":1}
+# A fold a reference copies before it answers reads its data where the
+# data stands, as the path it holds does.
+agg-sum-copied	gen	a: {x: 1, y: .x}\nb: sum($.a)\nc: $.b	{"a":{"x":1,"y":1},"b":2,"c":2}
+agg-sum-copied-deeper	gen	a: {x: 1, y: .x}\nb: sum($.a)\nc: {d: $.b}	{"a":{"x":1,"y":1},"b":2,"c":{"d":2}}
+agg-sum-copied-into-each	gen	a: {x: 1, y: .x}\nb: sum($.a)\nout: each([1, 2], {v: $.b})	{"a":{"x":1,"y":1},"b":2,"out":[{"v":2},{"v":2}]}
+agg-least-copied	gen	a: {x: 1, y: .x}\nb: least($.a)\nc: $.b	{"a":{"x":1,"y":1},"b":1,"c":1}
+agg-least-copied-deeper	gen	a: {x: 1, y: .x}\nb: least($.a)\nc: {d: $.b}	{"a":{"x":1,"y":1},"b":1,"c":{"d":1}}
+agg-least-copied-into-each	gen	a: {x: 1, y: .x}\nb: least($.a)\nout: each([1, 2], {v: $.b})	{"a":{"x":1,"y":1},"b":1,"out":[{"v":1},{"v":1}]}
+agg-greatest-copied	gen	a: {x: 1, y: .x}\nb: greatest($.a)\nc: $.b	{"a":{"x":1,"y":1},"b":1,"c":1}
+agg-greatest-copied-deeper	gen	a: {x: 1, y: .x}\nb: greatest($.a)\nc: {d: $.b}	{"a":{"x":1,"y":1},"b":1,"c":{"d":1}}
+agg-greatest-copied-into-each	gen	a: {x: 1, y: .x}\nb: greatest($.a)\nout: each([1, 2], {v: $.b})	{"a":{"x":1,"y":1},"b":1,"out":[{"v":1},{"v":1}]}
+pick-copied	gen	a: {x: 1, y: .x}\nb: pick([$.a], y)\nc: $.b	{"a":{"x":1,"y":1},"b":[1],"c":[1]}
+pick-copied-deeper	gen	a: {x: 1, y: .x}\nb: pick([$.a], y)\nc: {d: $.b}	{"a":{"x":1,"y":1},"b":[1],"c":{"d":[1]}}
+pick-copied-into-each	gen	a: {x: 1, y: .x}\nb: pick([$.a], y)\nout: each([1, 2], {v: at($.b, 0)})	{"a":{"x":1,"y":1},"b":[1],"out":[{"v":1},{"v":1}]}
+# The list such a fold answers, copied whole into a template, is
+# refused in both engines where the path's list generates.
+pick-copied-list-into-each	errc	a: {x: 1, y: .x}\nb: pick([$.a], y)\nout: each([1, 2], {v: $.b})	no_path

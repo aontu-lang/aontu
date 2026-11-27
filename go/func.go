@@ -104,6 +104,7 @@ var funcSet = map[string]bool{
 	// RECORDS. Not a clever each template -- each MEETS each child, and
 	// a meet cannot select.
 	"pick": true,
+	"at":   true,
 	// Ordering, which generation cannot supply.
 	"sort": true,
 	// G9 phase 2: the fold to a STRING. sum folds with add; this folds
@@ -119,6 +120,7 @@ var stagedFuncs = map[string]bool{
 	"match": true,
 	"emit":  true,
 	"sum":   true, "least": true, "greatest": true, "pick": true,
+	"at":   true,
 	"sort": true,
 	// A fold over a bag still being merged into folds the wrong bag.
 	"join": true,
@@ -128,7 +130,7 @@ var stagedFuncs = map[string]bool{
 
 var foldFuncs = map[string]bool{
 	"sum": true, "least": true, "greatest": true, "pick": true, "join": true,
-	"sort": true,
+	"sort": true, "at": true,
 }
 
 var positionalArgFuncs = derivePositional()
@@ -257,6 +259,7 @@ type FuncVal struct {
 	// keyed marks the match on key(0) that carries out a keyed() call.
 	keyed    bool
 	unmarked Val
+	packed   *packRead
 }
 
 // A gen call's custom expression is taken where the call is built: its hole is the call's.
@@ -382,7 +385,11 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		} else {
 			driven = stagedDrive(ctx, f, base)
 		}
-		ready := driven && ctx.settle
+		ready := driven && ctx.settle && ("filter" != f.name || !holdsRef(f.peg[1]) || !unmade(ctx, base))
+		if ready && "pack" == f.name {
+			f.packed = packMembers(ctx, f.peg, base)
+			ready = nil != f.packed
+		}
 
 		if !ready {
 			return residuate(f, base, peer)
@@ -734,6 +741,8 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			return makeNilErr(ctx, "invalid-arg", f, nil)
 		}
 		return project(ctx, f, base, args[0], args[1])
+	case "at":
+		return atFunc(ctx, f, base, args)
 	case "maybe":
 		if len(args) < 1 { //coverage:ignore arity {1,1} is refused at parse
 			return makeNilErr(ctx, "invalid-arg", f, nil)
