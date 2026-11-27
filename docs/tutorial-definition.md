@@ -6124,8 +6124,8 @@ it, 162 rows, and both answer every one as the definition does.
 holds the expression quoted: `Val.quote` in
 [`spec/Aontu/Quote.lean`](../spec/Aontu/Quote.lean) writes data as
 itself and every other term as a node that names its constructor. The
-record rides, unifies and is held to its type as any other, and two
-records meet only where their expressions are one. Writing reads the
+record rides and unifies as any other, its value's type takes it, and
+two records meet only where their expressions are one. Writing reads the
 term back, `Data.unquote`, and evaluates it after the record's other
 options, on its own, as `apply` evaluates one:
 
@@ -6134,8 +6134,8 @@ options, on its own, as `apply` evaluates one:
 def customDoc (e : Val) (d : Data) : Val := .map [("out", false, .call .apply [d.term, e])] none false
 ```
 
-The hole is given what the value writes, read as data: an address as
-its text, and a float written as a whole number as an integer. The
+The hole stands for what the value writes, read as data: an address
+as its text, and a float written as a whole number as an integer. The
 expression reads nothing else of the document, and what `out` writes,
 its own annotations written in turn, is the value's writing. Write
 `custom.aontu`:
