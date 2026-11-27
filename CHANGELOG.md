@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A default written twice admits only its value
+
+**Breaking.** #971, in both engines. Two defaults of one rank that agree
+fold into the default and the value at rank 0, as `foldArms` in the
+definition folds them, so the disjunction admits that value and nothing
+wider. Before, the fold left the default alone, and a default alone
+admits its parent type.
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `x: *1 \| *1` | `{"x": 3}` | `valid` | `invalid` |
+| `d: *1`, `x: $.d \| *1` | `{"x": 3}` | `valid` | `invalid` |
+
+The canon of such a disjunction changes with it: `x: *1 | *1` is
+`*1|1`, where it was `*1`, so its hash changes. What it generates
+doesn't.
+
 ### The definition writes the output option `custom`
 
 `gen(spec)` writes every output option in the definition now, `custom`

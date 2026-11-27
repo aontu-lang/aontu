@@ -293,7 +293,12 @@ class DisjunctVal extends JunctionVal {
           return folded
         }
         this.peg[at as number] = folded
-        this.peg[vI] = null
+        // The arms the fold stands for stay at rank 0, so the disjunction admits no wider.
+        let plain: any = folded
+        while (true === plain.isPref) {
+          plain = plain.peg
+        }
+        this.peg[vI] = plain
       }
     }
 
@@ -396,23 +401,25 @@ function dedupArms(ctx: AontuContext, oval: Val[], ranked: boolean): void {
   // (No need for a fresh NilVal — any isNil value gets filtered.)
   for (let vI = 0; vI < oval.length; vI++) {
     for (let kI = vI + 1; kI < oval.length; kI++) {
-      if (oval[kI].same(oval[vI]) && sameRec(oval[kI], oval[vI])) {
-        oval[vI] = keepRiders(ctx, oval[vI], oval[kI])
-        oval[kI] = TRIAL_NIL
+      const a: any = oval[vI]
+      const b: any = oval[kI]
+      // Twin defaults leave the value at rank 0 beside the default, as the fold does.
+      const plain = !ranked && true === a.isPref && true === b.isPref ? prefInnerPeg(a) : TRIAL_NIL
+      if (b.same(a) && sameRec(b, a)) {
+        oval[vI] = keepRiders(ctx, a, b)
+        oval[kI] = plain
         continue
       }
 
-      const a: any = oval[vI]
-      const b: any = oval[kI]
       if (true === a.isPref && true === b.isPref
         && prefInnerPeg(a).same(prefInnerPeg(b)) && sameRec(a, b)) {
         if ((a as PrefVal).rank <= (b as PrefVal).rank) {
           oval[vI] = keepRiders(ctx, a, b)
-          oval[kI] = TRIAL_NIL
+          oval[kI] = plain
         }
         else {
           oval[kI] = keepRiders(ctx, b, a)
-          oval[vI] = TRIAL_NIL
+          oval[vI] = plain
           break
         }
       }
