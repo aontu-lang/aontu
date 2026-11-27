@@ -167,12 +167,21 @@ function record(
 
 
 function admission(v: any): any {
-  return true === v?.isPref ? v.superpeg : v
+  return true === v?.isPref ? sealed(v.superpeg) : v
 }
 
 
+// A list literal standing as an arm, or as a default's value, admits only its own length, as vet reads it.
 function memberAdmission(v: any): any {
-  return true === v?.isPref ? prefInnerPeg(v) : v
+  return true === v?.isPref ? sealed(prefInnerPeg(v)) : sealed(v)
+}
+
+
+function sealed(m: any): any {
+  if (true === m?.isList && true !== m.closed && null == m.spread?.cj) {
+    return Object.assign(Object.create(Object.getPrototypeOf(m)), m, { closed: true })
+  }
+  return m
 }
 
 
