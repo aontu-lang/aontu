@@ -28,6 +28,9 @@ answer three issues that ask for something new, and part 11 places
 every open issue. Input and output have a note and rulings of their
 own, [IO-FORMATS.0.md](IO-FORMATS.0.md). The rest is listed under
 [What stays outside](#what-stays-outside).
+**Handover:** where the work stood on 2026-11-27, after LS3, what waits
+on whom, and what was learned, is in
+[`admin/handover.md`](../admin/handover.md).
 
 Every example below was run. The CUE code ran through `cue` v0.17.1 and
 v0.18.0-rc.4, and the code under "aontu today" through both engines at
