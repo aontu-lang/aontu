@@ -8,6 +8,14 @@ each change affects.
 
 ## Unreleased
 
+### Go holds the arm where defaults of two ranks both stand
+
+#983, in Go. Where lone defaults of two ranks meet at one place, a path
+in one reads what the other supplies, as TypeScript and the definition
+read it: `x: (**{a: 1, b: .d}) & (*{d: 2})` generates
+`{"a": 1, "b": 2, "d": 2}`, where Go failed with `mapval_spread_required`.
+The ranked meet now copies an arm left alone at its own place.
+
 ### A path that names nothing under `when`, `nof` or a `match` result is the schema's error
 
 **Breaking.** #984, in both engines. Some places held a map whose path

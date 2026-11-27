@@ -1245,3 +1245,8 @@ vet-stray-path-in-a-match-result-not-taken-partial	verdict	x: match(1, 2, {a: 1,
 vet-stray-path-in-a-match-result-taken	verdict	x: match(1, 1, {a: 1, b: .d}, 3)	{}	{"verdict":"error"}
 vet-stray-path-in-a-match-result-taken-no-fill	verdict	x: match(1, 1, {a: 1, b: .d}, 3)	{}	{"opts":{"noFill":true},"verdict":"error"}
 vet-stray-path-in-a-match-result-taken-partial	verdict	x: match(1, 1, {a: 1, b: .d}, 3)	{}	{"opts":{"partial":true},"verdict":"error"}
+# Lone defaults of two ranks met at one place hold the arm where both stand, so a path in one reads the other (#983).
+vet-defaults-of-two-ranks-read-each-other	verdict	x: (**{a: 1, b: .d}) & (*{d: 2})	{}	{"verdict":"valid"}
+vet-defaults-of-two-ranks-read-each-other-no-fill	verdict	x: (**{a: 1, b: .d}) & (*{d: 2})	{}	{"opts":{"noFill":true},"verdict":"incomplete"}
+vet-defaults-of-two-ranks-read-each-other-rev	verdict	x: (*{a: 1, b: .d}) & (**{d: 2})	{}	{"verdict":"valid"}
+vet-defaults-of-two-ranks-read-each-other-rev-no-fill	verdict	x: (*{a: 1, b: .d}) & (**{d: 2})	{}	{"opts":{"noFill":true},"verdict":"incomplete"}
