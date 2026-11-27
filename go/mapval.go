@@ -183,79 +183,85 @@ func hasPathFunc(v Val) bool {
 }
 
 func computePathFunc(v Val) bool {
+	return pathFuncBy(v, hasPathFunc, func(*RefVal) bool { return true })
+}
+
+// pathFuncBy is computePathFunc with its parts read by rec and a
+// reference by ref.
+func pathFuncBy(v Val, rec func(Val) bool, ref func(*RefVal) bool) bool {
 	switch n := v.(type) {
 	case *RefVal:
-		return true
+		return ref(n)
 	case *FuncVal:
 		switch n.name {
 		case "key", "path", "move", "super":
 			return true
 		}
 		for _, a := range n.peg {
-			if hasPathFunc(a) {
+			if rec(a) {
 				return true
 			}
 		}
 	case *MapVal:
 		for _, k := range n.keys {
-			if hasPathFunc(n.peg[k]) {
+			if rec(n.peg[k]) {
 				return true
 			}
 		}
-		if n.spread != nil && hasPathFunc(n.spread) {
+		if n.spread != nil && rec(n.spread) {
 			return true
 		}
 	case *ConstraintVal:
 		if nil != n.pending {
 			for _, a := range n.pending.args {
-				if hasPathFunc(a) {
+				if rec(a) {
 					return true
 				}
 			}
 		}
 		for _, m := range n.musts {
-			if hasPathFunc(m.v) {
+			if rec(m.v) {
 				return true
 			}
 		}
 		for _, b := range n.settledTrials() {
-			if hasPathFunc(b) {
+			if rec(b) {
 				return true
 			}
 		}
-		if nil != n.count && hasPathFunc(n.count) {
+		if nil != n.count && rec(n.count) {
 			return true
 		}
 	case *ListVal:
 		for _, e := range n.peg {
-			if hasPathFunc(e) {
+			if rec(e) {
 				return true
 			}
 		}
-		if n.spread != nil && hasPathFunc(n.spread) {
+		if n.spread != nil && rec(n.spread) {
 			return true
 		}
 	case *PlusOpVal:
 		for _, t := range n.peg {
-			if hasPathFunc(t) {
+			if rec(t) {
 				return true
 			}
 		}
 	case *ConjunctVal:
 		for _, t := range n.peg {
-			if hasPathFunc(t) {
+			if rec(t) {
 				return true
 			}
 		}
 	case *DisjunctVal:
 		for _, t := range n.peg {
-			if hasPathFunc(t) {
+			if rec(t) {
 				return true
 			}
 		}
 	case *PrefVal:
 		if inner, ok := n.peg.(*PrefVal); ok {
-			return hasPathFunc(inner.peg)
+			return rec(inner.peg)
 		}
 		return false
 	}

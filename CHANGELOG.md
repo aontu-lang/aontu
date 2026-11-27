@@ -8,6 +8,15 @@ each change affects.
 
 ## Unreleased
 
+### `subsume` compares a spread template that is a name
+
+Both ports. A spread's template that is a name, `kids?: [&: %R]`, is
+compared as the definition it names, so two recursions of one shape
+under different names answer `subsumes` where a spread stands between
+the recursion and its body, as they already did through a key (#1017).
+A template whose definition, as written, holds `key()` or a path still
+answers `undecided` with `sub_path_dependent_spread`.
+
 ### `view`, `reaches` and `graph` read a default's edges
 
 Both ports, as ruled on 27 November (decision 94, #1029). The link
