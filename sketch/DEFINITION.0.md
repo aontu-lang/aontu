@@ -3600,6 +3600,13 @@ until the phase that encodes it lands.
    its target stands, and nothing is placed: `each($.src.a, _)` lists
    the members of what `src.a` generates. The definition moves, and the
    ports, which differ on such a path used as a pattern, come to agree.
+   **Built in part 2026-11-27**: `Val.atUses` and `Val.usesAt` leave a
+   call's data argument (`Fn.readsData`), a `filter`'s source and a
+   `match`'s scrutinee out of the copies, so a relative path in the
+   target reads where the target stands, and rows dx0 to dx89 of
+   `test/spec/def-path.tsv` hold the definition and both ports to it. A
+   `key()` in the target still reads where the call stands (#1064), and
+   a `match` pattern that is such a path waits on #1058.
 94. **The edges a default writes, in `view`, `reaches` and the library's
    `graph`.** Raised 2026-11-26 by #1029. With
    `a: {dependsOn: relate() & *[path($.b)]}`, generation writes the edge

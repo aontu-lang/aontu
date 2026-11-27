@@ -1959,11 +1959,25 @@ depth, and `key()` in it reads the copy's own key. A path into a
 generator's output reads the same way: with
 `x: pack(["a"], {n: key()})`, `y: $.x.a` is `{n: "y"}`.
 
+A path a call reads as data is no copy: it reads its target where the
+target stands, and the call places nothing. That holds for the source of
+`each`, `pack`, `apply` and `filter`, the bag `sum`, `least`,
+`greatest` and `sort` read, the list `pick` and `join` read, and a
+`match`'s scrutinee, a path nested in such an argument among them. So
+with `src: {w: 1, a: {v: ..w}}` and `c: {w: 2, d: each($.src.a, _)}`,
+`c.d` is `[1]`, the members of what `src.a` generates, where the copy
+`d: $.src.a` is `{v: 2}`, and a `key()` there reads the target's key.
+A `match`'s result is a copy, as any path reference is.
+
 The definition reads a use of a name, and a path reference's copy, where
 it stands, in the schema and in a body at its own place alike, from a
 copy of the body or of what the document writes at the target, placed
 there, by `Decls.copies` in
-[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It reads a body's
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). A call's data
+argument it leaves out of the copies (`Fn.readsData`), so a relative
+path in its target reads there. It still reads a `key()` there where the
+call stands, which
+[#1064](https://github.com/aontu-lang/aontu/issues/1064) tracks. It reads a body's
 own place in the normal form of the name's bodies, round by round as it
 reads the schema's own tree, by `Decls.bodyRoots`, so a path there that
 reads through another path reads what both engines read. The place holds
@@ -8223,7 +8237,7 @@ back.
 
 `when(c, t, e)` holds the datum to the branch its condition picks, an `else` not written reading as `any`: `judge_when_iff` and `when_nil_refuses` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
 
-An argument that holds a call still waiting for an operand, `integer + 1`, makes `must`, `nof` or `when` wait with it. The atom neither admits nor refuses, so `nof(0, integer + 1) & 5` stays incomplete, where a branch that refused `5` would admit it, and `--partial` lets it pass. The count of `nof` holds it the same way. A call in a spread's template inside the argument holds nothing, and an argument that doesn't stand admits nothing, as before. The definition reads such an atom as the term that waits, `Val.waiting` and `waitOr` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), where `Val.stalls` finds the call, and rows `wt0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. `contains`, `rest` and `len` over such a call wait the same way in both engines, as do a starred branch, `nof(0, *(integer + 1))`, and a spread's template that is the call, `{&: integer + 1}`: ruling 91, #977. The definition doesn't yet read the first four so.
+An argument that holds a call still waiting for an operand, `integer + 1`, makes `must`, `nof` or `when` wait with it. The atom neither admits nor refuses, so `nof(0, integer + 1) & 5` stays incomplete, where a branch that refused `5` would admit it, and `--partial` lets it pass. The count of `nof` holds it the same way. A call in a spread's template inside the argument holds nothing, and an argument that doesn't stand admits nothing, as before. The definition reads such an atom as the term that waits, `Val.waiting` and `waitOr` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), where `Val.stalls` finds the call, and rows `wt0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. `contains`, `rest` and `len` over such a call wait the same way in both engines, as do a starred branch, `nof(0, *(integer + 1))`, and a spread's template written as the call, `{&: integer + 1}`: ruling 91, #977. The definition doesn't yet read the first four so.
 
 ### Band B: `contains`
 

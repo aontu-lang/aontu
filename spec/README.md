@@ -95,6 +95,10 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   `*1` it has the shape of, and `(*1 | string) & integer`, a preferred
   arm the meet leaves alone, reads as a choice, each the other way
   round in both ports (#1026);
+- a `key()` in the target of a path that is data a call reads, which
+  the definition reads where the call stands, where both ports read it
+  at the target, as ruling 93 has the target read where it stands; a
+  relative path there already reads at the target (#1064);
 - a bare `open()` or a bare `close()` inside the argument of a call
   whose value doesn't hold it, as `copy`, `super` and `pref` hold
   theirs, or inside a trial, a selection's result or a link's template,
