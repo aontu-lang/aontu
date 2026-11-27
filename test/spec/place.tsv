@@ -164,6 +164,16 @@ place-spread-once-own	errc	v:{&:{n:add(_,1)},a:{n:1}} & {a:{n:2}}\n	hole_unbound
 place-spread-once-list-template	errc	v:({&:[add(_,1)]} & {a:[1]}) & {a:[2]}\n	hole_unbound
 place-spread-unfilled-path	errc	v:{&:{n:upper(_)}} & {a:{}}\n	hole_unbound
 place-spread-list-unfilled-path	errc	v:[&:{n:upper(_)}] & [{}]\n	hole_unbound
+
+# A disjunction a spread's template leaves unresolved is named at the
+# member it stands in too. Go named the template's position in a map
+# and in a list, and both engines did once another type built on the
+# spread's owner calls unique(), which shares the template with its
+# members.
+place-spread-map-disjunct-path	err	v:{&:{n:"a"|"b"}} & {a:{}}\n	[aontu/disjunct_no_gen]: Cannot resolve value at path $.v.a.n
+place-spread-list-disjunct-path	err	v:[&:{n:"a"|"b"}] & [{}]\n	[aontu/disjunct_no_gen]: Cannot resolve value at path $.v.0.n
+place-spread-shared-disjunct-path	err	type:type({N:{h:[&:{a:string s:string}]} D:$.type.N & {t:{&:$.type.T & {n:pref(key())}}} T:$.type.N & {h:[&:{s:"x"|"y"}]} S:$.type.N & {u:unique()}})\nv:$.type.D\nv:t:t:h:[{a:"z"}]\n	[aontu/disjunct_no_gen]: Cannot resolve value at path $.v.t.t.h.0.s
+
 place-fill-in-len	errc	v:["a"] & len(add(_,1) & 2)\n	hole_unbound
 place-fill-in-must	errc	v:"A" & must(upper(_) & "a","m")\n	hole_unbound
 place-fill-in-match-scrutinee	errc	v:match(upper(_) & "a","A",1,2)\n	hole_unbound

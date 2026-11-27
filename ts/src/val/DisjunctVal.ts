@@ -346,6 +346,7 @@ class DisjunctVal extends JunctionVal {
 
       if (0 === prefs.length && 1 < this.peg.length) {
         const nerr = makeNilErr(ctx, 'disjunct_no_gen', this)
+        nerr.path = ctx?.genat ?? nerr.path
         descErr(nerr, ctx)
         ctx?.adderr(nerr)
 

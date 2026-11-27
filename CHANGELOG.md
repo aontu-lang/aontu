@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### A disjunction a spread leaves unresolved is named where it stands
+
+A disjunction that a spread's template leaves unresolved raised
+`disjunct_no_gen` at the template's position rather than at the member
+it stands in. Go named the template in a map and in a list. Both
+engines did once another type built on the spread's owner calls
+`unique()`, which shares the template with its members: TypeScript
+named the member correctly until the template was filled once (#556).
+The error now takes the position the walk reached, as a map or list
+member left unmade already does (#557).
+
+```aontu
+v: [&: {n: "a" | "b"}] & [{}]
+```
+
+| `aontu` | path of `disjunct_no_gen` |
+|---|---|
+| TypeScript | `$.v.0.n` |
+| Go, before | `$.v.n` |
+| Go, now | `$.v.0.n` |
+
+Three rows of `test/spec/place.tsv` hold both engines to it: a map's
+spread, a list's, and a list spread shared through a type that calls
+`unique()`, which both engines had named `$.v.t.t.h.s` for
+`$.v.t.t.h.0.s`. Both engines.
+
 ### The language servers answer hover and go to definition on a key and on a reference
 
 Task LS2, in both servers.
