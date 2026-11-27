@@ -2220,6 +2220,12 @@ as `Encoding.encode` and `Encoding.decode` (`spec/Aontu/Text.lean`) and
 computed as `encodeOf` (`spec/Aontu/Verdict.lean`), and held by
 `test/spec/encode.tsv` and rows ec0 on of `test/spec/def-call.tsv`. Two
 codes are registered, `encode_name` and `decode_malformed`.
+Their task BT2 landed on 2026-11-27: the three names are formats too,
+`grammar/format/base64.abnf`, `base64url.abnf` and `hex.abnf`, each a
+grammar of RFC 4648 that admits the text `encode` writes and refuses
+what `decode` refuses, but for bytes that are not UTF-8. JSON Schema
+defines none of them, so the import doesn't assert them by name and the
+export writes them as `x-aontu-format`.
 
 **BEYOND THE PHASES: the grammar pair, 2026-09-10
 ([ADR-033](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function)).**

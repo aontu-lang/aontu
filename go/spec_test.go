@@ -10,10 +10,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf16"
 )
 
 // semverRe matches the since-version column of test/spec/errcodes.tsv.
@@ -617,6 +619,16 @@ func TestSpec(t *testing.T) {
 					if !jsonEqual(got, expect) {
 						gj, _ := json.Marshal(got)
 						t.Fatalf("members mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "symbols":
+					var got any
+					if syms := New().SymbolsOf(src); nil != syms {
+						got = asWritten(src, fixturesDir, syms)
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("symbols mismatch\n want: %s\n got:  %s", expect, gj)
 					}
 
 				case "describe", "define":
@@ -1396,6 +1408,42 @@ func TestSpecGensMode(t *testing.T) {
 // jsonEqual compares a generated value with an expected JSON document
 // by normalising both through JSON (so numeric types and key order do
 // not matter).
+// asWritten reads a place after a fixture's name on its line as the row
+// writes the name, so that an answer is the same wherever the fixtures are.
+func asWritten(src, dir string, got any) any {
+	gj, _ := json.Marshal(got)
+	var at any
+	json.Unmarshal(gj, &at)
+	lines := strings.Split(src, "\n")
+	name := utf16.Encode([]rune(dir))
+	d := len(name) - len("__FIXTURES__")
+	var walk func(any) any
+	walk = func(v any) any {
+		switch n := v.(type) {
+		case []any:
+			for i := range n {
+				n[i] = walk(n[i])
+			}
+		case map[string]any:
+			for k := range n {
+				n[k] = walk(n[k])
+			}
+			line, isLine := n["line"].(float64)
+			ch, isChar := n["character"].(float64)
+			if isLine && isChar && int(line) < len(lines) {
+				text := utf16.Encode([]rune(lines[int(line)]))
+				for o := 0; o+len(name) <= len(text); o++ {
+					if slices.Equal(text[o:o+len(name)], name) && int(ch) >= o+len(name) {
+						n["character"] = n["character"].(float64) - float64(d)
+					}
+				}
+			}
+		}
+		return v
+	}
+	return walk(at)
+}
+
 func jsonEqual(got any, expectJSON string) bool {
 	gj, err := json.Marshal(got)
 	if err != nil {

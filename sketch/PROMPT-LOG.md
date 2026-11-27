@@ -2594,8 +2594,26 @@ Leave #1074 to Track A, since it touches its emit recursion, and #1070 waits on 
 merge
 ```
 
+## 2026-11-27 18:38:02 UTC · Claude Code · session_01U5hnDjnrHskPU9Y6yz8gF3
+
+```text
+continue the work defined in admin/handover; [redacted: session set-up]; the goal is to complete this work as quickly as possible, thus you have permission to pr and merge; ask for rulings if you need my input, but otherwise keep going; use opus subagents
+```
+
 ## 2026-11-27 18:31:50 UTC · Claude Code · session_0167vhgUZdNEdH6VPh7e1dcq
 
 ```text
 Watch it and merge when green
+```
+
+## 2026-11-27 20:15:48 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
+
+```text
+Coordinating session: thanks, #1085 and #1086 are in. My branch now holds both lone-default documents in rows fq/fr, and merges as soon as the oracle rebuilds on main with #1084.
+
+Next engine-side work, in this order:
+1. #1071 (from Track C): both engines' `subsume` reads a list literal in an arm as open, where their `vet` reads it sealed, so `a: [1] | [2]` "subsumes" `a: [1, 5]`. Bring `subsume` to the reading `vet` has. No ruling is needed: it's the engines disagreeing with themselves. Run `def-subsume-rows.tsv` too, which C's differential added.
+2. #1078 (from Track D): both engines write a marked scalar root, `hide(1)` → `1`, against the reference, and TypeScript and Go differ on `hide(*{a: 1} | {b: 2})`. If the reference states the answer, bring both to it; otherwise file the question and tell me.
+3. #983 (Go holds no arm where defaults of two ranks both stand) and #984 (a map holding a path that names nothing, as an argument of `when` or `nof`), if their own texts say which side moves. Ask me before changing anything they leave open.
+Log this message in the prompt log first.
 ```

@@ -3346,7 +3346,7 @@ the list `sort`, `pick` and `join` read, and a `match`'s scrutinee read
 their target where it stands, so `Val.atUses` and `Val.usesAt` leave
 them out of the copies, for the calls `Fn.readsData` names:
 
-<!-- test: quote spec/Aontu/Paths.lean -->
+<!-- test: quote spec/Aontu/Alias.lean -->
 ```lean
 def Fn.readsData : Fn → Bool
   | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
@@ -3358,6 +3358,25 @@ So with `src: {w: 1, a: {v: ..w}}` and `c: {w: 2, d: each($.src.a, _)}`,
 `{v: 2}`. Rows dx0 to dx89 hold the definition and both engines to it.
 A `key()` in such a target still reads where the call stands here,
 where both engines read the target's key, which #1064 tracks.
+
+Such data reads as the output has it. A path to a name reads as the
+name's value with its marks cleared (`Decls.env`), so `l: $.m` copies a
+member `m` hides, as both engines do. Data a call reads leaves that
+member out instead, as the output does (`Val.visible`) and as both
+engines do, so with `m: {a: "keep", b: hide("SECRET")}`,
+`join($.m, "-")` is `"keep"`:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def Decls.envData (ds : Decls) (n : String) : Option Val :=
+  match ds.bodies n with
+  | [] => none
+  | v :: vs => some (vs.foldl .meet v).unident.visible.unmark
+```
+
+Rows gh0 on of [`test/spec/def-gaps.tsv`](../test/spec/def-gaps.tsv)
+hold the definition and both engines to it, for `each`, `filter`,
+`join`, `pack`, `sum` and `pick`.
 
 The placing itself, the schema's and each body's:
 

@@ -75,7 +75,7 @@ func runReaches(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFileTrust(rest[2], trust).Reach(
+	report := operand(aontuForFileTrust(rest[2], trust)).Reach(
 		string(src), rest[0], rest[1], &aontu.ReachOptions{Relation: relation})
 	text := renderReachesText(report, rest[0], rest[1])
 	if "json" == format {

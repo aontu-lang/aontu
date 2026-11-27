@@ -97,16 +97,27 @@ const tokenEnd = keyDelims + "&|"
 type srcLines struct {
 	src    string
 	starts []int
+	units  []int
 }
 
+// newSrcLines also counts the code units before each byte, so a
+// position costs no scan of its line.
 func newSrcLines(src string) srcLines {
 	starts := []int{0}
-	for i := 0; i < len(src); i++ {
+	units := make([]int, len(src)+1)
+	n := 0
+	for i := 0; i < len(src); {
 		if '\n' == src[i] {
 			starts = append(starts, i+1)
 		}
+		r, size := utf8.DecodeRuneInString(src[i:])
+		n += len(utf16.Encode([]rune{r}))
+		for k := 1; k <= size; k++ {
+			units[i+k] = n
+		}
+		i += size
 	}
-	return srcLines{src: src, starts: starts}
+	return srcLines{src: src, starts: starts, units: units}
 }
 
 // A character past the end of its line is the line's end, as LSP has it.
@@ -132,15 +143,8 @@ func (l srcLines) advance(off, units int) int {
 }
 
 func (l srcLines) positionOf(off int) CursorPosition {
-	line := len(l.starts) - 1
-	for 0 < line && off < l.starts[line] {
-		line--
-	}
-	n := 0
-	for _, r := range l.src[l.starts[line]:off] {
-		n += len(utf16.Encode([]rune{r}))
-	}
-	return CursorPosition{Line: line, Character: n}
+	line := sort.Search(len(l.starts), func(i int) bool { return off < l.starts[i] }) - 1
+	return CursorPosition{Line: line, Character: l.units[off] - l.units[l.starts[line]]}
 }
 
 // quoteEnd is where quoted text that opens at k closes, or the end.
@@ -563,10 +567,9 @@ func refAt(src string, s, w int) (refText, bool) {
 	return refText{start: s, abs: abs}, true
 }
 
-// findVal is the first value a walk from root meets that take accepts,
-// with its path, a constraint's written arguments included. A value from
-// an included file is sited in that file, so never here.
-func findVal(root Val, take func(Val) bool) (Val, []string, bool) {
+// cursorWalk visits every value a walk from root meets, with its path, a
+// constraint's written arguments included, until visit answers true.
+func cursorWalk(root Val, visit func(Val, []string) bool) {
 	seen := map[Val]bool{}
 	stack := []cursorKid{{root, []string{}}}
 	for 0 < len(stack) {
@@ -576,8 +579,8 @@ func findVal(root Val, take func(Val) bool) (Val, []string, bool) {
 			continue
 		}
 		seen[k.v] = true
-		if "" == k.v.srcurl() && take(k.v) {
-			return k.v, k.path, true
+		if visit(k.v, k.path) {
+			return
 		}
 		stack = append(stack, cursorKids(k.v, k.path)...)
 		if c, ok := k.v.(*ConstraintVal); ok {
@@ -586,7 +589,21 @@ func findVal(root Val, take func(Val) bool) (Val, []string, bool) {
 			}
 		}
 	}
-	return nil, nil, false
+}
+
+// findVal is the first value a walk from root meets that take accepts,
+// with its path. A value from an included file is sited in that file, so
+// never here.
+func findVal(root Val, take func(Val) bool) (Val, []string, bool) {
+	var found Val
+	var at []string
+	cursorWalk(root, func(v Val, path []string) bool {
+		if "" == v.srcurl() && take(v) {
+			found, at = v, path
+		}
+		return nil != found
+	})
+	return found, at, nil != found
 }
 
 // groupStarts is where a value written at off is sited: there, or, where
@@ -730,6 +747,187 @@ func (a *Aontu) SitesOf(src string, path []string) []PathSite {
 		}
 		out = append(out, PathSite{Canon: c.Canon, File: c.Site.File,
 			Range: CursorRange{Start: start, End: end}, Role: c.Role})
+	}
+	return out
+}
+
+// balancedEnd is where the bracket at k closes, or, from k up to end,
+// where the last bracket open by end closes: past quoted text and comments.
+func balancedEnd(src string, k, end int) int {
+	for depth := 0; k < len(src) && (k < end || 0 < depth); k++ {
+		c := src[k]
+		if strings.IndexByte("\"'`", c) >= 0 {
+			k = quoteEnd(src, k)
+		} else if '#' == c {
+			k = max(k, k+strings.IndexByte(src[k:], '\n')-1)
+		} else {
+			depth += strings.Count("{[(", string(c)) - strings.Count("}])", string(c))
+		}
+	}
+	return max(end, min(k, len(src)))
+}
+
+// extentEnd is where the text of a value written at `at` ends, or the
+// include that loaded it at `from`.
+func extentEnd(src string, v Val, at, from int) int {
+	if 0 > at {
+		p := from + 1
+		for p < len(src) && strings.IndexByte(" \t\r\n", src[p]) >= 0 {
+			p++
+		}
+		return min(quoteEnd(src, p)+1, len(src))
+	}
+	text := v.srctext()
+	if _, isRef := v.(*RefVal); 1 == len(text) && strings.Contains("{[(", text) {
+		return balancedEnd(src, at, at+1)
+	} else if isRef {
+		end, _ := refSpan(src, at)
+		return end
+	}
+	return valueEnd(src, at, text)
+}
+
+var symbolKinds = map[string]int{
+	"map": 19, "list": 18, "string": 15, "integer": 16, "float": 16, "biginteger": 16,
+	"bigdecimal": 16, "boolean": 17, "null": 21,
+}
+
+// DocSymbol is one entry of a document's outline, as LSP's DocumentSymbol
+// has it.
+type DocSymbol struct {
+	Name           string      `json:"name"`
+	Kind           int         `json:"kind"`
+	Range          CursorRange `json:"range"`
+	SelectionRange CursorRange `json:"selectionRange"`
+	Children       []DocSymbol `json:"children"`
+}
+
+type docSym struct {
+	name             string
+	kind             int
+	start, end       int
+	keyStart, keyEnd int
+	children         []*docSym
+}
+
+type symStep struct {
+	v    Val
+	path []string
+	into *[]*docSym
+	own  *docSym
+	elem bool
+}
+
+func sortSyms(syms []*docSym) {
+	sort.Slice(syms, func(i, j int) bool { return syms[i].start < syms[j].start })
+}
+
+// docSymbol is a symbol's entry, which runs over its children's, and on
+// to the bracket that closes the last one open in it.
+func docSymbol(lines srcLines, s *docSym) (DocSymbol, int) {
+	sortSyms(s.children)
+	children := []DocSymbol{}
+	end := s.end
+	for _, c := range s.children {
+		d, e := docSymbol(lines, c)
+		children = append(children, d)
+		end = max(end, e)
+	}
+	end = balancedEnd(lines.src, s.start, end)
+	return DocSymbol{Name: s.name, Kind: s.kind,
+		Range: CursorRange{Start: lines.positionOf(s.start), End: lines.positionOf(end)},
+		SelectionRange: CursorRange{Start: lines.positionOf(s.keyStart),
+			End: lines.positionOf(s.keyEnd)},
+		Children: children}, end
+}
+
+// SymbolsOf is the outline of what a document writes: each key where it
+// is written, a key chain's keys nested, and a list's elements by
+// position; nil where the document does not parse.
+func (a *Aontu) SymbolsOf(src string) []DocSymbol {
+	root, err := a.parseEntry(src)
+	if nil != err || nil == root {
+		return nil
+	}
+	return symbolTree(src, root)
+}
+
+func symbolTree(src string, root Val) []DocSymbol {
+	lines := newSrcLines(src)
+	top := []*docSym{}
+	made := map[int]*docSym{}
+	seen := map[Val]bool{}
+	stack := []symStep{{v: root, path: []string{}, into: &top}}
+	for 0 < len(stack) {
+		st := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		v, path := st.v, st.path
+		if nil == v || seen[v] {
+			continue
+		}
+		seen[v] = true
+		at := -1
+		if "" == v.srcurl() && v.pos() <= len(src) {
+			at = v.pos()
+		}
+		from := at
+		if sp, url, ok := v.load(); 0 > at && ok && "" == url {
+			from = sp
+		}
+		s, e, found := 0, 0, false
+		if 0 <= from && 0 < len(path) {
+			if st.elem {
+				s, e, found = from, extentEnd(src, v, at, from), true
+			} else {
+				s, e, found = keySpan(src, from, path[len(path)-1])
+			}
+		}
+		sym := st.own
+		if found {
+			sym = made[s]
+			if nil == sym {
+				kind, ok := symbolKinds[valKind(v)]
+				if !ok {
+					kind = 13
+				}
+				sym = &docSym{name: path[len(path)-1], kind: kind, start: s, end: e,
+					keyStart: s, keyEnd: e}
+				made[s] = sym
+				*st.into = append(*st.into, sym)
+			}
+		} else if nil == st.own && 0 <= from && 0 < len(path) {
+			// A value written here whose key is not found has no place.
+			continue
+		}
+		if nil != sym && 0 <= from {
+			sym.end = max(sym.end, extentEnd(src, v, at, from))
+		}
+		next := cursorKids(v, path)
+		if c, ok := v.(*ConstraintVal); ok {
+			for _, arg := range c.asWritten {
+				next = append(next, cursorKid{arg, path})
+			}
+		}
+		_, isList := v.(*ListVal)
+		for i := len(next) - 1; 0 <= i; i-- {
+			k := next[i]
+			if len(k.path) == len(path) {
+				stack = append(stack, symStep{v: k.v, path: path, into: st.into, own: sym})
+			} else if nil != sym || 0 == len(path) {
+				into := &top
+				if nil != sym {
+					into = &sym.children
+				}
+				stack = append(stack, symStep{v: k.v, path: k.path, into: into,
+					elem: isList && "&" != k.path[len(k.path)-1]})
+			}
+		}
+	}
+	sortSyms(top)
+	out := []DocSymbol{}
+	for _, t := range top {
+		d, _ := docSymbol(lines, t)
+		out = append(out, d)
 	}
 	return out
 }

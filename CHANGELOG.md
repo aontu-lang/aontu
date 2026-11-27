@@ -20,6 +20,42 @@ condition refuses, as both engines read it since #1086. Rows fq0 to
 fq17 of `test/spec/def-path.tsv` and fr0 to fr5 of
 `test/spec/def-gen.tsv` hold the definition and both engines to it.
 
+### A guide for CUE users
+
+Task CG4 of the lang refinement plan. A new how-to,
+`docs/how-to/aontu-for-cue-users.md`, takes a CUE user through four
+things: the aontu spelling of each CUE form, the text that answers
+differently in the two languages, the five CUE forms aontu has none
+of with the nearest spelling of each, and the aontu verb for each `cue`
+command. Its row for a key pattern gives `keyed`. Every example pair is
+a probe of the CUE corpus under `test/cue/`, or for `keyed` a new row of
+`test/spec/keyed.tsv`, and `ts/test/cuecorpus.test.ts` holds each fence
+and each table row of the page to the corpus. The how-to index gains a
+group for readers coming from another language. Neither engine changes.
+
+### The definition leaves a hidden member out of the data a call reads
+
+#1069, in the definition. Data a call reads through a path, the source
+of a generator, `filter` or a fold, reads as the output has it, each
+member or element a mark of its own leaves out left out
+(`Decls.envData` in `spec/Aontu/Alias.lean`). Before, it read the
+unmarked copy a plain reference makes, so `join($.m, "-")` over
+`m: {a: "keep", b: hide("SECRET")}` leaked `SECRET`. Rows gh0 on of
+`test/spec/def-gaps.tsv`. Both ports answer every one as the definition
+does, and neither changes.
+
+### `subsume` reads a list literal in a disjunction's arm as its own length
+
+#1071, in both engines. `subsume` reads a list literal in a
+disjunction's arm, and the value of a default alone, as `vet` reads
+it: sealed at its own length.
+
+| General | Specific | Before | Now |
+|---|---|---|---|
+| `a: [1] \| [2]` | `a: [1, 5]` | `subsumes` | `does_not_subsume` |
+| `a: close([1]) \| close([2])` | `a: [1] \| [2]` | `does_not_subsume` | `subsumes` |
+| `a: *[1]` | `a: [1, 5]` | `subsumes` | `does_not_subsume` |
+
 ### The definition reads a failed default as a conflict
 
 A lone default whose own value fails, `v: *(1 & 2)`, is a conflict
@@ -125,6 +161,70 @@ written: `*{x:1} | *{y:2}` is `*{"x":1,"y":2}|{"x":1}|{"y":2}`.
 The canon of such a disjunction follows the definition's normal form:
 `x: *1 | *1` is `*1|1`, where it was `*1`, so its hash changes. What it
 generates doesn't.
+
+### `format()` reads base64, base64url and hex
+
+Task BT2 of the lang refinement plan, in both engines. The three
+encodings of `encode` are names `format()` reads, each a grammar of
+RFC 4648 committed under `grammar/format/`, so `format(base64)` admits
+the text `encode(s, base64)` writes.
+
+```aontu
+token: format(base64url) & encode("hello", base64url)
+bytes: format(hex) & "FF"
+```
+
+They answer `"aGVsbG8"` and `"FF"`.
+
+- `base64` is padded to a multiple of four characters, `base64url` has
+  no padding, and `hex` is an even number of digits in either case.
+  Each admits the empty string.
+- Each refuses what `decode` refuses, a last character that holds bits
+  beyond its bytes among it, but for one difference: a format reads no
+  bytes, so it admits text whose bytes are not UTF-8.
+- JSON Schema defines none of the three. The import asserts a `format`
+  of those names only with `--format-grammar`, as before, and the
+  export writes one as `x-aontu-format`, which the import reads back.
+- The hint of `format_unknown` lists the three.
+
+`test/spec/format.tsv` holds both engines to 60 more rows, each answer
+agreed by both, `test/spec/jsonschema.tsv` to two and
+`test/spec/jsonschema-import.tsv` to three.
+
+### The language servers outline a document's keys
+
+Task LS5, in both servers. `textDocument/documentSymbol` answers the
+outline of what the document writes, and `documentSymbolProvider` is
+advertised. Each key is a symbol where it is written, so a key written
+twice is two, and `a: b: c: 1` nests three; a list's elements are named
+by their position, and a spread's template is `&`. A symbol's range
+runs from its key to the end of its value and its selection range is
+the key, and its kind is the value's: `Object`, `Array`, `String`,
+`Number`, `Boolean` or `Null`, and `Variable` for a reference, a call or
+anything else.
+A key that holds an include is a symbol, the included file's keys are
+not, and a declaration is none. The library answers are `symbolsOf`
+and `SymbolsOf`; a new shared-row mode, `symbols`, holds both ports to
+one answer in 33 rows of `test/spec/cursor.tsv`.
+
+### A verb reads a data file operand by its extension
+
+Option E of `sketch/IO-FORMATS.0.md`, in both CLIs. A document operand
+is read by the table an include uses: `aontu config.yaml` prints the
+YAML file's value, and `aontu vet schema.aontu data.toml` vets the
+TOML as data, where both read the file as aontu source before. A
+`.yaml`, `.yml`, `.toml`, `.ini`, `.jsonc`, `.json5`, `.jsonic` or
+`.jsc` operand is data in that format; `.json`, `.jsonld`, `.aontu`,
+`.txt` and every other extension stay aontu source, so a `.json`
+operand keeps its exact numbers. A data file that doesn't parse is
+refused at the operand, framed in that file. The bare command, `vet`,
+`subsume`, `trim`, `relations`, `reaches`, `view`, `jsonschema`,
+`hash`, `model get`, `model why`, `allow` and `agentsmd` read so, and
+the other verbs as before. The engines gain the option that does it,
+`readByExtension` in TypeScript and `ReadByExtension` in Go, with
+`VetOptions` and `SubsumeOptions` carrying it in Go. Go's frame of a
+syntax error past a file's last newline now puts the caret where
+TypeScript puts it.
 
 ### The definition reads a call's data argument where its target stands
 

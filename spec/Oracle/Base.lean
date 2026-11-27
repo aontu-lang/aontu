@@ -927,7 +927,9 @@ theorem filled_expandF_call {f : Fn} (hf : f = .split ∨ f = .rep) {args : List
       obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hx
       exact inert_expandF (h y hy) k
   rcases hf with rfl | rfl <;> intro k <;> cases k <;>
-    simp only [expandF, Decls.tableUnfold_of_ne _ (show Fn.split ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide),
+    simp only [expandF, Decls.dataArgs_of_not _ (show Fn.split.readsData = false by decide),
+      Decls.dataArgs_of_not _ (show Fn.rep.readsData = false by decide),
+      Decls.tableUnfold_of_ne _ (show Fn.split ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide),
       Decls.tableUnfold_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Val.filled, filledItems_inert h, hm]
 
 /-! ## Path values

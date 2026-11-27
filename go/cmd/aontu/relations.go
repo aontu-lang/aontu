@@ -62,7 +62,7 @@ func runRelations(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	report := aontuForFileTrust(files[0], trust).RelationCheckOpts(
+	report := operand(aontuForFileTrust(files[0], trust)).RelationCheckOpts(
 		string(src), &aontu.RelationOptions{Count: true})
 	text := renderRelationsText(report)
 	if "json" == format {

@@ -41,6 +41,8 @@ The server provides these features:
 - **Go to definition**: from a key or a reference to every site that
   writes its path, across includes, and from an alias name to where
   the file binds it.
+- **Document symbols**: the outline of the keys the document writes,
+  nested as it nests them.
 - **Signature help**: the parameters of the function being called.
 - **Formatting**: the document as `aontu fmt` writes it.
 
@@ -129,6 +131,26 @@ built-in functions (the engine's full roster, the constraint atoms
 `list`, `constraint`), the literals (`_`, `true`, `false`, `null`,
 `any`), and the alias names the document binds.
 
+**Document symbols** outline what the document writes, read from its
+parse, not from what it unifies to. Each key is a symbol where it is
+written, so a key written twice is two symbols, and a key chain such
+as `a: b: c: 1` is three, each inside the one before. A list's
+elements are symbols named by their position, and a spread's template
+is a symbol named `&`. The symbol's range runs from its key to the end
+of its value, over lines, comments and brackets, and its selection
+range is the key. Its kind is read off the value the key is written
+with: `Object` for a map, `Array` for a list, `String`, `Number`,
+`Boolean` and `Null` for those values, and `Variable` for anything
+else, a reference, a call, a type or a conjunction among them. The arguments of a call are
+what it writes, so the keys of the map in `type({ port: integer })`
+are symbols inside the key that holds the call, as are a generator's
+template's. The keys a generator makes are not written, and are not
+symbols. A key that holds an include is a symbol whose range takes in
+the include; the keys of the included file are not, since the file
+writes them. A declaration, `%n = 3`, binds a name and writes no key,
+so it is no symbol. A key written `%P:` both binds `P` and writes it,
+and is the symbol `P`.
+
 
 ## Architecture: library vs. server
 
@@ -185,8 +207,8 @@ all the analysis and protocol logic:
   library). Drive `new LspHandler()` with message objects.
 
 In both, `computeDiagnostics`/`Diagnostics`, `computeHover`/`Hover`,
-`computePathDefinition`/`PathDefinition`, and
-`computeCompletions`/`Completions` take the document's text and are
+`computePathDefinition`/`PathDefinition`,
+`computeCompletions`/`Completions`, and `computeSymbols`/`Symbols` take the document's text and are
 usable standalone, with no JSON-RPC at all.
 
 
@@ -343,6 +365,26 @@ The document as `aontu fmt` writes it: one `TextEdit`, `{ range,
 newText }`, over the whole document, none where it already is that
 text, and `null` where it doesn't parse.
 
+#### `computeSymbols(src, trust?) => DocSymbol[] | null`
+
+The outline of the keys `src` writes, each an LSP `DocumentSymbol`:
+`{ name, kind, range, selectionRange, children }`, where `kind` is an
+LSP `SymbolKind` and `children` is always present. The answer is `[]`
+for a document with no key, and `null` where it doesn't parse. It is
+built on `symbolsOf` of `ts/src/cursor.ts`.
+
+<!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by test/spec/cursor.tsv -->
+```ts
+computeSymbols('a: b: 1\n')
+// [{ name: 'a', kind: 19,
+//    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 7 } },
+//    selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+//    children: [{ name: 'b', kind: 16,
+//      range: { start: { line: 0, character: 3 }, end: { line: 0, character: 7 } },
+//      selectionRange: { start: { line: 0, character: 3 }, end: { line: 0, character: 4 } },
+//      children: [] }] }]
+```
+
 #### `computePathAt(src, position, trust?) => CursorPath | null`
 
 What the cursor at a 0-based position is on, and the path that stands
@@ -473,6 +515,14 @@ The document as `aontu fmt` writes it: one `TextEdit`, `{ Range Range;
 NewText string }`, over the whole document, none where it already is
 that text, and `nil` where it doesn't parse.
 
+#### `func Symbols(src string, trust *aontu.TrustOptions) []aontu.DocSymbol`
+
+The outline of the keys `src` writes, as `computeSymbols` answers it:
+`DocSymbol` is `{ Name string; Kind int; Range, SelectionRange
+CursorRange; Children []DocSymbol }`, an empty slice for a document
+with no key, and `nil` where it doesn't parse. Built on the core
+`(*aontu.Aontu).SymbolsOf`.
+
 #### `func PathAt(src string, line, character int, trust *aontu.TrustOptions) *aontu.CursorPath`
 
 What the cursor at a 0-based position is on, and the path that stands
@@ -518,7 +568,8 @@ each change). Advertised capabilities: `textDocumentSync: 1`,
 `hoverProvider: true`, `definitionProvider: true`,
 `completionProvider` with the trigger character `.`,
 `signatureHelpProvider` with the trigger
-characters `(` and `,`, and `documentFormattingProvider: true`.
+characters `(` and `,`, `documentFormattingProvider: true`, and
+`documentSymbolProvider: true`.
 
 | Method | Kind | Behaviour |
 |--------|------|-----------|
@@ -530,6 +581,7 @@ characters `(` and `,`, and `documentFormattingProvider: true`.
 | `textDocument/hover` | request | Replies with a hover for the alias name at the position, else for what stands at the path a key or a reference there names, else for the value there, else `null`. |
 | `textDocument/completion` | request | Replies with the keys or the members that may be written at the position, where there are any; else with `[]` after a dot that begins no path; else with the general list for the open document. |
 | `textDocument/definition` | request | Replies with the `Location` where the document binds the alias name at the position, else with a `Location` for every site that writes the path a key or a reference there names, in the document or in a file it includes, else `null`. |
+| `textDocument/documentSymbol` | request | Replies with the outline of the keys the document writes, as `DocumentSymbol`s, `[]` where it writes none, and `null` where it doesn't parse or isn't open. |
 | `textDocument/signatureHelp` | request | Replies with the signature of the call the position is inside, or `null`. |
 | `textDocument/formatting` | request | Replies with one edit that replaces the document with the text `aontu fmt` writes, no edit where it already is that text, and `null` where it doesn't parse, which its diagnostics report. |
 | `textDocument/publishDiagnostics` | notification (server→client) | Carries `{ uri, diagnostics }`. |
@@ -608,8 +660,8 @@ Both libraries are unit-tested (`ts/test/lsp.test.ts`,
 
 ## Limitations and extension points
 
-Current scope is diagnostics, hover, completion, go-to-definition on an
-alias name, signature help and formatting. The layered design
+Current scope is diagnostics, hover, completion, go to definition,
+document symbols, signature help and formatting. The layered design
 makes additions localised: most new features are implemented once in the
 analysis layer (layer 1) and advertised in `initialize` (layer 2):
 
@@ -628,7 +680,8 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   completion use, and which references will use.
 - **The cursor mapping** answers nothing on a key spelled with an
   escape, on the key of an include written in parentheses,
-  `p: (@"./x.aontu")`, or on what an included file holds. The sites of
+  `p: (@"./x.aontu")`, or on what an included file holds, and the
+  outline has no symbol for such a key, nor for what it holds. The sites of
   a top-level key written `""` include the document's own, since
   provenance keeps a path by its segments joined with dots.
 - **Includes are read from the folder the server runs in.** The server

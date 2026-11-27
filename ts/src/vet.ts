@@ -115,6 +115,7 @@ export type VetOptions = {
   textExt?: string[]
 
   hostVars?: HostVars
+  readByExtension?: boolean
 }
 
 

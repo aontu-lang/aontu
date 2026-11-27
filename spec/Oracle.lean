@@ -723,8 +723,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# reading otherwise than both engines (ts/scripts/defcheck.cjs), as `gens`"
     IO.println "# rows whose expectation is the JSON `outputW` (spec/Aontu/Writing.lean)"
     IO.println "# writes: a root left out, under `hide()` or `type()`, written as `null`"
-    IO.println "# (#1075), in rows gr0 on. Regenerate with `make spec`; never edit by hand."
-    gapRows "gr"
+    IO.println "# (#1075), in rows gr0 on; and data a call reads through a path, read as the"
+    IO.println "# output has it, a marked member left out (#1069), in rows gh0 on."
+    IO.println "# Regenerate with `make spec`; never edit by hand."
+    gapRows
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

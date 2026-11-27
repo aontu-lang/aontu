@@ -13,6 +13,7 @@ exports.computeCompletions = computeCompletions;
 exports.computeFormatting = computeFormatting;
 exports.computePathAt = computePathAt;
 exports.computeSitesOf = computeSitesOf;
+exports.computeSymbols = computeSymbols;
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const walk_1 = require("./walk");
@@ -185,6 +186,7 @@ function initializeResult() {
             completionProvider: { triggerCharacters: ['.'] },
             signatureHelpProvider: { triggerCharacters: ['(', ','] },
             documentFormattingProvider: true,
+            documentSymbolProvider: true,
         },
         serverInfo: {
             name: 'aontu-lsp',
@@ -347,6 +349,11 @@ function computePathAt(text, pos, trust) {
 }
 function computeSitesOf(text, path, trust) {
     return (0, cursor_1.sitesOf)(text, path, { trust }) ?? null;
+}
+// The outline of the keys the document writes, or nothing where it
+// doesn't parse.
+function computeSymbols(text, trust) {
+    return (0, cursor_1.symbolsOf)(text, { trust }) ?? null;
 }
 // Go to where the name is BOUND: its declaration, or the destructure
 // that brought it in, which is where this file gets the name.
@@ -715,6 +722,14 @@ class LspHandler {
                         result: null == text ? null : computeFormatting(text),
                     }];
             }
+            case 'textDocument/documentSymbol': {
+                const uri = msg.params?.textDocument?.uri;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                return [{
+                        jsonrpc: '2.0', id: msg.id,
+                        result: null == text ? null : computeSymbols(text, this.trust),
+                    }];
+            }
             case 'textDocument/definition': {
                 const uri = msg.params?.textDocument?.uri;
                 const pos = msg.params?.position;
@@ -748,6 +763,6 @@ class LspHandler {
     publish(uri) {
         return publishDiagnosticsMsg(uri, computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }));
     }
-} /* node:coverage ignore next 38 */
+} /* node:coverage ignore next 40 */
 exports.LspHandler = LspHandler;
 //# sourceMappingURL=lsp.js.map

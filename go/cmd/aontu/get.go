@@ -86,7 +86,7 @@ func runGet(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	report := aontuForFileTrust(file, trust).Get(
+	report := operand(aontuForFileTrust(file, trust)).Get(
 		string(src), path, &aontu.QueryOptions{View: view, Depth: depth})
 
 	if "json" == format {
