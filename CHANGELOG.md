@@ -8,6 +8,14 @@ each change affects.
 
 ## Unreleased
 
+### A `filter` reads a member that is a default alone as its parent type too
+
+Decision 51, in both engines. A member that is a default alone, `*1`,
+stands for its value and its parent type, as `vet` reads it, so a
+`filter` keeps it only where the condition admits every integer:
+`filter({g: *1}, *1 | 2)` is `{}`, where it was `{"g": 1}`, and
+`filter({g: *1}, integer)` still keeps `g`.
+
 ### A star over a `pref()` call or a path ranks as what it reads as
 
 #970, in both engines. A star written over a term that is itself a

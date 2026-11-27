@@ -8,6 +8,7 @@ const BagVal_1 = require("./BagVal");
 const ListVal_1 = require("./ListVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const admission_1 = require("./admission");
+const subsume_1 = require("../subsume");
 const PrefVal_1 = require("./PrefVal");
 const Val_1 = require("./Val");
 const PlaceVal_1 = require("./PlaceVal");
@@ -45,8 +46,11 @@ class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
             const declares = 0 < (test.aliasKeys ?? []).length;
             if (!declares && owns.every((own) => undefined !== own)) {
                 const verdicts = arms.map((arm, i) => !(0, admission_1.sealedMiss)(test, owns[i]) && (0, admission_1.admitsSettled)(kctx, test, arm, owns[i], kctx.path));
-                if (verdicts.every((v) => undefined !== v)) {
-                    return verdicts.every((v) => true === v);
+                // A default alone also stands for its parent type, which the condition must admit whole.
+                const parent = true === child.isPref && verdicts.every((v) => true === v) ?
+                    (0, subsume_1.subsumeNode)({ profile: 'values', findings: [], generalUrl: '', specificUrl: '', pairs: (0, subsume_1.newPairs)() }, [], test, child.superpeg) : 'yes';
+                if ('undecided' !== parent && verdicts.every((v) => undefined !== v)) {
+                    return 'yes' === parent && verdicts.every((v) => true === v);
                 }
             }
             const met = (0, FuncBaseVal_1.trialUnify)(kctx, child.clone(kctx), test);
