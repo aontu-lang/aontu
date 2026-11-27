@@ -7077,14 +7077,31 @@ meet leaves an arm, as both engines try a child:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def filterTakes (ds : Decls) (c v : Val) : Bool :=
+def filterTakesArm (ds : Decls) (c v : Val) : Bool :=
   let met := normaliseD ds (meetD ds c v)
-  !met.dead && ((normaliseD ds v).freeChoice ||
+  !met.dead &&
     match (normaliseD ds v).unride.kindless, met.unride.one.kindless with
     | .or _, w => (normaliseD ds v).unride.kindless.admitAlike ds w
     | _, .or arms => arms.any fun a => (normaliseD ds v).unride.kindless.admitAlike ds a.2.unride.one.kindless
-    | _, w => (normaliseD ds v).unride.kindless.admitAlike ds w)
+    | _, w => (normaliseD ds v).unride.kindless.admitAlike ds w
 ```
+
+The condition takes a disjunction that prefers an arm one arm at a time,
+each read through `Val.unranked` as preferring nothing, since the meet
+stacks a rank on the preferred arm and so is no longer alike the child:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def filterTakes (ds : Decls) (c v : Val) : Bool :=
+  !(normaliseD ds (meetD ds c v)).dead && ((normaliseD ds v).freeChoice ||
+    match (normaliseD ds (normaliseD ds v).unranked).unride.kindless with
+    | .or arms => arms.all fun a => filterTakesArm ds c a.2
+    | _ => filterTakesArm ds c v)
+```
+
+So `filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)` keeps all three
+members, as both engines do, which #963 asked for. Rows `fq0` on and
+`fr0` on hold the definition and both engines to it.
 
 So `filter({x: integer}, any)` keeps `x: integer` for the data to
 meet, and `filter({x: integer}, 1)` drops it, since `integer` admits

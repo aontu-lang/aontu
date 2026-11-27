@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### The definition's `filter` reads a preferred disjunction arm by arm
+
+In the definition, a `filter` now takes a child that is a disjunction
+preferring an arm when its condition takes each arm. Before, the meet
+stacked a rank on the preferred arm, and the child was dropped as no
+longer alike. So `filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)` keeps
+all three members, as both engines do since #1083 (#963), and a lone
+`*1` under the same condition is dropped, since it admits integers the
+condition refuses, as both engines read it since #1086. Rows fq0 to
+fq17 of `test/spec/def-path.tsv` and fr0 to fr5 of
+`test/spec/def-gen.tsv` hold the definition and both engines to it.
+
 ### The definition leaves out an optional member that writes empty
 
 #1075, in the definition. The definition leaves out an optional member
