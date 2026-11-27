@@ -274,7 +274,6 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 			return drive(b, a)
 		}
 	}
-	// An op still to decide answers a scalar, which would refuse it as another kind.
 	if _, op := b.(*PlusOpVal); op && DONE != b.Dc() && isScalarVal(a) {
 		return drive(b, a)
 	}

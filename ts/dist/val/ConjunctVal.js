@@ -169,7 +169,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
     gen(ctx) {
         const residue = (0, BagVal_1.sizingResidue)(this);
-        // An atom whose trial still waits on a call can't yet admit or refuse (ruling 91).
         if (undefined !== residue && null == residue.con.pending) {
             const settled = residue.con.settleContainer(residue.bag, ctx);
             return true === settled?.isNil ? undefined : settled.gen(ctx);

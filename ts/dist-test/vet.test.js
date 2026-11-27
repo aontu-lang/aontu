@@ -668,7 +668,6 @@ const SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(r.coverage?.vacuous, true);
     });
 });
-// Ruling 91 (#977): a trial or a size over a call that waits, waits with it.
 (0, node_test_1.describe)('vet-a-call-that-waits', () => {
     const CASES = [
         ['v: contains(integer + 1)', 'v: []'],

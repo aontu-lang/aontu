@@ -820,7 +820,6 @@ describe('vet-cover-through', () => {
 })
 
 
-// Ruling 91 (#977): a trial or a size over a call that waits, waits with it.
 describe('vet-a-call-that-waits', () => {
   const CASES: [string, string][] = [
     ['v: contains(integer + 1)', 'v: []'],

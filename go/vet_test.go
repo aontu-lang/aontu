@@ -726,7 +726,6 @@ func TestParseFindingUnplacedError(t *testing.T) {
 	}
 }
 
-// Ruling 91 (#977): a trial or a size over a call that waits, waits with it.
 func TestVetACallThatWaits(t *testing.T) {
 	cases := [][2]string{
 		{`v: contains(integer + 1)`, `v: []`},

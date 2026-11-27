@@ -298,7 +298,6 @@ const meet = (ctx, a, b, whence) => {
                 out = update(a, b);
                 why = 'up';
             }
-            // An op still to decide answers a scalar, which would refuse it as another kind.
             else if (true === a.isScalar && true === b.isOp && !b.done) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BO') }) : ctx);
                 unified = true;
