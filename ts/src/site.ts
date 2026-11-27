@@ -17,6 +17,12 @@ type ViaSite = {
   row: number, col: number, url: string, src: string, name: string,
 }
 
+// WHERE AN INCLUDE LOADED a value another file wrote: the key it stands
+// under is written there, though the value keeps its own file's site.
+type LoadSite = {
+  row: number, col: number, url?: string,
+}
+
 // row, col and len -1, url and src empty, mean UNKNOWN: a value the
 // engine minted rather than read has no site, and must not be edited
 // as though it had one.
@@ -27,6 +33,7 @@ class Site {
   len: number
   src: string
   via?: ViaSite
+  load?: LoadSite
 
   constructor(val?: Val | SiteSpec) {
     const site = ((val as any)?.site ?? val) as SiteSpec
@@ -37,8 +44,9 @@ class Site {
     this.len = site?.len ?? -1
     this.src = site?.src ?? ''
     this.via = (site as any)?.via
+    this.load = (site as any)?.load
   }
-} /* node:coverage ignore next 10 */
+} /* node:coverage ignore next 11 */
 
 
 export {
@@ -47,5 +55,6 @@ export {
 
 
 export type {
+  LoadSite,
   ViaSite,
 }

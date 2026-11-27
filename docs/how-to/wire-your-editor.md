@@ -8,7 +8,9 @@ order: 90
 
 Both implementations serve the Language Server Protocol from the
 command itself, `aontu lsp`: unification problems as diagnostics
-while you type, with hover and completion beside them. Ready-made
+while you type, with hover, completion, and go to definition beside
+them, on a key and on a reference across the files a document
+includes. Ready-made
 clients for VS Code, Emacs, Vim/Neovim, and the JetBrains IDEs live in
 [`editors/`](../../editors/), each a thin client that launches the
 server, with install steps in its README. The recipes below are for
@@ -20,6 +22,13 @@ the `aontu` language (`.aontu` is the extension, and the only one;
 `.jsonic` is retired). The server has no configuration options.
 The standalone `aontu-lsp` binary that earlier configurations name
 still ships and runs the same server.
+
+The server reads an include with a relative path from its own working
+directory, not from the document's folder
+([limitations](../lsp.md#limitations-and-extension-points)), so start
+it where the documents' includes are relative to. A client sets the
+directory: `options: { cwd }` in the server options of VS Code's
+language client, and `cmd_cwd` in Neovim's `vim.lsp.start`.
 
 Get the command any way the [CLI guide](run-cli-and-repl.md) lists:
 `npm install -g aontu`, a built binary, or `go install`. The two builds

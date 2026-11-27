@@ -173,6 +173,19 @@ func HoverTrust(
 
 	a := aontu.New()
 	a.Trust = trust
+
+	// On a key or a reference, what stands at the path it names.
+	if at := a.DescribeAt(src, aontu.CursorPosition{Line: line, Character: character}); nil != at {
+		s := aontu.ValueSpan{Canon: at.Canon, Kind: at.Kind, Path: at.Path,
+			Titles: at.Titles, Descriptions: at.Descriptions}
+		r := toRange(at.Range)
+		return &HoverResult{
+			Contents: MarkupContent{Kind: "markdown", Value: hoverMarkdown(s) +
+				provenanceOf(src, s, provenance, trust)},
+			Range: &r,
+		}
+	}
+
 	spans := a.Spans(src)
 	if spans == nil {
 		return nil
@@ -180,11 +193,13 @@ func HoverTrust(
 	idx := newLineIndex(src)
 	cur := idx.offsetAt(line, character)
 
+	// A span measured by its canon stops at the end of its line.
+	end := func(s aontu.ValueSpan) int { return min(s.Pos+s.Len, idx.lineEnd(s.Pos)) }
 	best := -1
 	for i, s := range spans {
-		if s.Pos <= cur && cur < s.Pos+s.Len {
+		if s.Pos <= cur && cur < end(s) {
 			// Most specific (smallest) span wins.
-			if best < 0 || s.Len < spans[best].Len {
+			if best < 0 || end(s)-s.Pos < end(spans[best])-spans[best].Pos {
 				best = i
 			}
 		}
@@ -196,7 +211,7 @@ func HoverTrust(
 	return &HoverResult{
 		Contents: MarkupContent{Kind: "markdown", Value: hoverMarkdown(s) +
 			provenanceOf(src, s, provenance, trust)},
-		Range: &Range{Start: idx.position(s.Pos), End: idx.position(s.Pos + s.Len)},
+		Range: &Range{Start: idx.position(s.Pos), End: idx.position(end(s))},
 	}
 }
 
@@ -357,6 +372,31 @@ func Definition(src string, line, character int, uri string) *Location {
 		Start: Position{Line: row, Character: col},
 		End:   Position{Line: row, Character: col + len(bind.Name)},
 	}}
+}
+
+// PathDefinition is every site that writes the path a key or a reference
+// names, here or in a file it includes; nil where there is none.
+func PathDefinition(
+	src string, line, character int, uri string, trust *aontu.TrustOptions,
+) []Location {
+	a := aontu.New()
+	a.Trust = trust
+	var out []Location
+	for _, p := range a.DefinitionAt(src, aontu.CursorPosition{Line: line, Character: character}) {
+		at := uri
+		if "" != p.File {
+			at = pathToURI(p.File)
+		}
+		out = append(out, Location{URI: at, Range: toRange(p.Range)})
+	}
+	return out
+}
+
+func toRange(r aontu.CursorRange) Range {
+	return Range{
+		Start: Position{Line: r.Start.Line, Character: r.Start.Character},
+		End:   Position{Line: r.End.Line, Character: r.End.Character},
+	}
 }
 
 // LSP CompletionItemKind subset.
@@ -522,6 +562,13 @@ func newLineIndex(src string) *lineIndex {
 		}
 	}
 	return &lineIndex{src: src, lineStarts: starts}
+}
+
+func (li *lineIndex) lineEnd(off int) int {
+	if nl := strings.IndexByte(li.src[off:], '\n'); 0 <= nl {
+		return off + nl
+	}
+	return len(li.src)
 }
 
 func (li *lineIndex) position(off int) Position {

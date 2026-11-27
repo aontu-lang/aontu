@@ -77,7 +77,7 @@ func TestSpec(t *testing.T) {
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode ||
-				"at" == mode
+				"at" == mode || "describe" == mode || "define" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -600,6 +600,33 @@ func TestSpec(t *testing.T) {
 					if !jsonEqual(got, expect) {
 						gj, _ := json.Marshal(got)
 						t.Fatalf("at mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "describe", "define":
+					ls, cs, _ := strings.Cut(data, ":")
+					line, lerr := strconv.Atoi(ls)
+					character, cerr := strconv.Atoi(cs)
+					if nil != lerr || nil != cerr {
+						t.Fatalf("bad %s position %q", mode, data)
+					}
+					pos := CursorPosition{line, character}
+					var got any
+					if "describe" == mode {
+						got = New().DescribeAt(src, pos)
+					} else if places := New().DefinitionAt(src, pos); nil != places {
+						// A place in an included file is named by the file
+						// alone: the directory it is in is this machine's.
+						for i, p := range places {
+							if "" != p.File {
+								places[i].File = "__FIXTURES__/" +
+									filepath.Base(filepath.FromSlash(p.File))
+							}
+						}
+						got = places
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("%s mismatch\n want: %s\n got:  %s", mode, expect, gj)
 					}
 
 				case "trim":

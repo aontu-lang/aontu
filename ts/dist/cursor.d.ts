@@ -20,6 +20,20 @@ type PathSite = {
     range: Range;
     role: string;
 };
+type PathValue = {
+    canon: string;
+    kind: string;
+    titles: string[];
+    descriptions: string[];
+};
+type CursorValue = PathValue & {
+    path: string[];
+    range: Range;
+};
+type PathPlace = {
+    file: string;
+    range: Range;
+};
 type CursorOptions = {
     trust?: TrustOptions;
 };
@@ -36,6 +50,9 @@ declare function hitsOf(src: string, root: any): {
     values: Hit[];
 };
 declare function pathAt(src: string, pos: Position, opts?: CursorOptions): CursorPath | undefined;
+declare function describeVal(val: any): PathValue;
+declare function describeAt(src: string, pos: Position, opts?: CursorOptions): CursorValue | undefined;
+declare function definitionAt(src: string, pos: Position, opts?: CursorOptions): PathPlace[] | undefined;
 declare function sitesOf(src: string, path: string[], opts?: CursorOptions): PathSite[] | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf };
-export type { CursorPath, CursorOn, CursorOptions, PathSite, Position, Range };
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, };
+export type { CursorPath, CursorOn, CursorOptions, CursorValue, PathPlace, PathSite, PathValue, Position, Range, };

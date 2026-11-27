@@ -128,6 +128,11 @@ const posKey = reservedKeyPrefix + "pos"
 // `{`; the text is what gives it an extent (base.srclen, ts/src/site.ts).
 const srcKey = reservedKeyPrefix + "src"
 
+// A raw map's file, and where an include loaded it, until it is a Val.
+const urlKey = reservedKeyPrefix + "url"
+
+const loadKey = reservedKeyPrefix + "load"
+
 const elidedSpreadKey = reservedKeyPrefix + "elidedspread"
 
 var (
@@ -458,6 +463,7 @@ help isolate the syntax error.`,
 			},
 		)
 		rs.AddAC(wrapLeaf)
+		rs.AddAC(loadAt)
 		rs.AddAC(recordAliasHoist)
 	})
 
@@ -789,7 +795,8 @@ func closeMap(r *jsonic.Rule, ctx *jsonic.Context) {
 		recordExports(m)
 		bindImports(m, ctx)
 		// Spent: a file loaded at the root would hand them to the includer.
-		for _, k := range []string{aliasDeclsKey, aliasValsKey, exportDeclsKey, importDeclsKey} {
+		for _, k := range []string{aliasDeclsKey, aliasValsKey, exportDeclsKey,
+			importDeclsKey, urlKey, loadKey} {
 			delete(m, k)
 		}
 		if r.D == 1 {
@@ -833,6 +840,22 @@ func wrapList(r *jsonic.Rule, ctx *jsonic.Context) {
 			en.site = lv.site
 			r.Node = en
 		}
+	}
+}
+
+// loadAt records where `@"file"` loaded a value, which is where its key
+// is: the value keeps its own file's site (ruling 50).
+func loadAt(r *jsonic.Rule, ctx *jsonic.Context) {
+	if nil == r.Child || "multisource" != r.Child.Name {
+		return
+	}
+	ms, _ := ctx.Meta["multisource"].(map[string]any)
+	url, _ := ms["path"].(string)
+	switch n := r.Node.(type) {
+	case Val:
+		n.setLoad(r.O0.SI, url)
+	case map[string]any:
+		n[loadKey] = &loadSite{sp: r.O0.SI, url: url}
 	}
 }
 
@@ -2487,6 +2510,12 @@ func asValDepth(node any, depth int) Val {
 		}
 		if t, ok := n[srcKey].(string); ok {
 			mv.setSrctext(t)
+		}
+		if u, ok := n[urlKey].(string); ok {
+			mv.setSrcurl(u)
+		}
+		if l, ok := n[loadKey].(*loadSite); ok {
+			mv.site.load = l
 		}
 		if n[elidedSpreadKey] == true {
 			en := newNil("elided_value")

@@ -429,6 +429,9 @@ let AontuJsonic = function AontuLang(jsonic) {
         const url = ctx.meta.multisource && ctx.meta.multisource.path;
         return url ? url : (ctx.meta.aontu_scope ??= '#' + (++SCOPE_SEQ));
     };
+    // A value another file wrote keeps the site that file gave it (ruling
+    // 50), whatever `@` or `(` is written around it here.
+    const writtenElsewhere = (v, ctx) => !!v.site.url && v.site.url !== (ctx.meta.multisource && ctx.meta.multisource.path);
     let addsite = (v, r, ctx) => {
         // The source text comes from the SAME token the row and column
         // come from. jsonic has carried it all along; not reading it is
@@ -873,7 +876,8 @@ help isolate the syntax error.`,
             // straight through: `(([]%))` yielded a raw array, and addsite went
             // on to write a site onto it, throwing a TypeError that escaped the
             // unifier entirely ("Cannot set properties of undefined").
-            const out = addsite(rawToVal(val), r, ctx);
+            const grouped = rawToVal(val);
+            const out = writtenElsewhere(grouped, ctx) ? grouped : addsite(grouped, r, ctx);
             // A later argument was pathed as an element of the argument list,
             // so a reference in it read from the wrong place. One that is
             // no map or list reads from the call's place, as the first did; a
@@ -1055,9 +1059,16 @@ help isolate the syntax error.`,
             else if (null === valnode) {
                 valnode = addsite(new NullVal_1.NullVal({ peg: r.node }), r, ctx);
             }
+            const here = ctx.meta.multisource && ctx.meta.multisource.path;
             if (null != valnode && 'object' === typeof valnode && valnode.site) {
-                siteAt(valnode, tokenSite(r.o0));
-                valnode.site.url = ctx.meta.multisource && ctx.meta.multisource.path;
+                if (!writtenElsewhere(valnode, ctx)) {
+                    siteAt(valnode, tokenSite(r.o0));
+                    valnode.site.url = here;
+                }
+                // Where this file loaded it, which is where its key is written.
+                else if ('multisource' === r.child?.name) {
+                    valnode.site.load = { row: r.o0.rI, col: r.o0.cI, url: here };
+                }
             }
             // else { ERROR? }
             r.node = valnode;
