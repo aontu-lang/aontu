@@ -8,6 +8,15 @@ each change affects.
 
 ## Unreleased
 
+### `subsume` compares a spread template that is a name
+
+Both ports. A spread's template that is a name, `kids?: [&: %R]`, is
+compared as the definition it names, so two recursions of one shape
+under different names answer `subsumes` where a spread stands between
+the recursion and its body, as they already did through a key (#1017).
+A template whose definition, as written, holds `key()` or a path still
+answers `undecided` with `sub_path_dependent_spread`.
+
 ### The oracle builds one module per area
 
 `spec/Oracle.lean` keeps only `main`. Its cases moved to one module per

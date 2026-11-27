@@ -6994,9 +6994,12 @@ These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Su
   template has no member beyond the ones it declares, each of which
   the template already holds, so the walk compares nothing more. A specific-only template narrows the
   specific side and refuses nothing. A **path-dependent** template
-  (one whose meaning depends on where it lands: `key()`, a
-  reference) cannot be compared structurally:
-  `sub_path_dependent_spread`, undecided.
+  (one whose meaning depends on where it lands: `key()`, a path)
+  cannot be compared structurally:
+  `sub_path_dependent_spread`, undecided. A name's meaning doesn't
+  depend on where it lands, so a name as a template compares as
+  the definition it names, a recursion as at a key, unless that
+  definition as written holds `key()` or a path.
 - Under the `gen` profile, `type`/`hide` marks must agree on
   corresponding nodes (`compat_marks_changed`).
 
