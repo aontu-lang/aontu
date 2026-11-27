@@ -21,6 +21,51 @@ a probe of the CUE corpus under `test/cue/`, or for `keyed` a new row of
 and each table row of the page to the corpus. The how-to index gains a
 group for readers coming from another language. Neither engine changes.
 
+### The definition reads a failed default as a conflict
+
+A lone default whose own value fails, `v: *(1 & 2)`, is a conflict
+where it stands, as both ports report it: the meet reads it as its
+parent type under the mark `failed` (`Val.failedOf`), which admits what
+the preference admits, so the meet's theorem holds as it was, and the
+verdict reads the mark as a conflict. An arm that holds one drops, and
+a spread's template that holds one refuses each member (#1042). Rows
+fd0 on in `test/spec/def-verdict.tsv`, both ports answering as the
+definition does.
+
+### The subsume differential
+
+`test/spec/def-subsume-rows.tsv` holds, for each row of
+`test/spec/subsume.tsv` whose documents the definition reads, the
+answers its profile's contract allows: 97 rows, both ports answering as
+the contract allows. `ts/test/subsume-contract.test.ts` and
+`go/subsume_contract_test.go` fail where a golden verdict is not one of
+them, and where a document reads otherwise than the definition read it.
+They found #1071: both ports' `subsume` read a list literal in an arm as
+open, where their `vet` reads it as its own length.
+
+### A `filter` reads a member that is a default alone as its parent type too
+
+Decision 51, in both engines. A member that is a default alone, `*1`,
+stands for its value and its parent type, as `vet` reads it, so a
+`filter` keeps it only where the condition admits every integer:
+`filter({g: *1}, *1 | 2)` is `{}`, where it was `{"g": 1}`, and
+`filter({g: *1}, integer)` still keeps `g`.
+
+### A star over a `pref()` call or a path ranks as what it reads as
+
+#970, in both engines. A star written over a term that is itself a
+default adds to that default's rank, so `*pref(1)` and `*$.d`, with
+`d: *1`, rank as `**1`, as `*(*1)` already did. Before, each engine
+ranked such an arm before reading it, so it counted one rank too low.
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `x: *pref(1) \| *2` | `{"x": 3}` | `error` (`pref_rank_clash`) | `invalid` |
+| `d: *1`, `x: *$.d \| *2` | `{"x": 3}` | `error` (`pref_rank_clash`) | `invalid` |
+| `x: *pref(1) \| **2` | `{}` | Go read `**1\|**2`, TypeScript `error` | `error` in both |
+
+The canon of the first two is `**1|*2`, and each generates `2`.
+
 ### The definition writes a left-out root as `null`
 
 #1075, in the definition. A document whose root carries `hide()` or

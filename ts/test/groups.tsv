@@ -87,6 +87,7 @@
 6	mcp.test.ts
 6	lsp.test.ts
 6	vet.test.ts
+6	subsume-contract.test.ts
 6	veteval.test.ts
 6	allow.test.ts
 6	aontu.test.ts

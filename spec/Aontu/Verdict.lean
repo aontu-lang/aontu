@@ -2086,6 +2086,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
   | .ride .void _ _ => false
+  | .ride .failed _ _ => true
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
