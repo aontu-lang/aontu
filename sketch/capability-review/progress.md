@@ -1986,6 +1986,27 @@ lists, and held by `test/spec/at.tsv` and the `-at` rows of
 `test/spec/comprehension.tsv`. No code is registered. The definition is
 owed: no Lean toolchain was installed where it was built.
 
+**BEYOND THE PHASES: a key for each child, landed on 2026-11-27 as
+`pack`'s optional third argument**, which adds no phase to the table
+either. Ruling 5 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings)
+reopened the question phase 1 settled, that a generated key is the
+data's and never computed, and its task C2 built the answer:
+`pack(d, t, k)` puts each member's child under the string `k` answers
+for it. `packMembers` and `readKey` (`ts/src/val/PackFuncVal.ts`,
+`go/generate.go`) read `k` once for each member at the place its child
+would take under its own key, `_` the member and `key(0)` its key, run
+to a fixpoint as the admission trial runs its meet; the call waits
+while any key waits, and fires once every key is a string. Anything
+else is `pack_key`, whose hint gains a sentence, identical in both
+ports; a refusal `k` answers, such as `at`'s `no_path`, is the call's.
+The signature line in `test/spec/signature.tsv` gains `template k?:
+string`, and both LSP signature helps show it. Rows:
+`test/spec/gen-pack-key.tsv` (45) and the six `-pack` rows of
+`test/spec/comprehension.tsv`, beside k9, k10, k11 and k14 to k16; the
+`gen-pack.tsv` row that held three arguments to `func_arity` now holds
+four. No code is registered. The definition is owed.
+
 **Departures and discoveries recorded by G8.1.**
 
 1. **The template is CLONED per destination, never shared.** A spread

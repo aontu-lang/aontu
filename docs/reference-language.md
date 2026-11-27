@@ -26,6 +26,7 @@ the [Explanation](explanation.md).
 - [Spreads `&:`](#spreads-)
 - [Key patterns: `keyed`](#key-patterns-keyed)
 - [Generating children: `pack` and `each`](#generating-children-pack-and-each)
+  - [A key for each child](#a-key-for-each-child)
   - [Making elements: `each`](#each-the-order-preserving-map)
   - [One instance: `apply`](#apply-one-instance)
   - [The `_ & …` idiom](#the-_---idiom-construction-and-bound)
@@ -1224,6 +1225,8 @@ deploy: billing: replicas: 4  # an override composes as usual
 `pack(data, tmpl)` makes one **keyed child** per child of `data`. The
 keys are **data, never position**: for a list, the strings themselves
 (a non-string element is an error, `pack_key`); for a map, its keys.
+A third argument makes each key instead, as
+[A key for each child](#a-key-for-each-child) shows.
 Each generated child is `tmpl` cloned at that destination, so `key()`
 and relative references inside the template answer for the child
 rather than for the call. Duplicate keys are not an error: the
@@ -1279,7 +1282,84 @@ Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:
 evaluation still terminates by construction.
 
-The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else.
+The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else. The definition doesn't yet read a third argument.
+
+### A key for each child
+
+`pack(data, tmpl, key)` puts each member's child under the key that
+`key` answers for that member, in place of the member's own key or
+text. `key` is read once for each member: `_` is the member, and
+`key(0)` is its own key in a map or its position in a list. A field of
+the member is read with [`at`](#the-member-at-a-key-at), so a list of
+records can be keyed by a field, or by two joined:
+
+```aontu
+xs: [{ ns:a name:web port:80 } { ns:b name:db port:5432 }]
+byname: pack($.xs, _, at(_, name))
+ports: pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))
+```
+
+```json
+{"byname":{"db":{"name":"db","ns":"b","port":5432},"web":{"name":"web","ns":"a","port":80}},"ports":{"a/web":80,"b/db":5432},"xs":[{"name":"web","ns":"a","port":80},{"name":"db","ns":"b","port":5432}]}
+```
+
+The members of a list need not be strings here, since `key` makes the
+key. `key(0)` gives every key a prefix, and over a list it is the
+position. Children whose keys collide unify, as they do without the
+third argument:
+
+```aontu
+m: { a:1 b:2 }
+svc: pack($.m, _, "svc-" + key(0))
+xs: [p q]
+pos: pack($.xs, _, "n" + key(0))
+same: pack([{ n:a v:1 } { n:a w:2 }], _, at(_, n))
+```
+
+```json
+{"m":{"a":1,"b":2},"pos":{"n0":"p","n1":"q"},"same":{"a":{"n":"a","v":1,"w":2}},"svc":{"svc-a":1,"svc-b":2},"xs":["p","q"]}
+```
+
+The template is read at the child's place, as it is without a key, so
+its `key(0)` is the key the third argument answered, not the member's
+own. A map is inverted once each member carries its own key:
+
+```aontu
+m: { a:x b:y }
+st: hide(pack($.m, { k:key() v:_ }))
+inv: pack($.st, at(_, k), at(_, v))
+own: pack($.m, key(0), _)
+```
+
+```json
+{"inv":{"x":"a","y":"b"},"m":{"a":"x","b":"y"},"own":{"x":"x","y":"y"}}
+```
+
+The key must settle to a string, or the call is refused as `pack_key`:
+a number, a kind such as `string`, a choice, a map, and the absence
+`maybe` makes of a field that isn't there are not keys. A field that
+isn't there is `no_path`, refused at the call:
+
+<!-- test: run -->
+```sh
+$ echo 'xs: [{n: 1}]  x: pack($.xs, _, at(_, n))' | aontu
+[aontu/pack_key]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+$ echo 'xs: [{n: a}]  x: pack($.xs, _, at(_, id))' | aontu
+[aontu/no_path]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+```
+
+The key reads the member through `_` and its key through `key(0)`, and
+a relative path in it doesn't name a field of the member. It reads from
+the place the member's child would take under its own key, as one in
+the template does, so `pack($.xs, _, .n)` reads the output being made,
+which waits on the call and never settles. An absolute path reads the
+document as anywhere.
 
 ### `each`, the order-preserving map
 
@@ -3257,11 +3337,11 @@ whatever map or list it meets: `open() & close({x:1}) & {y:2}` admits
 
 Example: `open(close({x:1})) & {y:2}`→`{x:1,y:2}`
 
-### `pack(d: map|list, template t: any) : map`
+### `pack(d: map|list, template t: any, template k?: string) : map`
 
-One keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each).
+One keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map, or with `k` the string `k` answers for each member, `_` being the member and `key(0)` its own key. See [Generating children](#generating-children-pack-and-each) and [A key for each child](#a-key-for-each-child).
 
-Example: `deploy: pack($.names, {replicas:*2|integer})`
+Example: `deploy: pack($.names, {replicas:*2|integer})`; `byname: pack($.xs, _, at(_, name))`
 
 ### `parse(g: string, v?: string) : map|list|constraint`
 

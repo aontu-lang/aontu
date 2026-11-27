@@ -511,6 +511,50 @@ key(0))`, and an inverted map once each member carries its key.
 8. **The key's kind.** Ruled 2026-11-21: a string only, as `pack_key`
    holds today. The other reading took a number by its text.
 
+Progress on 2026-11-27. C2 is built in both engines.
+`pack(d, t, k)` reads `k` once for each member and puts the member's
+child under the string it answers; the two idioms above, the prefix and
+the inverted map answer as proposed, and children whose keys collide
+unify. Six things the rulings left open were settled in the building,
+and each is the maintainer's to change:
+
+- `k` is read at the place the member's child would take under its own
+  key. There `key(0)` is the member's key in a map and its position in
+  a list, as text, and `key()` is the call's own key. A relative path
+  reads from that place, as one in `t` does, so `.n` doesn't name the
+  member's field: it reads the output being made, waits on the call,
+  and never settles, `mapval_no_gen` when generated. An absolute path
+  reads the document.
+- `k` is run to a fixpoint with an error sink of its own, as the
+  admission trial runs its meet. While any member's key waits the call
+  waits, and it fires once every key has settled. A refusal `k`
+  answers, such as `at`'s `no_path`, is the call's.
+- Only a string is a key: a number, a kind, a choice with a default, a
+  map, a boolean, and the absence `maybe` makes of a missing field are
+  `pack_key`. The other reading of the last was to leave that member
+  out.
+- With `k`, a list's members need not be strings, since `k` makes the
+  key.
+- `t` reads `key(0)` at the child's place, so there it is the key `k`
+  answered: `pack($.m, key(0), _)` is `{x: "x"}` for `{a: x}`. The
+  inverted map is the route through a hidden `pack` that carries each
+  key, `pack($.st, at(_, k), at(_, v))`.
+- A call with three arguments was `func_arity` and is now this; the
+  `gen-pack.tsv` row that pinned it holds four. The hint of `pack_key`
+  gains a sentence for the new case, the same in both ports.
+
+k12, k13 and k17 still wait on C5. In TypeScript a call whose first
+argument is an absolute path and whose second a relative one, with a
+third after it, such as `pack($.xs, .q, "a")`, overflows the stack in
+the parser, where Go answers; it isn't `pack`'s, since
+`match($.xs, .q, 1)` does the same, and it is not filed.
+
+The rows are the 45 of `test/spec/gen-pack-key.tsv`, and the six `-pack`
+rows of `test/spec/comprehension.tsv`, one beside each of k9, k10,
+k11, k14, k15 and k16, each answer agreed by both engines. The
+definition is owed: `spec/` doesn't read a third argument, so `pack`
+with a key has no meaning there yet.
+
 ## C3: a position as an integer
 
 **Proposed:** `index(up?: integer|biginteger) : integer`

@@ -146,6 +146,24 @@ the other verbs as before. The engines gain the option that does it,
 syntax error past a file's last newline now puts the caret where
 TypeScript puts it.
 
+### `pack`: a key for each child
+
+`pack(d, t, k)` takes an optional third argument, in both engines. Each
+member's child stands under the key `k` answers for that member, in
+place of the member's own key or text, so a list of records is keyed by
+a field, `pack($.xs, _, at(_, name))`, or by two joined,
+`pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))`. `k` is read
+once for each member, with `_` the member and `key(0)` its own key or
+position, and a relative path in it does not name a field of the
+member. The template is read at the child's place, as before, and
+children whose keys collide unify. A key that is not a string is
+`pack_key`, whose hint now says so; the absence `maybe` makes of a
+missing field is not a key either. With `k`, a list's members need not
+be strings. A call of `pack` with three arguments was `func_arity`, and
+is now this. `test/spec/gen-pack-key.tsv` holds both engines to 45
+rows, and `test/spec/comprehension.tsv` gains the keyed spelling beside
+each of the six routes it replaces.
+
 ### `at`: the member at a key or a position
 
 A new built-in, in both engines. `at(d, k)` reads what a path step

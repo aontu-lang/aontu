@@ -1,0 +1,85 @@
+# GENERATION, KEYED: pack(d, t, k), task C2 of
+# sketch/LANG-REFINEMENT-PLAN.0.md (rulings 5 to 8). With a third
+# argument, each member's child stands under the key `k` answers for that
+# member, in place of the member's own key or text. Columns:
+# name<TAB>mode<TAB>src<TAB>expect. Each expectation is what both engines
+# answer (the parity probe).
+#
+# `k` is read once for each member, where the member's child would stand
+# under its own key: `_` is the member and `key(0)` its own key, or its
+# position in a list. It must settle to a string, or the call is
+# `pack_key`. `t` is read at the child's place, as without `k`, so its
+# `key(0)` is the key `k` answered. Children whose keys collide unify.
+#
+# The plan's two idioms: a map keyed by a field, and by two joined.
+pack-key-field	gen	xs: [{ns: a, name: web, port: 80}, {ns: b, name: db, port: 5432}]\nbyname: pack($.xs, _, at(_, name))	{"byname":{"db":{"name":"db","ns":"b","port":5432},"web":{"name":"web","ns":"a","port":80}},"xs":[{"name":"web","ns":"a","port":80},{"name":"db","ns":"b","port":5432}]}
+pack-key-field-canon	canon	xs: [{name: web, port: 80}, {name: db, port: 5432}]\nbyname: pack($.xs, _, at(_, name))	{"byname":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}},"xs":[{"name":"web","port":80},{"name":"db","port":5432}]}
+pack-key-two-fields	gen	xs: [{ns: a, name: web, port: 80}, {ns: b, name: db, port: 5432}]\nports: pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))	{"ports":{"a/web":80,"b/db":5432},"xs":[{"name":"web","ns":"a","port":80},{"name":"db","ns":"b","port":5432}]}
+pack-key-two-fields-canon	canon	xs: [{ns: a, name: web, port: 80}, {ns: b, name: db, port: 5432}]\nports: pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))	{"ports":{"a/web":80,"b/db":5432},"xs":[{"name":"web","ns":"a","port":80},{"name":"db","ns":"b","port":5432}]}
+#
+# key(0) is the member's own key in a map, its position in a list.
+pack-key-prefix	gen	m: {a: 1, b: 2}\nout: pack($.m, _, "svc-" + key(0))	{"m":{"a":1,"b":2},"out":{"svc-a":1,"svc-b":2}}
+pack-key-prefix-list	gen	xs: [p, q]\nout: pack($.xs, _, "n" + key(0))	{"out":{"n0":"p","n1":"q"},"xs":["p","q"]}
+pack-key-position-records	gen	xs: [{v: 1}, {v: 2}]\nout: pack($.xs, at(_, v), "i" + key(0))	{"out":{"i0":1,"i1":2},"xs":[{"v":1},{"v":2}]}
+pack-key-own-key	gen	m: {a: {id: x}, b: {id: y}}\nout: pack($.m, at(_, id), at(_, id) + "-" + key(0))	{"m":{"a":{"id":"x"},"b":{"id":"y"}},"out":{"x-a":"x","y-b":"y"}}
+# key() reads the level above, the call's own key, as elsewhere.
+pack-key-call-key	gen	m: {a: 1, b: 2}\nout: pack($.m, _, key() + "-" + key(0))	{"m":{"a":1,"b":2},"out":{"out-a":1,"out-b":2}}
+#
+# An inverted map, once each member carries its key: t reads key(0) at
+# the child's place, where it is the key k answered.
+pack-key-invert	gen	m: {a: x, b: y}\nst: hide(pack($.m, {k: key(), v: _}))\nout: pack($.st, at(_, k), at(_, v))	{"m":{"a":"x","b":"y"},"out":{"x":"a","y":"b"}}
+pack-key-invert-inline	gen	m: {a: x, b: y}\nout: pack(pack($.m, {k: key(1), v: _}), at(_, k), at(_, v))	{"m":{"a":"x","b":"y"},"out":{"x":"a","y":"b"}}
+pack-key-template-key	gen	m: {a: x, b: y}\nout: pack($.m, key(0), _)	{"m":{"a":"x","b":"y"},"out":{"x":"x","y":"y"}}
+pack-key-template-key-canon	canon	m: {a: x}\nout: pack($.m, {k: key(1), v: _}, _)	{"m":{"a":"x"},"out":{"x":{"k":"x","v":"x"}}}
+#
+# Over a list the members need not be strings, since k makes the key.
+pack-key-list-strings	gen	xs: [a, b]\nout: pack($.xs, 1, upper(_))	{"out":{"A":1,"B":1},"xs":["a","b"]}
+pack-key-list-numbers	gen	xs: [1, 2]\nout: pack($.xs, _, "n" + _)	{"out":{"n1":1,"n2":2},"xs":[1,2]}
+pack-key-spaced	gen	xs: [{n: "a b", v: 1}]\nout: pack($.xs, at(_, v), at(_, n))	{"out":{"a b":1},"xs":[{"n":"a b","v":1}]}
+pack-key-lookup	gen	names: {x: web, y: db}\nm: {x: 80, y: 5432}\nout: pack($.m, _, at($.names, key(0)))	{"m":{"x":80,"y":5432},"names":{"x":"web","y":"db"},"out":{"db":5432,"web":80}}
+pack-key-absolute	gen	p: "x-"\nxs: [{n: a}, {n: b}]\nout: pack($.xs, _, $.p + at(_, n))	{"out":{"x-a":{"n":"a"},"x-b":{"n":"b"}},"p":"x-","xs":[{"n":"a"},{"n":"b"}]}
+pack-key-empty-map	gen	m: {}\nout: pack($.m, _, at(_, n))	{"m":{},"out":{}}
+pack-key-empty-list	gen	xs: []\nout: pack($.xs, _, at(_, n))	{"out":{},"xs":[]}
+#
+# Keys that collide unify, as without k.
+pack-key-collide	gen	xs: [{n: a, v: 1}, {n: a, w: 2}, {n: b, v: 3}]\nout: pack($.xs, _, at(_, n))	{"out":{"a":{"n":"a","v":1,"w":2},"b":{"n":"b","v":3}},"xs":[{"n":"a","v":1},{"n":"a","w":2},{"n":"b","v":3}]}
+pack-key-collide-conflict	errc	xs: [{n: a, v: 1}, {n: a, v: 2}]\nout: pack($.xs, _, at(_, n))	scalar_value
+pack-key-constant	gen	xs: [{v: 1}, {w: 2}]\nout: pack($.xs, _, "all")	{"out":{"all":{"v":1,"w":2}},"xs":[{"v":1},{"w":2}]}
+#
+# A key that is not a string: a number, a kind, a choice, a map.
+pack-key-number	errc	xs: [{n: 1}]\nout: pack($.xs, _, at(_, n))	pack_key
+pack-key-number-literal	errc	m: {a: 1}\nout: pack($.m, _, 2)	pack_key
+pack-key-kind	errc	m: {a: {n: string}}\nout: pack($.m, _, at(_, n))	pack_key
+pack-key-choice	errc	m: {a: {n: *p | q}}\nout: pack($.m, _, at(_, n))	pack_key
+pack-key-map	errc	d: pack([a], {x: 1}, {y: 2})	pack_key
+pack-key-boolean	errc	m: {a: true}\nout: pack($.m, _, _)	pack_key
+pack-key-data-scalar	errc	out: pack(1, _, at(_, n))	pack_data
+#
+# A field that is not there: at refuses it as no_path, at the call.
+pack-key-missing	errc	m: {a: {n: 1}}\nout: pack($.m, _, at(_, gone))	no_path
+pack-key-missing-at-call	err	m: {a: {n: 1}}\nout: pack($.m, _, at(_, gone))	Cannot resolve value at path $.out\n
+# Under maybe it is absence, and absence is no string.
+pack-key-maybe-absent	errc	m: {a: {n: x}}\nout: pack($.m, _, maybe(at(_, gone)))	pack_key
+pack-key-maybe-present	gen	m: {a: {n: x}}\nout: pack($.m, _, maybe(at(_, n)))	{"m":{"a":{"n":"x"}},"out":{"x":{"n":"x"}}}
+#
+# A marked member is skipped, as without k; a marked field is read by at
+# as a path reads it.
+pack-key-hidden-member	gen	m: {a: {n: p}, b: hide({n: q})}\nout: pack($.m, _, at(_, n))	{"m":{"a":{"n":"p"}},"out":{"p":{"n":"p"}}}
+pack-key-hidden-field	gen	m: {a: {n: hide(p), v: 1}}\nout: pack($.m, _, at(_, n))	{"m":{"a":{"v":1}},"out":{"p":{"v":1}}}
+pack-key-type-field	gen	m: {a: {n: type(p), v: 1}}\nout: pack($.m, at(_, v), at(_, n))	{"m":{"a":{"v":1}},"out":{"p":1}}
+#
+# A relative path in k does not name the member's field (ruling 7): it
+# reads from where the child would stand under its own key, as one in t
+# does, so `.n` reads the output being made, which waits on the call.
+pack-key-relative-field	errc	m: {a: {n: p}}\nout: pack($.m, _, .n)	mapval_no_gen
+pack-key-relative-parent	gen	z: zz\nm: {a: 1}\nout: pack($.m, _, ..z)	{"m":{"a":1},"out":{"zz":1},"z":"zz"}
+#
+# With other generators.
+pack-key-nested	gen	g: {x: {items: [{id: p}, {id: q}]}}\nout: pack($.g, pack(at(_, items), 1, at(_, id)))	{"g":{"x":{"items":[{"id":"p"},{"id":"q"}]}},"out":{"x":{"p":1,"q":1}}}
+pack-key-in-each	gen	xs: [{kids: [{n: a}]}, {kids: [{n: b}]}]\nout: each($.xs, pack(at(_, kids), _, at(_, n)))	{"out":[{"a":{"n":"a"}},{"b":{"n":"b"}}],"xs":[{"kids":[{"n":"a"}]},{"kids":[{"n":"b"}]}]}
+pack-key-filtered	gen	xs: [{n: a, k: 1}, {n: b, k: 2}]\nout: filter(pack($.xs, _, at(_, n)), {k: 2})	{"out":{"b":{"k":2,"n":"b"}},"xs":[{"k":1,"n":"a"},{"k":2,"n":"b"}]}
+pack-key-override	gen	xs: [{n: a}, {n: b}]\nout: pack($.xs, {r: *1 | integer}, at(_, n))\nout: b: r: 5	{"out":{"a":{"r":1},"b":{"r":5}},"xs":[{"n":"a"},{"n":"b"}]}
+pack-key-ref-into	gen	xs: [{n: a, v: 1}]\nout: pack($.xs, at(_, v), at(_, n))\ne: $.out.a	{"e":1,"out":{"a":1},"xs":[{"n":"a","v":1}]}
+#
+# Unfired, the call canons as written, with its three arguments.
+pack-key-unfired-canon	canon	n: {a: 1 + true}\nd: pack($.n, {x: 1}, "k")	{"d":pack($.n,{"x":1},"k"),"n":{"a":1+true}}
