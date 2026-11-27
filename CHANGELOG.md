@@ -20,6 +20,25 @@ condition refuses, as both engines read it since #1086. Rows fq0 to
 fq17 of `test/spec/def-path.tsv` and fr0 to fr5 of
 `test/spec/def-gen.tsv` hold the definition and both engines to it.
 
+### The definition leaves out an optional member that writes empty
+
+#1075, in the definition. The definition leaves out an optional member
+whose value writes an empty map or list, as where it generates one:
+what a value writes decides whether it's empty, as the reference says.
+So `m: {a?: [null &
+gen({empty: "omit"})]}` writes `{"m": {}}`, where the definition wrote
+`{"m": {"a": []}}`. Rows go0 on of `test/spec/def-gaps.tsv`. Both ports
+answer every one as the definition does, and neither changes.
+
+### A marked root generates nothing, whatever its kind
+
+**Breaking.** #1078, in both engines. A root marked `hide()` or `type()`
+generates nothing, and the command prints `null`, as the reference
+states and the definition writes. A map or list root already did. A
+scalar root wrote its value: `hide(1)` was `1`. In TypeScript a hidden
+root that is a default wrote the default: `hide(*{a: 1} | {b: 2})` was
+`{"a": 1}`. Each is now `null`.
+
 ### A guide for CUE users
 
 Task CG4 of the lang refinement plan. A new how-to,
