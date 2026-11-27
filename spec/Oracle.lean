@@ -25,6 +25,7 @@ import Oracle.DataArgs
 import Oracle.Waits
 import Oracle.FilterRanks
 import Oracle.At
+import Oracle.PackKey
 
 /-!
 # The oracle
@@ -39,6 +40,101 @@ here is one, `instances_wellFormed` proves every instance a value, and
 
 open Aontu
 open Case
+
+/-- The middle of the `paths` rows, a function of its own so that `main`'s
+compiled form stays shallow. -/
+def pathRowsMid : IO Unit := do
+  IO.println "# A bare close() and a bare open() beside path references follow in rows"
+  IO.println "# dirp0 on: a sealed place's copy sealed, close() beside a reference sealing"
+  IO.println "# the terms read there, open() beside one lifting the target's seal, and"
+  IO.println "# close() at the document's root."
+  pathRows "dirp" directivePathCases
+  IO.println "# A bare directive beside a path at more places follows in rows db0 on: the"
+  IO.println "# copy sealed with the keys its target holds, beside a map and a second path,"
+  IO.println "# in a template, under a default and in an arm, and a path inside the terms"
+  IO.println "# a directive seals, at the root, in a template and in copy's argument."
+  pathRows "db" directiveBesideCases
+  IO.println "# A link's template read where it lands, at the link's target (ruling 50),"
+  IO.println "# follows in rows ll0 on."
+  pathRows "ll" linkLandCases
+  IO.println "# More of a link's template read where it lands follows in rows lr0 on: a"
+  IO.println "# target that isn't the link's sibling, a path deeper in the template, a call"
+  IO.println "# over such a path, a member the target doesn't declare, and two links into"
+  IO.println "# one target."
+  pathRows "lr" linkReadCases
+  IO.println "# A path in a link's template that climbs past the template reads where the"
+  IO.println "# link is written (ruling 92), in rows lc0 on: past the template by one step"
+  IO.println "# and by two, from deeper in it, beside a path that stays inside, under a"
+  IO.println "# call, past the top and in a declaration's body."
+  pathRows "lc" linkClimbCases
+  IO.println "# A recursive name whose body links back to it follows in rows rx0 on: a use"
+  IO.println "# of it alone stays residual, and one met with a map unfolds."
+  pathRows "rx" recursiveLinkCases
+  IO.println "# A recursive name met with a kind, a disjunction and another recursive name"
+  IO.println "# follows in rows rm0 on: a kind picks among the name's branches as structure"
+  IO.println "# does, a disjunction meets it arm by arm, and two names met hold both."
+  pathRows "rm" residualMeetCases
+  IO.println "# A use of a recursive name whose body reads its own place reads as a copy"
+  IO.println "# of the body placed where it stands, at each level the data or the schema"
+  IO.println "# reaches (ruling 26), in rows rr0 on."
+  pathRows "rr" recursiveCopyCases
+  IO.println "# A match whose scrutinee the schema leaves open waits for the data (ruling 49),"
+  IO.println "# in rows os0 on."
+  pathRows "os" openSelectCases
+  IO.println "# A match whose scrutinee generates no value takes the arm no data could change"
+  IO.println "# (ruling 87), in rows ca0 on: an arm the scrutinee sits below is taken, one"
+  IO.println "# that shares nothing with it is passed over, and any other waits for the data."
+  pathRows "ca" certainSelectCases
+  IO.println "# A spread's template that holds two defaults of the picked rank that disagree is"
+  IO.println "# the schema's error where it is written, whatever the data (ruling 90), in rows"
+  IO.println "# tc0 on."
+  pathRows "tc" templateClashCases
+  IO.println "# A default that reaches a disjunction as an arm, by a call, a name, a path or a"
+  IO.println "# meet, stands as the arm it is, of its rank with no parent type (ruling 89), in"
+  IO.println "# rows da0 on, and a match's result that is one in rows as0 on."
+  pathRows "da" armStandsCases
+  pathRows "as" armStandsSelectCases
+  IO.println "# A match, a nof, a must or a when that tries a call that waits waits with it,"
+  IO.println "# whichever way the value would go (#432), in rows wt0 on; a call in a spread's"
+  IO.println "# template, and one in a result the value doesn't take, makes nothing wait."
+  pathRows "wt" waitCases
+  IO.println "# A call that waits inside contains, rest, len and a starred branch waits with"
+  IO.println "# it (ruling 91), in rows wx0 on, beside the same forms over a value that"
+  IO.println "# doesn't wait."
+  pathRows "wx" waitMoreCases
+  IO.println "# A filter keeps a child each of whose values its condition admits, whatever"
+  IO.println "# ranks the meet stacks on a preferred arm (ruling 51, #963), in rows fq0 on:"
+  IO.println "# under --no-fill, data that leaves a kept member out is incomplete."
+  pathRows "fq" filterRankCases
+  IO.println "# A path in a lone preference's value that names nothing there is the schema's"
+  IO.println "# error whatever the data, as it is outside a preference (ruling 53), in rows"
+  IO.println "# sy0 on; a path the term beside the preference answers stands, and one in a"
+  IO.println "# preferred arm fails that arm alone. The same preference follows as an optional"
+  IO.println "# member, under a rider, in a call, as a declaration's body and as a spread's"
+  IO.println "# template, which is no error until a member reads it."
+  pathRows "sy" strayPathCases
+  IO.println "# The same path under a check inside a lone preference is an error whichever"
+  IO.println "# argument holds it, in rows sc0 on. An arm whose path leads into its own place"
+  IO.println "# and names nothing there fails alone where nothing supplies the member, and two"
+  IO.println "# such arms leave the schema none, in rows sa0 on."
+  pathRows "sc" strayCheckCases
+  pathRows "sa" strayArmCases
+  IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
+  IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
+  pathRows "sr" selfReadCases
+  IO.println "# One document in three orders follows in rows od0 on: a type and a"
+  IO.println "# subtype of it that name each other by path, the subtype written first, the"
+  IO.println "# type written first, and the use written above both, each against no data,"
+  IO.println "# data that keeps the type and data that breaks it. The definition reads the"
+  IO.println "# three orders alike (`order_verdicts_agree`)."
+  pathRows "od" orderCases
+  IO.println "# Definitions that reach each other by path follow in rows mp0 on: a path"
+  IO.println "# that reaches itself through other paths names a recursion, as a name does,"
+  IO.println "# whatever the order. A required member and an optional way back, a pair, a"
+  IO.println "# ring of three, a list's elements, and a relation to a subtype of the type"
+  IO.println "# that declares it, by name and by path."
+  pathRows "mp" mutualPathCases
+
 
 set_option maxRecDepth 2048 in
 def main (args : List String) : IO UInt32 := do
@@ -377,96 +473,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# down; a match's result and a plain path reference stay copies."
     pathRows "dx" dataArgCases
     atRows
-    IO.println "# A bare close() and a bare open() beside path references follow in rows"
-    IO.println "# dirp0 on: a sealed place's copy sealed, close() beside a reference sealing"
-    IO.println "# the terms read there, open() beside one lifting the target's seal, and"
-    IO.println "# close() at the document's root."
-    pathRows "dirp" directivePathCases
-    IO.println "# A bare directive beside a path at more places follows in rows db0 on: the"
-    IO.println "# copy sealed with the keys its target holds, beside a map and a second path,"
-    IO.println "# in a template, under a default and in an arm, and a path inside the terms"
-    IO.println "# a directive seals, at the root, in a template and in copy's argument."
-    pathRows "db" directiveBesideCases
-    IO.println "# A link's template read where it lands, at the link's target (ruling 50),"
-    IO.println "# follows in rows ll0 on."
-    pathRows "ll" linkLandCases
-    IO.println "# More of a link's template read where it lands follows in rows lr0 on: a"
-    IO.println "# target that isn't the link's sibling, a path deeper in the template, a call"
-    IO.println "# over such a path, a member the target doesn't declare, and two links into"
-    IO.println "# one target."
-    pathRows "lr" linkReadCases
-    IO.println "# A path in a link's template that climbs past the template reads where the"
-    IO.println "# link is written (ruling 92), in rows lc0 on: past the template by one step"
-    IO.println "# and by two, from deeper in it, beside a path that stays inside, under a"
-    IO.println "# call, past the top and in a declaration's body."
-    pathRows "lc" linkClimbCases
-    IO.println "# A recursive name whose body links back to it follows in rows rx0 on: a use"
-    IO.println "# of it alone stays residual, and one met with a map unfolds."
-    pathRows "rx" recursiveLinkCases
-    IO.println "# A recursive name met with a kind, a disjunction and another recursive name"
-    IO.println "# follows in rows rm0 on: a kind picks among the name's branches as structure"
-    IO.println "# does, a disjunction meets it arm by arm, and two names met hold both."
-    pathRows "rm" residualMeetCases
-    IO.println "# A use of a recursive name whose body reads its own place reads as a copy"
-    IO.println "# of the body placed where it stands, at each level the data or the schema"
-    IO.println "# reaches (ruling 26), in rows rr0 on."
-    pathRows "rr" recursiveCopyCases
-    IO.println "# A match whose scrutinee the schema leaves open waits for the data (ruling 49),"
-    IO.println "# in rows os0 on."
-    pathRows "os" openSelectCases
-    IO.println "# A match whose scrutinee generates no value takes the arm no data could change"
-    IO.println "# (ruling 87), in rows ca0 on: an arm the scrutinee sits below is taken, one"
-    IO.println "# that shares nothing with it is passed over, and any other waits for the data."
-    pathRows "ca" certainSelectCases
-    IO.println "# A spread's template that holds two defaults of the picked rank that disagree is"
-    IO.println "# the schema's error where it is written, whatever the data (ruling 90), in rows"
-    IO.println "# tc0 on."
-    pathRows "tc" templateClashCases
-    IO.println "# A default that reaches a disjunction as an arm, by a call, a name, a path or a"
-    IO.println "# meet, stands as the arm it is, of its rank with no parent type (ruling 89), in"
-    IO.println "# rows da0 on, and a match's result that is one in rows as0 on."
-    pathRows "da" armStandsCases
-    pathRows "as" armStandsSelectCases
-    IO.println "# A match, a nof, a must or a when that tries a call that waits waits with it,"
-    IO.println "# whichever way the value would go (#432), in rows wt0 on; a call in a spread's"
-    IO.println "# template, and one in a result the value doesn't take, makes nothing wait."
-    pathRows "wt" waitCases
-    IO.println "# A call that waits inside contains, rest, len and a starred branch waits with"
-    IO.println "# it (ruling 91), in rows wx0 on, beside the same forms over a value that"
-    IO.println "# doesn't wait."
-    pathRows "wx" waitMoreCases
-    IO.println "# A filter keeps a child each of whose values its condition admits, whatever"
-    IO.println "# ranks the meet stacks on a preferred arm (ruling 51, #963), in rows fq0 on:"
-    IO.println "# under --no-fill, data that leaves a kept member out is incomplete."
-    pathRows "fq" filterRankCases
-    IO.println "# A path in a lone preference's value that names nothing there is the schema's"
-    IO.println "# error whatever the data, as it is outside a preference (ruling 53), in rows"
-    IO.println "# sy0 on; a path the term beside the preference answers stands, and one in a"
-    IO.println "# preferred arm fails that arm alone. The same preference follows as an optional"
-    IO.println "# member, under a rider, in a call, as a declaration's body and as a spread's"
-    IO.println "# template, which is no error until a member reads it."
-    pathRows "sy" strayPathCases
-    IO.println "# The same path under a check inside a lone preference is an error whichever"
-    IO.println "# argument holds it, in rows sc0 on. An arm whose path leads into its own place"
-    IO.println "# and names nothing there fails alone where nothing supplies the member, and two"
-    IO.println "# such arms leave the schema none, in rows sa0 on."
-    pathRows "sc" strayCheckCases
-    pathRows "sa" strayArmCases
-    IO.println "# A match whose scrutinee, and a must whose condition, reads the place the term"
-    IO.println "# stands at reads what the rest of the document holds there, in rows sr0 on."
-    pathRows "sr" selfReadCases
-    IO.println "# One document in three orders follows in rows od0 on: a type and a"
-    IO.println "# subtype of it that name each other by path, the subtype written first, the"
-    IO.println "# type written first, and the use written above both, each against no data,"
-    IO.println "# data that keeps the type and data that breaks it. The definition reads the"
-    IO.println "# three orders alike (`order_verdicts_agree`)."
-    pathRows "od" orderCases
-    IO.println "# Definitions that reach each other by path follow in rows mp0 on: a path"
-    IO.println "# that reaches itself through other paths names a recursion, as a name does,"
-    IO.println "# whatever the order. A required member and an optional way back, a pair, a"
-    IO.println "# ring of three, a list's elements, and a relation to a subtype of the type"
-    IO.println "# that declares it, by name and by path."
-    pathRows "mp" mutualPathCases
+    packKeyRows
+    pathRowsMid
     pathRowsLate
     pathRowsAnnotation
     return 0

@@ -4876,6 +4876,119 @@ at284	verdict	"ks": ["a", "b"], "ys": [1, 2], "pairs": each($.ks, {"k": _, "y": 
 at285	verdict	"ks": ["a", "b", "c"], "ys": [1, 2], "pairs": each($.ks, {"k": _, "y": at($.ys, key(1))})	{}	{"verdict":"error"}
 at286	verdict	"ks": ["a", "b", "c"], "ys": [1, 2], "pairs": each($.ks, {"k": _, "y": at($.ys, key(1))})	{}	{"verdict":"error","opts":{"noFill":true}}
 at287	verdict	"ks": ["a", "b", "c"], "ys": [1, 2], "pairs": each($.ks, {"k": _, "y": at($.ys, key(1))})	{}	{"verdict":"error","opts":{"partial":true}}
+# pack(d, t, k), each member's child under the string k answers for it, follows
+# in rows pk0 on: k read where the child would stand under the member's own key,
+# _ the member, key(0) its key in a map or its position in a list, key() the
+# call's own; t reading key(0) as the key k answered; keys that collide met; and
+# an error for a key that is no string or that k refuses itself.
+pk0	verdict	"xs": [{"name": "web", "port": 80}, {"name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), at(_, "name"))	{"out": {"web": 80, "db": 5432}}	{"verdict":"valid"}
+pk1	verdict	"xs": [{"name": "web", "port": 80}, {"name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), at(_, "name"))	{"out": {"web": 80, "db": 5432}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk2	verdict	"xs": [{"name": "web", "port": 80}, {"name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), at(_, "name"))	{"out": {"web": 80, "db": 5432}}	{"verdict":"valid","opts":{"partial":true}}
+pk3	verdict	"xs": [{"name": "web", "port": 80}, {"name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), at(_, "name"))	{"out": {"web": 80, "db": 80}}	{"verdict":"invalid"}
+pk4	verdict	"xs": [{"name": "web", "port": 80}, {"name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), at(_, "name"))	{"out": {"web": 80, "db": 80}}	{"verdict":"invalid","opts":{"noFill":true}}
+pk5	verdict	"xs": [{"name": "web", "port": 80}, {"name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), at(_, "name"))	{"out": {"web": 80, "db": 80}}	{"verdict":"invalid","opts":{"partial":true}}
+pk6	verdict	"xs": [{"ns": "a", "name": "web", "port": 80}, {"ns": "b", "name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), ((at(_, "ns")) + ("/")) + (at(_, "name")))	{"out": {"a/web": 80, "b/db": 5432}}	{"verdict":"valid"}
+pk7	verdict	"xs": [{"ns": "a", "name": "web", "port": 80}, {"ns": "b", "name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), ((at(_, "ns")) + ("/")) + (at(_, "name")))	{"out": {"a/web": 80, "b/db": 5432}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk8	verdict	"xs": [{"ns": "a", "name": "web", "port": 80}, {"ns": "b", "name": "db", "port": 5432}], "out": pack($.xs, at(_, "port"), ((at(_, "ns")) + ("/")) + (at(_, "name")))	{"out": {"a/web": 80, "b/db": 5432}}	{"verdict":"valid","opts":{"partial":true}}
+pk9	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ("svc-") + (key(0)))	{"out": {"svc-a": 1, "svc-b": 2}}	{"verdict":"valid"}
+pk10	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ("svc-") + (key(0)))	{"out": {"svc-a": 1, "svc-b": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk11	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ("svc-") + (key(0)))	{"out": {"svc-a": 1, "svc-b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+pk12	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ("svc-") + (key(0)))	{"out": {"a": 1, "b": 2}}	{"verdict":"valid"}
+pk13	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ("svc-") + (key(0)))	{"out": {"a": 1, "b": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk14	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ("svc-") + (key(0)))	{"out": {"a": 1, "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+pk15	verdict	"xs": ["p", "q"], "out": pack($.xs, _, ("n") + (key(0)))	{"out": {"n0": "p", "n1": "q"}}	{"verdict":"valid"}
+pk16	verdict	"xs": ["p", "q"], "out": pack($.xs, _, ("n") + (key(0)))	{"out": {"n0": "p", "n1": "q"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk17	verdict	"xs": ["p", "q"], "out": pack($.xs, _, ("n") + (key(0)))	{"out": {"n0": "p", "n1": "q"}}	{"verdict":"valid","opts":{"partial":true}}
+pk18	verdict	"xs": ["p", "q"], "out": pack($.xs, _, key(0))	{"out": {"0": "p", "1": "q"}}	{"verdict":"valid"}
+pk19	verdict	"xs": ["p", "q"], "out": pack($.xs, _, key(0))	{"out": {"0": "p", "1": "q"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk20	verdict	"xs": ["p", "q"], "out": pack($.xs, _, key(0))	{"out": {"0": "p", "1": "q"}}	{"verdict":"valid","opts":{"partial":true}}
+pk21	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ((key(1)) + ("-")) + (key(0)))	{"out": {"out-a": 1, "out-b": 2}}	{"verdict":"valid"}
+pk22	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ((key(1)) + ("-")) + (key(0)))	{"out": {"out-a": 1, "out-b": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk23	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, ((key(1)) + ("-")) + (key(0)))	{"out": {"out-a": 1, "out-b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+pk24	verdict	"m": {"a": "x", "b": "y"}, "out": pack($.m, key(0), _)	{"out": {"x": "x", "y": "y"}}	{"verdict":"valid"}
+pk25	verdict	"m": {"a": "x", "b": "y"}, "out": pack($.m, key(0), _)	{"out": {"x": "x", "y": "y"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk26	verdict	"m": {"a": "x", "b": "y"}, "out": pack($.m, key(0), _)	{"out": {"x": "x", "y": "y"}}	{"verdict":"valid","opts":{"partial":true}}
+pk27	verdict	"m": {"a": "x", "b": "y"}, "out": pack($.m, key(0), _)	{"out": {"x": "a", "y": "b"}}	{"verdict":"invalid"}
+pk28	verdict	"m": {"a": "x", "b": "y"}, "out": pack($.m, key(0), _)	{"out": {"x": "a", "y": "b"}}	{"verdict":"invalid","opts":{"noFill":true}}
+pk29	verdict	"m": {"a": "x", "b": "y"}, "out": pack($.m, key(0), _)	{"out": {"x": "a", "y": "b"}}	{"verdict":"invalid","opts":{"partial":true}}
+pk30	verdict	"m": {"a": "x", "b": "y"}, "out": pack(pack($.m, {"k": key(1), "v": _}), at(_, "k"), at(_, "v"))	{"out": {"x": "a", "y": "b"}}	{"verdict":"valid"}
+pk31	verdict	"m": {"a": "x", "b": "y"}, "out": pack(pack($.m, {"k": key(1), "v": _}), at(_, "k"), at(_, "v"))	{"out": {"x": "a", "y": "b"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk32	verdict	"m": {"a": "x", "b": "y"}, "out": pack(pack($.m, {"k": key(1), "v": _}), at(_, "k"), at(_, "v"))	{"out": {"x": "a", "y": "b"}}	{"verdict":"valid","opts":{"partial":true}}
+pk33	verdict	"xs": ["a", "b"], "out": pack($.xs, 1, upper(_))	{"out": {"A": 1, "B": 1}}	{"verdict":"valid"}
+pk34	verdict	"xs": ["a", "b"], "out": pack($.xs, 1, upper(_))	{"out": {"A": 1, "B": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk35	verdict	"xs": ["a", "b"], "out": pack($.xs, 1, upper(_))	{"out": {"A": 1, "B": 1}}	{"verdict":"valid","opts":{"partial":true}}
+pk36	verdict	"xs": [1, 2], "out": pack($.xs, _, ("n") + (_))	{"out": {"n1": 1, "n2": 2}}	{"verdict":"valid"}
+pk37	verdict	"xs": [1, 2], "out": pack($.xs, _, ("n") + (_))	{"out": {"n1": 1, "n2": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk38	verdict	"xs": [1, 2], "out": pack($.xs, _, ("n") + (_))	{"out": {"n1": 1, "n2": 2}}	{"verdict":"valid","opts":{"partial":true}}
+pk39	verdict	"names": {"x": "web", "y": "db"}, "m": {"x": 80, "y": 5432}, "out": pack($.m, _, at($.names, key(0)))	{"out": {"web": 80, "db": 5432}}	{"verdict":"valid"}
+pk40	verdict	"names": {"x": "web", "y": "db"}, "m": {"x": 80, "y": 5432}, "out": pack($.m, _, at($.names, key(0)))	{"out": {"web": 80, "db": 5432}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk41	verdict	"names": {"x": "web", "y": "db"}, "m": {"x": 80, "y": 5432}, "out": pack($.m, _, at($.names, key(0)))	{"out": {"web": 80, "db": 5432}}	{"verdict":"valid","opts":{"partial":true}}
+pk42	verdict	"pf": "x-", "xs": [{"n": "a"}, {"n": "b"}], "out": pack($.xs, at(_, "n"), ($.pf) + (at(_, "n")))	{"out": {"x-a": "a", "x-b": "b"}}	{"verdict":"valid"}
+pk43	verdict	"pf": "x-", "xs": [{"n": "a"}, {"n": "b"}], "out": pack($.xs, at(_, "n"), ($.pf) + (at(_, "n")))	{"out": {"x-a": "a", "x-b": "b"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk44	verdict	"pf": "x-", "xs": [{"n": "a"}, {"n": "b"}], "out": pack($.xs, at(_, "n"), ($.pf) + (at(_, "n")))	{"out": {"x-a": "a", "x-b": "b"}}	{"verdict":"valid","opts":{"partial":true}}
+pk45	verdict	"m": {}, "out": pack($.m, _, at(_, "n"))	{"out": {}}	{"verdict":"valid"}
+pk46	verdict	"m": {}, "out": pack($.m, _, at(_, "n"))	{"out": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk47	verdict	"m": {}, "out": pack($.m, _, at(_, "n"))	{"out": {}}	{"verdict":"valid","opts":{"partial":true}}
+pk48	verdict	"xs": [], "out": pack($.xs, _, at(_, "n"))	{"out": {}}	{"verdict":"valid"}
+pk49	verdict	"xs": [], "out": pack($.xs, _, at(_, "n"))	{"out": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk50	verdict	"xs": [], "out": pack($.xs, _, at(_, "n"))	{"out": {}}	{"verdict":"valid","opts":{"partial":true}}
+pk51	verdict	"xs": [{"n": "a", "v": 1}, {"n": "a", "w": 2}, {"n": "b", "v": 3}], "out": pack($.xs, _, at(_, "n"))	{"out": {"a": {"n": "a", "v": 1, "w": 2}, "b": {"n": "b", "v": 3}}}	{"verdict":"valid"}
+pk52	verdict	"xs": [{"n": "a", "v": 1}, {"n": "a", "w": 2}, {"n": "b", "v": 3}], "out": pack($.xs, _, at(_, "n"))	{"out": {"a": {"n": "a", "v": 1, "w": 2}, "b": {"n": "b", "v": 3}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk53	verdict	"xs": [{"n": "a", "v": 1}, {"n": "a", "w": 2}, {"n": "b", "v": 3}], "out": pack($.xs, _, at(_, "n"))	{"out": {"a": {"n": "a", "v": 1, "w": 2}, "b": {"n": "b", "v": 3}}}	{"verdict":"valid","opts":{"partial":true}}
+pk54	verdict	"xs": [{"n": "a", "v": 1}, {"n": "a", "v": 2}], "out": pack($.xs, _, at(_, "n"))	{}	{"verdict":"error"}
+pk55	verdict	"xs": [{"n": "a", "v": 1}, {"n": "a", "v": 2}], "out": pack($.xs, _, at(_, "n"))	{}	{"verdict":"error","opts":{"noFill":true}}
+pk56	verdict	"xs": [{"n": "a", "v": 1}, {"n": "a", "v": 2}], "out": pack($.xs, _, at(_, "n"))	{}	{"verdict":"error","opts":{"partial":true}}
+pk57	verdict	"xs": [{"v": 1}, {"w": 2}], "out": pack($.xs, _, "all")	{"out": {"all": {"v": 1, "w": 2}}}	{"verdict":"valid"}
+pk58	verdict	"xs": [{"v": 1}, {"w": 2}], "out": pack($.xs, _, "all")	{"out": {"all": {"v": 1, "w": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk59	verdict	"xs": [{"v": 1}, {"w": 2}], "out": pack($.xs, _, "all")	{"out": {"all": {"v": 1, "w": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+pk60	verdict	"xs": [{"n": 1}], "out": pack($.xs, _, at(_, "n"))	{}	{"verdict":"error"}
+pk61	verdict	"xs": [{"n": 1}], "out": pack($.xs, _, at(_, "n"))	{}	{"verdict":"error","opts":{"noFill":true}}
+pk62	verdict	"xs": [{"n": 1}], "out": pack($.xs, _, at(_, "n"))	{}	{"verdict":"error","opts":{"partial":true}}
+pk63	verdict	"m": {"a": 1}, "out": pack($.m, _, 2)	{}	{"verdict":"error"}
+pk64	verdict	"m": {"a": 1}, "out": pack($.m, _, 2)	{}	{"verdict":"error","opts":{"noFill":true}}
+pk65	verdict	"m": {"a": 1}, "out": pack($.m, _, 2)	{}	{"verdict":"error","opts":{"partial":true}}
+pk66	verdict	"m": {"a": {"n": string}}, "out": pack($.m, _, at(_, "n"))	{}	{"verdict":"error"}
+pk67	verdict	"m": {"a": {"n": string}}, "out": pack($.m, _, at(_, "n"))	{}	{"verdict":"error","opts":{"noFill":true}}
+pk68	verdict	"m": {"a": {"n": string}}, "out": pack($.m, _, at(_, "n"))	{}	{"verdict":"error","opts":{"partial":true}}
+pk69	verdict	"m": {"a": {"n": *("p") | ("q")}}, "out": pack($.m, _, at(_, "n"))	{}	{"verdict":"error"}
+pk70	verdict	"m": {"a": {"n": *("p") | ("q")}}, "out": pack($.m, _, at(_, "n"))	{}	{"verdict":"error","opts":{"noFill":true}}
+pk71	verdict	"m": {"a": {"n": *("p") | ("q")}}, "out": pack($.m, _, at(_, "n"))	{}	{"verdict":"error","opts":{"partial":true}}
+pk72	verdict	"d": pack(["a"], {"x": 1}, {"y": 2})	{}	{"verdict":"error"}
+pk73	verdict	"d": pack(["a"], {"x": 1}, {"y": 2})	{}	{"verdict":"error","opts":{"noFill":true}}
+pk74	verdict	"d": pack(["a"], {"x": 1}, {"y": 2})	{}	{"verdict":"error","opts":{"partial":true}}
+pk75	verdict	"m": {"a": true}, "out": pack($.m, _, _)	{}	{"verdict":"error"}
+pk76	verdict	"m": {"a": true}, "out": pack($.m, _, _)	{}	{"verdict":"error","opts":{"noFill":true}}
+pk77	verdict	"m": {"a": true}, "out": pack($.m, _, _)	{}	{"verdict":"error","opts":{"partial":true}}
+pk78	verdict	"out": pack(1, _, at(_, "n"))	{}	{"verdict":"error"}
+pk79	verdict	"out": pack(1, _, at(_, "n"))	{}	{"verdict":"error","opts":{"noFill":true}}
+pk80	verdict	"out": pack(1, _, at(_, "n"))	{}	{"verdict":"error","opts":{"partial":true}}
+pk81	verdict	"m": {"a": {"n": 1}}, "out": pack($.m, _, at(_, "gone"))	{}	{"verdict":"error"}
+pk82	verdict	"m": {"a": {"n": 1}}, "out": pack($.m, _, at(_, "gone"))	{}	{"verdict":"error","opts":{"noFill":true}}
+pk83	verdict	"m": {"a": {"n": 1}}, "out": pack($.m, _, at(_, "gone"))	{}	{"verdict":"error","opts":{"partial":true}}
+pk84	verdict	"m": {"a": {"n": "x"}}, "out": pack($.m, _, maybe(at(_, "gone")))	{}	{"verdict":"error"}
+pk85	verdict	"m": {"a": {"n": "x"}}, "out": pack($.m, _, maybe(at(_, "gone")))	{}	{"verdict":"error","opts":{"noFill":true}}
+pk86	verdict	"m": {"a": {"n": "x"}}, "out": pack($.m, _, maybe(at(_, "gone")))	{}	{"verdict":"error","opts":{"partial":true}}
+pk87	verdict	"m": {"a": {"n": "x"}}, "out": pack($.m, _, maybe(at(_, "n")))	{"out": {"x": {"n": "x"}}}	{"verdict":"valid"}
+pk88	verdict	"m": {"a": {"n": "x"}}, "out": pack($.m, _, maybe(at(_, "n")))	{"out": {"x": {"n": "x"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk89	verdict	"m": {"a": {"n": "x"}}, "out": pack($.m, _, maybe(at(_, "n")))	{"out": {"x": {"n": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+pk90	verdict	"m": {"a": {"n": "p"}, "b": hide({"n": "q"})}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"n": "p"}}}	{"verdict":"valid"}
+pk91	verdict	"m": {"a": {"n": "p"}, "b": hide({"n": "q"})}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"n": "p"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk92	verdict	"m": {"a": {"n": "p"}, "b": hide({"n": "q"})}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"n": "p"}}}	{"verdict":"valid","opts":{"partial":true}}
+pk93	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"valid"}
+pk94	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk95	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"valid","opts":{"partial":true}}
+pk96	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"valid"}
+pk97	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk98	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"valid","opts":{"partial":true}}
+pk99	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"valid"}
+pk100	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk101	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"valid","opts":{"partial":true}}
+pk102	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid"}
+pk103	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+pk104	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid","opts":{"partial":true}}
+pk105	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error"}
+pk106	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error","opts":{"noFill":true}}
+pk107	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error","opts":{"partial":true}}
 # A bare close() and a bare open() beside path references follow in rows
 # dirp0 on: a sealed place's copy sealed, close() beside a reference sealing
 # the terms read there, open() beside one lifting the target's seal, and

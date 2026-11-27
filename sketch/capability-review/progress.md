@@ -2008,7 +2008,10 @@ string`, and both LSP signature helps show it. Rows:
 `test/spec/gen-pack-key.tsv` (45) and the six `-pack` rows of
 `test/spec/comprehension.tsv`, beside k9, k10, k11 and k14 to k16; the
 `gen-pack.tsv` row that held three arguments to `func_arity` now holds
-four. No code is registered. The definition is owed.
+four. No code is registered. The definition is owed. Paid the same
+day: `resolveD` in `spec/Aontu/Verdict.lean` reads the third argument
+(`Val.segMembers`), and rows pk0 to pk107 of `test/spec/def-path.tsv`
+hold both engines to it.
 
 **Departures and discoveries recorded by G8.1.**
 

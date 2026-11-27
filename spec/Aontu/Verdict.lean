@@ -656,6 +656,17 @@ def Val.keyedMembers (ds : Decls) (lifted : Bool := false) : Val → Option (Lis
       else some (m.1, m.2.2))
   | _ => none
 
+/-- The members `pack` with a key reads, each with the step its own place
+takes, in a bag's normal form, the riders around it read through: a
+map's members as `Val.keyedMembers` reads them, each at its key, and a
+list's elements, each at its index, whatever they are. -/
+def Val.segMembers (ds : Decls) (lifted : Bool := false) : Val → Option (List (Seg × Val))
+  | .ride k v _ => v.segMembers ds (lifted || decide (k = .type) || decide (k = .hide))
+  | .link v _ => v.segMembers ds lifted
+  | .list items _ _ => some (((List.range items.length).zip items).map fun p => (.idx p.1, p.2))
+  | .map fs sp cl => ((Val.map fs sp cl).keyedMembers ds lifted).map (·.map fun m => (.key m.1, m.2))
+  | _ => none
+
 /-- A character set's code points with its ranges expanded, `a-z` every
 code point from `a` to `z`, the surrogates' among them where the range
 crosses them, and a `-` with no character on one side standing for
@@ -892,7 +903,8 @@ path and the names a destructure takes, a component's call as
 `Cmp.takes` reads it, and every other a range. -/
 def Fn.takes : Fn → ℕ → Bool
   | .add, n | .sub, n | .mul, n | .div, n | .mod, n | .rem, n | .plus, n | .pick, n
-  | .split, n | .each, n | .pack, n | .emit, n | .apply, n | .encode, n | .decode, n => n == 2
+  | .split, n | .each, n | .emit, n | .apply, n | .encode, n | .decode, n => n == 2
+  | .pack, n => 2 ≤ n && n ≤ 3
   | .neg, n | .sum, n | .least, n | .greatest, n | .super, n | .pref, n | .move, n
   | .abnf, n | .maybe, n | .copy, n | .gen, n => n == 1
   | .join, n | .esc, n | .usc, n | .parse, n => 1 ≤ n && n ≤ 2
@@ -2530,7 +2542,12 @@ own, as a list holds no position for either, and `nil` where the data
 is no bag or a marked reading is a conflict. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
-data is no bag or a list holds anything but a string. An `emit` is the
+data is no bag or a list holds anything but a string. A `pack` with a key,
+`pack(d, t, k)`, puts each member's instance under the string `k` is
+read as at the place the instance would take under the member's own key
+or index (`Val.segMembers`), the template read under that string, the
+instances of a repeated string met, waits while any member's key waits,
+and is `nil` where a key is no string (task C2, rulings 5 to 8). An `emit` is the
 list of the pieces its table makes of each member of its selection, in
 the order `Val.members` reads them, its `match`es read for no member and
 its bodies for the member, each hole and each reference into the node
@@ -2651,6 +2668,25 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       | none =>
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
+        else .nil
+    | .pack, [d, t, k] =>
+      if here.isNone && ((resolveD ds b here d).holdsKey || k.holdsKey) then
+        .call .pack [resolveD ds b here d, t, k] else
+      match (normaliseD ds (resolveD ds b here d)).armRead.segMembers ds with
+      | some ms =>
+        if (ms.map fun m => resolveD ds (some m.2) (stepped here (.seg m.1)) k).any (·.pending ds) then
+          .call .pack [resolveD ds b here d, t, k]
+        else
+        match (ms.map fun m => resolveD ds (some m.2) (stepped here (.seg m.1)) k).mapM
+            fun x => (normaliseD ds x).string? with
+        | some ss =>
+          (Val.map ((mergeKeys [] ((ms.zip ss).map fun m =>
+            (m.2, resolveD ds (some m.1.2) (stepped here (.seg (.key m.2))) t))).map
+              fun m => (m.1, false, m.2)) none false).rideMoves (resolveD ds b here d).moves
+        | none => .nil
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t, k]
         else .nil
     | .apply, [v, f] =>
       if here.isNone && (resolveD ds b here v).holdsKey then .call .apply [resolveD ds b here v, f] else
@@ -3740,6 +3776,38 @@ theorem Val.keyedMembers_checkableA {ds : Decls} :
   | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
   | _, .keyUp _, _, _, hm | _, .call _ _, _, _, hm => by simp [Val.keyedMembers] at hm
 
+theorem Val.segMembers_checkableA {ds : Decls} :
+    ∀ {lifted : Bool} {v : Val} {ms : List (Seg × Val)}, v.CheckableA →
+      v.segMembers ds lifted = some ms → ∀ m, m ∈ ms → m.2.CheckableA
+  | _, .ride _ _ _, _, .ride h, hm => Val.segMembers_checkableA h hm
+  | _, .link _ _, _, .link h _, hm => Val.segMembers_checkableA h hm
+  | _, .list _ _ _, _, .list hi _, hm => by
+    simp only [Val.segMembers, Option.some.injEq] at hm
+    subst hm
+    intro m hm
+    obtain ⟨p, hp, rfl⟩ := List.mem_map.mp hm
+    exact hi p.2 (List.of_mem_zip hp).2
+  | _, .map _ _ _, _, hv@(.map _ _), hm => by
+    simp only [Val.segMembers, Option.map_eq_some_iff] at hm
+    obtain ⟨ks, hks, rfl⟩ := hm
+    intro m hm
+    obtain ⟨p, hp, rfl⟩ := List.mem_map.mp hm
+    exact Val.keyedMembers_checkableA hv hks p hp
+  | _, .integer, _, _, hm | _, .float, _, _, hm | _, .biginteger, _, _, hm
+  | _, .bigdecimal, _, _, hm | _, .number, _, _, hm | _, .string, _, _, hm
+  | _, .anyString, _, _, hm | _, .boolean, _, _, hm | _, .mapKind, _, _, hm
+  | _, .listKind, _, _, hm | _, .pathKind, _, _, hm | _, .lit _, _, _, hm | _, .addr _, _, _, hm
+  | _, .min _, _, _, hm | _, .max _, _, _, hm
+  | _, .above _, _, _, hm | _, .beneath _, _, _, hm | _, .neq _, _, _, hm
+  | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
+  | _, .format _, _, _, hm | _, .grammar _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm
+  | _, .or _, _, _, hm
+  | _, .pref _ _, _, _, hm | _, .meet _ _, _, _, hm | _, .alias _, _, _, hm
+  | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
+  | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
+  | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
+  | _, .keyUp _, _, _, hm | _, .call _ _, _, _, hm => by simp [Val.segMembers] at hm
+
 /-- Pairs whose values the checker can read keep values it can read when
 a repeated key's values are met. -/
 theorem mergeKey_checkableA {acc : List (String × Val)} {m : String × Val}
@@ -4801,6 +4869,40 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
           rcases ha with h | h
           · rw [h]; exact ih1 d (by simp) hb
           · rw [h]; exact hargs t (by simp)
+        · exact .nil
+    · rename_i d t k
+      have hcall : (Val.call .pack [resolveD ds b here d, t, k]).CheckableA := by
+        refine .call fun a ha => ?_
+        simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+        rcases ha with h | h | h
+        · rw [h]; exact ih1 d (by simp) hb
+        · rw [h]; exact hargs t (by simp)
+        · rw [h]; exact hargs k (by simp)
+      split
+      · exact hcall
+      split
+      · rename_i ms hms
+        have hn := normaliseD_checkableA hd (ih1 d (by simp) (here := here) hb)
+        split
+        · exact hcall
+        split
+        · rename_i ss hss
+          refine rideMoves_checkableA (.map (fun k' o w hw => ?_) (fun _ hs => by cases hs))
+          obtain ⟨m, hm, hmw⟩ := List.mem_map.mp hw
+          simp only [Prod.mk.injEq] at hmw
+          obtain ⟨-, -, rfl⟩ := hmw
+          refine mergeKeys_checkableA (fun _ h => absurd h List.not_mem_nil) (fun p hp => ?_) m hm
+          obtain ⟨m', hm', rfl⟩ := List.mem_map.mp hp
+          have hmc : m'.1.2.CheckableA :=
+            Val.segMembers_checkableA (Val.armRead_checkableA hn) hms m'.1 (List.of_mem_zip hm').1
+          exact ih1 t (by simp) (b := some m'.1.2) fun m'' hm'' => by
+            obtain rfl := Option.some.inj hm''
+            exact hmc
+        · exact .nil
+      · split
+        · exact .absent
+        split
+        · exact hcall
         · exact .nil
     · rename_i v t
       have hcall : (Val.call .apply [resolveD ds b here v, t]).CheckableA := by
