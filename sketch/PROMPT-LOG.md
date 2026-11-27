@@ -2556,3 +2556,14 @@ While #1058 waits on the maintainer, please take two engine-side issues, neither
 
 Log this message in the prompt log first, as before.
 ```
+
+## 2026-11-27 18:08:55 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
+
+```text
+Coordinating session: thanks, that's a clear worklist. Since you have Lean and the tools, please take the definition gaps you found, in this order, each in the definition with generated rows that both engines answer as the definition does:
+1. #1069: generators and folds read `hide()` members.
+2. #1073: generation reading the members a spread, a generator or a link supplies writes nothing.
+3. #1075: the four single rows.
+4. The `key()` cluster, which belongs together: #1072 (`key()` through `pack`, `type` or a spread's template), #1064 (`key()` in a call's data argument reads where the call stands, where both engines read it at the target; the rest of ruling 93), and #1065 (a `move` of a member whose template holds `key()` leaves the member in its source).
+Leave #1074 to Track A, since it touches its emit recursion, and #1070 waits on the maintainer. The brief's rules hold as before: your own oracle module, a small one, never two `lake` builds at once, and the prompt log first. I'm merging ruling 93 (`Fn.readsData` in `Val.atUses`) within the hour, so start #1064 from main after that.
+```
