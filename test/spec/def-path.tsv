@@ -5491,6 +5491,54 @@ wt92	verdict	"v": {&: nof(0, (integer) + (1))}	{"v": {"a": 5}}	{"verdict":"valid
 wt93	verdict	"v": (must(1, "m")) & (nof(0, (integer) + (1)))	{"v": 1}	{"verdict":"incomplete"}
 wt94	verdict	"v": (must(1, "m")) & (nof(0, (integer) + (1)))	{"v": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
 wt95	verdict	"v": (must(1, "m")) & (nof(0, (integer) + (1)))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+# A call that waits inside contains, rest, len and a starred branch waits with
+# it (ruling 91), in rows wx0 on, beside the same forms over a value that
+# doesn't wait.
+wx0	verdict	"v": contains((integer) + (1))	{"v": []}	{"verdict":"incomplete"}
+wx1	verdict	"v": contains((integer) + (1))	{"v": []}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx2	verdict	"v": contains((integer) + (1))	{"v": []}	{"verdict":"valid","opts":{"partial":true}}
+wx3	verdict	"v": contains((integer) + (1))	{"v": [5]}	{"verdict":"incomplete"}
+wx4	verdict	"v": contains((integer) + (1))	{"v": [5]}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx5	verdict	"v": contains((integer) + (1))	{"v": [5]}	{"verdict":"valid","opts":{"partial":true}}
+wx6	verdict	"v": contains((integer) + (1), 2)	{"v": [5]}	{"verdict":"incomplete"}
+wx7	verdict	"v": contains((integer) + (1), 2)	{"v": [5]}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx8	verdict	"v": contains((integer) + (1), 2)	{"v": [5]}	{"verdict":"valid","opts":{"partial":true}}
+wx9	verdict	"v": rest(1, {"members": (integer) + (1)})	{"v": [5]}	{"verdict":"incomplete"}
+wx10	verdict	"v": rest(1, {"members": (integer) + (1)})	{"v": [5]}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx11	verdict	"v": rest(1, {"members": (integer) + (1)})	{"v": [5]}	{"verdict":"valid","opts":{"partial":true}}
+wx12	verdict	"v": rest((integer) + (1))	{"v": [5]}	{"verdict":"incomplete"}
+wx13	verdict	"v": rest((integer) + (1))	{"v": [5]}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx14	verdict	"v": rest((integer) + (1))	{"v": [5]}	{"verdict":"valid","opts":{"partial":true}}
+wx15	verdict	"v": len((integer) + (1))	{"v": "ab"}	{"verdict":"incomplete"}
+wx16	verdict	"v": len((integer) + (1))	{"v": "ab"}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx17	verdict	"v": len((integer) + (1))	{"v": "ab"}	{"verdict":"valid","opts":{"partial":true}}
+wx18	verdict	"v": len((integer) + (1))	{"v": [1, 2]}	{"verdict":"incomplete"}
+wx19	verdict	"v": len((integer) + (1))	{"v": [1, 2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx20	verdict	"v": len((integer) + (1))	{"v": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+wx21	verdict	"v": nof(0, *((integer) + (1)))	{"v": 5}	{"verdict":"incomplete"}
+wx22	verdict	"v": nof(0, *((integer) + (1)))	{"v": 5}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx23	verdict	"v": nof(0, *((integer) + (1)))	{"v": 5}	{"verdict":"valid","opts":{"partial":true}}
+wx24	verdict	"v": {&: (integer) + (1)}	{"v": {"a": 5}}	{"verdict":"incomplete"}
+wx25	verdict	"v": {&: (integer) + (1)}	{"v": {"a": 5}}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx26	verdict	"v": {&: (integer) + (1)}	{"v": {"a": 5}}	{"verdict":"valid","opts":{"partial":true}}
+wx27	verdict	"v": nof(0, (integer) + (1))	{"v": 5}	{"verdict":"incomplete"}
+wx28	verdict	"v": nof(0, (integer) + (1))	{"v": 5}	{"verdict":"incomplete","opts":{"noFill":true}}
+wx29	verdict	"v": nof(0, (integer) + (1))	{"v": 5}	{"verdict":"valid","opts":{"partial":true}}
+wx30	verdict	"v": contains(5)	{"v": [5]}	{"verdict":"valid"}
+wx31	verdict	"v": contains(5)	{"v": [5]}	{"verdict":"valid","opts":{"noFill":true}}
+wx32	verdict	"v": contains(5)	{"v": [5]}	{"verdict":"valid","opts":{"partial":true}}
+wx33	verdict	"v": contains(6)	{"v": [5]}	{"verdict":"invalid"}
+wx34	verdict	"v": contains(6)	{"v": [5]}	{"verdict":"invalid","opts":{"noFill":true}}
+wx35	verdict	"v": contains(6)	{"v": [5]}	{"verdict":"invalid","opts":{"partial":true}}
+wx36	verdict	"v": len(2)	{"v": [1, 2]}	{"verdict":"valid"}
+wx37	verdict	"v": len(2)	{"v": [1, 2]}	{"verdict":"valid","opts":{"noFill":true}}
+wx38	verdict	"v": len(2)	{"v": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+wx39	verdict	"v": rest(integer)	{"v": [5]}	{"verdict":"valid"}
+wx40	verdict	"v": rest(integer)	{"v": [5]}	{"verdict":"valid","opts":{"noFill":true}}
+wx41	verdict	"v": rest(integer)	{"v": [5]}	{"verdict":"valid","opts":{"partial":true}}
+wx42	verdict	"v": nof(0, *(6))	{"v": 5}	{"verdict":"invalid"}
+wx43	verdict	"v": nof(0, *(6))	{"v": 5}	{"verdict":"invalid","opts":{"noFill":true}}
+wx44	verdict	"v": nof(0, *(6))	{"v": 5}	{"verdict":"invalid","opts":{"partial":true}}
 # A path in a lone preference's value that names nothing there is the schema's
 # error whatever the data, as it is outside a preference (ruling 53), in rows
 # sy0 on; a path the term beside the preference answers stands, and one in a

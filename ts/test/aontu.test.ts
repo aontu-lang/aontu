@@ -741,3 +741,21 @@ describe('aontu-declaration-in-template', () => {
     })
   }
 })
+
+
+describe('aontu-match-by-the-value-generated', () => {
+  const CASES: [string, any][] = [
+    ['t: match(1, *1, "T", "D")', { t: 'T' }],
+    ['t: match(1, *1 | 2, "T", "D")', { t: 'T' }],
+    ['t: match({x?: string}, {x?: integer}, "T", "D")', { t: 'T' }],
+    ['t: match({a: 1, z: type(number)}, close({a: 1}), "T", "D")', { t: 'T' }],
+    ['t: match({a: 1, z: type(number)}, {a: 1, z: 5}, "T", "D")', { t: 'D' }],
+    ['t: match([1, 2], [], "T", "D")', { t: 'D' }],
+    ['x: filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)', { x: { a: 1, b: 1, c: 1 } }],
+  ]
+  for (const [src, out] of CASES) {
+    test(src, () => {
+      expect(new Aontu().generate(src)).equal(out)
+    })
+  }
+})
