@@ -17,6 +17,7 @@ import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import { readsPlace } from './ConstraintVal'
 import { subsumeNode, newPairs } from '../subsume'
+import { admitsSettled, ownJson } from './admission'
 
 
 export function effectiveScrutinee(v: Val): Val {
@@ -47,6 +48,24 @@ function generates(v: Val): boolean {
 function below(scrutinee: Val, pattern: Val): boolean {
   const state: any = { profile: 'values', findings: [], generalUrl: '', specificUrl: '', pairs: newPairs() }
   return 'yes' === subsumeNode(state, [], pattern, scrutinee)
+}
+
+
+// The scrutinee as the output reads it: a member the generated value leaves out is no member.
+function outputOf(v: any, own: any, ctx: AontuContext): Val {
+  if (true !== v?.isMap || null == own || 'object' !== typeof own || Array.isArray(own)) {
+    return v
+  }
+  const out: any = v.clone(ctx)
+  const peg: any = {}
+  for (const k of Object.keys(out.peg)) {
+    if (Object.prototype.hasOwnProperty.call(own, k)) {
+      peg[k] = outputOf(out.peg[k], own[k], ctx)
+    }
+  }
+  out.peg = peg
+  out.optionalKeys = out.optionalKeys.filter((k: string) => undefined !== peg[k])
+  return out
 }
 
 
@@ -143,10 +162,21 @@ class MatchFuncVal extends FuncBaseVal {
 
     const tried: string[] = []
     const open = !generates(args[0])
+    const own = open ? undefined : ownJson(scrutinee, ctx)
+    const output = undefined === own ? undefined : outputOf(scrutinee, own, ctx)
 
     for (let i = 1; i < last; i += 2) {
       const pattern: Val = args[i]
       tried.push(pattern.canon)
+
+      const admits = undefined === output ? undefined :
+        admitsSettled(ctx, pattern, output, own, this.path)
+      if (undefined !== admits) {
+        if (admits) {
+          return placed(args[i + 1], ctx)
+        }
+        continue
+      }
 
       // The trial is against CLONES: `unite` refines a bag in place
       // against a TOP peer, and a pattern that failed must be

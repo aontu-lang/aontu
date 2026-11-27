@@ -10,6 +10,7 @@ const FuncBaseVal_1 = require("./FuncBaseVal");
 const Val_1 = require("./Val");
 const ConstraintVal_1 = require("./ConstraintVal");
 const subsume_1 = require("../subsume");
+const admission_1 = require("./admission");
 function effectiveScrutinee(v) {
     let out = v;
     if (true === out?.isDisjunct && Array.isArray(out.peg)) {
@@ -34,6 +35,22 @@ function generates(v) {
 function below(scrutinee, pattern) {
     const state = { profile: 'values', findings: [], generalUrl: '', specificUrl: '', pairs: (0, subsume_1.newPairs)() };
     return 'yes' === (0, subsume_1.subsumeNode)(state, [], pattern, scrutinee);
+}
+// The scrutinee as the output reads it: a member the generated value leaves out is no member.
+function outputOf(v, own, ctx) {
+    if (true !== v?.isMap || null == own || 'object' !== typeof own || Array.isArray(own)) {
+        return v;
+    }
+    const out = v.clone(ctx);
+    const peg = {};
+    for (const k of Object.keys(out.peg)) {
+        if (Object.prototype.hasOwnProperty.call(own, k)) {
+            peg[k] = outputOf(out.peg[k], own[k], ctx);
+        }
+    }
+    out.peg = peg;
+    out.optionalKeys = out.optionalKeys.filter((k) => undefined !== peg[k]);
+    return out;
 }
 // A result stands where the selection stands, so the relative paths
 // written in it read from there, as a template's instance reads them.
@@ -104,9 +121,19 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
         const last = args.length - (undefined === dflt ? 0 : 1);
         const tried = [];
         const open = !generates(args[0]);
+        const own = open ? undefined : (0, admission_1.ownJson)(scrutinee, ctx);
+        const output = undefined === own ? undefined : outputOf(scrutinee, own, ctx);
         for (let i = 1; i < last; i += 2) {
             const pattern = args[i];
             tried.push(pattern.canon);
+            const admits = undefined === output ? undefined :
+                (0, admission_1.admitsSettled)(ctx, pattern, output, own, this.path);
+            if (undefined !== admits) {
+                if (admits) {
+                    return placed(args[i + 1], ctx);
+                }
+                continue;
+            }
             // The trial is against CLONES: `unite` refines a bag in place
             // against a TOP peer, and a pattern that failed must be
             // untouched for the next document that reads its canon.
