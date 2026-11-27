@@ -1,0 +1,110 @@
+# BT4 of the lang refinement plan (sketch/LANG-REFINEMENT-PLAN.0.md,
+# part 7): THE SIZED NUMBERS, the bundled model `@"aontu:num"`
+# (aontu/num/num.aontu). The integer names CUE predeclares and Float32,
+# each a type() under $.aontu.Num, so naming one neither generates it
+# nor asks a document to fill it. Ruling 27 keeps G1's decision: no
+# keyword, and a bare `int8` is still a string.
+#
+# Every expectation was obtained by running BOTH engines and requiring
+# them to agree (the parity probe, AGENTS.md).
+num-is-served	gens	@"aontu:num"	{"aontu":{"Num":{}}}
+num-is-served-canon	canon	@"aontu:num"	{"aontu":{"Num":{"Float32":min(-0d340282346638528859811704183484516925440)&max(0d340282346638528859811704183484516925440),"Int128":integer&min(-0d170141183460469231731687303715884105728)&max(0d170141183460469231731687303715884105727)|biginteger&min(-0d170141183460469231731687303715884105728)&max(0d170141183460469231731687303715884105727),"Int16":integer&min(-32768)&max(32767),"Int32":integer&min(-2147483648)&max(2147483647),"Int64":integer&min(-0d9223372036854775808)&max(0d9223372036854775807)|biginteger&min(-0d9223372036854775808)&max(0d9223372036854775807),"Int8":integer&min(-128)&max(127),"Uint128":integer&min(0)&max(0d340282366920938463463374607431768211455)|biginteger&min(0)&max(0d340282366920938463463374607431768211455),"Uint16":integer&min(0)&max(65535),"Uint32":integer&min(0)&max(4294967295),"Uint64":integer&min(0)&max(0d18446744073709551615)|biginteger&min(0)&max(0d18446744073709551615),"Uint8":integer&min(0)&max(255)}}}
+num-hash	hash	@"aontu:num"	aon1-n56t4qqCfWZSXh6hFPMehN3r0fP3ClK6_Q9BZToMFlY
+#
+# --- The integers to 32 bits ------------------------------------------
+#
+# Each admits both its bounds and refuses one past each.
+num-int8-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Int8 & -128	{"a":-128,"aontu":{"Num":{}}}
+num-int8-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Int8 & 127	{"a":127,"aontu":{"Num":{}}}
+num-int8-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Int8 & -129	constraint
+num-int8-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Int8 & 128	constraint
+num-int16-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Int16 & -32768	{"a":-32768,"aontu":{"Num":{}}}
+num-int16-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Int16 & 32767	{"a":32767,"aontu":{"Num":{}}}
+num-int16-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Int16 & -32769	constraint
+num-int16-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Int16 & 32768	constraint
+num-int32-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Int32 & -2147483648	{"a":-2147483648,"aontu":{"Num":{}}}
+num-int32-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Int32 & 2147483647	{"a":2147483647,"aontu":{"Num":{}}}
+num-int32-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Int32 & -2147483649	constraint
+num-int32-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Int32 & 2147483648	constraint
+num-uint8-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Uint8 & 0	{"a":0,"aontu":{"Num":{}}}
+num-uint8-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Uint8 & 255	{"a":255,"aontu":{"Num":{}}}
+num-uint8-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Uint8 & -1	constraint
+num-uint8-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Uint8 & 256	constraint
+num-uint16-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Uint16 & 0	{"a":0,"aontu":{"Num":{}}}
+num-uint16-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Uint16 & 65535	{"a":65535,"aontu":{"Num":{}}}
+num-uint16-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Uint16 & -1	constraint
+num-uint16-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Uint16 & 65536	constraint
+num-uint32-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Uint32 & 0	{"a":0,"aontu":{"Num":{}}}
+num-uint32-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Uint32 & 4294967295	{"a":4294967295,"aontu":{"Num":{}}}
+num-uint32-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Uint32 & -1	constraint
+num-uint32-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Uint32 & 4294967296	constraint
+#
+# --- The integers of 64 and 128 bits ----------------------------------
+#
+# Past 2^53 an integer is a biginteger, so each name is
+# `(integer | biginteger)` with exact `0d` bounds, the lower one
+# spelled `-0d`. `gens` pins the digits, which a rounded bound would
+# move. A value no branch of the disjunction admits is refused `empty`.
+num-int64-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Int64 & -0d9223372036854775808	{"a":-9223372036854775808,"aontu":{"Num":{}}}
+num-int64-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Int64 & 0d9223372036854775807	{"a":9223372036854775807,"aontu":{"Num":{}}}
+num-int64-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Int64 & -0d9223372036854775809	empty
+num-int64-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Int64 & 0d9223372036854775808	empty
+num-int64-admits-a-small-integer	gens	@"aontu:num"\na: $.aontu.Num.Int64 & 7	{"a":7,"aontu":{"Num":{}}}
+num-int128-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Int128 & -0d170141183460469231731687303715884105728	{"a":-170141183460469231731687303715884105728,"aontu":{"Num":{}}}
+num-int128-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Int128 & 0d170141183460469231731687303715884105727	{"a":170141183460469231731687303715884105727,"aontu":{"Num":{}}}
+num-int128-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Int128 & -0d170141183460469231731687303715884105729	empty
+num-int128-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Int128 & 0d170141183460469231731687303715884105728	empty
+num-int128-admits-a-small-integer	gens	@"aontu:num"\na: $.aontu.Num.Int128 & 7	{"a":7,"aontu":{"Num":{}}}
+num-uint64-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Uint64 & 0	{"a":0,"aontu":{"Num":{}}}
+num-uint64-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Uint64 & 0d18446744073709551615	{"a":18446744073709551615,"aontu":{"Num":{}}}
+num-uint64-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Uint64 & -1	empty
+num-uint64-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Uint64 & 0d18446744073709551616	empty
+num-uint64-admits-a-small-integer	gens	@"aontu:num"\na: $.aontu.Num.Uint64 & 7	{"a":7,"aontu":{"Num":{}}}
+num-uint128-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Uint128 & 0	{"a":0,"aontu":{"Num":{}}}
+num-uint128-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Uint128 & 0d340282366920938463463374607431768211455	{"a":340282366920938463463374607431768211455,"aontu":{"Num":{}}}
+num-uint128-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Uint128 & -1	empty
+num-uint128-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Uint128 & 0d340282366920938463463374607431768211456	empty
+num-uint128-admits-a-small-integer	gens	@"aontu:num"\na: $.aontu.Num.Uint128 & 7	{"a":7,"aontu":{"Num":{}}}
+#
+# --- Float32 ----------------------------------------------------------
+#
+# A number within the largest finite float32 magnitude,
+# 3.4028234663852886e38, written as exact bounds. A constraint cannot
+# say a precision, so 1.5 and every other number between is admitted.
+num-float32-admits-max	gens	@"aontu:num"\na: $.aontu.Num.Float32 & 0d340282346638528859811704183484516925440	{"a":340282346638528859811704183484516925440,"aontu":{"Num":{}}}
+num-float32-admits-min	gens	@"aontu:num"\na: $.aontu.Num.Float32 & -0d340282346638528859811704183484516925440	{"a":-340282346638528859811704183484516925440,"aontu":{"Num":{}}}
+num-float32-admits-largest-float	gens	@"aontu:num"\na: $.aontu.Num.Float32 & 3.4028234663852886e38	{"a":3.4028234663852886e+38,"aontu":{"Num":{}}}
+num-float32-admits-smallest-float	gens	@"aontu:num"\na: $.aontu.Num.Float32 & -3.4028234663852886e38	{"a":-3.4028234663852886e+38,"aontu":{"Num":{}}}
+num-float32-admits-a-fraction	gens	@"aontu:num"\na: $.aontu.Num.Float32 & 1.5	{"a":1.5,"aontu":{"Num":{}}}
+num-float32-admits-an-integer	gens	@"aontu:num"\na: $.aontu.Num.Float32 & 7	{"a":7,"aontu":{"Num":{}}}
+num-float32-admits-what-a-float32-rounds	gens	@"aontu:num"\na: $.aontu.Num.Float32 & 16777217	{"a":16777217,"aontu":{"Num":{}}}
+num-float32-refuses-above	errc	@"aontu:num"\na: $.aontu.Num.Float32 & 0d340282346638528859811704183484516925441	constraint
+num-float32-refuses-below	errc	@"aontu:num"\na: $.aontu.Num.Float32 & -0d340282346638528859811704183484516925441	constraint
+num-float32-refuses-a-larger-float	errc	@"aontu:num"\na: $.aontu.Num.Float32 & 3.5e38	constraint
+num-float32-refuses-a-string	errc	@"aontu:num"\na: $.aontu.Num.Float32 & "1"	constraint
+#
+# --- Kinds, names alone, and a project's narrowing --------------------
+num-int8-refuses-a-float	errc	@"aontu:num"\na: $.aontu.Num.Int8 & 1.5	constraint
+num-int8-refuses-a-string	errc	@"aontu:num"\na: $.aontu.Num.Int8 & "1"	constraint
+num-int8-refuses-a-biginteger	errc	@"aontu:num"\na: $.aontu.Num.Int8 & 0d5	constraint
+num-name-alone-does-not-generate	errc	@"aontu:num"\na: $.aontu.Num.Uint8	mapval_no_gen
+num-names-meet	gens	@"aontu:num"\na: $.aontu.Num.Int8 & $.aontu.Num.Uint8 & 100	{"a":100,"aontu":{"Num":{}}}
+num-names-meet-refuses	errc	@"aontu:num"\na: $.aontu.Num.Int8 & $.aontu.Num.Uint8 & 200	constraint
+num-project-narrows-a-name	gens	@"aontu:num"\nPort: type($.aontu.Num.Uint16 & min(1))\na: $.Port & 8080	{"a":8080,"aontu":{"Num":{}}}
+num-project-narrowed-name-refuses-zero	errc	@"aontu:num"\nPort: type($.aontu.Num.Uint16 & min(1))\na: $.Port & 0	constraint
+num-project-narrowed-name-keeps-the-bound	errc	@"aontu:num"\nPort: type($.aontu.Num.Uint16 & min(1))\na: $.Port & 65536	constraint
+num-hide-narrows	gens	@"aontu:num"\nPort: hide($.aontu.Num.Uint16 & min(1))\na: $.Port & 8080	{"a":8080,"aontu":{"Num":{}}}
+num-project-narrows-in-place	gens	@"aontu:num"\naontu: Num: Uint8: max(100)\na: $.aontu.Num.Uint8 & 100	{"a":100,"aontu":{"Num":{}}}
+num-project-narrows-in-place-refuses	errc	@"aontu:num"\naontu: Num: Uint8: max(100)\na: $.aontu.Num.Uint8 & 101	constraint
+#
+# --- The bare word stays a string (ruling 27) -------------------------
+num-bare-word-is-a-string	gens	a: int8	{"a":"int8"}
+num-bare-word-is-a-string-beside-the-model	gens	@"aontu:num"\na: int8\nb: uint8	{"a":"int8","aontu":{"Num":{}},"b":"uint8"}
+num-bare-word-does-not-meet-a-number	errc	a: int8 & 5	scalar_kind
+#
+# --- vet against a name -----------------------------------------------
+#
+# A refusal's schema site is in the model, file `aontu:num`.
+num-vet-valid	vet	@"aontu:num"\nport: $.aontu.Num.Uint16	port: 8080	{"findings":[],"truncated":false,"verdict":"valid"}
+num-vet-refuses	vet	@"aontu:num"\nport: $.aontu.Num.Uint16	port: 70000	{"findings":[{"actual":"70000","class":"conflict","code":"constraint","expected":"integer&min(0)&max(65535)","path":"$.port","pointer":"/port","severity":"error","sites":[{"col":7,"file":"data","len":5,"role":"data","row":1,"src":"70000","value":"70000"},{"col":35,"file":"aontu:num","len":3,"role":"schema","row":24,"src":"max","value":"integer&min(0)&max(65535)"}]}],"truncated":false,"verdict":"invalid"}
+num-vet-refuses-kind	vet	@"aontu:num"\ncount: $.aontu.Num.Int32	count: 1.5	{"findings":[{"actual":"1.5","class":"conflict","code":"constraint","expected":"integer&min(-2147483648)&max(2147483647)","path":"$.count","pointer":"/count","severity":"error","sites":[{"col":8,"file":"data","len":3,"role":"data","row":1,"src":"1.5","value":"1.5"},{"col":10,"file":"aontu:num","len":4,"role":"schema","row":8,"src":"type","value":"integer&min(-2147483648)&max(2147483647)"}]}],"truncated":false,"verdict":"invalid"}
