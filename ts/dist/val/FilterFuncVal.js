@@ -42,7 +42,8 @@ class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
             // Each value the child admits must be admitted: a disjunction is read arm by arm (ruling 51).
             const arms = (true === child.isDisjunct ? child.peg : [child]).map(PrefVal_1.prefInnerPeg);
             const owns = arms.map((arm) => (0, admission_1.ownJson)(arm, kctx));
-            if (owns.every((own) => undefined !== own)) {
+            const declares = 0 < (test.aliasKeys ?? []).length;
+            if (!declares && owns.every((own) => undefined !== own)) {
                 const verdicts = arms.map((arm, i) => !(0, admission_1.sealedMiss)(test, owns[i]) && (0, admission_1.admitsSettled)(kctx, test, arm, owns[i], kctx.path));
                 if (verdicts.every((v) => undefined !== v)) {
                     return verdicts.every((v) => true === v);

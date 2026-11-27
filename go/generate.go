@@ -203,6 +203,10 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 			arms = d.peg
 		}
 		decided, all := true, true
+		if m, ok := test.(*MapVal); ok && 0 < len(m.aliasKeys) {
+			decided = false
+			arms = nil
+		}
 		for _, arm := range arms {
 			arm = prefInnerPeg(arm)
 			own, gens := ownJSON(arm, ctx, slot)
