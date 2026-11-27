@@ -82,6 +82,35 @@ The canon of such a disjunction follows the definition's normal form:
 `x: *1 | *1` is `*1|1`, where it was `*1`, so its hash changes. What it
 generates doesn't.
 
+### `format()` reads base64, base64url and hex
+
+Task BT2 of the lang refinement plan, in both engines. The three
+encodings of `encode` are names `format()` reads, each a grammar of
+RFC 4648 committed under `grammar/format/`, so `format(base64)` admits
+the text `encode(s, base64)` writes.
+
+```aontu
+token: format(base64url) & encode("hello", base64url)
+bytes: format(hex) & "FF"
+```
+
+They answer `"aGVsbG8"` and `"FF"`.
+
+- `base64` is padded to a multiple of four characters, `base64url` has
+  no padding, and `hex` is an even number of digits in either case.
+  Each admits the empty string.
+- Each refuses what `decode` refuses, a last character that holds bits
+  beyond its bytes among it, but for one difference: a format reads no
+  bytes, so it admits text whose bytes are not UTF-8.
+- JSON Schema defines none of the three. The import asserts a `format`
+  of those names only with `--format-grammar`, as before, and the
+  export writes one as `x-aontu-format`, which the import reads back.
+- The hint of `format_unknown` lists the three.
+
+`test/spec/format.tsv` holds both engines to 60 more rows, each answer
+agreed by both, `test/spec/jsonschema.tsv` to two and
+`test/spec/jsonschema-import.tsv` to three.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call
