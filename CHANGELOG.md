@@ -8,6 +8,13 @@ each change affects.
 
 ## Unreleased
 
+### The oracle builds one module per area
+
+`spec/Oracle.lean` keeps only `main`. Its cases moved to one module per
+area under `spec/Oracle/`, with the helpers and printers they share in
+`spec/Oracle/Base.lean`, so that a change to one area rebuilds that
+module alone. Every generated file is unchanged.
+
 ### The language servers answer hover and go to definition on a key and on a reference
 
 Task LS2, in both servers.

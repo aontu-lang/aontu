@@ -3783,7 +3783,7 @@ The breach is `invalid` at `$.doc.up.k` here too. For this document in
 three orders, `D` first, `N` first and the use first, the definition
 proves the verdicts alike:
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/PathsRefs.lean -->
 ```lean
 theorem order_verdicts_agree : ∀ i, i < 3 → ∀ k, k < 3 → orderVerdict i k = orderVerdict 0 k
 ```
@@ -5143,7 +5143,7 @@ The last example is `output_admits` at work: `8080` is what
 with no mark is its own visible part.
 
 The fourth generated fragment, `test/spec/def-gen.tsv`, holds `gens`
-rows for the values of `genVals` in `spec/Oracle.lean`: each value
+rows for the values of `genVals` in `spec/Oracle/Gen.lean`: each value
 under the key `v` that singles out something, with the JSON both
 engines must write for it, which `output` gives and `gen_iff` makes
 the definition's own. A value that singles out nothing has no row
@@ -5909,7 +5909,7 @@ example : Instance (Decls.envE [])
 ```
 
 The fifth generated fragment, `test/spec/def-verdict.tsv`, runs the
-cases of `vetCases` in `spec/Oracle.lean` in all three modes, each
+cases of `vetCases` in `spec/Oracle/Base.lean` in all three modes, each
 with the one class `vet` gives, which `vet_iff` makes the definition's
 own. Both engines agree with the definition on every row but three,
 which the ledger names. The rows keep away from two corners. The next
@@ -7312,7 +7312,7 @@ example : check (.map [("x", false, .integer)] none false) (.map []) = false := 
 builds every term of the fragment up to one `&`, and two sets of values
 to try each against:
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/Base.lean -->
 ```lean
 def bases : List Val :=
   [.any, Val.void, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
@@ -7350,7 +7350,7 @@ it renamed no row. The file proves that every term it builds is
 checkable, and every instance is a value, so each answer is the
 definition's:
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/Base.lean -->
 ```lean
 /-- Every row's verdict is the definition's: `v` admits `j`, taken
 whole, under no alias declaration. -/
@@ -7391,7 +7391,7 @@ bounds of step 4: each alone, each under a key, and eight of them met
 pairwise, 115 terms against 30 values, as the 3,450 rows of
 [`test/spec/def-bounds.tsv`](../test/spec/def-bounds.tsv):
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/Bounds.lean -->
 ```lean
 def boundBases : List Val :=
   [.above (.num one), .beneath (.num (.integer (.of 3))),
