@@ -2617,3 +2617,9 @@ Next engine-side work, in this order:
 3. #983 (Go holds no arm where defaults of two ranks both stand) and #984 (a map holding a path that names nothing, as an argument of `when` or `nof`), if their own texts say which side moves. Ask me before changing anything they leave open.
 Log this message in the prompt log first.
 ```
+
+## 2026-11-27 22:17:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Wrap up current work, closing a agents, and write up into a handover doc
+```
