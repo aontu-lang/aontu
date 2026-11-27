@@ -4,7 +4,9 @@
 # rows whose expectation is the JSON `outputW` (spec/Aontu/Writing.lean)
 # writes: a root left out, under `hide()` or `type()`, written as `null`
 # (#1075), in rows gr0 on; and data a call reads through a path, read as the
-# output has it, a marked member left out (#1069), in rows gh0 on.
+# output has it, a marked member left out (#1069), in rows gh0 on; and an
+# optional member left out where what it writes is empty (#1075), in rows
+# go0 on.
 # Regenerate with `make spec`; never edit by hand.
 gr0	gens	hide({"a": 1})	null
 gr1	gens	type({"a": 1})	null
@@ -20,3 +22,9 @@ gh5	gens	"m": [1, hide(2), 3], "s": sum($.m)	{"m":[1,3],"s":4}
 gh6	gens	"m": {"a": {"x": 1, "y": hide(2)}}, "o": each($.m, _)	{"m":{"a":{"x":1}},"o":[{"x":1}]}
 gh7	gens	"m": hide({"a": 1, "b": 2}), "o": each($.m, _)	{"o":[1,2]}
 gh8	gens	"m": {"a": {"o": 1}, "b": hide({"o": 2})}, "r": pick($.m, "o")	{"m":{"a":{"o":1}},"r":[1]}
+go0	gens	"m": ({"a"?: [(null) & (gen({"empty": "omit"}))]}) & (len(1))	{"m":{}}
+go1	gens	"m": {"a"?: [(null) & (gen({"empty": "omit"}))]}	{"m":{}}
+go2	gens	"m": {"a": [(null) & (gen({"empty": "omit"}))]}	{"m":{"a":[]}}
+go3	gens	"m": {"a"?: {"b": (null) & (gen({"empty": "omit"}))}}	{"m":{}}
+go4	gens	"m": {"a"?: [1, (null) & (gen({"empty": "omit"}))]}	{"m":{"a":[1]}}
+go5	gens	"m": {"a"?: {"b"?: []}}	{"m":{}}

@@ -229,8 +229,10 @@ class Aontu {
             ac.adderr(descErr(makeNilErr(ac as any, 'no_gen', uval), ac as any))
           }
 
+          // A root left out of the output generates nothing, whatever its kind.
+          const marked = true === (uval as any).mark?.hide || true === (uval as any).mark?.type
           out = uval.isNil ? (ac.adderr(uval as any), undefined)
-            : 0 < ac.err.length ? undefined
+            : 0 < ac.err.length || marked ? undefined
               : uval.gen(ac as any)
 
           if (!uval.isNil && 0 === ac.err.length) {

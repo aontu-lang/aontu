@@ -589,4 +589,11 @@ function makeCtx(r) {
         });
     }
 });
+(0, node_test_1.describe)('aontu-a-marked-root-generates-nothing', () => {
+    for (const src of ['hide(1)', 'type(1)', 'hide("x")', 'hide(*{a: 1} | {b: 2})', 'hide({a: 1})']) {
+        (0, node_test_1.test)(src, () => {
+            (0, expect_1.expect)(new aontu_1.Aontu().generate(src)).equal(undefined);
+        });
+    }
+});
 //# sourceMappingURL=aontu.test.js.map
