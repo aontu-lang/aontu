@@ -496,6 +496,11 @@ describe('lang', function() {
     expect(read('c.json', 'port: - 1')).equal('{"port":-1}')
     expect(read(undefined, 'port: - 1')).equal('{"port":-1}')
     expect(new Aontu({ path: 'c.yaml' }).unify('port: - 1').canon).equal('{"port":-1}')
+
+    const deep = new Aontu({ path: 'x.yaml', readByExtension: true, trust: { budget: { depth: 2 } } })
+    const ctx = deep.ctx({ collect: true })
+    deep.unify('a:\n b:\n  c:\n   d:\n    e:\n     f:\n      g:\n       h: 1\n', undefined, ctx)
+    expect(ctx.err.map((e: any) => e.why)).equal(['max_depth'])
   })
 
 })

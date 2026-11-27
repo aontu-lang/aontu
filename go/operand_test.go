@@ -33,6 +33,13 @@ func TestReadByExtensionReadsTheEntryAsData(t *testing.T) {
 		t.Fatalf("%v", v)
 	}
 
+	deep := &Aontu{File: "x.yaml", ReadByExtension: true,
+		Trust: &TrustOptions{Budget: TrustBudget{Depth: 2}}}
+	if _, err = deep.Parse("a:\n b:\n  c:\n   d:\n    e:\n     f:\n      g:\n       h: 1\n"); nil == err ||
+		"max_depth" != err.(*AontuError).Code {
+		t.Fatalf("%v", err)
+	}
+
 	report := Vet("port: integer", "port:\n  - 1\n",
 		&VetOptions{DataPath: "d.yaml", ReadByExtension: true})
 	if VetInvalid != report.Verdict {

@@ -2605,6 +2605,16 @@ function rawToVal(n: any): Val {
 }
 
 
+function sitedAt(v: any, url: string | undefined): Val {
+  v.site.url = url
+  const peg: any = v.peg
+  if (true === v.isList || true === v.isMap) {
+    Object.values(peg).forEach((c: any) => sitedAt(c, url))
+  }
+  return v
+}
+
+
 class Lang {
   jsonic: Jsonic
   opts: AontuOptions
@@ -2670,7 +2680,7 @@ class Lang {
 
     try {
       val = undefined === format ? this.jsonic(src, jm) :
-        rawToVal(DATA_READERS[format](src, path as string))
+        sitedAt(rawToVal(DATA_READERS[format](src, path as string)), path)
 
       // An implicit top-level list (`a b`, `1,2`) is built by the core
       // jsonic grammar without passing through the aontu val/list rules,
