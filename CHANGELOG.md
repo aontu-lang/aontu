@@ -8,6 +8,15 @@ each change affects.
 
 ## Unreleased
 
+### A frame under a site in a built-in model shows the model's text
+
+#658, in TypeScript. A refusal sited in a built-in model, such as
+`aontu:system:11:29` when a document narrows
+`$.aontu.System.Service`'s `kind`, frames the lines of that model, as
+Go does. TypeScript framed the lines of the entry document at the same
+row and column. The message is now byte-identical in both engines, and
+a full-message twin test in each port holds it.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call
