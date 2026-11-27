@@ -221,6 +221,17 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 			}
 			all = all && admits && !sealedMiss(test, own)
 		}
+		// A default alone also stands for its parent type, which the condition must admit whole.
+		if pc, lone := child.(*PrefVal); lone && decided && all {
+			st := &subState{profile: "values", pairs: newSubPairs()}
+			switch subsumeNode(st, nil, test, pc.superpeg) {
+			case subYes:
+			case subNo:
+				all = false
+			default:
+				decided = false
+			}
+		}
 		if decided {
 			return all
 		}

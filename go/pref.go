@@ -323,6 +323,10 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 		if dead {
 			return unite(ctx, p.parentArm(ctx), top())
 		}
+		p.rank = 0
+		if inner, ok := p.peg.(*PrefVal); ok {
+			p.rank = 1 + inner.rank
+		}
 		p.regate(ctx)
 	}
 

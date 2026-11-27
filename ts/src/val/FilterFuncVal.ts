@@ -16,6 +16,7 @@ import { keyTable } from './BagVal'
 import { ListVal } from './ListVal'
 import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { admitsSettled, ownJson, sealedMiss } from './admission'
+import { subsumeNode, newPairs } from '../subsume'
 import { prefInnerPeg } from './PrefVal'
 import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
@@ -74,8 +75,12 @@ class FilterFuncVal extends FuncBaseVal {
       if (!declares && owns.every((own: any) => undefined !== own)) {
         const verdicts = arms.map((arm: Val, i: number) =>
           !sealedMiss(test, owns[i]) && admitsSettled(kctx, test, arm, owns[i], kctx.path))
-        if (verdicts.every((v) => undefined !== v)) {
-          return verdicts.every((v) => true === v)
+        // A default alone also stands for its parent type, which the condition must admit whole.
+        const parent = true === (child as any).isPref && verdicts.every((v) => true === v) ?
+          subsumeNode({ profile: 'values', findings: [], generalUrl: '', specificUrl: '', pairs: newPairs() } as any,
+            [], test, (child as any).superpeg) : 'yes'
+        if ('undecided' !== parent && verdicts.every((v) => undefined !== v)) {
+          return 'yes' === parent && verdicts.every((v) => true === v)
         }
       }
       const met = trialUnify(kctx, child.clone(kctx), test)

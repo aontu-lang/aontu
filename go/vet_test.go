@@ -764,3 +764,17 @@ func TestVetADefaultWrittenTwice(t *testing.T) {
 		}
 	}
 }
+
+func TestVetAStarOverACallOrAPath(t *testing.T) {
+	for _, schema := range []string{`x: *pref(1) | *2`, `d: *1, x: *$.d | *2`} {
+		if r := vetRun(schema, `{"x": 3}`, nil); VetInvalid != r.Verdict {
+			t.Errorf("%s against 3: %s", schema, r.Verdict)
+		}
+		if r := vetRun(schema, `{"x": 1}`, nil); VetValid != r.Verdict {
+			t.Errorf("%s against 1: %s", schema, r.Verdict)
+		}
+	}
+	if r := vetRun(`x: *pref(1) | **2`, `{}`, nil); VetError != r.Verdict {
+		t.Errorf("a clash at the rank it reads as: %s", r.Verdict)
+	}
+}

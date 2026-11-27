@@ -855,6 +855,43 @@ rk65	verdict	v: {"x": (*(1) | (2)) & (*(7) | (1))}	v: {}	{"verdict":"valid","opt
 rk66	verdict	v: {"x": (*(7)) & (*(1))}	v: {}	{"verdict":"error"}
 rk67	verdict	v: {"x": (*(7)) & (*(1))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
 rk68	verdict	v: {"x": (*(7)) & (*(1))}	v: {}	{"verdict":"error","opts":{"partial":true}}
+# A lone default whose own value fails is a conflict where it stands, as both
+# ports report it: an error alone, under a key, met and preferred twice; an arm
+# that holds one drops; a spread's template that holds one refuses each member;
+# and a default only a meet refuses is no conflict (failed_verdict_exact).
+fd0	verdict	v: *((1) & (2))	v: 1	{"verdict":"error"}
+fd1	verdict	v: *((1) & (2))	v: 1	{"verdict":"error","opts":{"noFill":true}}
+fd2	verdict	v: *((1) & (2))	v: 1	{"verdict":"error","opts":{"partial":true}}
+fd3	verdict	v: **(*((1) & (2)))	v: 1	{"verdict":"error"}
+fd4	verdict	v: **(*((1) & (2)))	v: 1	{"verdict":"error","opts":{"noFill":true}}
+fd5	verdict	v: **(*((1) & (2)))	v: 1	{"verdict":"error","opts":{"partial":true}}
+fd6	verdict	v: {"a": *((1) & (2))}	v: {"a": 1}	{"verdict":"error"}
+fd7	verdict	v: {"a": *((1) & (2))}	v: {"a": 1}	{"verdict":"error","opts":{"noFill":true}}
+fd8	verdict	v: {"a": *((1) & (2))}	v: {"a": 1}	{"verdict":"error","opts":{"partial":true}}
+fd9	verdict	v: (*((1) & (2))) & (integer)	v: 1	{"verdict":"error"}
+fd10	verdict	v: (*((1) & (2))) & (integer)	v: 1	{"verdict":"error","opts":{"noFill":true}}
+fd11	verdict	v: (*((1) & (2))) & (integer)	v: 1	{"verdict":"error","opts":{"partial":true}}
+fd12	verdict	v: *(("a") & ("b"))	v: "a"	{"verdict":"error"}
+fd13	verdict	v: *(("a") & ("b"))	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+fd14	verdict	v: *(("a") & ("b"))	v: "a"	{"verdict":"error","opts":{"partial":true}}
+fd15	verdict	v: *(((1) & (2)) | ((3) & (4)))	v: 1	{"verdict":"error"}
+fd16	verdict	v: *(((1) & (2)) | ((3) & (4)))	v: 1	{"verdict":"error","opts":{"noFill":true}}
+fd17	verdict	v: *(((1) & (2)) | ((3) & (4)))	v: 1	{"verdict":"error","opts":{"partial":true}}
+fd18	verdict	v: *{"a": (1) & (2)}	v: {"a": 1}	{"verdict":"error"}
+fd19	verdict	v: *{"a": (1) & (2)}	v: {"a": 1}	{"verdict":"error","opts":{"noFill":true}}
+fd20	verdict	v: *{"a": (1) & (2)}	v: {"a": 1}	{"verdict":"error","opts":{"partial":true}}
+fd21	verdict	v: (*((1) & (2))) & (*(3))	v: 3	{"verdict":"error"}
+fd22	verdict	v: (*((1) & (2))) & (*(3))	v: 3	{"verdict":"error","opts":{"noFill":true}}
+fd23	verdict	v: (*((1) & (2))) & (*(3))	v: 3	{"verdict":"error","opts":{"partial":true}}
+fd24	verdict	v: ({"a": *((1) & (2))}) | (3)	v: 3	{"verdict":"valid"}
+fd25	verdict	v: ({"a": *((1) & (2))}) | (3)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+fd26	verdict	v: ({"a": *((1) & (2))}) | (3)	v: 3	{"verdict":"valid","opts":{"partial":true}}
+fd27	verdict	v: {&: *((1) & (2))}	v: {"x": 1}	{"verdict":"invalid"}
+fd28	verdict	v: {&: *((1) & (2))}	v: {"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+fd29	verdict	v: {&: *((1) & (2))}	v: {"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+fd30	verdict	v: (*(1)) & (2)	v: 2	{"verdict":"valid"}
+fd31	verdict	v: (*(1)) & (2)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+fd32	verdict	v: (*(1)) & (2)	v: 2	{"verdict":"valid","opts":{"partial":true}}
 n0	verdict	v: number	v: 1e2	{"verdict":"valid"}
 n1	verdict	v: number	v: 1e2	{"verdict":"valid","opts":{"exactNumbers":true}}
 n2	verdict	v: number	v: 1e-5000	{"verdict":"valid"}
