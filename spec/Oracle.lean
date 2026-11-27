@@ -20,6 +20,7 @@ import Oracle.Custom
 import Oracle.LinkClimb
 import Oracle.Gaps
 import Oracle.DataArgs
+import Oracle.Waits
 
 /-!
 # The oracle
@@ -417,6 +418,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# whichever way the value would go (#432), in rows wt0 on; a call in a spread's"
     IO.println "# template, and one in a result the value doesn't take, makes nothing wait."
     pathRows "wt" waitCases
+    IO.println "# A call that waits inside contains, rest, len and a starred branch waits with"
+    IO.println "# it (ruling 91), in rows wx0 on, beside the same forms over a value that"
+    IO.println "# doesn't wait."
+    pathRows "wx" waitMoreCases
     IO.println "# A path in a lone preference's value that names nothing there is the schema's"
     IO.println "# error whatever the data, as it is outside a preference (ruling 53), in rows"
     IO.println "# sy0 on; a path the term beside the preference answers stands, and one in a"
