@@ -3350,7 +3350,7 @@ them out of the copies, for the calls `Fn.readsData` names:
 <!-- test: quote spec/Aontu/Alias.lean -->
 ```lean
 def Fn.readsData : Fn → Bool
-  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
+  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join | .at => true
   | _ => false
 ```
 
