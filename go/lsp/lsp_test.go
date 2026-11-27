@@ -451,7 +451,7 @@ func TestHandlerExitWithoutShutdown(t *testing.T) {
 
 func TestHandlerUnknownRequest(t *testing.T) {
 	h := NewHandler()
-	outs := h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/references"})
+	outs := h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/codeLens"})
 	if len(outs) != 1 || outs[0].Error == nil || outs[0].Error.Code != -32601 {
 		t.Fatalf("expected method-not-found error, got %+v", outs)
 	}
@@ -945,5 +945,190 @@ func TestCompletionThroughTheHandler(t *testing.T) {
 	}
 	if got := ask(map[string]any{"context": dot}); nil == got || 0 != len(got) {
 		t.Errorf("dot: %+v", got)
+	}
+}
+
+// Twin: ts/test/lsp.test.ts describe('lsp-symbols').
+func TestSymbolsOutlineWhatTheDocumentWrites(t *testing.T) {
+	got, _ := json.Marshal(Symbols("a: { b: 1 }\nl: [$.a]\n", nil))
+	want := `[{"name":"a","kind":19,` +
+		`"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":11}},` +
+		`"selectionRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}},` +
+		`"children":[{"name":"b","kind":16,` +
+		`"range":{"start":{"line":0,"character":5},"end":{"line":0,"character":9}},` +
+		`"selectionRange":{"start":{"line":0,"character":5},"end":{"line":0,"character":6}},` +
+		`"children":[]}]},` +
+		`{"name":"l","kind":18,` +
+		`"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":8}},` +
+		`"selectionRange":{"start":{"line":1,"character":0},"end":{"line":1,"character":1}},` +
+		`"children":[{"name":"0","kind":13,` +
+		`"range":{"start":{"line":1,"character":4},"end":{"line":1,"character":7}},` +
+		`"selectionRange":{"start":{"line":1,"character":4},"end":{"line":1,"character":7}},` +
+		`"children":[]}]}]`
+	if want != string(got) {
+		t.Errorf("symbols: %s", got)
+	}
+	if got := Symbols("1\n", nil); nil == got || 0 != len(got) {
+		t.Errorf("no key: %+v", got)
+	}
+	if got := Symbols("a: )\n", nil); nil != got {
+		t.Errorf("unparsed: %+v", got)
+	}
+}
+
+func TestSymbolsOutlineALargeList(t *testing.T) {
+	got := Symbols("items: ["+strings.Repeat("0,", 130000)+"]\n", nil)
+	if 1 != len(got) || "items" != got[0].Name || 18 != got[0].Kind ||
+		130000 != len(got[0].Children) || 260009 != got[0].Range.End.Character {
+		t.Fatalf("large list: %d symbols", len(got))
+	}
+	first, last := got[0].Children[0], got[0].Children[129999]
+	if 8 != first.Range.Start.Character || 9 != first.Range.End.Character || "129999" != last.Name {
+		t.Errorf("children: %+v %+v", first, last)
+	}
+}
+
+func TestSymbolsThroughTheHandler(t *testing.T) {
+	h := NewHandler()
+	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize"})[0])
+	if !strings.Contains(string(init), `"documentSymbolProvider":true`) {
+		t.Errorf("initialize: %s", init)
+	}
+	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{
+		"uri": "file:///s.aontu", "text": "a: b: 1\na: 2\n"}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
+	ask := func(uri string) string {
+		raw, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": uri}})
+		out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("2"),
+			Method: "textDocument/documentSymbol", Params: raw})[0])
+		return string(out)
+	}
+	got := ask("file:///s.aontu")
+	for _, part := range []string{
+		`"name":"a","kind":19,"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":7}}`,
+		`"children":[{"name":"b"`,
+		`"name":"a","kind":16,"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}}`,
+	} {
+		if !strings.Contains(got, part) {
+			t.Errorf("symbols: %s", got)
+		}
+	}
+	if got := ask("file:///none.aontu"); !strings.Contains(got, `"result":null`) {
+		t.Errorf("unopened: %s", got)
+	}
+	if out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("4"), Method: "textDocument/documentSymbol",
+		Params: json.RawMessage(`{}`)})[0]); !strings.Contains(string(out), `"result":null`) {
+		t.Errorf("no document: %s", out)
+	}
+	if out := h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/documentSymbol",
+		Params: json.RawMessage(`[`)}); 1 != len(out) {
+		t.Errorf("malformed: %+v", out)
+	}
+}
+
+// Twin: ts/test/lsp.test.ts describe('lsp-references').
+const refsSrc = "base: { port: 8080 }\ndb: { port: $.base.port }\nx: $.base.port\n"
+
+func TestReferencesListTheSitesAndTheReads(t *testing.T) {
+	const u = "file:///r.aontu"
+	if got := References(refsSrc, 0, 9, u, true, nil); !reflect.DeepEqual(got, []Location{
+		{URI: u, Range: rangeOf(0, 14, 0, 18)}, {URI: u, Range: rangeOf(1, 12, 1, 23)},
+		{URI: u, Range: rangeOf(2, 3, 2, 14)},
+	}) {
+		t.Errorf("with the sites: %+v", got)
+	}
+	if got := References(refsSrc, 2, 5, u, false, nil); !reflect.DeepEqual(got, []Location{
+		{URI: u, Range: rangeOf(1, 12, 1, 23)}, {URI: u, Range: rangeOf(2, 3, 2, 14)},
+	}) {
+		t.Errorf("reads: %+v", got)
+	}
+	if got := References(refsSrc, 0, 15, u, true, nil); nil != got {
+		t.Errorf("value: %+v", got)
+	}
+	if got := References("a: )\n", 0, 0, u, true, nil); nil != got {
+		t.Errorf("unparsed: %+v", got)
+	}
+}
+
+func TestHighlightsTellAWriteFromARead(t *testing.T) {
+	if got := Highlights(refsSrc, 1, 20, nil); !reflect.DeepEqual(got, []DocumentHighlight{
+		{Range: rangeOf(0, 14, 0, 18), Kind: HighlightWrite}, {Range: rangeOf(1, 12, 1, 23), Kind: HighlightRead},
+		{Range: rangeOf(2, 3, 2, 14), Kind: HighlightRead},
+	}) {
+		t.Errorf("highlights: %+v", got)
+	}
+	if got := Highlights("x: $.nope\n", 0, 5, nil); !reflect.DeepEqual(got,
+		[]DocumentHighlight{{Range: rangeOf(0, 3, 0, 9), Kind: HighlightRead}}) {
+		t.Errorf("unwritten: %+v", got)
+	}
+	if got := Highlights(refsSrc, 0, 15, nil); nil != got {
+		t.Errorf("value: %+v", got)
+	}
+}
+
+func TestReferencesAcrossAnInclude(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "base.aontu"), []byte("port: 8080\nr: $.top\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	trust := &aontu.TrustOptions{IncludeRoot: dir}
+	src := "top: 1\nbase: @\"" + srcPath(dir) + "/base.aontu\"\n"
+	got := References(src, 0, 1, "file:///r.aontu", true, trust)
+	if 2 != len(got) || !reflect.DeepEqual(got[0], Location{URI: "file:///r.aontu", Range: rangeOf(0, 5, 0, 6)}) ||
+		!strings.HasPrefix(got[1].URI, "file:///") || !strings.HasSuffix(got[1].URI, "/base.aontu") ||
+		!reflect.DeepEqual(got[1].Range, rangeOf(1, 3, 1, 8)) {
+		t.Errorf("across: %+v", got)
+	}
+	// A highlight is in the open document alone.
+	if got := Highlights(src, 0, 1, trust); !reflect.DeepEqual(got,
+		[]DocumentHighlight{{Range: rangeOf(0, 5, 0, 6), Kind: HighlightWrite}}) {
+		t.Errorf("highlights: %+v", got)
+	}
+}
+
+func TestReferencesAndHighlightsThroughTheHandler(t *testing.T) {
+	const u = "file:///r.aontu"
+	h := NewHandler()
+	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize"})[0])
+	if !strings.Contains(string(init), `"referencesProvider":true`) ||
+		!strings.Contains(string(init), `"documentHighlightProvider":true`) {
+		t.Errorf("initialize: %s", init)
+	}
+	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": u, "text": refsSrc}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
+	ask := func(method, uri string, extra map[string]any) string {
+		params := map[string]any{"textDocument": map[string]any{"uri": uri}}
+		for k, v := range extra {
+			params[k] = v
+		}
+		raw, _ := json.Marshal(params)
+		out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("2"), Method: method, Params: raw})[0])
+		return string(out)
+	}
+	at := map[string]any{"position": map[string]any{"line": 0, "character": 9}}
+	with := map[string]any{"position": at["position"], "context": map[string]any{"includeDeclaration": true}}
+	if got := ask("textDocument/references", u, with); 3 != strings.Count(got, `"uri"`) {
+		t.Errorf("with the sites: %s", got)
+	}
+	if got := ask("textDocument/references", u, at); 2 != strings.Count(got, `"uri"`) {
+		t.Errorf("reads: %s", got)
+	}
+	if got := ask("textDocument/documentHighlight", u, at); 1 != strings.Count(got, `"kind":3`) ||
+		2 != strings.Count(got, `"kind":2`) {
+		t.Errorf("highlights: %s", got)
+	}
+	if got := ask("textDocument/references", u, nil); !strings.Contains(got, `"result":null`) {
+		t.Errorf("no position: %s", got)
+	}
+	if got := ask("textDocument/documentHighlight", "file:///none.aontu", at); !strings.Contains(got, `"result":null`) {
+		t.Errorf("unopened: %s", got)
+	}
+	if out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("4"), Method: "textDocument/references",
+		Params: json.RawMessage(`{}`)})[0]); !strings.Contains(string(out), `"result":null`) {
+		t.Errorf("no document: %s", out)
+	}
+	if out := h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/references",
+		Params: json.RawMessage(`[`)}); 1 != len(out) {
+		t.Errorf("malformed: %+v", out)
 	}
 }

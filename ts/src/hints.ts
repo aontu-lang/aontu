@@ -151,13 +151,14 @@ const hints: Record<string, string> = {
 
   format_unknown:
     'format() takes a grammar, or the name of one of the nineteen JSON\n' +
-    'Schema formats, and "{reason}" is not one of them.\n' +
+    'Schema formats or of an encoding, and "{reason}" is not one of them.\n' +
     ' \n' +
     'The names: date-time, date, time, duration, email, idn-email,\n' +
     'hostname, idn-hostname, ipv4, ipv6, uri, uri-reference, iri,\n' +
     'iri-reference, uuid, uri-template, json-pointer,\n' +
-    'relative-json-pointer and regex. A string with `=` in it is a\n' +
-    'grammar, read as abnf() reads one.',
+    'relative-json-pointer and regex, and the encodings base64,\n' +
+    'base64url and hex. A string with `=` in it is a grammar, read as\n' +
+    'abnf() reads one.',
 
   format_grammar:
     'This grammar is ABNF, but format() cannot run it as written:\n' +
@@ -333,7 +334,7 @@ const hints: Record<string, string> = {
 
   pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
 
-  pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered.\n \nExamples:\n  pack([a,b], {x:1})   -> {..}  # Names;\n  pack(["a b"], {x:1}) -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})   -> nil   # ... but a number is not one.',
+  pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered. With a third\nargument the key is what it answers for each member, and it too must\nbe a string.\n \nExamples:\n  pack([a,b], {x:1})         -> {..}  # Names;\n  pack(["a b"], {x:1})       -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})         -> nil   # ... but a number is not one;\n  pack([{n:1}], _, at(_, n)) -> nil   # ... nor is a key that answers one.',
 
   each_data: 'The first argument to each() is not a bag. `each` makes one list\nelement per child of its DATA, so the data has to have children: a\nlist, or a map whose values are taken in sorted-key order.\n \nExamples:\n  each([a,b], upper(_))  -> [..]  # A list, in source order;\n  each({b:2,a:1}, _)     -> [..]  # ... a map, in sorted-key order;\n  each(1, _)             -> nil   # ... but a scalar has no children.',
 

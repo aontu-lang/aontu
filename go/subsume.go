@@ -34,6 +34,9 @@ type SubsumeOptions struct {
 	// HostVars are the bindings of the CLI's --var and --var-text.
 	HostVars map[string]HostVar
 
+	// ReadByExtension reads each document by its path's extension.
+	ReadByExtension bool
+
 	Profile     string // "values" | "defaults" (default) | "gen"
 	At          string // compare at this path of both documents
 	GeneralURL  string // provenance label for general sites
@@ -149,14 +152,24 @@ func shownText(v Val) string {
 // compared separately by the `defaults` and `gen` profiles.
 func subAdmission(v Val) Val {
 	if p, ok := v.(*PrefVal); ok {
-		return p.superpeg
+		return subSealed(p.superpeg)
 	}
 	return v
 }
 
+// subMemberAdmission: a list literal standing as an arm, or as a default's value, admits only its own length, as vet reads it.
 func subMemberAdmission(v Val) Val {
 	if p, ok := v.(*PrefVal); ok {
-		return prefInnerPeg(p)
+		v = prefInnerPeg(p)
+	}
+	return subSealed(v)
+}
+
+func subSealed(v Val) Val {
+	if l, ok := v.(*ListVal); ok && !l.closed && nil == l.spread {
+		sealed := *l
+		sealed.closed = true
+		return &sealed
 	}
 	return v
 }
@@ -1219,7 +1232,7 @@ func PolicyCompat(src, path string) string {
 
 func PolicyCompatTrust(src, path string, trust *TrustOptions, textExt []string,
 	hostVars map[string]HostVar) string {
-	a := aontuForPathTrust(path, trust, textExt, hostVars)
+	a := aontuForPathTrust(path, trust, textExt, hostVars, false)
 	v, err := a.Unify(src)
 	if err != nil || nil == v || v.Nil() {
 		return ""
@@ -1292,7 +1305,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 
 	load := func(src, path string) Val {
 		a := aontuForPathTrust(path, options.Trust, options.TextExt,
-			options.HostVars)
+			options.HostVars, options.ReadByExtension)
 		v, err := a.Unify(src)
 		if err != nil || nil == v || v.Nil() {
 			return nil

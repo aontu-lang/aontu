@@ -10,6 +10,9 @@ exports.definitionAt = definitionAt;
 exports.describeVal = describeVal;
 exports.membersAt = membersAt;
 exports.mapAt = mapAt;
+exports.symbolsOf = symbolsOf;
+exports.symbolTree = symbolTree;
+exports.referencesAt = referencesAt;
 const aontu_1 = require("./aontu");
 const query_1 = require("./query");
 const vet_1 = require("./vet");
@@ -36,11 +39,16 @@ function offsetAt(src, starts, pos) {
     return starts[pos.line] + Math.max(0, Math.min(pos.character, end - starts[pos.line]));
 }
 function positionOf(starts, off) {
-    let line = starts.length - 1;
-    while (0 < line && off < starts[line]) {
-        line--;
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (starts[mid] <= off)
+            lo = mid;
+        else
+            hi = mid - 1;
     }
-    return { line, character: off - starts[line] };
+    return { line: lo, character: off - starts[lo] };
 }
 function siteOffset(starts, v) {
     const row = v.site?.row ?? -1;
@@ -171,11 +179,14 @@ function valueEnd(src, at, text) {
     }
     return at + text.length;
 }
+function siteText(v) {
+    return 'string' === typeof v.site?.src ? v.site.src : '';
+}
 function valueHit(src, v, at, path) {
     if (true === v.isConjunct || true === v.isDisjunct || true === v.isNil) {
         return undefined;
     }
-    const text = 'string' === typeof v.site?.src ? v.site.src : '';
+    const text = siteText(v);
     if ((true === v.isMap || true === v.isList) && '{' !== text && '[' !== text) {
         return undefined;
     }
@@ -386,11 +397,9 @@ function refAt(src, s, w) {
         (abs ? 1 < up : !REF_AFTER.includes(src[s - 1] ?? ' ')) ? undefined :
         { start: abs ? s - 1 : s, abs };
 }
-// The first value a walk from root meets that take accepts at the offset
-// of its site, with its path, a constraint's written arguments included.
-// A value from an included file is sited in that file, so never here.
-function findVal(src, root, take) {
-    const starts = lineStarts(src);
+// Every value a walk from root meets, with its path, a constraint's
+// written arguments included, until visit answers true.
+function cursorWalk(root, visit) {
     const seen = new Set();
     const stack = [[root, []]];
     while (0 < stack.length) {
@@ -399,13 +408,25 @@ function findVal(src, root, take) {
             continue;
         }
         seen.add(v);
-        if ('' === (v.site?.url ?? '') && take(v, siteOffset(starts, v))) {
-            return { val: v, path };
+        if (visit(v, path)) {
+            return;
         }
         stack.push(...kids(v, path), ...(true === v.isConstraint && Array.isArray(v.peg) ?
             v.peg.map((c) => [c, path]) : []));
     }
-    return undefined;
+}
+// The first value a walk from root meets that take accepts at the offset
+// of its site, with its path. A value from an included file is sited in
+// that file, so never here.
+function findVal(src, root, take) {
+    const starts = lineStarts(src);
+    let found;
+    cursorWalk(root, (v, path) => {
+        found = '' === (v.site?.url ?? '') && take(v, siteOffset(starts, v)) ?
+            { val: v, path } : undefined;
+        return undefined !== found;
+    });
+    return found;
 }
 // Where a value written at off is sited: there, or, where it is all a
 // group holds, at the group's first `(`.
@@ -480,6 +501,164 @@ function membersAt(src, pos, opts) {
         on: undefined === reads ? 'key' : 'path',
         path: at,
         members: membersOf((0, vet_1.throughResidue)((0, vet_1.anchorParts)(res, at)), written),
+    };
+}
+// Where the bracket at k closes, or, from k up to end, where the last
+// bracket open by end closes: past quoted text and comments.
+function balancedEnd(src, k, end) {
+    for (let depth = 0; k < src.length && (k < end || 0 < depth); k++) {
+        if ('"\'`'.includes(src[k])) {
+            k = quoteEnd(src, k);
+        }
+        else if ('#' === src[k]) {
+            k = Math.max(k, src.indexOf('\n', k) - 1);
+        }
+        else {
+            depth += '{[('.includes(src[k]) ? 1 : '}])'.includes(src[k]) ? -1 : 0;
+        }
+    }
+    return Math.max(end, Math.min(k, src.length));
+}
+// Where the text of a value written at `at` ends, or the include that
+// loaded it at `from`.
+function extentEnd(src, v, at, from) {
+    if (0 > at) {
+        let p = from + 1;
+        while (' \t\r\n'.includes(src[p]))
+            p++;
+        return Math.min(quoteEnd(src, p) + 1, src.length);
+    }
+    const text = siteText(v);
+    return '{[('.includes(text) && 1 === text.length ? balancedEnd(src, at, at + 1) :
+        true === v.isRef ? refSpan(src, at)[0] : valueEnd(src, at, text);
+}
+const SYMBOL_KIND = {
+    map: 19, list: 18, string: 15, integer: 16, float: 16, biginteger: 16,
+    bigdecimal: 16, boolean: 17, null: 21,
+};
+// A symbol's entry runs over its children's, and on to the bracket that
+// closes the last one open in it.
+function docSymbol(src, starts, s) {
+    const at = (off) => positionOf(starts, off);
+    const children = s.children.sort((a, b) => a.start - b.start)
+        .map((c) => docSymbol(src, starts, c));
+    let last = s.end;
+    for (const c of children)
+        last = Math.max(last, c[1]);
+    const end = balancedEnd(src, s.start, last);
+    return [{
+            name: s.name,
+            kind: s.kind,
+            range: { start: at(s.start), end: at(end) },
+            selectionRange: { start: at(s.key[0]), end: at(s.key[1]) },
+            children: children.map((c) => c[0]),
+        }, end];
+}
+// The outline of what a document writes: each key where it is written,
+// a key chain's keys nested, and a list's elements by position.
+function symbolsOf(src, opts) {
+    const doc = parsed(src, opts);
+    return undefined === doc ? undefined : symbolTree(src, doc.root);
+}
+function symbolTree(src, root) {
+    const starts = lineStarts(src);
+    const top = [];
+    const made = new Map();
+    const seen = new Set();
+    const stack = [{ v: root, path: [], into: top, elem: false }];
+    while (0 < stack.length) {
+        const { v, path, into, own, elem } = stack.pop();
+        if (null == v || true !== v.isVal || seen.has(v)) {
+            continue;
+        }
+        seen.add(v);
+        const at = '' === (v.site?.url ?? '') ? siteOffset(starts, v) : -1;
+        const load = v.site?.load;
+        const from = 0 > at && null != load && '' === (load.url ?? '') ?
+            siteOffset(starts, { site: load }) : at;
+        const name = path[path.length - 1];
+        const span = 0 > from || undefined === name ? undefined :
+            elem ? [from, extentEnd(src, v, at, from)] : keySpan(src, from, name);
+        let sym = own;
+        if (undefined !== span) {
+            sym = made.get(span[0]);
+            if (undefined === sym) {
+                sym = {
+                    name, kind: SYMBOL_KIND[valKind(v)] ?? 13, start: span[0], end: span[1],
+                    key: span, children: [],
+                };
+                made.set(span[0], sym);
+                into.push(sym);
+            }
+        }
+        // A value written here whose key is not found has no place.
+        else if (undefined === own && 0 <= from && 0 < path.length) {
+            continue;
+        }
+        if (undefined !== sym && 0 <= from) {
+            sym.end = Math.max(sym.end, extentEnd(src, v, at, from));
+        }
+        const next = [...kids(v, path),
+            ...(true === v.isConstraint && Array.isArray(v.peg) ?
+                v.peg.map((c) => [c, path]) : [])];
+        for (let i = next.length - 1; 0 <= i; i--) {
+            const [k, kpath] = next[i];
+            if (kpath.length === path.length) {
+                stack.push({ v: k, path, into, own: sym, elem: false });
+            }
+            else if (undefined !== sym || 0 === path.length) {
+                stack.push({
+                    v: k, path: kpath, into: sym?.children ?? top,
+                    elem: true === v.isList && '&' !== kpath[kpath.length - 1],
+                });
+            }
+        }
+    }
+    return top.sort((a, b) => a.start - b.start).map((s) => docSymbol(src, starts, s)[0]);
+}
+// Where a reference that reads path is written: in the document, its
+// span, and in an included file, its site and the length of its spelling.
+function readsOf(src, root, path) {
+    const starts = lineStarts(src);
+    const want = JSON.stringify(path);
+    const out = [];
+    cursorWalk(root, (v) => {
+        if (true !== v.isRef || JSON.stringify(v.plainRefPath()?.map(String)) !== want) {
+            return false;
+        }
+        const file = v.site.url ?? '';
+        const at = siteOffset(starts, v);
+        if ('' !== file) {
+            const start = { line: v.site.row - 1, character: v.site.col - 1 };
+            out.push({ file, range: { start, end: { ...start, character: start.character + v.spelling.length } } });
+            return false;
+        }
+        // A reference that is all a group holds is sited at the group.
+        let p = at;
+        while (0 <= p && '( \t\r\n'.includes(src[p]))
+            p++;
+        const [end, spelt] = refSpan(src, p);
+        if (0 <= at && spelt === v.spelling) {
+            out.push({ file, range: { start: positionOf(starts, p), end: positionOf(starts, end) } });
+        }
+        return false;
+    });
+    const key = (r) => [r.range.start.line, r.range.start.character];
+    return out.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.file, b.file) ||
+        key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1]);
+}
+// Where the path a key or a reference under the cursor names is written,
+// its sites as `model why` reads them, and where a reference reads it.
+function referencesAt(src, pos, opts) {
+    const doc = parsed(src, opts);
+    const path = namedPath(undefined === doc ? undefined : hitAt(src, pos, doc.root));
+    if (undefined === doc || undefined === path) {
+        return undefined;
+    }
+    return {
+        path,
+        writes: (sitesOf(src, path, opts) ?? []).map((s) => ({ file: s.file, range: s.range })),
+        reads: readsOf(src, doc.root, path),
     };
 }
 // Every site that writes a path, as `model why` reads them; nothing

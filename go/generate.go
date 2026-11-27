@@ -3,39 +3,106 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 )
 
-// packKeys is the keys a data bag names, or the code naming what is
-// wrong with it. For a list the strings themselves are the keys: keys
-// are DATA, never position, or reordering the list would churn every
-// generated child (the Terraform `count` lesson).
-func packKeys(data Val, ctx *Ctx) ([]string, string) {
+// packRead is what a pack reads before it fires: each member under the
+// key its child takes, the code naming what is wrong, or the refusal
+// its key template answered.
+type packRead struct {
+	members []member
+	code    string
+	refused Val
+}
+
+// packMembers reads the members of a pack's data, nil while its key
+// template waits. For a list without one the strings themselves are the
+// keys: keys are DATA, never position, or reordering the list would
+// churn every generated child (the Terraform `count` lesson).
+func packMembers(ctx *Ctx, args []Val, base []string) *packRead {
 	// The candidates are the bag's MEMBERS -- what generation would
 	// emit (members.go, BUGS.md §79) -- so a hidden key, or a hidden
 	// name in a list of names, packs nothing.
-	switch data.(type) {
-	case *MapVal:
-		out := []string{}
-		for _, m := range bagMembers(data, ctx) {
-			out = append(out, m.key)
-		}
-		return out, ""
-	case *ListVal:
-		out := []string{}
-		for _, m := range bagMembers(data, ctx) {
-			sv, ok := m.val.(*ScalarVal)
-			if !ok || KindString != sv.kind {
-				return nil, "pack_key"
-			}
-			s, _ := sv.peg.(string)
-			out = append(out, s)
-		}
-		return out, ""
+	data := args[0]
+	if !isBag(data) {
+		return &packRead{code: "pack_data"}
 	}
-	return nil, "pack_data"
+	members := bagMembers(data, ctx)
+	if 3 == len(args) {
+		out := make([]member, 0, len(members))
+		for _, m := range members {
+			read := readKey(ctx, args[2], m.val, append(cp(base), m.key))
+			if DONE != read.Dc() {
+				return nil
+			}
+			if read.Nil() {
+				return &packRead{refused: read}
+			}
+			name, ok := nameOf(read)
+			if !ok {
+				return &packRead{code: "pack_key"}
+			}
+			out = append(out, member{key: name, val: m.val})
+		}
+		return &packRead{members: out}
+	}
+	if _, isMap := data.(*MapVal); isMap {
+		return &packRead{members: members}
+	}
+	out := make([]member, 0, len(members))
+	for _, m := range members {
+		name, ok := nameOf(m.val)
+		if !ok {
+			return &packRead{code: "pack_key"}
+		}
+		out = append(out, member{key: name, val: m.val})
+	}
+	return &packRead{members: out}
+}
+
+func nameOf(v Val) (string, bool) {
+	sv, ok := v.(*ScalarVal)
+	if !ok || KindString != sv.kind {
+		return "", false
+	}
+	s, _ := sv.peg.(string)
+	return s, true
+}
+
+// readKey reads the key template for one member where it stands, run to a
+// fixpoint as the admission trial runs its meet, its refusals kept until
+// it answers.
+func readKey(ctx *Ctx, k, m Val, slot []string) Val {
+	inst := instanceClone(k, slot)
+	setPaths(inst, slot)
+	out := fillPlace(inst, m)
+	ctx.trialsOf()
+	kctx := *ctx
+	kctx.err = nil
+	maxcc := ctx.budgetPasses
+	if 0 == maxcc {
+		maxcc = 9
+	}
+	kctx.settle = false
+	last := ""
+	for cc := 0; DONE != out.Dc() && cc < maxcc; cc++ {
+		kctx.cc = cc
+		kctx.slot = slot
+		out = unite(&kctx, out, top())
+		now := out.Canon()
+		if kctx.settle && now == last {
+			break
+		}
+		kctx.settle = now == last
+		last = now
+	}
+	if out.Nil() {
+		ctx.err = append(ctx.err, kctx.err...)
+	}
+	return out
 }
 
 func bagValues(data Val, ctx *Ctx) ([]Val, bool) {
@@ -46,32 +113,22 @@ func bagValues(data Val, ctx *Ctx) ([]Val, bool) {
 }
 
 func packFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
-	var data Val = top()
-	if 0 < len(args) {
-		data = args[0]
+	read := f.packed
+	if "" != read.code {
+		return makeNilErr(ctx, read.code, f, nil)
 	}
-	keys, bad := packKeys(data, ctx)
-	if "" != bad {
-		return makeNilErr(ctx, bad, f, nil)
-	}
-
-	var tmpl Val = top()
-	if 1 < len(args) {
-		tmpl = args[1]
+	if nil != read.refused {
+		return read.refused
 	}
 
+	tmpl := args[1]
 	out := newMap()
-	for ki, key := range keys {
+	for _, m := range read.members {
+		key := m.key
 		kslot := append(cp(base), key)
-		var source Val
-		if m, ok := data.(*MapVal); ok {
-			source = m.peg[key]
-		} else if l, ok := data.(*ListVal); ok {
-			source = l.peg[ki]
-		}
 		inst := instanceClone(tmpl, kslot)
 		setPaths(inst, kslot)
-		child := fillPlace(inst, source)
+		child := fillPlace(inst, m.val)
 		if prev, seen := out.peg[key]; seen {
 			// Duplicate generated keys are not an error: the colliding
 			// children unify, exactly as duplicate source keys merge.
@@ -182,6 +239,24 @@ func sameMembers(a, b Val, ctx *Ctx, admit bool) bool {
 	return sameKids(a, b, ctx, admit)
 }
 
+var makers = map[string]bool{"pack": true, "each": true, "apply": true, "match": true}
+
+func making(v Val) bool {
+	f, ok := v.(*FuncVal)
+	return ok && DONE != f.dc && makers[f.name]
+}
+
+// A member a generator is still making is not yet where a path reads it.
+func unmade(ctx *Ctx, path []string) bool {
+	for i := range path {
+		node := unmarked(walkPlace(ctx.root, path[:i]))
+		if cj, ok := node.(*ConjunctVal); making(node) || (ok && slices.ContainsFunc(cj.peg, making)) {
+			return true
+		}
+	}
+	return false
+}
+
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	var data Val = top()
 	if 0 < len(args) {
@@ -220,6 +295,17 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 				break
 			}
 			all = all && admits && !sealedMiss(test, own)
+		}
+		// A default alone also stands for its parent type, which the condition must admit whole.
+		if pc, lone := child.(*PrefVal); lone && decided && all {
+			st := &subState{profile: "values", pairs: newSubPairs()}
+			switch subsumeNode(st, nil, test, pc.superpeg) {
+			case subYes:
+			case subNo:
+				all = false
+			default:
+				decided = false
+			}
 		}
 		if decided {
 			return all

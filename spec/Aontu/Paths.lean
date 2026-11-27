@@ -362,14 +362,6 @@ def refUse (p pos : List Seg) : Option Val → Val
   | some d => .meet (.alias (useName (Use.place p).key pos)) d
   | none => .alias (useName (Use.place p).key pos)
 
-/-- Whether a call's first argument is data the call reads: a
-generator's source, the bag a fold or `sort` reads, the list `pick`
-and `join` read, and the term `at` steps in. A path there reads its
-target where the target stands, and nothing is placed (ruling 93). -/
-def Fn.readsData : Fn → Bool
-  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join | .at => true
-  | _ => false
-
 mutual
 /-- The term standing at `pos` with each use of a name that `rs` reads
 as a copy where the use stands read as the copy of the name's body at

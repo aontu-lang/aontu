@@ -210,12 +210,23 @@ func TestMatchByTheValueGenerated(t *testing.T) {
 		{`t: match({a: 1, z: type(number)}, {a: 1, z: 5}, "T", "D")`, `{"t":"D"}`},
 		{`t: match([1, 2], [], "T", "D")`, `{"t":"D"}`},
 		{`x: filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)`, `{"x":{"a":1,"b":1,"c":1}}`},
+		{`x: filter({g: *1}, *1 | 2)`, `{"x":{}}`},
+		{`x: filter({g: *1}, integer)`, `{"x":{"g":1}}`},
+		{`x: filter({a: *1 | 3}, *1 | 2)`, `{"x":{}}`},
 	}
 	for _, c := range cases {
 		out, err := New().Generate(c[0])
 		got, _ := json.Marshal(out)
 		if nil != err || c[1] != string(got) {
 			t.Errorf("%s: want %s, got %s (%v)", c[0], c[1], got, err)
+		}
+	}
+}
+
+func TestMarkedRootGeneratesNothing(t *testing.T) {
+	for _, src := range []string{`hide(1)`, `type(1)`, `hide("x")`, `hide(*{a: 1} | {b: 2})`, `hide({a: 1})`} {
+		if out, err := New().Generate(src); nil != err || nil != out {
+			t.Errorf("%s: want nothing, got %v (%v)", src, out, err)
 		}
 	}
 }

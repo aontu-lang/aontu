@@ -61,7 +61,7 @@ func runWhy(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFileTrust(file, trust).Why(string(src), path)
+	report := operand(aontuForFileTrust(file, trust)).Why(string(src), path)
 
 	if "json" == format {
 		io.WriteString(stdout, renderWhyJSON(report)+"\n")

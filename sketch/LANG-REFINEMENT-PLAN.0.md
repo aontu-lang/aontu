@@ -533,6 +533,50 @@ key(0))`, and an inverted map once each member carries its key.
 8. **The key's kind.** Ruled 2026-11-21: a string only, as `pack_key`
    holds today. The other reading took a number by its text.
 
+Progress on 2026-11-27. C2 is built in both engines.
+`pack(d, t, k)` reads `k` once for each member and puts the member's
+child under the string it answers; the two idioms above, the prefix and
+the inverted map answer as proposed, and children whose keys collide
+unify. Six things the rulings left open were settled in the building,
+and each is the maintainer's to change:
+
+- `k` is read at the place the member's child would take under its own
+  key. There `key(0)` is the member's key in a map and its position in
+  a list, as text, and `key()` is the call's own key. A relative path
+  reads from that place, as one in `t` does, so `.n` doesn't name the
+  member's field: it reads the output being made, waits on the call,
+  and never settles, `mapval_no_gen` when generated. An absolute path
+  reads the document.
+- `k` is run to a fixpoint with an error sink of its own, as the
+  admission trial runs its meet. While any member's key waits the call
+  waits, and it fires once every key has settled. A refusal `k`
+  answers, such as `at`'s `no_path`, is the call's.
+- Only a string is a key: a number, a kind, a choice with a default, a
+  map, a boolean, and the absence `maybe` makes of a missing field are
+  `pack_key`. The other reading of the last was to leave that member
+  out.
+- With `k`, a list's members need not be strings, since `k` makes the
+  key.
+- `t` reads `key(0)` at the child's place, so there it is the key `k`
+  answered: `pack($.m, key(0), _)` is `{x: "x"}` for `{a: x}`. The
+  inverted map is the route through a hidden `pack` that carries each
+  key, `pack($.st, at(_, k), at(_, v))`.
+- A call with three arguments was `func_arity` and is now this; the
+  `gen-pack.tsv` row that pinned it holds four. The hint of `pack_key`
+  gains a sentence for the new case, the same in both ports.
+
+k12, k13 and k17 still wait on C5. In TypeScript a call whose first
+argument is an absolute path and whose second a relative one, with a
+third after it, such as `pack($.xs, .q, "a")`, overflows the stack in
+the parser, where Go answers; it isn't `pack`'s, since
+`match($.xs, .q, 1)` does the same, and it is not filed.
+
+The rows are the 45 of `test/spec/gen-pack-key.tsv`, and the six `-pack`
+rows of `test/spec/comprehension.tsv`, one beside each of k9, k10,
+k11, k14, k15 and k16, each answer agreed by both engines. The
+definition is owed: `spec/` doesn't read a third argument, so `pack`
+with a key has no meaning there yet.
+
 ## C3: a position as an integer
 
 **Proposed:** `index(up?: integer|biginteger) : integer`
@@ -775,6 +819,24 @@ argument of a call was pathed as an element of the argument list, so a
 relative reference in it read from the wrong place. #754 is not
 started.
 
+Progress on 2026-11-27. #754 is fixed in both engines. The cause: a
+member a generator makes is unified in the pass that makes it, while
+the tree a path reads still holds the call, so a `filter` in it tried
+its condition before the member was there, every path in the condition
+found nothing, and each candidate was refused. Now a `filter` whose
+condition holds a path waits while any place above it is a `pack`,
+`each`, `apply` or `match` still to fire, and is tried once the
+member is in the tree (`unmade` in `ts/src/val/FilterFuncVal.ts` and
+`go/generate.go`). A condition with no path fires as before, so no
+document without one takes more passes. The 16 rows `filter-in-*` of
+`test/spec/gen-filter.tsv` pin it, each expectation from the parity
+probe. No C7 row pinned the empty answer: k4 reads a path inside the
+member it tries, which names nothing by the reference, and stays `[]`,
+and k36 avoids the climb. An `emit`'s body is left as it is: the same
+wait there moves rows eh7 and eh9 to eh11 of `test/spec/def-path.tsv`,
+which the definition answers, so that route waits on a ruling. #850
+and #868 still wait on the parser release.
+
 ## C7: pin today's routes
 
 The comparison's probes k1 to k38 are aontu documents that both
@@ -1012,6 +1074,27 @@ probes beyond k1 to k38 are the rows of `test/spec/cue.tsv`, byte-exact
 `ts/test/cuecorpus.test.ts` holds each file to its row. CG3, the CUE
 half in the daily workflow, is not started.
 
+Progress on 2026-11-27. CG4 is written, as
+`docs/how-to/aontu-for-cue-users.md`, in the four sections above. The
+first gives four pairs of examples and three tables, 43 rows from a CUE
+form to its aontu spelling, with KP2's row for `keyed` beside the
+guarded spread and a pair of its own. The second gives two examples
+and the 22 rows of the comparison's table, each with both answers, and
+a table of the three that move with the CUE release, n2, x8 and g12.
+The third takes the five forms aontu has none of, with k30 and x3 as
+examples, and the fourth puts each `cue` command beside its verb. The
+comprehension idioms are linked to the reference's sections on `pack`,
+`each`, `filter`, `match` and `emit`, since C8's page is not written.
+Every CUE fence quotes a file of `test/cue/` under `test: quote`, and
+every aontu fence quotes one too, but for the `keyed` pair, whose source
+is a new row of `test/spec/keyed.tsv` that both engines answer alike.
+A test in `ts/test/cuecorpus.test.ts` holds the page to that, and holds
+each code span of a table row to the files and the `index.tsv` line of
+the probes a comment above the table names for it. No `cue` binary is
+here, so the CUE answers are the corpus's, which the comparison
+recorded. The how-to index gains a group, "Coming from another
+language", and `docs/index.md` points a CUE user to the page.
+
 C7 and CG2 are one mechanism: whichever starts first writes the rows
 of the other. CG3 edits `.github/workflows/`, so its push needs an
 account with the `workflow` scope. H3 also asks for a guide for JSON
@@ -1213,6 +1296,56 @@ after `+` or `*` or under a key chain, a quoted segment with an escape
 or single quotes, a map with a size constraint, and a map or a
 reference in a group. Both servers now read the reference with the
 parser, as the engine reads it, and 25 rows hold the cases.
+
+Progress on 2026-11-27, LS5. Document symbols are built in both
+servers, which advertise `documentSymbolProvider`. The outline is of
+what the document writes, read from the parse: each key where it is
+written, so a key written twice is two symbols and a key chain nests,
+a list's elements named by position, a spread's template named `&`,
+and the keys of a map a call takes as an argument, a generator's
+template among them. A key that holds an include is a symbol, and the
+keys of the file are not. A declaration writes no key and is no
+symbol. The range runs from the key to the end of the value, over
+brackets, quoted text and comments, and the selection range is the
+key; the kind is the LSP `SymbolKind` of the value the key is written
+with, Variable for anything that is not a map, list or scalar. The
+library answer is `symbolsOf` (`SymbolsOf` in Go), with `computeSymbols`
+and `Symbols` in the servers, held by a new row mode, `symbols`, in 33
+rows of `test/spec/cursor.tsv`, which both engines wrote alike. A
+range on a line that names a fixture depends on where the fixtures
+are, so both runners count a place after the fixture's name as the row
+writes it. A probe of both servers over 50 documents found no
+difference. A key the cursor cannot find, spelled with an escape or an
+include in parentheses, has no symbol, as it has no hover.
+
+Progress on 2026-11-27, LS6. References and highlights are built in
+both servers, which advertise `referencesProvider` and
+`documentHighlightProvider`. On a key or a reference, references answer
+the sites that write the path it names, the ones go to definition
+answers, where the client asks for the declaration, then every
+reference that reads the path, in order of file, line and character;
+a highlight answers the same within the open document, a site as Write
+and a reference as Read. The references are found by a walk of the
+parsed tree that enters a constraint's arguments, each read by the
+path the parser records for it, as the engine's `plainRefPath` reads
+it, so a relative reference, one under a key chain and one in a list
+are all read where they stand, and so is one alone in a group. By
+ruling 16, a reference in an included file is a location in that file;
+its range is as long as its spelling, which a quoted segment shortens,
+since neither port keeps the file's text for the cursor in a form both
+share. The library answer is `referencesAt` (`ReferencesAt` in Go),
+with `computeReferences`, `computeHighlights`, `References` and
+`Highlights` in the servers, held by a new row mode, `refs`, in 34 rows
+of `test/spec/cursor.tsv`, which both engines wrote alike, with a new
+fixture, `cursor_refs.aontu`, whose references read the including
+document. A probe of both servers, references with and without the
+declaration and highlights at every character of 57 documents, found no
+difference. Three limits stand. The sites are those `model why` lists,
+so a path that a reference writes has that reference and the value it
+reads among its sites, and a document that does not evaluate has none.
+An alias name's uses are not followed. Hover, definition and
+references still do not start from a reference in a group or among a
+constraint's arguments, which the cursor does not find.
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
@@ -1815,6 +1948,74 @@ aren't UTF-8. The rows are `test/spec/encode.tsv`, the definition is
 `Encoding.encode` and `Encoding.decode` in `spec/Aontu/Text.lean`, and
 its generated rows are ec0 on of `test/spec/def-call.tsv`. The law that
 `decode(encode(s, n), n)` is `s` is held by rows, and isn't proved.
+
+Progress on 2026-11-27. BT2 is built in both engines. `base64`,
+`base64url` and `hex` are names `format()` reads, each a grammar of
+RFC 4648 in `grammar/format/`: `base64.abnf`, `base64url.abnf` and
+`hex.abnf`. Both engines read the directory, so the grammars are their
+whole registration. Four things were settled in the building, and each
+is the maintainer's to change:
+
+- Each format admits the empty string, which `encode` writes for `""`.
+- The grammars hold the bits that pad the last character to zero, as
+  `decode` does. One character of lookahead can hold them: the second
+  character of a group is split by its low four bits and the third by
+  its low two, so `aG==` and `aGVsbG9=` are refused. Over 1.5 million
+  texts, generated and mutated, each grammar admits exactly the texts
+  whose bytes `decode` reads. What remains is the one difference a
+  grammar can't close: a format reads no bytes, so it admits text whose
+  bytes are not UTF-8, `/w==` among them, which `decode` refuses.
+- The three are not JSON Schema formats. `isDefinedFormat` and
+  `IsDefinedFormat` leave them out, so the import asserts a `format` of
+  those names only with `--format-grammar`, and refuses one under the
+  format-assertion vocabulary, as before. `--format-grammar` can still
+  name them. The export writes one as `x-aontu-format`, which the
+  import reads back as the same format, with a loss reason of its own.
+- The step bound of the recognizer, 1,000,000 steps, admits a base64
+  text of about 210,000 characters, a base64url text of about 170,000
+  and a hex text of about 500,000. A longer text is refused with
+  `parse_failed`, as for any format.
+
+The plan named ADR-059 as the record BT2 changes. The record has since
+been rewritten, ADR-059 is gone, and ADR-105 covers formats now. It
+says aontu reads and runs format grammars itself and names no list of
+formats, so it needs no change for BT2. The rows are 60 more in
+`test/spec/format.tsv`, two in `test/spec/jsonschema.tsv` and three in
+`test/spec/jsonschema-import.tsv`, each answer agreed by both engines.
+
+Progress on 2026-11-27. BT4 is built in both engines, after #658, so a
+refusal sited in a bundled model frames the model's text in both.
+`@"aontu:num"` is `aontu/num/num.aontu`, and `$.aontu.Num` holds
+`Int8`, `Int16`, `Int32`, `Int64`, `Int128`, `Uint8`, `Uint16`,
+`Uint32`, `Uint64`, `Uint128` and `Float32`, each a `type()`. A bare
+`int8` is still a string. Three things were settled in the building,
+and each is the maintainer's to change:
+
+- The members are PascalCase, as `aontu:system`'s are, so the model
+  writes `$.aontu.Num.Uint8` where the example above writes
+  `$.Num.uint8`.
+- The names to 32 bits are `integer` alone, as the example's `uint8`
+  is, so `0d5` is refused by them. The 64-bit and 128-bit names are
+  `(integer | biginteger)` with `0d` bounds, the lower one `-0d…`.
+- `Float32` is a `number` from `-0d340282346638528859811704183484516925440`
+  to `0d340282346638528859811704183484516925440`, the largest finite
+  float32 magnitude, 3.4028234663852886e38, written exactly. A
+  constraint cannot say a precision, so it bounds the magnitude only:
+  `16777217`, which a float32 rounds, is admitted.
+
+The rows are `test/spec/num.tsv`: each name at both its bounds and one
+past each, a project narrowing a name, `vet` against one, the model's
+canon and hash, and the bare word. The model is listed in
+`docs/reference-language.md`, and `name-a-reusable-constraint.md`
+points at it.
+
+BT5 is written: `docs/how-to/carry-binary-data.md` carries a string's
+bytes through `encode` and `decode` in the three encodings, keeps raw
+bytes in their encoded form, and bounds a binary record's numbers with
+`aontu:num`, pointing to `name-a-reusable-constraint.md` for names
+built on the bundled ones. It names no `format()`, which waits on BT2.
+Every example on it runs in the documentation tests, and both engines
+print each answer it shows.
 
 ### Questions for the ruling on part 7
 

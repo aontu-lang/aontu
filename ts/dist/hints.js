@@ -113,13 +113,14 @@ const hints = {
         '  rest(number) & {b: 2}                       -> {b:2}  # t admits b;\n' +
         '  rest(nil, {if: {a: 1}, keys: any}) & {a: 2} -> nil    # if refuses.',
     format_unknown: 'format() takes a grammar, or the name of one of the nineteen JSON\n' +
-        'Schema formats, and "{reason}" is not one of them.\n' +
+        'Schema formats or of an encoding, and "{reason}" is not one of them.\n' +
         ' \n' +
         'The names: date-time, date, time, duration, email, idn-email,\n' +
         'hostname, idn-hostname, ipv4, ipv6, uri, uri-reference, iri,\n' +
         'iri-reference, uuid, uri-template, json-pointer,\n' +
-        'relative-json-pointer and regex. A string with `=` in it is a\n' +
-        'grammar, read as abnf() reads one.',
+        'relative-json-pointer and regex, and the encodings base64,\n' +
+        'base64url and hex. A string with `=` in it is a grammar, read as\n' +
+        'abnf() reads one.',
     format_grammar: 'This grammar is ABNF, but format() cannot run it as written:\n' +
         '{reason}\n' +
         ' \n' +
@@ -251,7 +252,7 @@ const hints = {
     view_split_kind: 'A figure divides only where each part stands as a figure of its own:\nthe link figures, the document and the treemap by --split-by,\n--split-roots and --budget; a sequence by --split-by and --budget; a\nset panel by --budget. The lattice, ladder and poset do not divide.',
     view_part_names: 'A split names each part after its value, key or root, and a run of a\npart divided by --budget after its run too (billing.1, billing.2). Two\nparts of one name would be written to one file, so the split is\nrefused: divide by another field, or without --budget.',
     pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
-    pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered.\n \nExamples:\n  pack([a,b], {x:1})   -> {..}  # Names;\n  pack(["a b"], {x:1}) -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})   -> nil   # ... but a number is not one.',
+    pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered. With a third\nargument the key is what it answers for each member, and it too must\nbe a string.\n \nExamples:\n  pack([a,b], {x:1})         -> {..}  # Names;\n  pack(["a b"], {x:1})       -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})         -> nil   # ... but a number is not one;\n  pack([{n:1}], _, at(_, n)) -> nil   # ... nor is a key that answers one.',
     each_data: 'The first argument to each() is not a bag. `each` makes one list\nelement per child of its DATA, so the data has to have children: a\nlist, or a map whose values are taken in sorted-key order.\n \nExamples:\n  each([a,b], upper(_))  -> [..]  # A list, in source order;\n  each({b:2,a:1}, _)     -> [..]  # ... a map, in sorted-key order;\n  each(1, _)             -> nil   # ... but a scalar has no children.',
     filter_data: 'The first argument to filter() is not a bag. `filter` keeps the\nchildren of its DATA that already satisfy a condition, so the data\nhas to have children: a list, or a map.\n \nExamples:\n  filter([1,x], integer)      -> [..]  # A list;\n  filter({a:1,b:x}, integer)  -> {..}  # ... or a map, keys kept;\n  filter(1, integer)          -> nil   # ... but a scalar has none.',
     match_none: 'No pattern matched, and there is no default. `match` tries each\npattern in the order written and takes the first the value unifies\nwith; the value {value} unified with none of {tried}. Add a trailing\ndefault — the argument after the last pair — if the rest was meant\nto be allowed.\n \nExamples:\n  match(1, integer, ok)             -> "ok"   # The first pattern matches;\n  match(x, integer, ok, other)      -> "other"  # ... or the default does;\n  match(x, integer, ok)             -> nil    # ... but nothing here does.',

@@ -869,3 +869,18 @@ describe('vet-a-star-over-a-call-or-a-path', () => {
     Assert.equal(vet('x: *pref(1) | **2', '{}').verdict, 'error')
   })
 })
+
+
+describe('subsume-a-list-arm-is-its-own-length', () => {
+  const CASES: [string, string, string][] = [
+    ['a:[1]|[2]', 'a:[1,5]', 'does_not_subsume'],
+    ['a:[1]|[2]', 'a:close([1])|close([2])', 'subsumes'],
+    ['a:close([1])|close([2])', 'a:[1]|[2]', 'subsumes'],
+    ['a: *[1]', 'a:[1,5]', 'does_not_subsume'],
+  ]
+  for (const [g, s, verdict] of CASES) {
+    test(g + ' over ' + s, () => {
+      Assert.equal(subsume(g, s, { profile: 'values' }).verdict, verdict)
+    })
+  }
+})

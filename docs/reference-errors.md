@@ -224,7 +224,7 @@ twenty rows have no such section and carry no link.
 | `negative` | 0.51.0 | Unary minus applied to a non-numeric operand. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `not_number` | 0.51.0 | A numeric literal that reads as a non-finite value. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `pack_data` | 0.53.0 | The first argument to `pack()` is not a bag. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |
-| `pack_key` | 0.53.0 | A list packed by `pack()` holds an element that is not a string. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |
+| `pack_key` | 0.53.0 | A list packed by `pack()` holds an element that is not a string, or its third argument answers a key that is not one. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |
 | `parse` | 0.51.0 | The outer wrapper for a source that could not be turned into a document; the inner error carries the code that explains it. |
 | `parse_arg` | 0.63.0 | `parse()` was given something other than a grammar string and a text string. ([Grammars: `abnf()` and `parse()`](reference-language.md#grammars-abnf-and-parse)) |
 | `parse_bad_src` | 0.51.0 | The source handed in for parsing is not a non-empty string. |
@@ -270,7 +270,7 @@ twenty rows have no such section and carry no link.
 | `empty_domain` | 0.77.0 | `empty()` met a value that is not a string. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `exact_float_mix` | 0.51.0 | An exact number combined with a binary float. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `float_overflow` | 0.53.0 | A result that is not a finite binary64 number. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
-| `format_unknown` | 0.77.0 | `format()` names a format that is neither one of the nineteen JSON Schema formats nor a grammar. ([Formats: `format`](reference-language.md#formats-format)) |
+| `format_unknown` | 0.77.0 | `format()` names a format that is neither one of the nineteen JSON Schema formats, nor an encoding, nor a grammar. ([Formats: `format`](reference-language.md#formats-format)) |
 | `func` | 0.51.0 | A function operation failed; the named function carries the detail. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `func:` | 0.51.0 | Dynamic-prefix family: a named function's own failure, the name appended (`func:upper`). |
 | `func_arg` | 0.55.0 | An argument does not fit the function's signature. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |

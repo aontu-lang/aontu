@@ -42,6 +42,7 @@ export type RelationOptions = {
   // Rides beside `trust` because it is the other half of what an
   // include may read.
   textExt?: string[]
+  readByExtension?: boolean
 
   count?: boolean
 }

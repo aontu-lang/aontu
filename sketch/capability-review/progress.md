@@ -687,6 +687,27 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to/name-a-reusable-constraint.md`, both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**BEYOND THE PHASES: the sized numbers, landed on 2026-11-27 as the
+bundled model `@"aontu:num"`**, which adds no phase to the table and
+keeps the decision above: there is no keyword, and `a: int8` is still
+the bare string `"int8"`. Ruling 27 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
+took the names up as a model, and its task BT4 built it, in
+[`aontu/num/num.aontu`](../../aontu/num/num.aontu), copied by
+`make aontu` into `ts/src/aontumodel.ts` and `go/aontumodel/num/`.
+`$.aontu.Num` holds the integer names CUE predeclares, `Int8` to
+`Int128` and `Uint8` to `Uint128`, and `Float32`, each `type()`-marked
+and each an ordinary value a project narrows. The 64-bit and 128-bit
+names are `(integer | biginteger)` with exact `0d` bounds, the lower
+one `-0d…`, and `Float32` is a `number` within the largest finite
+float32 magnitude written exactly, with no precision constraint, since
+a constraint cannot say one. The members are PascalCase as
+`aontu:system`'s are, which is the maintainer's to change. Held by
+`test/spec/num.tsv`, every expectation from both engines; documented in
+`docs/reference-language.md` "The `aontu:num` sized numbers", with a
+pointer from `docs/how-to/name-a-reusable-constraint.md`. No code is
+registered.
+
 **RECURSION P3 LANDED 2026-10-10** (sketch/RECURSION.0.md,
 [ADR-067](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names)),
 in both ports: subsumption reads a recursive position as the
@@ -1968,6 +1989,27 @@ day: `atOf` in `spec/Aontu/Verdict.lean`, with `Decls.atRef` in
 `spec/Aontu/Alias.lean` and `maybe`'s reading of it (`atMissD`), and
 rows at0 to at287 of `test/spec/def-path.tsv` hold both engines to it.
 
+**BEYOND THE PHASES: a key for each child, landed on 2026-11-27 as
+`pack`'s optional third argument**, which adds no phase to the table
+either. Ruling 5 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings)
+reopened the question phase 1 settled, that a generated key is the
+data's and never computed, and its task C2 built the answer:
+`pack(d, t, k)` puts each member's child under the string `k` answers
+for it. `packMembers` and `readKey` (`ts/src/val/PackFuncVal.ts`,
+`go/generate.go`) read `k` once for each member at the place its child
+would take under its own key, `_` the member and `key(0)` its key, run
+to a fixpoint as the admission trial runs its meet; the call waits
+while any key waits, and fires once every key is a string. Anything
+else is `pack_key`, whose hint gains a sentence, identical in both
+ports; a refusal `k` answers, such as `at`'s `no_path`, is the call's.
+The signature line in `test/spec/signature.tsv` gains `template k?:
+string`, and both LSP signature helps show it. Rows:
+`test/spec/gen-pack-key.tsv` (45) and the six `-pack` rows of
+`test/spec/comprehension.tsv`, beside k9, k10, k11 and k14 to k16; the
+`gen-pack.tsv` row that held three arguments to `func_arity` now holds
+four. No code is registered. The definition is owed.
+
 **Departures and discoveries recorded by G8.1.**
 
 1. **The template is CLONED per destination, never shared.** A spread
@@ -2240,6 +2282,12 @@ as `Encoding.encode` and `Encoding.decode` (`spec/Aontu/Text.lean`) and
 computed as `encodeOf` (`spec/Aontu/Verdict.lean`), and held by
 `test/spec/encode.tsv` and rows ec0 on of `test/spec/def-call.tsv`. Two
 codes are registered, `encode_name` and `decode_malformed`.
+Their task BT2 landed on 2026-11-27: the three names are formats too,
+`grammar/format/base64.abnf`, `base64url.abnf` and `hex.abnf`, each a
+grammar of RFC 4648 that admits the text `encode` writes and refuses
+what `decode` refuses, but for bytes that are not UTF-8. JSON Schema
+defines none of them, so the import doesn't assert them by name and the
+export writes them as `x-aontu-format`.
 
 **BEYOND THE PHASES: the grammar pair, 2026-09-10
 ([ADR-033](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function)).**

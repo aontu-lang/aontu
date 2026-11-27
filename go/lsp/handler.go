@@ -216,6 +216,47 @@ func (h *Handler) Handle(m Message) []Out {
 		}
 		return []Out{newResponse(m.ID, Formatting(text))}
 
+	case "textDocument/references", "textDocument/documentHighlight":
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+			Position *struct {
+				Line      int `json:"line"`
+				Character int `json:"character"`
+			} `json:"position"`
+			Context struct {
+				IncludeDeclaration bool `json:"includeDeclaration"`
+			} `json:"context"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		text, ok := h.docs[p.TextDocument.URI]
+		if !ok || nil == p.Position {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		if "textDocument/references" == m.Method {
+			return []Out{newResponse(m.ID, References(text, p.Position.Line, p.Position.Character,
+				p.TextDocument.URI, p.Context.IncludeDeclaration, h.trust))}
+		}
+		return []Out{newResponse(m.ID, Highlights(text, p.Position.Line, p.Position.Character, h.trust))}
+
+	case "textDocument/documentSymbol":
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		text, ok := h.docs[p.TextDocument.URI]
+		if !ok {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		return []Out{newResponse(m.ID, Symbols(text, h.trust))}
+
 	case "textDocument/definition":
 		var p struct {
 			TextDocument struct {
@@ -442,6 +483,9 @@ func initializeResult() map[string]any {
 				"triggerCharacters": []string{"(", ","},
 			},
 			"documentFormattingProvider": true,
+			"documentSymbolProvider":     true,
+			"referencesProvider":         true,
+			"documentHighlightProvider":  true,
 		},
 		"serverInfo": map[string]any{
 			"name":    "aontu-lsp",

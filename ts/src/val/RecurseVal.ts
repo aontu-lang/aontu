@@ -296,12 +296,13 @@ function containsRecurseOf(v: any, target: string[], d: number, root?: any,
   const linkTemplates: any[] = !named ? [] :
     true === v.isRelateFunc ? v.peg : [v.tval, ...(v.relates ?? [])]
   return linkTemplates.some((t: any) => containsRecurseOf(t, target, d + 1, root, seen, links))
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 9 */
 
 
 export {
   RecurseVal,
   bumpRecurse,
   containsRecurseOf,
+  unmarked,
   walkTarget,
 }

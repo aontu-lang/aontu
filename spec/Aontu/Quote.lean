@@ -62,6 +62,7 @@ def Rider.quote : Rider → Data
   | .move n => .list [.str "move", .str n]
   | .void => .str "void"
   | .parent => .str "parent"
+  | .failed => .str "failed"
   | .acyclic => .str "acyclic"
   | .inverse k => .list [.str "inverse", .str k]
   | .gen => .str "gen"
@@ -218,6 +219,7 @@ def Val.rider? : Val → Option Rider
   | .lit (.str "seals") => some .seals
   | .lit (.str "void") => some .void
   | .lit (.str "parent") => some .parent
+  | .lit (.str "failed") => some .failed
   | .lit (.str "acyclic") => some .acyclic
   | .lit (.str "gen") => some .gen
   | .list [.lit (.str "move"), .lit (.str n)] none false => some (.move n)

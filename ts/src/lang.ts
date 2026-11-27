@@ -2022,6 +2022,15 @@ export function includeFormat(
 }
 
 
+// The data format an entry document is read in, where its extension
+// names one. JSON stays aontu source, whose reading of a number is exact.
+export function operandFormat(path: string | undefined): string | undefined {
+  const format = includeFormat(extKindOf(path ?? ''))
+  return 'source' === format || 'text' === format || 'json' === format ?
+    undefined : format
+}
+
+
 // Extensions no widening may reach. `js` executes under multisource's
 // default processor; `''` is the no-extension fallback, which names no
 // file type at all.
@@ -2598,6 +2607,16 @@ function rawToVal(n: any): Val {
 }
 
 
+function sitedAt(v: any, url: string | undefined): Val {
+  v.site.url = url
+  const peg: any = v.peg
+  if (true === v.isList || true === v.isMap) {
+    Object.values(peg).forEach((c: any) => sitedAt(c, url))
+  }
+  return v
+}
+
+
 class Lang {
   jsonic: Jsonic
   opts: AontuOptions
@@ -2657,10 +2676,13 @@ class Lang {
     }
 
 
+    const path = opts?.path ?? this.opts.path
+    const format = true === this.opts.readByExtension ? operandFormat(path) : undefined
     let val: Val
 
     try {
-      val = this.jsonic(src, jm)
+      val = undefined === format ? this.jsonic(src, jm) :
+        sitedAt(rawToVal(DATA_READERS[format](src, path as string)), path)
 
       // An implicit top-level list (`a b`, `1,2`) is built by the core
       // jsonic grammar without passing through the aontu val/list rules,
@@ -2677,7 +2699,8 @@ class Lang {
       if (refused || e instanceof JsonicError || 'JsonicError' === e.constructor.name) {
         const why = refused ? e.code : 'syntax'
         const refusal: any = new NilVal({ why, err: e })
-        refusal.parse = parseRefusal(e, src, opts?.path ?? this.opts.path, refused ? '' : opCharHint(src))
+        refusal.parse = parseRefusal(e, src, path,
+          refused || undefined !== format ? '' : opCharHint(src))
         if (!refused) {
           refusal.site.row = e.lineNumber
           refusal.site.col = e.columnNumber

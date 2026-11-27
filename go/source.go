@@ -224,6 +224,18 @@ func includeFormat(ext string, sink *trustSink) string {
 	return ""
 }
 
+// operandFormat is the data format an entry document is read in, where
+// its extension names one. JSON stays aontu source, whose reading of a
+// number is exact.
+func operandFormat(path string) string {
+	switch format := includeFormat(extOf(path), nil); format {
+	case "source", "text", "json":
+		return ""
+	default:
+		return format
+	}
+}
+
 var dataReaders = map[string]*jsonic.Jsonic{
 	// The strict RFC 8259 reader.
 	"json":   jsonp.Make(),

@@ -56,6 +56,11 @@ type Aontu struct {
 
 	ExactNumbers bool
 
+	// ReadByExtension reads the entry by its path's extension.
+	ReadByExtension bool
+
+	entry string
+
 	// HostVars binds $name where an evaluation is given no vars: --var.
 	HostVars map[string]HostVar
 }
@@ -123,10 +128,21 @@ func (a *Aontu) parseEntry(src string) (Val, error) {
 	if nil != a.Trust && 0 < a.Trust.Budget.Depth {
 		depth = a.Trust.Budget.Depth
 	}
-	v, err := parseWithTrust(src, a.base, a.File, sink, a.ExactNumbers, depth)
+	format := ""
+	if a.ReadByExtension {
+		format = operandFormat(a.entryPath())
+	}
+	v, err := parseWithTrust(src, a.base, a.File, format, sink, a.ExactNumbers, depth)
 	a.IncludeDeps = manifestOf(*sink.deps)
 	a.IncludeText = sink.texts
 	return v, err
+}
+
+func (a *Aontu) entryPath() string {
+	if "" != a.File {
+		return a.File
+	}
+	return a.entry
 }
 
 func (a *Aontu) newTrustSink() *trustSink {
@@ -234,7 +250,11 @@ func (a *Aontu) GenerateVars(src string, vars map[string]Val) (any, error) {
 	case *TopVal, *PlaceVal:
 		return nil, residueErr(ctx, res, "no_gen")
 	}
-	out, gerr := res.Gen(ctx)
+	var out any
+	var gerr error
+	if !res.markedHide() && !res.markedType() {
+		out, gerr = res.Gen(ctx)
+	}
 	if gerr = genErr(ctx, gerr); gerr != nil {
 		return nil, gerr
 	}

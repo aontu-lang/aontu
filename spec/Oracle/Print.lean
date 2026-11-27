@@ -135,6 +135,7 @@ def Rider.name : Rider → String
   | .move _ => "move"
   | .void => "nil"
   | .parent => "parent"
+  | .failed => "failed"
   | .acyclic => "acyclic"
   | .inverse _ => "inverse"
   | .gen => "gen"
@@ -334,7 +335,7 @@ def Val.src : Val → Option String
   | .ride (.inverse k) .absent [] => some s!"inverse({quote k})"
   | .ride .void .nil [] => some "nil"
   | .ride .type _ _ | .ride .hide _ _ | .ride .opened _ _ | .ride .lifts _ _ | .ride .seals _ _
-  | .ride (.move _) _ _ | .ride .void _ _ | .ride .acyclic _ _ | .ride (.inverse _) _ _ => none
+  | .ride (.move _) _ _ | .ride .void _ _ | .ride .acyclic _ _ | .ride (.inverse _) _ _ | .ride .failed _ _ => none
   | .ride .gen v r => do pure s!"({← v.src}) & gen({← (Data.map r).src})"
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
   | .link v t => do pure s!"(relate({← t.src})) & ({← v.src})"

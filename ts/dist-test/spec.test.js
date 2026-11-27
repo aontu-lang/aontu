@@ -140,7 +140,8 @@ function loadRows() {
                 'diff' === parts[1] || 'agentsmd' === parts[1] ||
                 'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
                 'jsonschema-output' === parts[1] || 'at' === parts[1] ||
-                'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1];
+                'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1] ||
+                'refs' === parts[1];
             const want = vetRow ? 5 : 4;
             if (parts.length < want) {
                 throw new Error(`malformed spec row: ${file} line ${lineno}: ${want} columns` +
@@ -319,6 +320,25 @@ function runVerdict(row) {
         Assert.ok(agrees, `verdict mismatch: ${row.name}: want ${want.join('|')}, got ${got}`);
     }
 }
+// A place after a fixture's name on its line is read as the row writes
+// the name, so that an answer is the same wherever the fixtures are.
+function asWritten(src, at) {
+    if (null == at || 'object' !== typeof at) {
+        return at;
+    }
+    if (Array.isArray(at)) {
+        return at.map((a) => asWritten(src, a));
+    }
+    const out = Object.fromEntries(Object.entries(at).map(([k, v]) => [k, asWritten(src, v)]));
+    if ('number' === typeof at.line && 'number' === typeof at.character) {
+        const line = src.split('\n')[at.line] ?? '';
+        const d = FIXTURES_DIR.length - '__FIXTURES__'.length;
+        for (let o = line.indexOf(FIXTURES_DIR); 0 <= o; o = line.indexOf(FIXTURES_DIR, o + 1)) {
+            out.character -= at.character >= o + FIXTURES_DIR.length ? d : 0;
+        }
+    }
+    return out;
+}
 // Execute one spec row. Shared by the TSV-driven tests above and the
 // gens-mode self-test below, so both go through the same comparison.
 function runRow(row) {
@@ -392,6 +412,20 @@ function runRow(row) {
     else if ('members' === row.mode) {
         const [line, character] = row.data.split(':').map(Number);
         Assert.strictEqual((0, aontu_1.exactJSON)((0, cursor_1.membersAt)(row.src, { line, character }) ?? null), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `members mismatch: ${row.name}`);
+    }
+    else if ('refs' === row.mode) {
+        const [line, character] = row.data.split(':').map(Number);
+        const got = (0, cursor_1.referencesAt)(row.src, { line, character });
+        const named = (ps) => ps.map((p) => ({
+            ...p,
+            file: '' === p.file ? '' :
+                '__FIXTURES__/' + p.file.replaceAll('\\', '/').split('/').pop(),
+        }));
+        Assert.strictEqual((0, aontu_1.exactJSON)(null == got ? null :
+            { ...got, writes: named(got.writes), reads: named(got.reads) }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `refs mismatch: ${row.name}`);
+    }
+    else if ('symbols' === row.mode) {
+        Assert.strictEqual((0, aontu_1.exactJSON)(asWritten(row.src, (0, cursor_1.symbolsOf)(row.src) ?? null)), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `symbols mismatch: ${row.name}`);
     }
     else if ('describe' === row.mode || 'define' === row.mode) {
         const [line, character] = row.data.split(':').map(Number);

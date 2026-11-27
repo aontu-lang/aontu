@@ -16,13 +16,35 @@ import { keyTable } from './BagVal'
 import { ListVal } from './ListVal'
 import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { admitsSettled, ownJson, sealedMiss } from './admission'
+import { subsumeNode, newPairs } from '../subsume'
 import { prefInnerPeg } from './PrefVal'
 import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
 import { bagMembers } from './members'
+import { unmarked, walkTarget } from './RecurseVal'
+import { holdsRef } from './ConjunctVal'
 
 
 type Member = { key: string, val: Val }
+
+
+const MAKERS = new Set(['pack', 'each', 'apply', 'match'])
+
+
+const making = (v: any): boolean =>
+  true === v?.isFunc && !v.done && MAKERS.has(v.funcname())
+
+
+// A member a generator is still making is not yet where a path reads it.
+function unmade(ctx: AontuContext, path: string[]): boolean {
+  for (let i = 0; i < path.length; i++) {
+    const node: any = unmarked(walkTarget(ctx.root, path.slice(0, i)))
+    if (making(node) || (true === node?.isConjunct && node.peg.some(making))) {
+      return true
+    }
+  }
+  return false
+}
 
 
 class FilterFuncVal extends FuncBaseVal {
@@ -51,7 +73,7 @@ class FilterFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(ctx, 1)) {
+    if (!this.stagedReady(ctx, 1) || (holdsRef(this.peg[1]) && unmade(ctx, this.path))) {
       return this.residuate(peer, ctx)
     }
 
@@ -74,8 +96,12 @@ class FilterFuncVal extends FuncBaseVal {
       if (!declares && owns.every((own: any) => undefined !== own)) {
         const verdicts = arms.map((arm: Val, i: number) =>
           !sealedMiss(test, owns[i]) && admitsSettled(kctx, test, arm, owns[i], kctx.path))
-        if (verdicts.every((v) => undefined !== v)) {
-          return verdicts.every((v) => true === v)
+        // A default alone also stands for its parent type, which the condition must admit whole.
+        const parent = true === (child as any).isPref && verdicts.every((v) => true === v) ?
+          subsumeNode({ profile: 'values', findings: [], generalUrl: '', specificUrl: '', pairs: newPairs() } as any,
+            [], test, (child as any).superpeg) : 'yes'
+        if ('undecided' !== parent && verdicts.every((v) => undefined !== v)) {
+          return 'yes' === parent && verdicts.every((v) => true === v)
         }
       }
       const met = trialUnify(kctx, child.clone(kctx), test)

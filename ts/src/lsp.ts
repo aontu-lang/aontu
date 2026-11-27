@@ -13,9 +13,12 @@ import { why } from './query'
 import { format } from './format'
 import { utf8Bytes } from './escape'
 import {
-  pathAt, sitesOf, describeAt, definitionAt, describeVal, membersAt,
+  pathAt, sitesOf, describeAt, definitionAt, describeVal, membersAt, symbolsOf,
+  referencesAt,
 } from './cursor'
-import type { CursorMembers, CursorPath, Member, PathSite, PathValue } from './cursor'
+import type {
+  CursorMembers, CursorPath, DocSymbol, Member, PathPlace, PathSite, PathValue,
+} from './cursor'
 import type { WhyConjunct } from './provenance'
 
 
@@ -26,6 +29,10 @@ const SEVERITY_INFORMATION = 3
 const SEVERITY_HINT = 4
 
 const LSP_VERSION = VERSION
+
+// LSP DocumentHighlightKind subset.
+const HIGHLIGHT_READ = 2
+const HIGHLIGHT_WRITE = 3
 
 
 type Position = { line: number, character: number }
@@ -237,6 +244,9 @@ function initializeResult() {
       completionProvider: { triggerCharacters: ['.'] },
       signatureHelpProvider: { triggerCharacters: ['(', ','] },
       documentFormattingProvider: true,
+      documentSymbolProvider: true,
+      referencesProvider: true,
+      documentHighlightProvider: true,
     },
     serverInfo: {
       name: 'aontu-lsp',
@@ -420,6 +430,42 @@ function computePathAt(text: string, pos: Position, trust?: any): CursorPath | n
 
 function computeSitesOf(text: string, path: string[], trust?: any): PathSite[] | null {
   return sitesOf(text, path, { trust }) ?? null
+}
+
+
+// The outline of the keys the document writes, or nothing where it
+// doesn't parse.
+function computeSymbols(text: string, trust?: any): DocSymbol[] | null {
+  return symbolsOf(text, { trust }) ?? null
+}
+
+
+type DocumentHighlight = { range: Range, kind: number }
+
+
+// Every site that writes the path a key or a reference names, where the
+// client asks for them, and every reference that reads it.
+function computeReferences(
+  src: string, position: Position, uri: string, includeDeclaration: boolean,
+  trust?: any): Location[] | null {
+  const refs = referencesAt(src, position, { trust })
+  return undefined === refs ? null :
+    [...(includeDeclaration ? refs.writes : []), ...refs.reads].map((p) => ({
+      uri: '' === p.file ? uri : pathToUri(p.file),
+      range: p.range,
+    }))
+}
+
+
+// The same, in the document alone, a site that writes the path apart
+// from a reference that reads it.
+function computeHighlights(
+  src: string, position: Position, trust?: any): DocumentHighlight[] | null {
+  const refs = referencesAt(src, position, { trust })
+  const here = (ps: PathPlace[], kind: number) =>
+    ps.filter((p) => '' === p.file).map((p) => ({ range: p.range, kind }))
+  return undefined === refs ? null :
+    [...here(refs.writes, HIGHLIGHT_WRITE), ...here(refs.reads, HIGHLIGHT_READ)]
 }
 
 
@@ -842,6 +888,30 @@ class LspHandler {
         }]
       }
 
+      case 'textDocument/documentSymbol': {
+        const uri = msg.params?.textDocument?.uri
+        const text = null != uri ? this.docs.get(uri) : undefined
+        return [{
+          jsonrpc: '2.0', id: msg.id,
+          result: null == text ? null : computeSymbols(text, this.trust),
+        }]
+      }
+
+      case 'textDocument/references':
+      case 'textDocument/documentHighlight': {
+        const uri = msg.params?.textDocument?.uri
+        const pos = msg.params?.position
+        const text = null != uri ? this.docs.get(uri) : undefined
+        return [{
+          jsonrpc: '2.0', id: msg.id,
+          result: null == text || null == pos ? null :
+            'textDocument/references' === msg.method ?
+              computeReferences(text, pos, uri, true === msg.params?.context?.includeDeclaration,
+                this.trust) :
+              computeHighlights(text, pos, this.trust),
+        }]
+      }
+
       case 'textDocument/definition': {
         const uri = msg.params?.textDocument?.uri
         const pos = msg.params?.position
@@ -879,7 +949,7 @@ class LspHandler {
     return publishDiagnosticsMsg(uri,
       computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }))
   }
-} /* node:coverage ignore next 38 */
+} /* node:coverage ignore next 45 */
 
 
 export {
@@ -891,6 +961,9 @@ export {
   computeFormatting,
   computePathAt,
   computeSitesOf,
+  computeSymbols,
+  computeReferences,
+  computeHighlights,
   LspHandler,
   LSP_VERSION,
   BUILTIN_FUNCS,
@@ -902,6 +975,8 @@ export {
   COMPLETION_FIELD,
   COMPLETION_VARIABLE,
   COMPLETION_KEYWORD,
+  HIGHLIGHT_READ,
+  HIGHLIGHT_WRITE,
 }
 
 export type {
@@ -916,5 +991,7 @@ export type {
   Location,
   TextEdit,
   CursorPath,
+  DocSymbol,
+  DocumentHighlight,
   PathSite,
 }

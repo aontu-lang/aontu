@@ -20,6 +20,7 @@ const top_1 = require("./val/top");
 const RecurseVal_1 = require("./val/RecurseVal");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
+const formatgrammar_1 = require("./formatgrammar");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 function pathText(path) {
     return '$' + (0 < path.length ? '.' + path.join('.') : '');
@@ -186,12 +187,13 @@ function countEndpoint(b, isLo) {
 }
 const NOT_YET = 'this is not a value yet, so there is nothing to constrain a ' +
     'consumer to; the schema admits anything here';
-const FORMAT_ANNOTATES = (name) => 'the format "' + name + '" asserts here, and ' +
+const FORMAT_ANNOTATES = (f) => 'the format "' + f.name + '" asserts here, and ' +
     'JSON Schema 2020-12 asserts a format only where a validator is asked to, so the ' +
     'schema may admit a string it refuses';
-const FORMAT_UNREAD = (name) => 'JSON Schema has no keyword for a grammar, so the ' +
-    'format "' + name + '" is written as x-aontu-format, which only aontu reads; the schema ' +
-    'admits any string here';
+const FORMAT_UNREAD = (f) => (f.src === f.name ?
+    'JSON Schema defines no format "' + f.name + '", so it' :
+    'JSON Schema has no keyword for a grammar, so the format "' + f.name + '"') +
+    ' is written as x-aontu-format, which only aontu reads; the schema admits any string here';
 function fromConstraint(ctx, path, c, bag) {
     const out = {};
     // An atom whose arguments have not settled: a template's, read where
@@ -244,11 +246,12 @@ function fromConstraint(ctx, path, c, bag) {
     else if (1 < c.res.length) {
         extra.push(...c.res.map((r) => ({ pattern: r.norm })));
     }
-    // ADR-105: a committed format by its name, a grammar under
+    // ADR-105: a JSON Schema format by its name, a grammar or an encoding under
     // x-aontu-format, which only aontu reads.
+    const named = (f) => f.src === f.name && (0, formatgrammar_1.isDefinedFormat)(f.name);
     for (const [key, fs, reason] of [
-        ['format', c.fmts.filter((f) => f.src === f.name), FORMAT_ANNOTATES],
-        ['x-aontu-format', c.fmts.filter((f) => f.src !== f.name), FORMAT_UNREAD],
+        ['format', c.fmts.filter(named), FORMAT_ANNOTATES],
+        ['x-aontu-format', c.fmts.filter((f) => !named(f)), FORMAT_UNREAD],
     ]) {
         if (1 === fs.length) {
             out[key] = fs[0].src;
@@ -257,7 +260,7 @@ function fromConstraint(ctx, path, c, bag) {
             extra.push(...fs.map((f) => ({ [key]: f.src })));
         }
         for (const f of fs) {
-            lose(ctx, path, 'format', reason(f.name));
+            lose(ctx, path, 'format', reason(f));
         }
     }
     if (null != c.count) {

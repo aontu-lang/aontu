@@ -26,6 +26,7 @@ the [Explanation](explanation.md).
 - [Spreads `&:`](#spreads-)
 - [Key patterns: `keyed`](#key-patterns-keyed)
 - [Generating children: `pack` and `each`](#generating-children-pack-and-each)
+  - [A key for each child](#a-key-for-each-child)
   - [Making elements: `each`](#each-the-order-preserving-map)
   - [One instance: `apply`](#apply-one-instance)
   - [The `_ & …` idiom](#the-_---idiom-construction-and-bound)
@@ -1224,6 +1225,8 @@ deploy: billing: replicas: 4  # an override composes as usual
 `pack(data, tmpl)` makes one **keyed child** per child of `data`. The
 keys are **data, never position**: for a list, the strings themselves
 (a non-string element is an error, `pack_key`); for a map, its keys.
+A third argument makes each key instead, as
+[A key for each child](#a-key-for-each-child) shows.
 Each generated child is `tmpl` cloned at that destination, so `key()`
 and relative references inside the template answer for the child
 rather than for the call. Duplicate keys are not an error: the
@@ -1279,7 +1282,84 @@ Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:
 evaluation still terminates by construction.
 
-The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else.
+The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else. The definition doesn't yet read a third argument.
+
+### A key for each child
+
+`pack(data, tmpl, key)` puts each member's child under the key that
+`key` answers for that member, in place of the member's own key or
+text. `key` is read once for each member: `_` is the member, and
+`key(0)` is its own key in a map or its position in a list. A field of
+the member is read with [`at`](#the-member-at-a-key-at), so a list of
+records can be keyed by a field, or by two joined:
+
+```aontu
+xs: [{ ns:a name:web port:80 } { ns:b name:db port:5432 }]
+byname: pack($.xs, _, at(_, name))
+ports: pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))
+```
+
+```json
+{"byname":{"db":{"name":"db","ns":"b","port":5432},"web":{"name":"web","ns":"a","port":80}},"ports":{"a/web":80,"b/db":5432},"xs":[{"name":"web","ns":"a","port":80},{"name":"db","ns":"b","port":5432}]}
+```
+
+The members of a list need not be strings here, since `key` makes the
+key. `key(0)` gives every key a prefix, and over a list it is the
+position. Children whose keys collide unify, as they do without the
+third argument:
+
+```aontu
+m: { a:1 b:2 }
+svc: pack($.m, _, "svc-" + key(0))
+xs: [p q]
+pos: pack($.xs, _, "n" + key(0))
+same: pack([{ n:a v:1 } { n:a w:2 }], _, at(_, n))
+```
+
+```json
+{"m":{"a":1,"b":2},"pos":{"n0":"p","n1":"q"},"same":{"a":{"n":"a","v":1,"w":2}},"svc":{"svc-a":1,"svc-b":2},"xs":["p","q"]}
+```
+
+The template is read at the child's place, as it is without a key, so
+its `key(0)` is the key the third argument answered, not the member's
+own. A map is inverted once each member carries its own key:
+
+```aontu
+m: { a:x b:y }
+st: hide(pack($.m, { k:key() v:_ }))
+inv: pack($.st, at(_, k), at(_, v))
+own: pack($.m, key(0), _)
+```
+
+```json
+{"inv":{"x":"a","y":"b"},"m":{"a":"x","b":"y"},"own":{"x":"x","y":"y"}}
+```
+
+The key must settle to a string, or the call is refused as `pack_key`:
+a number, a kind such as `string`, a choice, a map, and the absence
+`maybe` makes of a field that isn't there are not keys. A field that
+isn't there is `no_path`, refused at the call:
+
+<!-- test: run -->
+```sh
+$ echo 'xs: [{n: 1}]  x: pack($.xs, _, at(_, n))' | aontu
+[aontu/pack_key]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+$ echo 'xs: [{n: a}]  x: pack($.xs, _, at(_, id))' | aontu
+[aontu/no_path]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+```
+
+The key reads the member through `_` and its key through `key(0)`, and
+a relative path in it doesn't name a field of the member. It reads from
+the place the member's child would take under its own key, as one in
+the template does, so `pack($.xs, _, .n)` reads the output being made,
+which waits on the call and never settles. An absolute path reads the
+document as anywhere.
 
 ### `each`, the order-preserving map
 
@@ -3257,11 +3337,11 @@ whatever map or list it meets: `open() & close({x:1}) & {y:2}` admits
 
 Example: `open(close({x:1})) & {y:2}`→`{x:1,y:2}`
 
-### `pack(d: map|list, template t: any) : map`
+### `pack(d: map|list, template t: any, template k?: string) : map`
 
-One keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each).
+One keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map, or with `k` the string `k` answers for each member, `_` being the member and `key(0)` its own key. See [Generating children](#generating-children-pack-and-each) and [A key for each child](#a-key-for-each-child).
 
-Example: `deploy: pack($.names, {replicas:*2|integer})`
+Example: `deploy: pack($.names, {replicas:*2|integer})`; `byname: pack($.xs, _, at(_, name))`
 
 ### `parse(g: string, v?: string) : map|list|constraint`
 
@@ -4338,6 +4418,10 @@ writes in lowercase.
 are not UTF-8: `decode("ff", hex)` has no string to answer with. Binary
 data stays in its encoded form from the source to the output.
 
+**Each encoding is also a format.** `format(base64)`, `format(base64url)`
+and `format(hex)` admit the text `encode` writes, and hold data that
+carries bytes as text: see [Formats](#formats-format).
+
 <!-- test: scenario encode-refusal -->
 <!-- test: run -->
 ```sh
@@ -4754,7 +4838,7 @@ same key as an ordinary string.
 
 ### The bundled vocabularies
 
-**Six vocabularies ship with the engine**, served from it rather than
+**Seven vocabularies ship with the engine**, served from it rather than
 from disk, and **every one of them is named under `aontu:`**. That is
 the whole rule: a language-supplied schema has one spelling, and the
 scheme is what stops a file on disk from standing in front of it.
@@ -4767,6 +4851,7 @@ scheme is what stops a file on disk from standing in front of it.
 | `aontu:lang/text` | the text profile |
 | `aontu:lang/markdown` | the markdown profile |
 | `aontu:gen` | the standard options of each type of value, which a [`gen()`](#output-options-gen) record is held to |
+| `aontu:num` | the sized numbers, `Int8` to `Uint128` and `Float32`: [below](#the-aontunum-sized-numbers) |
 
 The three profile models are described [after the system vocabulary](#the-aontu-models).
 
@@ -4786,8 +4871,9 @@ rather than looked for on disk.
 | `@"aontu:system"` | `$.aontu.System.Port`, `.Component`, `.Service`, `.Semver` |
 | `@"aontu:view"` | `$.aontu.View.Figure` |
 | `@"aontu:profile"` | `$.aontu.Profile`, `$.aontu.Lang` |
+| `@"aontu:num"` | `$.aontu.Num.Int8` to `.Int128`, `.Uint8` to `.Uint128`, `.Float32` |
 
-One key is reserved instead of six, it is named for the language
+One key is reserved instead of seven, it is named for the language
 rather than for a domain, and `$.aontu` anywhere tells a reader at once
 that the subtree is not the document's own.
 
@@ -4845,7 +4931,7 @@ the set. Write this as `nope.aontu`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aontu
-[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:num, aontu:profile, aontu:system, aontu:view)
 ...
 $ echo $?
 1
@@ -5025,6 +5111,87 @@ Two of its behaviours are the language rather than the vocabulary:
 Everything here is ordinary unification, so an author who wants a
 different vocabulary writes one the same way, and nothing in the
 language knows these names.
+
+### The `aontu:num` sized numbers
+
+The sized numbers are names, not keywords: `@"aontu:num"` defines the
+integer types CUE builds in and `Float32` under `$.aontu.Num`, each
+one `type()`-marked, so naming one neither generates it nor asks the
+document to fill it. A bare `int8` is still the string `"int8"`.
+
+| Name | Admits | From | To |
+|------|--------|------|----|
+| `Int8` | `integer` | -128 | 127 |
+| `Int16` | `integer` | -32768 | 32767 |
+| `Int32` | `integer` | -2147483648 | 2147483647 |
+| `Int64` | `integer \| biginteger` | -9223372036854775808 | 9223372036854775807 |
+| `Int128` | `integer \| biginteger` | -2^127 | 2^127 - 1 |
+| `Uint8` | `integer` | 0 | 255 |
+| `Uint16` | `integer` | 0 | 65535 |
+| `Uint32` | `integer` | 0 | 4294967295 |
+| `Uint64` | `integer \| biginteger` | 0 | 18446744073709551615 |
+| `Uint128` | `integer \| biginteger` | 0 | 2^128 - 1 |
+| `Float32` | `number` | -3.4028234663852886e38 | 3.4028234663852886e38 |
+
+The 64-bit and 128-bit bounds are past 2^53, so the model writes them
+as exact `0d` literals, the lower one `-0d…`, and admits a
+`biginteger` beside an `integer`. `Float32` bounds the magnitude only: a
+constraint cannot say a precision, so `16777217`, which a float32
+rounds, is admitted.
+
+Each name is an ordinary value, so a project narrows one in a name of
+its own. Write this as `sizes.aontu`:
+
+<!-- test: scenario aontu-num -->
+<!-- test: file sizes.aontu -->
+```aontu
+@"aontu:num"
+
+Port: type($.aontu.Num.Uint16 & min(1))
+
+listen: $.Port & 8080
+retries: $.aontu.Num.Uint8 & 3
+offset: $.aontu.Num.Int64 & -0d9223372036854775808
+ratio: $.aontu.Num.Float32 & 0.25
+kind: int8
+```
+
+<!-- test: run -->
+```sh
+$ aontu sizes.aontu
+{
+  "aontu": {
+    "Num": {}
+  },
+  "kind": "int8",
+  "listen": 8080,
+  "offset": -9223372036854775808,
+  "ratio": 0.25,
+  "retries": 3
+}
+```
+
+A value past a name's bound is refused, and the frame shows the
+bound in the model. Write this as `wide.aontu`:
+
+<!-- test: file wide.aontu -->
+```aontu
+@"aontu:num"
+
+level: $.aontu.Num.Int8 & 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu wide.aontu
+[aontu/constraint]: Cannot unify values at path $.level
+...
+ Cannot unify value: integer&min(-128)&max(127) with value: 200
+  --> aontu:num:6:36
+...
+$ echo $?
+1
+```
 
 ### Declared relations
 
@@ -8193,8 +8360,36 @@ The names are the nineteen JSON Schema formats: `date-time`, `date`,
 `ipv4`, `ipv6`, `uri`, `uri-reference`, `iri`, `iri-reference`, `uuid`,
 `uri-template`, `json-pointer`, `relative-json-pointer` and `regex`.
 Every name but `regex` is committed under `grammar/format/`, and
-`regex` admits a pattern `re()` admits. Any other name refuses with
-`format_unknown`.
+`regex` admits a pattern `re()` admits.
+
+Three more names are the [encodings](#encodings-encode-and-decode)
+that `encode` writes. Each is a grammar of RFC 4648, committed beside
+the others:
+
+| name | admits |
+|------|--------|
+| `base64` | the alphabet of section 4, padded with one or two `=` to a multiple of four characters |
+| `base64url` | the alphabet of section 5, with no padding and a length that is never one more than a multiple of four |
+| `hex` | an even number of hexadecimal digits, in either case |
+
+Any other name refuses with `format_unknown`.
+
+```aontu
+token: format(base64url) & encode("hello", base64url)
+bytes: format(hex) & "FF"
+```
+
+```json
+{"token": "aGVsbG8", "bytes": "FF"}
+```
+
+Each encoding admits the empty string, which `encode` writes for `""`.
+Each holds the bits that pad the last character to zero, as `decode`
+does, so `format(base64) & "aG=="` refuses with `parse_failed`. A format
+reads characters and never the bytes they spell. So `format(base64)`
+admits `"/w=="`, whose one byte is not UTF-8, and `decode("/w==",
+base64)` refuses it. Every other text that `decode` refuses, its format
+refuses too.
 
 A committed format is one grammar or several, and a string meets every
 one: `date-time` holds a leap second to the last minute of a UTC day
@@ -8243,7 +8438,8 @@ matches it. Canon sorts formats by their argument, writes each once,
 and puts them after `re`. Subsumption compares two formats as text,
 as it compares two patterns. `aontu jsonschema import --format-assert`
 writes a JSON Schema `format` as this atom, and `aontu jsonschema`
-writes it back as `format`, or a grammar as `x-aontu-format`: see
+writes it back as `format`. It writes a grammar, or an encoding, which
+JSON Schema doesn't define, as `x-aontu-format`: see
 [Import JSON Schema](how-to/import-json-schema.md#assert-formats).
 
 ### Band B: `must`

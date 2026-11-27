@@ -10,10 +10,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf16"
 )
 
 // semverRe matches the since-version column of test/spec/errcodes.tsv.
@@ -78,7 +80,7 @@ func TestSpec(t *testing.T) {
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode ||
 				"at" == mode || "describe" == mode || "define" == mode ||
-				"members" == mode
+				"members" == mode || "refs" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -617,6 +619,42 @@ func TestSpec(t *testing.T) {
 					if !jsonEqual(got, expect) {
 						gj, _ := json.Marshal(got)
 						t.Fatalf("members mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "refs":
+					ls, cs, _ := strings.Cut(data, ":")
+					line, lerr := strconv.Atoi(ls)
+					character, cerr := strconv.Atoi(cs)
+					if nil != lerr || nil != cerr {
+						t.Fatalf("bad refs position %q", data)
+					}
+					var got any
+					if refs := New().ReferencesAt(src, CursorPosition{line, character}); nil != refs {
+						// A place in an included file is named by the file
+						// alone: the directory it is in is this machine's.
+						for _, ps := range [][]PathPlace{refs.Writes, refs.Reads} {
+							for i, p := range ps {
+								if "" != p.File {
+									ps[i].File = "__FIXTURES__/" +
+										filepath.Base(filepath.FromSlash(p.File))
+								}
+							}
+						}
+						got = refs
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("refs mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "symbols":
+					var got any
+					if syms := New().SymbolsOf(src); nil != syms {
+						got = asWritten(src, fixturesDir, syms)
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("symbols mismatch\n want: %s\n got:  %s", expect, gj)
 					}
 
 				case "describe", "define":
@@ -1396,6 +1434,42 @@ func TestSpecGensMode(t *testing.T) {
 // jsonEqual compares a generated value with an expected JSON document
 // by normalising both through JSON (so numeric types and key order do
 // not matter).
+// asWritten reads a place after a fixture's name on its line as the row
+// writes the name, so that an answer is the same wherever the fixtures are.
+func asWritten(src, dir string, got any) any {
+	gj, _ := json.Marshal(got)
+	var at any
+	json.Unmarshal(gj, &at)
+	lines := strings.Split(src, "\n")
+	name := utf16.Encode([]rune(dir))
+	d := len(name) - len("__FIXTURES__")
+	var walk func(any) any
+	walk = func(v any) any {
+		switch n := v.(type) {
+		case []any:
+			for i := range n {
+				n[i] = walk(n[i])
+			}
+		case map[string]any:
+			for k := range n {
+				n[k] = walk(n[k])
+			}
+			line, isLine := n["line"].(float64)
+			ch, isChar := n["character"].(float64)
+			if isLine && isChar && int(line) < len(lines) {
+				text := utf16.Encode([]rune(lines[int(line)]))
+				for o := 0; o+len(name) <= len(text); o++ {
+					if slices.Equal(text[o:o+len(name)], name) && int(ch) >= o+len(name) {
+						n["character"] = n["character"].(float64) - float64(d)
+					}
+				}
+			}
+		}
+		return v
+	}
+	return walk(at)
+}
+
 func jsonEqual(got any, expectJSON string) bool {
 	gj, err := json.Marshal(got)
 	if err != nil {

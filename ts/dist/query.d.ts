@@ -8,6 +8,7 @@ export type QueryOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    readByExtension?: boolean;
     hostVars?: HostVars;
     exactNumbers?: boolean;
 };

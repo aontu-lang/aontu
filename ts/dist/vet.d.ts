@@ -53,6 +53,7 @@ export type VetOptions = {
     trust?: TrustOptions;
     textExt?: string[];
     hostVars?: HostVars;
+    readByExtension?: boolean;
 };
 export declare const VET_MAX_ERRORS = 20;
 export declare function displayFile(url: string, label: string, path?: string): string;

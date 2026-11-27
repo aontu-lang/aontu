@@ -3346,7 +3346,7 @@ the list `sort`, `pick` and `join` read, and a `match`'s scrutinee read
 their target where it stands, so `Val.atUses` and `Val.usesAt` leave
 them out of the copies, for the calls `Fn.readsData` names:
 
-<!-- test: quote spec/Aontu/Paths.lean -->
+<!-- test: quote spec/Aontu/Alias.lean -->
 ```lean
 def Fn.readsData : Fn → Bool
   | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
@@ -3358,6 +3358,25 @@ So with `src: {w: 1, a: {v: ..w}}` and `c: {w: 2, d: each($.src.a, _)}`,
 `{v: 2}`. Rows dx0 to dx89 hold the definition and both engines to it.
 A `key()` in such a target still reads where the call stands here,
 where both engines read the target's key, which #1064 tracks.
+
+Such data reads as the output has it. A path to a name reads as the
+name's value with its marks cleared (`Decls.env`), so `l: $.m` copies a
+member `m` hides, as both engines do. Data a call reads leaves that
+member out instead, as the output does (`Val.visible`) and as both
+engines do, so with `m: {a: "keep", b: hide("SECRET")}`,
+`join($.m, "-")` is `"keep"`:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def Decls.envData (ds : Decls) (n : String) : Option Val :=
+  match ds.bodies n with
+  | [] => none
+  | v :: vs => some (vs.foldl .meet v).unident.visible.unmark
+```
+
+Rows gh0 on of [`test/spec/def-gaps.tsv`](../test/spec/def-gaps.tsv)
+hold the definition and both engines to it, for `each`, `filter`,
+`join`, `pack`, `sum` and `pick`.
 
 The placing itself, the schema's and each body's:
 
@@ -3928,8 +3947,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .link v t => .link (rec a v) t
   | .or arms, b => meetNodes rec (.or arms) b
   | a, .or arms => meetNodes rec a (.or arms)
-  | .pref r x, b => meetNodes rec (.pref r x) b
-  | a, .pref r y => meetNodes rec a (.pref r y)
+  | .pref r x, b => if (rec .any x).dead then rec x.super.failedOf b else meetNodes rec (.pref r x) b
+  | a, .pref r y => if (rec .any y).dead then rec a y.super.failedOf else meetNodes rec a (.pref r y)
   | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
   | .any, .map fs s c => meetMap rec [] none false fs s c
   | .map fs s c, .any => meetMap rec fs s c [] none false
@@ -4921,6 +4940,47 @@ $ echo $?
 1
 ```
 
+A default whose own value fails is no default its type stands in for.
+`*(1 & 2)` would admit what `integer` admits if `super` alone answered,
+but both engines report the conflict where the default stands, as they
+report any conflict. The meet reads such a preference as its parent
+type, under a mark of its own:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+abbrev Val.failedOf (t : Val) : Val := .ride .failed t []
+```
+
+The mark admits what the preference admits, so the meet's theorem holds
+as it did, and the verdict reads it as a conflict: an arm that holds
+one drops, and a document that keeps one is an `error`. Write
+`failed-schema.aontu`:
+
+<!-- test: file failed-schema.aontu -->
+```aontu
+v: *(1 & 2)
+```
+
+and `failed-data.aontu`:
+
+<!-- test: file failed-data.aontu -->
+```aontu
+v: 1
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet failed-schema.aontu failed-data.aontu
+verdict: error
+
+$.v: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.v
+  schema: failed-schema.aontu:1:10 (2)
+  schema: failed-schema.aontu:1:6 (1)
+$ echo $?
+4
+```
+
 ### The question the engines ask
 
 Two maps in two arms admit a map that one of them admits, by the rule
@@ -5710,6 +5770,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
   | .ride .void _ _ => false
+  | .ride .failed _ _ => true
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
@@ -6110,7 +6171,11 @@ def rideWrites (cw : Val → Data → Option (Option Data)) (r : Record) (place 
 `Data.writeBy` writes a number rounded or as text, a boolean as a
 number or as its name, a string in a case, an address in a form, and a
 map's keys in a style. Under `empty: "omit"` a value written empty
-drops out of the map or list that holds it. An address resolves from
+drops out of the map or list that holds it, and an optional member
+whose value then writes an empty map or list drops out too, since what
+a value writes decides whether it's empty: `m: {a?: [null & gen({empty:
+"omit"})]}` writes `{"m": {}}`, as both engines do, in rows go0 on of
+[`test/spec/def-gaps.tsv`](../test/spec/def-gaps.tsv). An address resolves from
 the place the document writes it at, with the keys the document
 writes, before any style. Write `written.aontu`:
 

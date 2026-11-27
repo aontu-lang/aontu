@@ -269,11 +269,12 @@ mode but `value`, and 21 carry at least one slot in another mode.
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
 
-- `template`, five slots: `apply`'s, `each`'s, `emit`'s, and `pack`'s
-  second argument, and `relate`'s only argument. `pack`, `each`, and
-  `emit` instantiate the template per destination rather than driving
-  it, and `apply` instantiates it once, for its value; `relate` drives
-  it at the call site.
+- `template`, six slots: `apply`'s, `each`'s, `emit`'s, and `pack`'s
+  second argument, `pack`'s third, and `relate`'s only argument.
+  `pack`, `each`, and `emit` instantiate the template per destination
+  rather than driving it, and `apply` instantiates it once, for its
+  value; `pack` reads its third once for each member, for the key of
+  that member's child, and `relate` drives it at the call site.
   [Generating children: `pack` and
   `each`](reference-language.md#generating-children-pack-and-each),
   [Transforming: `emit`](reference-language.md#transforming-emit),
@@ -321,13 +322,14 @@ with the slot, and where the semantics are specified:
   evaluator does not drive.
   [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Six non-value slots answer a code of their own rather than
+Seven non-value slots answer a code of their own rather than
 `invalid-arg`:
 
 | name | slot | mode | code |
 |---|---|---|---|
 | `format` | `g` | `text` | `format_unknown`, `format_grammar`, `abnf_grammar` |
 | `inverse` | `k` | `projector` | `inverse_name` |
+| `pack` | `k` | `template` | `pack_key` |
 | `path` | `p` | `capture` | `path_address` |
 | `re` | `p` | `text` | `constraint_pattern` |
 | `rep` | `p` | `text` | `rep_pattern` |
@@ -409,7 +411,7 @@ documentation page and fails on a difference of one space.
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | `2..n` | `value`, `trial` | `constraint` |
 | `nom(name: string, style?: string\|list, acronyms?: list) : string\|map` | `1..3` | `value` | `string\|map` |
 | `open(m?: any) : any` | `0..1` | `value` | `any` |
-| `pack(d: map\|list, template t: any) : map` | `2` | `value`, `template` | `map` |
+| `pack(d: map\|list, template t: any, template k?: string) : map` | `2..3` | `value`, `template` | `map` |
 | `parse(g: string, v?: string) : map\|list\|constraint` | `1..2` | `value` | `map\|list\|constraint` |
 | `path(capture p?: path) : path` | `0..1` | `capture` | `path` |
 | `pick(d: map\|list, projector k: string\|integer) : any` | `2` | `value`, `projector` | `any` |
@@ -507,7 +509,7 @@ specified at [Selecting: `filter` and
 [Band B: `rest`](reference-language.md#band-b-rest), and `meta` at
 [Annotations: `meta`](reference-language.md#annotations-meta).
 
-Twenty-eight names have at least one optional slot. `must` is the one
+Twenty-nine names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message
 `text`. `match` is the one name whose rest group pairs a `trial` member
 with a `value` one.

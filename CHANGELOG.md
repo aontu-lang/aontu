@@ -25,6 +25,92 @@ spelling beside each of the eight routes it replaces. The definition
 states `at` as `atOf` (`spec/Aontu/Verdict.lean`), and rows at0 to
 at287 of `test/spec/def-path.tsv` hold both engines to it.
 
+
+### The definition leaves out an optional member that writes empty
+
+#1075, in the definition. The definition leaves out an optional member
+whose value writes an empty map or list, as where it generates one:
+what a value writes decides whether it's empty, as the reference says.
+So `m: {a?: [null &
+gen({empty: "omit"})]}` writes `{"m": {}}`, where the definition wrote
+`{"m": {"a": []}}`. Rows go0 on of `test/spec/def-gaps.tsv`. Both ports
+answer every one as the definition does, and neither changes.
+
+### A marked root generates nothing, whatever its kind
+
+**Breaking.** #1078, in both engines. A root marked `hide()` or `type()`
+generates nothing, and the command prints `null`, as the reference
+states and the definition writes. A map or list root already did. A
+scalar root wrote its value: `hide(1)` was `1`. In TypeScript a hidden
+root that is a default wrote the default: `hide(*{a: 1} | {b: 2})` was
+`{"a": 1}`. Each is now `null`.
+
+### A guide for CUE users
+
+Task CG4 of the lang refinement plan. A new how-to,
+`docs/how-to/aontu-for-cue-users.md`, takes a CUE user through four
+things: the aontu spelling of each CUE form, the text that answers
+differently in the two languages, the five CUE forms aontu has none
+of with the nearest spelling of each, and the aontu verb for each `cue`
+command. Its row for a key pattern gives `keyed`. Every example pair is
+a probe of the CUE corpus under `test/cue/`, or for `keyed` a new row of
+`test/spec/keyed.tsv`, and `ts/test/cuecorpus.test.ts` holds each fence
+and each table row of the page to the corpus. The how-to index gains a
+group for readers coming from another language. Neither engine changes.
+
+### The definition leaves a hidden member out of the data a call reads
+
+#1069, in the definition. Data a call reads through a path, the source
+of a generator, `filter` or a fold, reads as the output has it, each
+member or element a mark of its own leaves out left out
+(`Decls.envData` in `spec/Aontu/Alias.lean`). Before, it read the
+unmarked copy a plain reference makes, so `join($.m, "-")` over
+`m: {a: "keep", b: hide("SECRET")}` leaked `SECRET`. Rows gh0 on of
+`test/spec/def-gaps.tsv`. Both ports answer every one as the definition
+does, and neither changes.
+
+### `subsume` reads a list literal in a disjunction's arm as its own length
+
+#1071, in both engines. `subsume` reads a list literal in a
+disjunction's arm, and the value of a default alone, as `vet` reads
+it: sealed at its own length.
+
+| General | Specific | Before | Now |
+|---|---|---|---|
+| `a: [1] \| [2]` | `a: [1, 5]` | `subsumes` | `does_not_subsume` |
+| `a: close([1]) \| close([2])` | `a: [1] \| [2]` | `does_not_subsume` | `subsumes` |
+| `a: *[1]` | `a: [1, 5]` | `subsumes` | `does_not_subsume` |
+
+### The definition reads a failed default as a conflict
+
+A lone default whose own value fails, `v: *(1 & 2)`, is a conflict
+where it stands, as both ports report it: the meet reads it as its
+parent type under the mark `failed` (`Val.failedOf`), which admits what
+the preference admits, so the meet's theorem holds as it was, and the
+verdict reads the mark as a conflict. An arm that holds one drops, and
+a spread's template that holds one refuses each member (#1042). Rows
+fd0 on in `test/spec/def-verdict.tsv`, both ports answering as the
+definition does.
+
+### The subsume differential
+
+`test/spec/def-subsume-rows.tsv` holds, for each row of
+`test/spec/subsume.tsv` whose documents the definition reads, the
+answers its profile's contract allows: 97 rows, both ports answering as
+the contract allows. `ts/test/subsume-contract.test.ts` and
+`go/subsume_contract_test.go` fail where a golden verdict is not one of
+them, and where a document reads otherwise than the definition read it.
+They found #1071: both ports' `subsume` read a list literal in an arm as
+open, where their `vet` reads it as its own length.
+
+### A `filter` reads a member that is a default alone as its parent type too
+
+Decision 51, in both engines. A member that is a default alone, `*1`,
+stands for its value and its parent type, as `vet` reads it, so a
+`filter` keeps it only where the condition admits every integer:
+`filter({g: *1}, *1 | 2)` is `{}`, where it was `{"g": 1}`, and
+`filter({g: *1}, integer)` still keeps `g`.
+
 ### A star over a `pref()` call or a path ranks as what it reads as
 
 #970, in both engines. A star written over a term that is itself a
@@ -100,6 +186,149 @@ written: `*{x:1} | *{y:2}` is `*{"x":1,"y":2}|{"x":1}|{"y":2}`.
 The canon of such a disjunction follows the definition's normal form:
 `x: *1 | *1` is `*1|1`, where it was `*1`, so its hash changes. What it
 generates doesn't.
+
+### `format()` reads base64, base64url and hex
+
+Task BT2 of the lang refinement plan, in both engines. The three
+encodings of `encode` are names `format()` reads, each a grammar of
+RFC 4648 committed under `grammar/format/`, so `format(base64)` admits
+the text `encode(s, base64)` writes.
+
+```aontu
+token: format(base64url) & encode("hello", base64url)
+bytes: format(hex) & "FF"
+```
+
+They answer `"aGVsbG8"` and `"FF"`.
+
+- `base64` is padded to a multiple of four characters, `base64url` has
+  no padding, and `hex` is an even number of digits in either case.
+  Each admits the empty string.
+- Each refuses what `decode` refuses, a last character that holds bits
+  beyond its bytes among it, but for one difference: a format reads no
+  bytes, so it admits text whose bytes are not UTF-8.
+- JSON Schema defines none of the three. The import asserts a `format`
+  of those names only with `--format-grammar`, as before, and the
+  export writes one as `x-aontu-format`, which the import reads back.
+- The hint of `format_unknown` lists the three.
+
+`test/spec/format.tsv` holds both engines to 60 more rows, each answer
+agreed by both, `test/spec/jsonschema.tsv` to two and
+`test/spec/jsonschema-import.tsv` to three.
+
+### The language servers find references and highlight them
+
+Task LS6, in both servers. `textDocument/references` answers, on a key
+or a reference, every site that writes the path it names, as go to
+definition answers them, where the client asks for the declaration,
+then every reference that reads the path, across includes: a reference
+in an included file is a location in that file.
+`textDocument/documentHighlight` answers the same within the open
+document, a site with the kind Write and a reference with the kind
+Read. `referencesProvider` and `documentHighlightProvider` are
+advertised. A relative reference is read from where it stands, as the
+engine reads it, and a reference among a constraint's arguments or
+alone in a group is found too. The library answers are `referencesAt`
+and `ReferencesAt`; a new shared-row mode, `refs`, holds both ports to
+one answer in 34 rows of `test/spec/cursor.tsv`.
+
+### The language servers outline a document's keys
+
+Task LS5, in both servers. `textDocument/documentSymbol` answers the
+outline of what the document writes, and `documentSymbolProvider` is
+advertised. Each key is a symbol where it is written, so a key written
+twice is two, and `a: b: c: 1` nests three; a list's elements are named
+by their position, and a spread's template is `&`. A symbol's range
+runs from its key to the end of its value and its selection range is
+the key, and its kind is the value's: `Object`, `Array`, `String`,
+`Number`, `Boolean` or `Null`, and `Variable` for a reference, a call or
+anything else.
+A key that holds an include is a symbol, the included file's keys are
+not, and a declaration is none. The library answers are `symbolsOf`
+and `SymbolsOf`; a new shared-row mode, `symbols`, holds both ports to
+one answer in 33 rows of `test/spec/cursor.tsv`.
+
+### A verb reads a data file operand by its extension
+
+Option E of `sketch/IO-FORMATS.0.md`, in both CLIs. A document operand
+is read by the table an include uses: `aontu config.yaml` prints the
+YAML file's value, and `aontu vet schema.aontu data.toml` vets the
+TOML as data, where both read the file as aontu source before. A
+`.yaml`, `.yml`, `.toml`, `.ini`, `.jsonc`, `.json5`, `.jsonic` or
+`.jsc` operand is data in that format; `.json`, `.jsonld`, `.aontu`,
+`.txt` and every other extension stay aontu source, so a `.json`
+operand keeps its exact numbers. A data file that doesn't parse is
+refused at the operand, framed in that file. The bare command, `vet`,
+`subsume`, `trim`, `relations`, `reaches`, `view`, `jsonschema`,
+`hash`, `model get`, `model why`, `allow` and `agentsmd` read so, and
+the other verbs as before. The engines gain the option that does it,
+`readByExtension` in TypeScript and `ReadByExtension` in Go, with
+`VetOptions` and `SubsumeOptions` carrying it in Go. Go's frame of a
+syntax error past a file's last newline now puts the caret where
+TypeScript puts it.
+
+### `pack`: a key for each child
+
+`pack(d, t, k)` takes an optional third argument, in both engines. Each
+member's child stands under the key `k` answers for that member, in
+place of the member's own key or text, so a list of records is keyed by
+a field, `pack($.xs, _, at(_, name))`, or by two joined,
+`pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))`. `k` is read
+once for each member, with `_` the member and `key(0)` its own key or
+position, and a relative path in it does not name a field of the
+member. The template is read at the child's place, as before, and
+children whose keys collide unify. A key that is not a string is
+`pack_key`, whose hint now says so; the absence `maybe` makes of a
+missing field is not a key either. With `k`, a list's members need not
+be strings. A call of `pack` with three arguments was `func_arity`, and
+is now this. `test/spec/gen-pack-key.tsv` holds both engines to 45
+rows, and `test/spec/comprehension.tsv` gains the keyed spelling beside
+each of the six routes it replaces.
+
+### A how-to on carrying binary data
+
+`docs/how-to/carry-binary-data.md` carries bytes through a JSON
+document as base64, base64url or hex text with `encode` and `decode`,
+keeps bytes that are not UTF-8 in their encoded form, and bounds the
+numbers of a binary record with the sized names of `aontu:num`.
+
+### The sized numbers, as the bundled model `aontu:num`
+
+In both engines. `@"aontu:num"` names the integer types CUE builds in
+and `Float32` under `$.aontu.Num`: `Int8`, `Int16`, `Int32`, `Int64`,
+`Int128`, `Uint8`, `Uint16`, `Uint32`, `Uint64`, `Uint128` and
+`Float32`, each a `type()`, so naming one neither generates it nor asks
+the document to fill it. The 64-bit and 128-bit names admit a
+`biginteger`, with exact bounds, and `Float32` bounds a number's
+magnitude by the largest finite float32. There is no keyword: a bare
+`int8` is still the string `"int8"`, and each name is an ordinary value
+a project narrows. A name the scheme does not serve is refused naming
+seven models. Rows in the new `test/spec/num.tsv`.
+
+### A frame under a site in a built-in model shows the model's text
+
+#658, in TypeScript. A refusal sited in a built-in model, such as
+`aontu:system:11:29` when a document narrows
+`$.aontu.System.Service`'s `kind`, frames the lines of that model, as
+Go does. TypeScript framed the lines of the entry document at the same
+row and column. The message is now byte-identical in both engines, and
+a full-message twin test in each port holds it.
+
+### A `filter` in a member a generator makes reads the member
+
+#754, in both engines. A `filter` whose condition holds a path, and
+which stands in a member that `pack`, `each`, `apply` or `match`
+makes, now reads the member as the same `filter` in a written
+member does. Before, it was tried before the member was in place, read
+nothing, and kept nothing, with no error. Rows `filter-in-*` of
+`test/spec/gen-filter.tsv` hold both engines to it.
+
+| Document, with `l: [1, 2, 3]` | Was | Now |
+|---|---|---|
+| `p: pack(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p.x.f` is `[]` | `[2]` |
+| `p: each(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p[0].f` is `[]` | `[2]` |
+| `p: pack(["x"], {lim: 2, f: filter($.l, $.p.x.lim)})` | `p.x.f` is `[]` | `[2]` |
+| `p: pack(["x"], {lim: 2, f: filter($.l, min(..lim))})` | `p.x.f` is `[]` | `[2, 3]` |
 
 ### The definition reads a call's data argument where its target stands
 

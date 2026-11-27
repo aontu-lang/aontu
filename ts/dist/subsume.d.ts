@@ -11,6 +11,7 @@ export type SubsumeOptions = {
     specificPath?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    readByExtension?: boolean;
     hostVars?: HostVars;
 };
 export type SubsumeReport = {

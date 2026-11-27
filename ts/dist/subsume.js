@@ -80,10 +80,17 @@ function record(state, code, path, g, s, message) {
     });
 }
 function admission(v) {
-    return true === v?.isPref ? v.superpeg : v;
+    return true === v?.isPref ? sealed(v.superpeg) : v;
 }
+// A list literal standing as an arm, or as a default's value, admits only its own length, as vet reads it.
 function memberAdmission(v) {
-    return true === v?.isPref ? (0, PrefVal_1.prefInnerPeg)(v) : v;
+    return true === v?.isPref ? sealed((0, PrefVal_1.prefInnerPeg)(v)) : sealed(v);
+}
+function sealed(m) {
+    if (true === m?.isList && true !== m.closed && null == m.spread?.cj) {
+        return Object.assign(Object.create(Object.getPrototypeOf(m)), m, { closed: true });
+    }
+    return m;
 }
 function effectiveDefault(v) {
     if (true === v?.isPref) {

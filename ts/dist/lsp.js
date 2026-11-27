@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.COMPLETION_KEYWORD = exports.COMPLETION_VARIABLE = exports.COMPLETION_FIELD = exports.COMPLETION_FUNCTION = exports.SEVERITY_HINT = exports.SEVERITY_INFORMATION = exports.SEVERITY_WARNING = exports.SEVERITY_ERROR = exports.BUILTIN_FUNCS = exports.LSP_VERSION = exports.LspHandler = void 0;
+exports.HIGHLIGHT_WRITE = exports.HIGHLIGHT_READ = exports.COMPLETION_KEYWORD = exports.COMPLETION_VARIABLE = exports.COMPLETION_FIELD = exports.COMPLETION_FUNCTION = exports.SEVERITY_HINT = exports.SEVERITY_INFORMATION = exports.SEVERITY_WARNING = exports.SEVERITY_ERROR = exports.BUILTIN_FUNCS = exports.LSP_VERSION = exports.LspHandler = void 0;
 exports.contributionsMarkdown = contributionsMarkdown;
 exports.uriToPath = uriToPath;
 exports.pathToUri = pathToUri;
@@ -13,6 +13,9 @@ exports.computeCompletions = computeCompletions;
 exports.computeFormatting = computeFormatting;
 exports.computePathAt = computePathAt;
 exports.computeSitesOf = computeSitesOf;
+exports.computeSymbols = computeSymbols;
+exports.computeReferences = computeReferences;
+exports.computeHighlights = computeHighlights;
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const walk_1 = require("./walk");
@@ -32,6 +35,11 @@ const SEVERITY_HINT = 4;
 exports.SEVERITY_HINT = SEVERITY_HINT;
 const LSP_VERSION = aontu_1.VERSION;
 exports.LSP_VERSION = LSP_VERSION;
+// LSP DocumentHighlightKind subset.
+const HIGHLIGHT_READ = 2;
+exports.HIGHLIGHT_READ = HIGHLIGHT_READ;
+const HIGHLIGHT_WRITE = 3;
+exports.HIGHLIGHT_WRITE = HIGHLIGHT_WRITE;
 function computeDiagnostics(src, opts) {
     const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(opts ?? {}));
     let root;
@@ -185,6 +193,9 @@ function initializeResult() {
             completionProvider: { triggerCharacters: ['.'] },
             signatureHelpProvider: { triggerCharacters: ['(', ','] },
             documentFormattingProvider: true,
+            documentSymbolProvider: true,
+            referencesProvider: true,
+            documentHighlightProvider: true,
         },
         serverInfo: {
             name: 'aontu-lsp',
@@ -347,6 +358,29 @@ function computePathAt(text, pos, trust) {
 }
 function computeSitesOf(text, path, trust) {
     return (0, cursor_1.sitesOf)(text, path, { trust }) ?? null;
+}
+// The outline of the keys the document writes, or nothing where it
+// doesn't parse.
+function computeSymbols(text, trust) {
+    return (0, cursor_1.symbolsOf)(text, { trust }) ?? null;
+}
+// Every site that writes the path a key or a reference names, where the
+// client asks for them, and every reference that reads it.
+function computeReferences(src, position, uri, includeDeclaration, trust) {
+    const refs = (0, cursor_1.referencesAt)(src, position, { trust });
+    return undefined === refs ? null :
+        [...(includeDeclaration ? refs.writes : []), ...refs.reads].map((p) => ({
+            uri: '' === p.file ? uri : pathToUri(p.file),
+            range: p.range,
+        }));
+}
+// The same, in the document alone, a site that writes the path apart
+// from a reference that reads it.
+function computeHighlights(src, position, trust) {
+    const refs = (0, cursor_1.referencesAt)(src, position, { trust });
+    const here = (ps, kind) => ps.filter((p) => '' === p.file).map((p) => ({ range: p.range, kind }));
+    return undefined === refs ? null :
+        [...here(refs.writes, HIGHLIGHT_WRITE), ...here(refs.reads, HIGHLIGHT_READ)];
 }
 // Go to where the name is BOUND: its declaration, or the destructure
 // that brought it in, which is where this file gets the name.
@@ -715,6 +749,27 @@ class LspHandler {
                         result: null == text ? null : computeFormatting(text),
                     }];
             }
+            case 'textDocument/documentSymbol': {
+                const uri = msg.params?.textDocument?.uri;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                return [{
+                        jsonrpc: '2.0', id: msg.id,
+                        result: null == text ? null : computeSymbols(text, this.trust),
+                    }];
+            }
+            case 'textDocument/references':
+            case 'textDocument/documentHighlight': {
+                const uri = msg.params?.textDocument?.uri;
+                const pos = msg.params?.position;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                return [{
+                        jsonrpc: '2.0', id: msg.id,
+                        result: null == text || null == pos ? null :
+                            'textDocument/references' === msg.method ?
+                                computeReferences(text, pos, uri, true === msg.params?.context?.includeDeclaration, this.trust) :
+                                computeHighlights(text, pos, this.trust),
+                    }];
+            }
             case 'textDocument/definition': {
                 const uri = msg.params?.textDocument?.uri;
                 const pos = msg.params?.position;
@@ -748,6 +803,6 @@ class LspHandler {
     publish(uri) {
         return publishDiagnosticsMsg(uri, computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }));
     }
-} /* node:coverage ignore next 38 */
+} /* node:coverage ignore next 45 */
 exports.LspHandler = LspHandler;
 //# sourceMappingURL=lsp.js.map

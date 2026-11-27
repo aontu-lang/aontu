@@ -325,7 +325,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         const c = (0, lsp_1.computeCompletions)('');
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.detail, 'upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string');
-        Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any) : map');
+        Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any, template k?: string) : map');
         Assert.equal(byLabel.get('path')?.detail, 'path(capture p?: path) : path');
     });
     // Twin: go/lsp/lsp_test.go TestCompletionOffersTheNamesInScope.
@@ -414,12 +414,16 @@ const lsp_server_1 = require("../dist/lsp-server");
         // Inside the call: the declared signature, first parameter active.
         open('x: pack($.names, {a:1})');
         let r = help(0, 8);
-        Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any) : map');
-        Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 2);
+        Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any, template k?: string) : map');
+        Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 3);
         Assert.equal(r.activeParameter, 0);
         // After the comma: the second parameter is active.
         r = help(0, 18);
         Assert.equal(r.activeParameter, 1);
+        // After the second comma: the key template is active.
+        open('x: pack($.names, {a:1}, key(0))');
+        r = help(0, 26);
+        Assert.equal(r.activeParameter, 2);
         // A comma or paren inside a string does not miscount.
         open('x: join(["a,b"], ",")');
         r = help(0, 20);
@@ -590,7 +594,7 @@ const lsp_server_1 = require("../dist/lsp-server");
     });
     (0, node_test_1.test)('unknown-request-is-method-not-found', () => {
         const h = new lsp_1.LspHandler();
-        const outs = h.handle({ id: 3, method: 'textDocument/references' });
+        const outs = h.handle({ id: 3, method: 'textDocument/codeLens' });
         Assert.equal(outs.length, 1);
         Assert.equal(outs[0].error?.code, -32601);
         // Unknown notification (no id) is ignored.
@@ -790,6 +794,11 @@ const lsp_server_1 = require("../dist/lsp-server");
         const { values } = (0, cursor_1.hitsOf)('1', both);
         Assert.deepStrictEqual(values.map((h) => [h.on, h.start, h.end]), [['value', 0, 1]]);
     });
+    (0, node_test_1.test)('the-outline-visits-a-shared-value-once-and-steps-over-nothing', () => {
+        const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } };
+        const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site };
+        Assert.deepStrictEqual((0, cursor_1.symbolTree)('1', both), []);
+    });
     (0, node_test_1.test)('the-map-search-visits-a-shared-value-once-and-finds-nothing-else', () => {
         const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } };
         const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site };
@@ -900,6 +909,122 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('a-conflict-copied-to-another-path-is-reported-once', () => {
         const ds = (0, lsp_1.computeDiagnostics)('a:{b:1&"s"} c:$.a d:$.a');
         Assert.deepStrictEqual(ds.map((d) => [d.range.start.character, d.code]), [[7, 'scalar_kind']]);
+    });
+});
+// Twin: go/lsp/lsp_test.go, the tests from TestSymbolsOutlineWhatTheDocumentWrites on.
+(0, node_test_1.describe)('lsp-symbols', () => {
+    const range = (l0, c0, l1, c1) => ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } });
+    (0, node_test_1.test)('symbols-outline-what-the-document-writes', () => {
+        Assert.deepStrictEqual((0, lsp_1.computeSymbols)('a: { b: 1 }\nl: [$.a]\n'), [
+            {
+                name: 'a', kind: 19, range: range(0, 0, 0, 11), selectionRange: range(0, 0, 0, 1),
+                children: [{
+                        name: 'b', kind: 16, range: range(0, 5, 0, 9), selectionRange: range(0, 5, 0, 6),
+                        children: [],
+                    }],
+            },
+            {
+                name: 'l', kind: 18, range: range(1, 0, 1, 8), selectionRange: range(1, 0, 1, 1),
+                children: [{
+                        name: '0', kind: 13, range: range(1, 4, 1, 7), selectionRange: range(1, 4, 1, 7),
+                        children: [],
+                    }],
+            },
+        ]);
+        Assert.deepStrictEqual((0, lsp_1.computeSymbols)('1\n'), []);
+        Assert.strictEqual((0, lsp_1.computeSymbols)('a: )\n'), null);
+    });
+    (0, node_test_1.test)('symbols-outline-a-large-list', () => {
+        const got = (0, lsp_1.computeSymbols)('items: [' + '0,'.repeat(130000) + ']\n');
+        Assert.strictEqual(got.length, 1);
+        Assert.strictEqual(got[0].name, 'items');
+        Assert.strictEqual(got[0].kind, 18);
+        Assert.deepStrictEqual(got[0].range, range(0, 0, 0, 260009));
+        Assert.strictEqual(got[0].children.length, 130000);
+        Assert.deepStrictEqual(got[0].children[0].range, range(0, 8, 0, 9));
+        Assert.strictEqual(got[0].children[129999].name, '129999');
+    });
+    (0, node_test_1.test)('symbols-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        const init = h.handle({ id: 1, method: 'initialize', params: {} });
+        Assert.strictEqual(init[0].result.capabilities.documentSymbolProvider, true);
+        h.handle({
+            method: 'textDocument/didOpen',
+            params: { textDocument: { uri: 'file:///s.aontu', text: 'a: b: 1\na: 2\n' } },
+        });
+        const ask = (uri) => h.handle({
+            id: 2, method: 'textDocument/documentSymbol', params: { textDocument: { uri } },
+        })[0].result;
+        Assert.deepStrictEqual(ask('file:///s.aontu').map((s) => [s.name, s.range, s.children.map((c) => c.name)]), [['a', range(0, 0, 0, 7), ['b']], ['a', range(1, 0, 1, 4), []]]);
+        Assert.strictEqual(ask('file:///none.aontu'), null);
+        Assert.strictEqual(h.handle({ id: 3, method: 'textDocument/documentSymbol', params: {} })[0]
+            .result, null);
+    });
+});
+// Twin: go/lsp/lsp_test.go, the tests from TestReferencesListTheSitesAndTheReads on.
+(0, node_test_1.describe)('lsp-references', () => {
+    const SRC = 'base: { port: 8080 }\ndb: { port: $.base.port }\nx: $.base.port\n';
+    const range = (l0, c0, l1, c1) => ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } });
+    const U = 'file:///r.aontu';
+    (0, node_test_1.test)('references-list-the-sites-and-the-reads', () => {
+        Assert.deepStrictEqual((0, lsp_1.computeReferences)(SRC, { line: 0, character: 9 }, U, true), [
+            { uri: U, range: range(0, 14, 0, 18) },
+            { uri: U, range: range(1, 12, 1, 23) },
+            { uri: U, range: range(2, 3, 2, 14) },
+        ]);
+        Assert.deepStrictEqual((0, lsp_1.computeReferences)(SRC, { line: 2, character: 5 }, U, false), [
+            { uri: U, range: range(1, 12, 1, 23) },
+            { uri: U, range: range(2, 3, 2, 14) },
+        ]);
+        Assert.strictEqual((0, lsp_1.computeReferences)(SRC, { line: 0, character: 15 }, U, true), null);
+        Assert.strictEqual((0, lsp_1.computeReferences)('a: )\n', { line: 0, character: 0 }, U, true), null);
+    });
+    (0, node_test_1.test)('highlights-tell-a-write-from-a-read', () => {
+        Assert.deepStrictEqual((0, lsp_1.computeHighlights)(SRC, { line: 1, character: 20 }), [
+            { range: range(0, 14, 0, 18), kind: lsp_1.HIGHLIGHT_WRITE },
+            { range: range(1, 12, 1, 23), kind: lsp_1.HIGHLIGHT_READ },
+            { range: range(2, 3, 2, 14), kind: lsp_1.HIGHLIGHT_READ },
+        ]);
+        Assert.deepStrictEqual((0, lsp_1.computeHighlights)('x: $.nope\n', { line: 0, character: 5 }), [{ range: range(0, 3, 0, 9), kind: lsp_1.HIGHLIGHT_READ }]);
+        Assert.strictEqual((0, lsp_1.computeHighlights)(SRC, { line: 0, character: 15 }), null);
+    });
+    (0, node_test_1.test)('references-across-an-include', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'));
+        try {
+            Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\nr: $.top\n');
+            const trust = { include: { root: dir } };
+            const src = `top: 1\nbase: @"${(0, srcpath_1.srcPath)(dir)}/base.aontu"\n`;
+            const [own, there, ...more] = (0, lsp_1.computeReferences)(src, { line: 0, character: 1 }, U, true, trust) ?? [];
+            Assert.deepStrictEqual(more, []);
+            Assert.deepStrictEqual(own, { uri: U, range: range(0, 5, 0, 6) });
+            Assert.ok(there.uri.startsWith('file:///') && there.uri.endsWith('/base.aontu'), there.uri);
+            Assert.deepStrictEqual(there.range, range(1, 3, 1, 8));
+            // A highlight is in the open document alone.
+            Assert.deepStrictEqual((0, lsp_1.computeHighlights)(src, { line: 0, character: 1 }, trust), [{ range: range(0, 5, 0, 6), kind: lsp_1.HIGHLIGHT_WRITE }]);
+        }
+        finally {
+            Fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+    (0, node_test_1.test)('references-and-highlights-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        const caps = h.handle({ id: 1, method: 'initialize', params: {} })[0].result.capabilities;
+        Assert.deepStrictEqual([caps.referencesProvider, caps.documentHighlightProvider], [true, true]);
+        h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } });
+        const ask = (method, params) => h.handle({
+            id: 2, method, params: { textDocument: { uri: U }, ...params },
+        })[0].result;
+        const at = { position: { line: 0, character: 9 } };
+        Assert.strictEqual(ask('textDocument/references', { ...at, context: { includeDeclaration: true } }).length, 3);
+        Assert.strictEqual(ask('textDocument/references', at).length, 2);
+        Assert.deepStrictEqual(ask('textDocument/documentHighlight', at)
+            .map((x) => x.kind), [lsp_1.HIGHLIGHT_WRITE, lsp_1.HIGHLIGHT_READ, lsp_1.HIGHLIGHT_READ]);
+        Assert.strictEqual(ask('textDocument/references', {}), null);
+        Assert.strictEqual(h.handle({ id: 4, method: 'textDocument/references', params: {} })[0].result, null);
+        Assert.strictEqual(h.handle({
+            id: 3, method: 'textDocument/documentHighlight',
+            params: { textDocument: { uri: 'file:///none.aontu' }, ...at },
+        })[0].result, null);
     });
 });
 //# sourceMappingURL=lsp.test.js.map

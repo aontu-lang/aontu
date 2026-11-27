@@ -259,6 +259,7 @@ type FuncVal struct {
 	// keyed marks the match on key(0) that carries out a keyed() call.
 	keyed    bool
 	unmarked Val
+	packed   *packRead
 }
 
 // A gen call's custom expression is taken where the call is built: its hole is the call's.
@@ -384,7 +385,11 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		} else {
 			driven = stagedDrive(ctx, f, base)
 		}
-		ready := driven && ctx.settle
+		ready := driven && ctx.settle && ("filter" != f.name || !holdsRef(f.peg[1]) || !unmade(ctx, base))
+		if ready && "pack" == f.name {
+			f.packed = packMembers(ctx, f.peg, base)
+			ready = nil != f.packed
+		}
 
 		if !ready {
 			return residuate(f, base, peer)

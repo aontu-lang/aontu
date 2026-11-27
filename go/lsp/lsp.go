@@ -294,6 +294,70 @@ func SitesOf(src string, path []string, trust *aontu.TrustOptions) []aontu.PathS
 	return a.SitesOf(src, path)
 }
 
+// Symbols is the outline of the keys a document writes.
+func Symbols(src string, trust *aontu.TrustOptions) []aontu.DocSymbol {
+	a := aontu.New()
+	a.Trust = trust
+	return a.SymbolsOf(src)
+}
+
+// LSP DocumentHighlightKind subset.
+const (
+	HighlightRead  = 2
+	HighlightWrite = 3
+)
+
+type DocumentHighlight struct {
+	Range Range `json:"range"`
+	Kind  int   `json:"kind"`
+}
+
+// References is every site that writes the path a key or a reference
+// names, where the client asks for them, and every reference that reads it.
+func References(
+	src string, line, character int, uri string, includeDeclaration bool, trust *aontu.TrustOptions,
+) []Location {
+	a := aontu.New()
+	a.Trust = trust
+	refs := a.ReferencesAt(src, aontu.CursorPosition{Line: line, Character: character})
+	if nil == refs {
+		return nil
+	}
+	out := []Location{}
+	places := refs.Reads
+	if includeDeclaration {
+		places = append(refs.Writes, refs.Reads...)
+	}
+	for _, p := range places {
+		at := uri
+		if "" != p.File {
+			at = pathToURI(p.File)
+		}
+		out = append(out, Location{URI: at, Range: toRange(p.Range)})
+	}
+	return out
+}
+
+// Highlights is the same in the document alone, a site that writes the
+// path apart from a reference that reads it.
+func Highlights(src string, line, character int, trust *aontu.TrustOptions) []DocumentHighlight {
+	a := aontu.New()
+	a.Trust = trust
+	refs := a.ReferencesAt(src, aontu.CursorPosition{Line: line, Character: character})
+	if nil == refs {
+		return nil
+	}
+	out := []DocumentHighlight{}
+	for i, ps := range [][]aontu.PathPlace{refs.Writes, refs.Reads} {
+		for _, p := range ps {
+			if "" == p.File {
+				out = append(out, DocumentHighlight{Range: toRange(p.Range), Kind: HighlightWrite - i})
+			}
+		}
+	}
+	return out
+}
+
 // --- Aliases ----------------------------------------------------------
 
 // Location is the LSP textDocument/definition response.
@@ -463,10 +527,8 @@ func CompletionsAt(
 func Completions(src string) []CompletionItem {
 	out := []CompletionItem{}
 	for _, f := range aontu.BuiltinFuncNames() {
-		// The detail is the rendered SIGNATURE
-		// (sketch/SIGNATURES.0.md) -- the same renderer the hints
-		// use, so the completion list cannot drift from the
-		// declaration.
+		// The detail is the rendered SIGNATURE (sketch/SIGNATURES.0.md),
+		// from the renderer the hints use, so it cannot drift.
 		out = append(out, CompletionItem{Label: f, Kind: CompletionFunction, Detail: aontu.FuncSignature(f)})
 	}
 	for _, k := range []string{"string", "number", "integer", "float",
