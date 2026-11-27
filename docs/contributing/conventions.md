@@ -16,7 +16,7 @@ builder. A script that needs the build runs it by name
 named script the release calls: `stage-package` before `npm publish`,
 `sync-version` after `npm version`.
 
-## Comments are for the surprising code, and nothing else
+## A comment is only for surprising code, and as short as it can be
 
 [DEV-PROCESS.md](../../DEV-PROCESS.md#code-comments) states the rule,
 and its gate is `admin/scripts/comment-gate.cjs`. Here the gate reads
@@ -29,10 +29,9 @@ source in this sense, and is out. `make comments` runs the gate,
 CI runs it on every push, and `.githooks/pre-push`, which `make hooks`
 installs, runs it before a push leaves the machine.
 
-What a comment used to carry has homes: `sketch/` for the why behind a
-settled decision, [`ADR.md`](../../ADR.md) for a fundamental, the
-commit message for how the work went, and `git log -L` / `git blame`
-for reading any of it back.
+What a comment used to carry has homes: a page under `docs/` for a rule
+and its reasoning, the commit message for how the work went, and
+`git log -L` / `git blame` for reading any of it back.
 
 ## A document describes the thing, not the session that built it
 
