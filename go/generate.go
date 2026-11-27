@@ -215,7 +215,7 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 				decided = false
 				break
 			}
-			all = all && admits
+			all = all && admits && !sealedMiss(test, own)
 		}
 		if decided {
 			return all
@@ -328,7 +328,7 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		tried = append(tried, args[i].Canon())
 		if nil != output {
 			if admits, ok := admitsSettled(ctx, args[i], output, own, base); ok {
-				if admits {
+				if admits && !sealedMiss(args[i], own) {
 					return clonePath(args[i+1], base)
 				}
 				continue

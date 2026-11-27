@@ -127,7 +127,7 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
             const pattern = args[i];
             tried.push(pattern.canon);
             const admits = undefined === output ? undefined :
-                (0, admission_1.admitsSettled)(ctx, pattern, output, own, this.path);
+                !(0, admission_1.sealedMiss)(pattern, own) && (0, admission_1.admitsSettled)(ctx, pattern, output, own, this.path);
             if (undefined !== admits) {
                 if (admits) {
                     return placed(args[i + 1], ctx);

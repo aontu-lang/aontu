@@ -220,6 +220,36 @@ func armAdmits(arm Val, ctx *Ctx) bool {
 		sameJSON(withoutOptionalFills(out, ctx.toward.v), ctx.toward.v)
 }
 
+// sealedMiss: a list literal in a pattern is sealed to its own length.
+func sealedMiss(pattern Val, own any) bool {
+	switch p := pattern.(type) {
+	case *ListVal:
+		j, ok := own.([]any)
+		if !ok || nil != p.spread {
+			return false
+		}
+		if len(j) != len(p.peg) {
+			return true
+		}
+		for i, e := range p.peg {
+			if sealedMiss(e, j[i]) {
+				return true
+			}
+		}
+	case *MapVal:
+		j, ok := own.(map[string]any)
+		if !ok {
+			return false
+		}
+		for k, e := range p.peg {
+			if c, in := j[k]; in && sealedMiss(e, c) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func ownJSON(v Val, ctx *Ctx, path []string) (any, bool) {
 	gctx := trialCtx(ctx)
 	out, err := clonePath(v, path).Gen(gctx)

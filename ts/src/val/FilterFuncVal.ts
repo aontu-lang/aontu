@@ -15,7 +15,7 @@ import { MapVal } from './MapVal'
 import { keyTable } from './BagVal'
 import { ListVal } from './ListVal'
 import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
-import { admitsSettled, ownJson } from './admission'
+import { admitsSettled, ownJson, sealedMiss } from './admission'
 import { prefInnerPeg } from './PrefVal'
 import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
@@ -71,7 +71,8 @@ class FilterFuncVal extends FuncBaseVal {
       const arms: Val[] = (true === (child as any).isDisjunct ? child.peg : [child]).map(prefInnerPeg)
       const owns = arms.map((arm: Val) => ownJson(arm, kctx))
       if (owns.every((own: any) => undefined !== own)) {
-        const verdicts = arms.map((arm: Val, i: number) => admitsSettled(kctx, test, arm, owns[i], kctx.path))
+        const verdicts = arms.map((arm: Val, i: number) =>
+          !sealedMiss(test, owns[i]) && admitsSettled(kctx, test, arm, owns[i], kctx.path))
         if (verdicts.every((v) => undefined !== v)) {
           return verdicts.every((v) => true === v)
         }

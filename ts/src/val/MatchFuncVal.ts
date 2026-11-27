@@ -17,7 +17,7 @@ import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import { readsPlace } from './ConstraintVal'
 import { subsumeNode, newPairs } from '../subsume'
-import { admitsSettled, ownJson } from './admission'
+import { admitsSettled, ownJson, sealedMiss } from './admission'
 
 
 export function effectiveScrutinee(v: Val): Val {
@@ -170,7 +170,7 @@ class MatchFuncVal extends FuncBaseVal {
       tried.push(pattern.canon)
 
       const admits = undefined === output ? undefined :
-        admitsSettled(ctx, pattern, output, own, this.path)
+        !sealedMiss(pattern, own) && admitsSettled(ctx, pattern, output, own, this.path)
       if (undefined !== admits) {
         if (admits) {
           return placed(args[i + 1], ctx)
