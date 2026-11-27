@@ -22,13 +22,14 @@ import {
   computeFormatting,
   computePathAt,
   computeSitesOf,
+  computeSymbols,
   computePathDefinition,
   pathToUri,
   COMPLETION_FIELD,
 } from '../dist/lsp'
 import { srcPath } from './srcpath'
 import { IntegerVal } from '../dist/val/IntegerVal'
-import { hitsOf, keySpan, mapAt } from '../dist/cursor'
+import { hitsOf, keySpan, mapAt, symbolTree } from '../dist/cursor'
 
 
 import { aliasScope } from '../dist/alias'
@@ -941,6 +942,12 @@ describe('lsp-cursor', () => {
       [['value', 0, 1]])
   })
 
+  test('the-outline-visits-a-shared-value-once-and-steps-over-nothing', () => {
+    const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } }
+    const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site }
+    Assert.deepStrictEqual(symbolTree('1', both), [])
+  })
+
   test('the-map-search-visits-a-shared-value-once-and-finds-nothing-else', () => {
     const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } }
     const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site }
@@ -1085,6 +1092,64 @@ describe('lsp-diagnostics-once', () => {
     const ds = computeDiagnostics('a:{b:1&"s"} c:$.a d:$.a')
     Assert.deepStrictEqual(ds.map((d) => [d.range.start.character, d.code]),
       [[7, 'scalar_kind']])
+  })
+
+})
+
+
+// Twin: go/lsp/lsp_test.go, the tests from TestSymbolsOutlineWhatTheDocumentWrites on.
+describe('lsp-symbols', () => {
+
+  const range = (l0: number, c0: number, l1: number, c1: number) =>
+    ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } })
+
+  test('symbols-outline-what-the-document-writes', () => {
+    Assert.deepStrictEqual(computeSymbols('a: { b: 1 }\nl: [$.a]\n'), [
+      {
+        name: 'a', kind: 19, range: range(0, 0, 0, 11), selectionRange: range(0, 0, 0, 1),
+        children: [{
+          name: 'b', kind: 16, range: range(0, 5, 0, 9), selectionRange: range(0, 5, 0, 6),
+          children: [],
+        }],
+      },
+      {
+        name: 'l', kind: 18, range: range(1, 0, 1, 8), selectionRange: range(1, 0, 1, 1),
+        children: [{
+          name: '0', kind: 13, range: range(1, 4, 1, 7), selectionRange: range(1, 4, 1, 7),
+          children: [],
+        }],
+      },
+    ])
+    Assert.deepStrictEqual(computeSymbols('1\n'), [])
+    Assert.strictEqual(computeSymbols('a: )\n'), null)
+  })
+
+  test('symbols-outline-a-large-list', () => {
+    const got = computeSymbols('items: [' + '0,'.repeat(130000) + ']\n') as any[]
+    Assert.strictEqual(got.length, 1)
+    Assert.strictEqual(got[0].name, 'items')
+    Assert.strictEqual(got[0].kind, 18)
+    Assert.deepStrictEqual(got[0].range, range(0, 0, 0, 260009))
+    Assert.strictEqual(got[0].children.length, 130000)
+    Assert.deepStrictEqual(got[0].children[0].range, range(0, 8, 0, 9))
+    Assert.strictEqual(got[0].children[129999].name, '129999')
+  })
+
+  test('symbols-through-the-handler', () => {
+    const h = new LspHandler()
+    const init = h.handle({ id: 1, method: 'initialize', params: {} })
+    Assert.strictEqual(init[0].result.capabilities.documentSymbolProvider, true)
+    h.handle({
+      method: 'textDocument/didOpen',
+      params: { textDocument: { uri: 'file:///s.aontu', text: 'a: b: 1\na: 2\n' } },
+    })
+    const ask = (uri: string) => h.handle({
+      id: 2, method: 'textDocument/documentSymbol', params: { textDocument: { uri } },
+    })[0].result
+    Assert.deepStrictEqual(
+      ask('file:///s.aontu').map((s: any) => [s.name, s.range, s.children.map((c: any) => c.name)]),
+      [['a', range(0, 0, 0, 7), ['b']], ['a', range(1, 0, 1, 4), []]])
+    Assert.strictEqual(ask('file:///none.aontu'), null)
   })
 
 })

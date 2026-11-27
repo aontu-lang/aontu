@@ -52,6 +52,7 @@ export type ViewOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    readByExtension?: boolean;
     hostVars?: HostVars;
     at?: string;
     maxRows?: number;

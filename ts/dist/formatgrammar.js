@@ -12,6 +12,7 @@ exports.hex = hex;
 // character of lookahead cannot decide, and a recognizer over the rest.
 // Twin of go/formatgrammar.go.
 const formatgrammars_1 = require("./formatgrammars");
+const encode_1 = require("./encode");
 const FORMAT_STEP_MAX = 1000000;
 exports.FORMAT_STEP_MAX = FORMAT_STEP_MAX;
 const NEST_MAX = 64;
@@ -696,8 +697,9 @@ function formatOf(src) {
     return [{ name: src, gs: texts.map((t) => readGrammar(t, true)[0]) }, undefined, undefined];
 }
 // Whether a name is one of the formats JSON Schema defines, which
-// format(name) reads without a grammar from its caller.
+// format(name) reads without a grammar from its caller. The encodings
+// are committed too, and JSON Schema defines none of them.
 function isDefinedFormat(name) {
-    return formatgrammars_1.FORMAT_GRAMMARS.has(name) || 'regex' === name;
+    return (formatgrammars_1.FORMAT_GRAMMARS.has(name) && !(0, encode_1.isEncodeName)(name)) || 'regex' === name;
 } /* node:coverage ignore next 12 */
 //# sourceMappingURL=formatgrammar.js.map

@@ -13,6 +13,7 @@ export type AgentsMdOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    readByExtension?: boolean;
 };
 export declare function agentsMd(src: string, opts?: AgentsMdOptions): AgentsMdReport;
 export declare function agentsMdSplice(existing: string, stanza: string): string;

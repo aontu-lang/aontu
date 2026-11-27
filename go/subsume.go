@@ -34,6 +34,9 @@ type SubsumeOptions struct {
 	// HostVars are the bindings of the CLI's --var and --var-text.
 	HostVars map[string]HostVar
 
+	// ReadByExtension reads each document by its path's extension.
+	ReadByExtension bool
+
 	Profile     string // "values" | "defaults" (default) | "gen"
 	At          string // compare at this path of both documents
 	GeneralURL  string // provenance label for general sites
@@ -1229,7 +1232,7 @@ func PolicyCompat(src, path string) string {
 
 func PolicyCompatTrust(src, path string, trust *TrustOptions, textExt []string,
 	hostVars map[string]HostVar) string {
-	a := aontuForPathTrust(path, trust, textExt, hostVars)
+	a := aontuForPathTrust(path, trust, textExt, hostVars, false)
 	v, err := a.Unify(src)
 	if err != nil || nil == v || v.Nil() {
 		return ""
@@ -1302,7 +1305,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 
 	load := func(src, path string) Val {
 		a := aontuForPathTrust(path, options.Trust, options.TextExt,
-			options.HostVars)
+			options.HostVars, options.ReadByExtension)
 		v, err := a.Unify(src)
 		if err != nil || nil == v || v.Nil() {
 			return nil

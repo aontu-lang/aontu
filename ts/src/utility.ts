@@ -9,6 +9,7 @@ type IncludeOptions = {
   trust?: TrustOptions
   textExt?: string[]
   hostVars?: HostVars
+  readByExtension?: boolean
 }
 
 function includeOpts(options: IncludeOptions): Partial<AontuOptions> {
@@ -17,6 +18,7 @@ function includeOpts(options: IncludeOptions): Partial<AontuOptions> {
     ...(null == options.textExt || 0 === options.textExt.length
       ? {} : { textExt: options.textExt }),
     ...(null == options.hostVars ? {} : { hostVars: options.hostVars }),
+    ...(true === options.readByExtension ? { readByExtension: true } : {}),
   }
 }
 

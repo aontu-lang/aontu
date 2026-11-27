@@ -24,7 +24,7 @@ import { codeClasses } from '../dist/hints'
 import { canonRiders } from '../dist/utility'
 import { tlogRunGroup } from './tlog-vectors'
 import { computePathAt, computeSitesOf } from '../dist/lsp'
-import { describeAt, definitionAt, membersAt } from '../dist/cursor'
+import { describeAt, definitionAt, membersAt, symbolsOf } from '../dist/cursor'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
@@ -377,6 +377,28 @@ function runVerdict(row: Omit<Row, 'file'> & { file?: string }): void {
 }
 
 
+// A place after a fixture's name on its line is read as the row writes
+// the name, so that an answer is the same wherever the fixtures are.
+function asWritten(src: string, at: any): any {
+  if (null == at || 'object' !== typeof at) {
+    return at
+  }
+  if (Array.isArray(at)) {
+    return at.map((a) => asWritten(src, a))
+  }
+  const out: any = Object.fromEntries(
+    Object.entries(at).map(([k, v]) => [k, asWritten(src, v)]))
+  if ('number' === typeof at.line && 'number' === typeof at.character) {
+    const line = src.split('\n')[at.line] ?? ''
+    const d = FIXTURES_DIR.length - '__FIXTURES__'.length
+    for (let o = line.indexOf(FIXTURES_DIR); 0 <= o; o = line.indexOf(FIXTURES_DIR, o + 1)) {
+      out.character -= at.character >= o + FIXTURES_DIR.length ? d : 0
+    }
+  }
+  return out
+}
+
+
 // Execute one spec row. Shared by the TSV-driven tests above and the
 // gens-mode self-test below, so both go through the same comparison.
 function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
@@ -483,6 +505,12 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       exactJSON(membersAt(row.src, { line, character }) ?? null),
       exactJSON(JSON.parse(row.expect)),
       `members mismatch: ${row.name}`)
+  }
+  else if ('symbols' === row.mode) {
+    Assert.strictEqual(
+      exactJSON(asWritten(row.src, symbolsOf(row.src) ?? null)),
+      exactJSON(JSON.parse(row.expect)),
+      `symbols mismatch: ${row.name}`)
   }
   else if ('describe' === row.mode || 'define' === row.mode) {
     const [line, character] = (row.data as string).split(':').map(Number)

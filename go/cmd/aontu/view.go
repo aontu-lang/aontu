@@ -296,7 +296,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		opts.Docs = append(opts.Docs, aontu.ViewDoc{Src: srcs[i+1], Path: file})
 	}
 
-	report := aontuForFileTrust(files[0], trust).View(srcs[0], &opts)
+	report := operand(aontuForFileTrust(files[0], trust)).View(srcs[0], &opts)
 
 	if "error" != report.Verdict && nil != report.Text {
 		bare := aontuForFileTrust(files[0], trust).View("{}", &opts)
@@ -376,7 +376,7 @@ func runViewSet(rest []string, opts *aontu.ViewOptions, trust trustArg,
 		return 2
 	}
 
-	report := aontuForFileTrust(file, trust).ViewSet(string(src), opts)
+	report := operand(aontuForFileTrust(file, trust)).ViewSet(string(src), opts)
 
 	if "json" == format {
 		io.WriteString(stdout, renderViewSetJSON(report)+"\n")

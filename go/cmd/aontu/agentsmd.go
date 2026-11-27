@@ -76,7 +76,7 @@ func runAgentsMd(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFileTrust(files[0], trust).AgentsMd(
+	report := operand(aontuForFileTrust(files[0], trust)).AgentsMd(
 		string(src), &aontu.AgentsMdOptions{Depth: depth, Name: files[0]})
 	if !report.OK {
 		lines := make([]string, 0, len(report.Findings))

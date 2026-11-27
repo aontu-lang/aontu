@@ -1012,9 +1012,10 @@ func formatOf(src string) (name string, gs []*fGrammar, code, why string) {
 
 // IsDefinedFormat is whether a name is one of the formats JSON Schema
 // defines, which format(name) reads without a grammar from its caller.
+// The encodings are committed too, and JSON Schema defines none of them.
 func IsDefinedFormat(name string) bool {
 	_, ok := formatGrammars[name]
-	return ok || "regex" == name
+	return (ok && !isEncodeName(name)) || "regex" == name
 }
 
 func fSame(a, b int, ci bool) bool {

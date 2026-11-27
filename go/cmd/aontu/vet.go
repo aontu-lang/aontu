@@ -399,21 +399,22 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 
 	for _, source := range sources {
 		report := aontu.Vet(string(schemaSrc), source.src, &aontu.VetOptions{
-			Trust:        verbTrust(trust, entryRootOfFile(args.schema)),
-			TextExt:      trust.textExt,
-			HostVars:     trust.hostVars,
-			At:           args.at,
-			Closed:       args.closed,
-			Partial:      args.partial,
-			NoFill:       args.noFill,
-			MaxErrors:    args.maxErrors,
-			SchemaURL:    args.schema,
-			DataURL:      source.file,
-			SchemaPath:   args.schema,
-			DataPath:     source.file,
-			Coverage:     args.coverage,
-			CoverageAt:   args.coverageAt,
-			ExactNumbers: args.exact,
+			Trust:           verbTrust(trust, entryRootOfFile(args.schema)),
+			TextExt:         trust.textExt,
+			HostVars:        trust.hostVars,
+			ReadByExtension: true,
+			At:              args.at,
+			Closed:          args.closed,
+			Partial:         args.partial,
+			NoFill:          args.noFill,
+			MaxErrors:       args.maxErrors,
+			SchemaURL:       args.schema,
+			DataURL:         source.file,
+			SchemaPath:      args.schema,
+			DataPath:        source.file,
+			Coverage:        args.coverage,
+			CoverageAt:      args.coverageAt,
+			ExactNumbers:    args.exact,
 		})
 
 		if vetRank[verdict] < vetRank[report.Verdict] {

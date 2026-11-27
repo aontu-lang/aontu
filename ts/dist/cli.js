@@ -970,6 +970,9 @@ function entryRootOf(file) {
 function exactOpts(exact) {
     return true === exact ? { exactNumbers: true } : {};
 }
+// A document operand is read by its extension, by the table an include
+// uses.
+const OPERAND = { readByExtension: true };
 function withdrawnMsg(file) {
     return `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu`;
 }
@@ -997,6 +1000,7 @@ function runFile(file, mode, format, trust, exact) {
         errfs: { existsSync: node_fs_1.existsSync, readFileSync: node_fs_1.readFileSync },
         ...trustOpts(trust, (0, node_path_1.dirname)(path)),
         ...exactOpts(exact),
+        ...OPERAND,
     });
     return emitEval(evalSource(aontu, src, mode), format);
 }
@@ -1420,6 +1424,7 @@ function vetOnce(args, trust) {
     for (const source of sources) {
         const report = (0, aontu_1.vet)(schemaSrc, source.src, {
             ...verbOpts(trust, entryRootOf(args.schema)),
+            ...OPERAND,
             at: args.at,
             closed: args.closed,
             partial: args.partial,
@@ -1656,7 +1661,7 @@ function runSubsume(argv) {
         return 2;
     }
     const report = (0, aontu_1.subsume)(generalSrc, specificSrc, {
-        ...verbOpts(trust, entryRootOf(args.general)),
+        ...verbOpts(trust, entryRootOf(args.general)), ...OPERAND,
         profile: args.profile,
         at: args.at,
         generalUrl: args.general,
@@ -2046,7 +2051,7 @@ function runTrim(argv) {
         return 2;
     }
     const report = (0, aontu_1.trimCheck)(src, {
-        path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
+        path: files[0], ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
     });
     const text = 'json' === format
         ? renderTrimJson(report)
@@ -2698,7 +2703,7 @@ function runRelations(argv) {
     }
     const report = (0, aontu_1.relationCheck)(src, {
         path: files[0], count: true,
-        ...verbOpts(trust, entryRootOf(files[0])),
+        ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
     });
     const text = 'json' === format
         ? renderRelationsJson(report)
@@ -3185,7 +3190,7 @@ function runReaches(argv) {
     }
     const report = (0, reach_1.reachCheck)(src, rest[0], rest[1], {
         path: rest[2], relation,
-        ...verbOpts(trust, entryRootOf(rest[2])),
+        ...verbOpts(trust, entryRootOf(rest[2])), ...OPERAND,
     });
     const text = 'json' === format
         ? renderReachesJson(report)
@@ -3427,7 +3432,7 @@ function runView(argv) {
         ...verbOpts(trust, entryRootOf(files[0])),
         docs: files.slice(1).map((path, i) => ({ src: srcs[i + 1], path })),
     };
-    const report = (0, view_1.view)(srcs[0], viewOpts);
+    const report = (0, view_1.view)(srcs[0], { ...viewOpts, ...OPERAND });
     if ('error' !== report.verdict && null != report.text) {
         const bare = (0, view_1.view)('{}', viewOpts);
         if ('error' !== bare.verdict && bare.text === report.text) {
@@ -3488,7 +3493,7 @@ function runViewSet(rest, opts, trust, how) {
         return 2;
     }
     const report = (0, view_1.viewSet)(src, {
-        ...opts, path: file, ...verbOpts(trust, entryRootOf(file)),
+        ...opts, path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
     });
     if ('json' === how.format) {
         process.stdout.write(renderViewSetJson(report) + '\n');
@@ -3870,7 +3875,7 @@ function runJsonSchema(argv) {
         return 2;
     }
     const report = (0, jsonschema_1.jsonSchema)(src, {
-        at, path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
+        at, path: files[0], ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
     });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
@@ -4068,7 +4073,7 @@ function runHash(argv) {
     }
     // The file's own directory is the include base, as every verb
     // resolves a named file (vet's aontuForPath rule).
-    const aontu = new aontu_1.Aontu(verbOpts(trust, entryRootOf(files[0])));
+    const aontu = new aontu_1.Aontu({ ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND });
     const ctx = aontu.ctx({ collect: true });
     const v = aontu.unify(src, { path: files[0] }, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
@@ -4163,7 +4168,7 @@ function runGet(argv) {
         return 2;
     }
     const report = (0, aontu_1.get)(src, path, {
-        view, depth, path: file, ...verbOpts(trust, entryRootOf(file)),
+        view, depth, path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
     });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
@@ -4238,7 +4243,7 @@ function runWhy(argv) {
         return 2;
     }
     const report = (0, aontu_1.why)(src, path, {
-        path: file, ...verbOpts(trust, entryRootOf(file)),
+        path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
     });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
@@ -4527,7 +4532,7 @@ function runAllow(argv) {
         return 2;
     }
     const report = (0, aontu_1.allow)(src, role, paths, {
-        at, path: file, ...verbOpts(trust, entryRootOf(file)),
+        at, path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
     });
     const text = 'json' === format ?
         (0, aontu_1.exactJSON)({
@@ -4605,7 +4610,7 @@ function runAgentsMd(argv) {
     }
     const report = (0, aontu_1.agentsMd)(src, {
         depth, name: files[0], path: files[0],
-        ...verbOpts(trust, entryRootOf(files[0])),
+        ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
     });
     if (!report.ok) {
         process.stderr.write(report.findings.map(renderFinding).join('\n') + '\n');

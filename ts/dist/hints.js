@@ -113,13 +113,14 @@ const hints = {
         '  rest(number) & {b: 2}                       -> {b:2}  # t admits b;\n' +
         '  rest(nil, {if: {a: 1}, keys: any}) & {a: 2} -> nil    # if refuses.',
     format_unknown: 'format() takes a grammar, or the name of one of the nineteen JSON\n' +
-        'Schema formats, and "{reason}" is not one of them.\n' +
+        'Schema formats or of an encoding, and "{reason}" is not one of them.\n' +
         ' \n' +
         'The names: date-time, date, time, duration, email, idn-email,\n' +
         'hostname, idn-hostname, ipv4, ipv6, uri, uri-reference, iri,\n' +
         'iri-reference, uuid, uri-template, json-pointer,\n' +
-        'relative-json-pointer and regex. A string with `=` in it is a\n' +
-        'grammar, read as abnf() reads one.',
+        'relative-json-pointer and regex, and the encodings base64,\n' +
+        'base64url and hex. A string with `=` in it is a grammar, read as\n' +
+        'abnf() reads one.',
     format_grammar: 'This grammar is ABNF, but format() cannot run it as written:\n' +
         '{reason}\n' +
         ' \n' +

@@ -1,0 +1,11 @@
+; RFC 4648 section 4, padded, with the pad bits of section 3.5 zero.
+base64 = [b64-quantum]
+b64-quantum = b64-char b64-second
+b64-second = b64-low4 ("==" / b64-third) / b64-high4 b64-third
+b64-third = b64-low2 ("=" / b64-fourth) / b64-high2 b64-fourth
+b64-fourth = b64-char [b64-quantum]
+b64-char = b64-low2 / b64-high2
+b64-low4 = %x41 / %x51 / %x67 / %x77
+b64-high4 = %x42-50 / %x52-5A / %x61-66 / %x68-76 / %x78-7A / DIGIT / "+" / "/"
+b64-low2 = %x41 / %x45 / %x49 / %x4D / %x51 / %x55 / %x59 / %x63 / %x67 / %x6B / %x6F / %x73 / %x77 / %x30 / %x34 / %x38
+b64-high2 = %x42-44 / %x46-48 / %x4A-4C / %x4E-50 / %x52-54 / %x56-58 / %x5A / %x61-62 / %x64-66 / %x68-6A / %x6C-6E / %x70-72 / %x74-76 / %x78-7A / %x31-33 / %x35-37 / %x39 / "+" / "/"

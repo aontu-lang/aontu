@@ -29,6 +29,7 @@ export type ReachOptions = {
   trust?: TrustOptions
 
   textExt?: string[]
+  readByExtension?: boolean
   // Follow only edges under this relation. Absent means follow every
   // edge, which is the whole graph and the commoner question.
   relation?: string

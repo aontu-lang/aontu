@@ -229,7 +229,7 @@ func runJsonSchema(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFileTrust(files[0], trust).JSONSchema(string(src), at)
+	report := operand(aontuForFileTrust(files[0], trust)).JSONSchema(string(src), at)
 
 	if "json" == format {
 		io.WriteString(stdout, renderJsonSchemaJSON(report)+"\n")

@@ -41,6 +41,12 @@ type CursorMembers = { on: 'key' | 'path', path: string[], members: Member[] }
 
 type CursorOptions = { trust?: TrustOptions }
 
+// One entry of a document's outline, as LSP's DocumentSymbol has it.
+type DocSymbol = {
+  name: string, kind: number, range: Range, selectionRange: Range,
+  children: DocSymbol[]
+}
+
 type Parsed = { aontu: Aontu, ctx: any, root: any }
 
 type Hit = {
@@ -81,11 +87,14 @@ function offsetAt(src: string, starts: number[], pos: Position): number {
 
 
 function positionOf(starts: number[], off: number): Position {
-  let line = starts.length - 1
-  while (0 < line && off < starts[line]) {
-    line--
+  let lo = 0
+  let hi = starts.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (starts[mid] <= off) lo = mid
+    else hi = mid - 1
   }
-  return { line, character: off - starts[line] }
+  return { line: lo, character: off - starts[lo] }
 }
 
 
@@ -225,11 +234,16 @@ function valueEnd(src: string, at: number, text: string): number {
 }
 
 
+function siteText(v: any): string {
+  return 'string' === typeof v.site?.src ? v.site.src : ''
+}
+
+
 function valueHit(src: string, v: any, at: number, path: string[]): Hit | undefined {
   if (true === v.isConjunct || true === v.isDisjunct || true === v.isNil) {
     return undefined
   }
-  const text: string = 'string' === typeof v.site?.src ? v.site.src : ''
+  const text = siteText(v)
   if ((true === v.isMap || true === v.isList) && '{' !== text && '[' !== text) {
     return undefined
   }
@@ -464,12 +478,9 @@ function refAt(src: string, s: number, w: number): RefText | undefined {
 }
 
 
-// The first value a walk from root meets that take accepts at the offset
-// of its site, with its path, a constraint's written arguments included.
-// A value from an included file is sited in that file, so never here.
-function findVal(src: string, root: any, take: (v: any, off: number) => boolean):
-  { val: any, path: string[] } | undefined {
-  const starts = lineStarts(src)
+// Every value a walk from root meets, with its path, a constraint's
+// written arguments included, until visit answers true.
+function cursorWalk(root: any, visit: (v: any, path: string[]) => boolean): void {
   const seen = new Set<any>()
   const stack: [any, string[]][] = [[root, []]]
   while (0 < stack.length) {
@@ -478,13 +489,28 @@ function findVal(src: string, root: any, take: (v: any, off: number) => boolean)
       continue
     }
     seen.add(v)
-    if ('' === (v.site?.url ?? '') && take(v, siteOffset(starts, v))) {
-      return { val: v, path }
+    if (visit(v, path)) {
+      return
     }
     stack.push(...kids(v, path), ...(true === v.isConstraint && Array.isArray(v.peg) ?
       v.peg.map((c: any) => [c, path] as [any, string[]]) : []))
   }
-  return undefined
+}
+
+
+// The first value a walk from root meets that take accepts at the offset
+// of its site, with its path. A value from an included file is sited in
+// that file, so never here.
+function findVal(src: string, root: any, take: (v: any, off: number) => boolean):
+  { val: any, path: string[] } | undefined {
+  const starts = lineStarts(src)
+  let found: { val: any, path: string[] } | undefined
+  cursorWalk(root, (v, path) => {
+    found = '' === (v.site?.url ?? '') && take(v, siteOffset(starts, v)) ?
+      { val: v, path } : undefined
+    return undefined !== found
+  })
+  return found
 }
 
 
@@ -573,6 +599,138 @@ function membersAt(
 }
 
 
+// Where the bracket at k closes, or, from k up to end, where the last
+// bracket open by end closes: past quoted text and comments.
+function balancedEnd(src: string, k: number, end: number): number {
+  for (let depth = 0; k < src.length && (k < end || 0 < depth); k++) {
+    if ('"\'`'.includes(src[k])) {
+      k = quoteEnd(src, k)
+    }
+    else if ('#' === src[k]) {
+      k = Math.max(k, src.indexOf('\n', k) - 1)
+    }
+    else {
+      depth += '{[('.includes(src[k]) ? 1 : '}])'.includes(src[k]) ? -1 : 0
+    }
+  }
+  return Math.max(end, Math.min(k, src.length))
+}
+
+
+// Where the text of a value written at `at` ends, or the include that
+// loaded it at `from`.
+function extentEnd(src: string, v: any, at: number, from: number): number {
+  if (0 > at) {
+    let p = from + 1
+    while (' \t\r\n'.includes(src[p])) p++
+    return Math.min(quoteEnd(src, p) + 1, src.length)
+  }
+  const text = siteText(v)
+  return '{[('.includes(text) && 1 === text.length ? balancedEnd(src, at, at + 1) :
+    true === v.isRef ? refSpan(src, at)[0] : valueEnd(src, at, text)
+}
+
+
+const SYMBOL_KIND: Record<string, number> = {
+  map: 19, list: 18, string: 15, integer: 16, float: 16, biginteger: 16,
+  bigdecimal: 16, boolean: 17, null: 21,
+}
+
+type Sym = {
+  name: string, kind: number, start: number, end: number, key: [number, number],
+  children: Sym[]
+}
+
+type SymStep = {
+  v: any, path: string[], into: Sym[], own?: Sym, elem: boolean
+}
+
+
+// A symbol's entry runs over its children's, and on to the bracket that
+// closes the last one open in it.
+function docSymbol(src: string, starts: number[], s: Sym): [DocSymbol, number] {
+  const at = (off: number) => positionOf(starts, off)
+  const children = s.children.sort((a, b) => a.start - b.start)
+    .map((c) => docSymbol(src, starts, c))
+  let last = s.end
+  for (const c of children) last = Math.max(last, c[1])
+  const end = balancedEnd(src, s.start, last)
+  return [{
+    name: s.name,
+    kind: s.kind,
+    range: { start: at(s.start), end: at(end) },
+    selectionRange: { start: at(s.key[0]), end: at(s.key[1]) },
+    children: children.map((c) => c[0]),
+  }, end]
+}
+
+
+// The outline of what a document writes: each key where it is written,
+// a key chain's keys nested, and a list's elements by position.
+function symbolsOf(src: string, opts?: CursorOptions): DocSymbol[] | undefined {
+  const doc = parsed(src, opts)
+  return undefined === doc ? undefined : symbolTree(src, doc.root)
+}
+
+
+function symbolTree(src: string, root: any): DocSymbol[] {
+  const starts = lineStarts(src)
+  const top: Sym[] = []
+  const made = new Map<number, Sym>()
+  const seen = new Set<any>()
+  const stack: SymStep[] = [{ v: root, path: [], into: top, elem: false }]
+  while (0 < stack.length) {
+    const { v, path, into, own, elem } = stack.pop() as SymStep
+    if (null == v || true !== v.isVal || seen.has(v)) {
+      continue
+    }
+    seen.add(v)
+    const at = '' === (v.site?.url ?? '') ? siteOffset(starts, v) : -1
+    const load = v.site?.load
+    const from = 0 > at && null != load && '' === (load.url ?? '') ?
+      siteOffset(starts, { site: load }) : at
+    const name = path[path.length - 1]
+    const span: [number, number] | undefined = 0 > from || undefined === name ? undefined :
+      elem ? [from, extentEnd(src, v, at, from)] : keySpan(src, from, name)
+    let sym = own
+    if (undefined !== span) {
+      sym = made.get(span[0])
+      if (undefined === sym) {
+        sym = {
+          name, kind: SYMBOL_KIND[valKind(v)] ?? 13, start: span[0], end: span[1],
+          key: span, children: [],
+        }
+        made.set(span[0], sym)
+        into.push(sym)
+      }
+    }
+    // A value written here whose key is not found has no place.
+    else if (undefined === own && 0 <= from && 0 < path.length) {
+      continue
+    }
+    if (undefined !== sym && 0 <= from) {
+      sym.end = Math.max(sym.end, extentEnd(src, v, at, from))
+    }
+    const next: [any, string[]][] = [...kids(v, path),
+      ...(true === v.isConstraint && Array.isArray(v.peg) ?
+        v.peg.map((c: any) => [c, path] as [any, string[]]) : [])]
+    for (let i = next.length - 1; 0 <= i; i--) {
+      const [k, kpath] = next[i]
+      if (kpath.length === path.length) {
+        stack.push({ v: k, path, into, own: sym, elem: false })
+      }
+      else if (undefined !== sym || 0 === path.length) {
+        stack.push({
+          v: k, path: kpath, into: sym?.children ?? top,
+          elem: true === v.isList && '&' !== kpath[kpath.length - 1],
+        })
+      }
+    }
+  }
+  return top.sort((a, b) => a.start - b.start).map((s) => docSymbol(src, starts, s)[0])
+}
+
+
 // Every site that writes a path, as `model why` reads them; nothing
 // where the document does not evaluate or names no such path.
 function sitesOf(
@@ -594,10 +752,11 @@ function sitesOf(
 
 export {
   pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal,
-  membersAt, mapAt,
+  membersAt, mapAt, symbolsOf, symbolTree,
 }
 
 export type {
-  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorValue, Member,
+  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorValue, DocSymbol,
+  Member,
   PathPlace, PathSite, PathValue, Position, Range,
 }
