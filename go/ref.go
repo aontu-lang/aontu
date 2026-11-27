@@ -1200,11 +1200,13 @@ func (vv *VarVal) Gen(ctx *Ctx) (any, error) {
 	return nil, nil
 }
 
-// A link's template reads the relative paths that stay inside it where it lands, at the link's
-// target (ruling 50); one that climbs past the template reads where the link is written.
+// A link's template reads where it lands, at the link's target, an absolute path below its root and a
+// relative one inside it (ruling 50); one that climbs past the template reads where the link is written.
 func landPaths(tmpl Val, base []string) {
 	walkVals(tmpl, func(t Val) bool {
-		if r, ok := t.(*RefVal); ok && !r.absolute {
+		if r, ok := t.(*RefVal); ok && r.absolute {
+			r.lands = r.lands || t != tmpl
+		} else if ok {
 			climbs := 0
 			for climbs < len(r.peg) && "." == r.peg[climbs] {
 				climbs++

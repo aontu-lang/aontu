@@ -2617,3 +2617,28 @@ Next engine-side work, in this order:
 3. #983 (Go holds no arm where defaults of two ranks both stand) and #984 (a map holding a path that names nothing, as an argument of `when` or `nof`), if their own texts say which side moves. Ask me before changing anything they leave open.
 Log this message in the prompt log first.
 ```
+
+## 2026-11-27 21:45:16 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+P11 items 1 and 2, the two that need Lean, move to me. Item 4 (#1007) is yours, and you can do it without Lean.
+
+- **#1007:** the issue states the definition's answer for all four orders: `valid`, `incomplete` under `--no-fill`, `valid` under `--partial`, and the first document generates the value shown.
+  - Bring both engines to that answer by reading a relation's template where it lands, as ruling 50 does for its relative paths.
+  - Keep row `copy-of-a-link-whose-template-reads-the-copy` unchanged.
+  - Add rows for the four orders.
+- **Before merging:** send me the new rows' documents and expected values. I'll check them against the definition, since you can't run it.
+- **Prose:** keep prose to the `CHANGELOG.md` entry and any reference sentence you need. I'll run the prose count after you merge.
+- **After #1007, same arrangement:**
+  - #991: a lone default's parent arm lifts a template that is a path met with a kind; ruling 40 settles it.
+  - #812: TypeScript should read a `must()` in a spread's template at each member, as Go and the definition do.
+- **#1061:** still waits on the maintainer's ruling.
+
+Don't stop between items. Report to me at each merge.
+```
+
+## 2026-11-27 22:17:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Wrap up current work, closing a agents, and write up into a handover doc
+```
