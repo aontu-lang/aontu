@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a path that leaves a link's template where the link is written
+
+A path in a link's template that climbs past the template, as `..k`
+does in `relate({v: ..k})`, now reads in the definition where the
+document writes the link, as both engines already read it, and no longer
+from the link's target. With `k: 7`, `x: {k: 3, n: relate({v: ..k}) &
+path($.out)}` and `out: {}`, the link sends `v: 3`. A path that stays
+inside the template still reads at the target. Rows lc0 to lc50 of
+`test/spec/def-path.tsv` hold the definition and both engines to it.
+Neither engine changes.
+
 ### The oracle builds one module per area
 
 `spec/Oracle.lean` keeps only `main`. Its cases moved to one module per

@@ -210,8 +210,9 @@ def bareTo (pos : List Seg) (n : ℕ) (p : List Seg) : List Seg :=
 /-- The written path `n` dots and `p` name from a term at `pos`: `n`
 steps up from `pos`, then `p`, none where that climbs past the top; and
 from a place in a link's template, which stands at the link's target
-(`Seg.lands`), the place it names from there, as many steps above the
-target as it climbs past the template. -/
+(`Seg.lands`), the place it names from there: a place in the template
+while it stays inside, and past it as many steps above the template as
+it climbs, which `Val.atTarget` reads from where the link stands. -/
 def climb (pos : List Seg) (n : ℕ) (p : List Seg) : Option (List Seg) :=
   match pos with
   | .lands c :: rest =>
@@ -1203,54 +1204,57 @@ def Decls.nfLinks (ds : Decls) (root : Val) (home : List Seg) : List (List Seg �
   (root.links []).map fun e => (e.1, resolveD ds none (some ((home ++ e.1).map .seg)) e.2.1, e.2.2)
 
 mutual
-/-- A link's template as it lands at its target `T` (ruling 50): each
-path that starts at the link's target (`Seg.lands`) read from `T`, as
-many steps above it as the path climbs past the template, and `nil`
-where that climbs past the top; a link's template inside it kept as it
-is, since it lands at its own link's target. -/
-def Val.atTarget (T : List Seg) : Val → Val
-  | .path (.lands c :: p) => if c ≤ T.length then .path (T.take (T.length - c) ++ p) else .nil
-  | .len c => .len (c.atTarget T)
-  | .map fs spread closed => .map (atFields T fs) (atSpread T spread) closed
-  | .list items spread closed => .list (atItems T items) (atSpread T spread) closed
-  | .or arms => .or (atArms T arms)
-  | .pref r x => .pref r (x.atTarget T)
-  | .meet a b => .meet (a.atTarget T) (b.atTarget T)
-  | .nof n cs => .nof (n.atTarget T) (atItems T cs)
-  | .must c m => .must (c.atTarget T) m
-  | .when c t e => .when (c.atTarget T) (t.atTarget T) (atSpread T e)
-  | .contains c n => .contains (c.atTarget T) (n.atTarget T)
-  | .rest t cs => .rest (t.atTarget T) (atCovers T cs)
-  | .select s arms d => .select (s.atTarget T) (atPairs T arms) (atSpread T d)
-  | .filter s c => .filter (s.atTarget T) (c.atTarget T)
-  | .call f args => if f = .relate then .call f args else .call f (atItems T args)
-  | .ride k v r => .ride k (v.atTarget T) r
-  | .link v t => .link (v.atTarget T) t
+/-- A link's template as it lands at its target `T` (ruling 50), the
+link standing at `L`: a path that starts at the link's target
+(`Seg.lands`) and stays inside the template read from `T`, and one that
+climbs past the template read from `L`, as many steps above it as it
+climbs (ruling 92), `nil` where that climbs past the top; a link's
+template inside it kept as it is, since it lands at its own link's
+target. -/
+def Val.atTarget (L T : List Seg) : Val → Val
+  | .path (.lands 0 :: p) => .path (T ++ p)
+  | .path (.lands c :: p) => if c ≤ L.length then .path (L.take (L.length - c) ++ p) else .nil
+  | .len c => .len (c.atTarget L T)
+  | .map fs spread closed => .map (atFields L T fs) (atSpread L T spread) closed
+  | .list items spread closed => .list (atItems L T items) (atSpread L T spread) closed
+  | .or arms => .or (atArms L T arms)
+  | .pref r x => .pref r (x.atTarget L T)
+  | .meet a b => .meet (a.atTarget L T) (b.atTarget L T)
+  | .nof n cs => .nof (n.atTarget L T) (atItems L T cs)
+  | .must c m => .must (c.atTarget L T) m
+  | .when c t e => .when (c.atTarget L T) (t.atTarget L T) (atSpread L T e)
+  | .contains c n => .contains (c.atTarget L T) (n.atTarget L T)
+  | .rest t cs => .rest (t.atTarget L T) (atCovers L T cs)
+  | .select s arms d => .select (s.atTarget L T) (atPairs L T arms) (atSpread L T d)
+  | .filter s c => .filter (s.atTarget L T) (c.atTarget L T)
+  | .call f args => if f = .relate then .call f args else .call f (atItems L T args)
+  | .ride k v r => .ride k (v.atTarget L T) r
+  | .link v t => .link (v.atTarget L T) t
   | v => v
 
-def atFields (T : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
+def atFields (L T : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
-  | (k, o, v) :: fs => (k, o, v.atTarget T) :: atFields T fs
+  | (k, o, v) :: fs => (k, o, v.atTarget L T) :: atFields L T fs
 
-def atItems (T : List Seg) : List Val → List Val
+def atItems (L T : List Seg) : List Val → List Val
   | [] => []
-  | v :: vs => v.atTarget T :: atItems T vs
+  | v :: vs => v.atTarget L T :: atItems L T vs
 
-def atSpread (T : List Seg) : Option Val → Option Val
+def atSpread (L T : List Seg) : Option Val → Option Val
   | none => none
-  | some s => some (s.atTarget T)
+  | some s => some (s.atTarget L T)
 
-def atArms (T : List Seg) : List (ℕ × Val) → List (ℕ × Val)
+def atArms (L T : List Seg) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
-  | (r, a) :: as => (r, a.atTarget T) :: atArms T as
+  | (r, a) :: as => (r, a.atTarget L T) :: atArms L T as
 
-def atPairs (T : List Seg) : List (Val × Val) → List (Val × Val)
+def atPairs (L T : List Seg) : List (Val × Val) → List (Val × Val)
   | [] => []
-  | (p, r) :: ps => (p.atTarget T, r.atTarget T) :: atPairs T ps
+  | (p, r) :: ps => (p.atTarget L T, r.atTarget L T) :: atPairs L T ps
 
-def atCovers (T : List Seg) : List Cover → List Cover
+def atCovers (L T : List Seg) : List Cover → List Cover
   | [] => []
-  | (c, k, m) :: cs => (atSpread T c, atSpread T k, atSpread T m) :: atCovers T cs
+  | (c, k, m) :: cs => (atSpread L T c, atSpread L T k, atSpread L T m) :: atCovers L T cs
 end
 
 mutual
@@ -1306,7 +1310,7 @@ end
 lands (`Val.atTarget`), where `R` holds the target, and nothing where it
 doesn't. -/
 def ownFlow (R : Val) (pos : List Seg) (t : Val) (acc : Val) (a : Addr) : Val :=
-  match (a.from pos).bind fun p => R.putW p (t.atTarget p) with
+  match (a.from pos).bind fun p => R.putW p (t.atTarget pos p) with
   | some u => .meet acc u
   | none => acc
 
@@ -1360,7 +1364,7 @@ nothing at a member of the link's own body
 nothing or climbs past the top. -/
 def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
     (a : Addr) : Val :=
-  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget p) with
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget pos p) with
   | some u => .meet acc u
   | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
 
@@ -1773,8 +1777,8 @@ def bodyFlowsOf (ds : Decls) (roots : List Val) (home : List Seg) (e : List Seg 
     List (List Seg × Val) :=
   (linkAddrs e).filterMap fun a =>
     (a.from (home ++ e.1)).bind fun p =>
-      if (roots.findSome? fun root => root.putW p (e.2.1.unmark.atTarget p)).isNone && ds.atOwnBody (home ++ e.1) p then
-        some (p, e.2.1.unmark.atTarget p)
+      if (roots.findSome? fun root => root.putW p (e.2.1.unmark.atTarget (home ++ e.1) p)).isNone && ds.atOwnBody (home ++ e.1) p then
+        some (p, e.2.1.unmark.atTarget (home ++ e.1) p)
       else none
 
 /-- The flows a tree's links make into a member of their own body, the
@@ -4558,114 +4562,115 @@ theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {roots bs :
 /-! ## Reading the links keeps a term checkable -/
 
 mutual
-theorem Val.atTarget_checkableA (T : List Seg) : ∀ {v : Val}, v.CheckableA → (v.atTarget T).CheckableA
+theorem Val.atTarget_checkableA (L T : List Seg) : ∀ {v : Val}, v.CheckableA → (v.atTarget L T).CheckableA
   | .path p, _ => by
     match p with
-    | .lands c :: q =>
+    | .lands 0 :: q => simp only [Val.atTarget]; exact .path
+    | .lands (c + 1) :: q =>
       simp only [Val.atTarget]
       split
       · exact .path
       · exact .nil
     | [] | .key _ :: _ | .idx _ :: _ | .var _ :: _ | .up _ :: _ | .node :: _ | .own _ :: _ =>
       simp only [Val.atTarget]; exact .path
-  | .len _, .len h => .len (Val.atTarget_checkableA T h)
-  | .map _ _ _, .map hf hs => .map (atFields_checkableA T hf) (atSpread_checkableA T hs)
-  | .list _ _ _, .list hi hs => .list (atItems_checkableA T hi) (atSpread_checkableA T hs)
-  | .or _, .or ha => .or (atArms_checkableA T ha)
-  | .pref _ _, .pref h => .pref (Val.atTarget_checkableA T h)
-  | .meet _ _, .meet ha hb => .meet (Val.atTarget_checkableA T ha) (Val.atTarget_checkableA T hb)
-  | .nof _ _, .nof hn hc => .nof (Val.atTarget_checkableA T hn) (atItems_checkableA T hc)
-  | .must _ _, .must h => .must (Val.atTarget_checkableA T h)
+  | .len _, .len h => .len (Val.atTarget_checkableA L T h)
+  | .map _ _ _, .map hf hs => .map (atFields_checkableA L T hf) (atSpread_checkableA L T hs)
+  | .list _ _ _, .list hi hs => .list (atItems_checkableA L T hi) (atSpread_checkableA L T hs)
+  | .or _, .or ha => .or (atArms_checkableA L T ha)
+  | .pref _ _, .pref h => .pref (Val.atTarget_checkableA L T h)
+  | .meet _ _, .meet ha hb => .meet (Val.atTarget_checkableA L T ha) (Val.atTarget_checkableA L T hb)
+  | .nof _ _, .nof hn hc => .nof (Val.atTarget_checkableA L T hn) (atItems_checkableA L T hc)
+  | .must _ _, .must h => .must (Val.atTarget_checkableA L T h)
   | .when _ _ _, .when hc ht he =>
-    .when (Val.atTarget_checkableA T hc) (Val.atTarget_checkableA T ht) (atSpread_checkableA T he)
-  | .contains _ _, .contains hc hn => .contains (Val.atTarget_checkableA T hc) (Val.atTarget_checkableA T hn)
-  | .rest _ _, .rest ht h1 h2 h3 => .rest (Val.atTarget_checkableA T ht) (atCovers_checkableA T h1 h2 h3).1
-      (atCovers_checkableA T h1 h2 h3).2.1 (atCovers_checkableA T h1 h2 h3).2.2
+    .when (Val.atTarget_checkableA L T hc) (Val.atTarget_checkableA L T ht) (atSpread_checkableA L T he)
+  | .contains _ _, .contains hc hn => .contains (Val.atTarget_checkableA L T hc) (Val.atTarget_checkableA L T hn)
+  | .rest _ _, .rest ht h1 h2 h3 => .rest (Val.atTarget_checkableA L T ht) (atCovers_checkableA L T h1 h2 h3).1
+      (atCovers_checkableA L T h1 h2 h3).2.1 (atCovers_checkableA L T h1 h2 h3).2.2
   | .select _ _ _, .selectKey hp hr hd => by
     simp only [Val.atTarget]
-    exact .selectKey (atPairs_checkableA T hp hr).1 (atPairs_checkableA T hp hr).2 (atSpread_checkableA T hd)
+    exact .selectKey (atPairs_checkableA L T hp hr).1 (atPairs_checkableA L T hp hr).2 (atSpread_checkableA L T hd)
   | .select _ _ _, .selectLit hp hr hd => by
     simp only [Val.atTarget]
-    exact .selectLit (atPairs_checkableA T hp hr).1 (atPairs_checkableA T hp hr).2 (atSpread_checkableA T hd)
+    exact .selectLit (atPairs_checkableA L T hp hr).1 (atPairs_checkableA L T hp hr).2 (atSpread_checkableA L T hd)
   | .call f _, .call ha => by
     simp only [Val.atTarget]
     split
     · exact .call ha
-    · exact .call (atItems_checkableA T ha)
-  | .ride _ _ _, .ride h => .ride (Val.atTarget_checkableA T h)
-  | .link _ _, .link hv ht => .link (Val.atTarget_checkableA T hv) ht
+    · exact .call (atItems_checkableA L T ha)
+  | .ride _ _ _, .ride h => .ride (Val.atTarget_checkableA L T h)
+  | .link _ _, .link hv ht => .link (Val.atTarget_checkableA L T hv) ht
   | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
   | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
   | .addr _, h | .min _, h | .max _, h | .above _, h | .beneath _, h | .neq _, h
   | .mulof _, h | .unique _, h | .grammar _, h | .any, h | .absent, h | .hole, h
   | .nil, h | .nothing, h | .alias _, h | .key, h | .keyUp _, h => h
 
-theorem atFields_checkableA (T : List Seg) : ∀ {fs : List (String × Bool × Val)},
-    (∀ k o v, (k, o, v) ∈ fs → v.CheckableA) → ∀ k o v, (k, o, v) ∈ atFields T fs → v.CheckableA
+theorem atFields_checkableA (L T : List Seg) : ∀ {fs : List (String × Bool × Val)},
+    (∀ k o v, (k, o, v) ∈ fs → v.CheckableA) → ∀ k o v, (k, o, v) ∈ atFields L T fs → v.CheckableA
   | [], _, _, _, _, h => nomatch h
   | (k', o', v') :: fs, hf, k, o, v, h => by
     simp only [atFields, List.mem_cons, Prod.mk.injEq] at h
     rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact Val.atTarget_checkableA T (hf _ _ _ List.mem_cons_self)
-    · exact atFields_checkableA T (fun k o v hm => hf k o v (List.mem_cons_of_mem _ hm)) k o v h
+    · exact Val.atTarget_checkableA L T (hf _ _ _ List.mem_cons_self)
+    · exact atFields_checkableA L T (fun k o v hm => hf k o v (List.mem_cons_of_mem _ hm)) k o v h
 
-theorem atItems_checkableA (T : List Seg) : ∀ {vs : List Val},
-    (∀ v, v ∈ vs → v.CheckableA) → ∀ v, v ∈ atItems T vs → v.CheckableA
+theorem atItems_checkableA (L T : List Seg) : ∀ {vs : List Val},
+    (∀ v, v ∈ vs → v.CheckableA) → ∀ v, v ∈ atItems L T vs → v.CheckableA
   | [], _, _, h => nomatch h
   | v' :: vs, hv, v, h => by
     simp only [atItems, List.mem_cons] at h
     rcases h with rfl | h
-    · exact Val.atTarget_checkableA T (hv v' List.mem_cons_self)
-    · exact atItems_checkableA T (fun v hm => hv v (List.mem_cons_of_mem _ hm)) v h
+    · exact Val.atTarget_checkableA L T (hv v' List.mem_cons_self)
+    · exact atItems_checkableA L T (fun v hm => hv v (List.mem_cons_of_mem _ hm)) v h
 
-theorem atSpread_checkableA (T : List Seg) : ∀ {s : Option Val},
-    (∀ s', s = some s' → s'.CheckableA) → ∀ s', atSpread T s = some s' → s'.CheckableA
+theorem atSpread_checkableA (L T : List Seg) : ∀ {s : Option Val},
+    (∀ s', s = some s' → s'.CheckableA) → ∀ s', atSpread L T s = some s' → s'.CheckableA
   | none, _, _, h => nomatch h
   | some s, hs, s', h => by
     simp only [atSpread, Option.some.injEq] at h
-    rw [← h]; exact Val.atTarget_checkableA T (hs s rfl)
+    rw [← h]; exact Val.atTarget_checkableA L T (hs s rfl)
 
-theorem atArms_checkableA (T : List Seg) : ∀ {arms : List (ℕ × Val)},
-    (∀ r a, (r, a) ∈ arms → a.CheckableA) → ∀ r a, (r, a) ∈ atArms T arms → a.CheckableA
+theorem atArms_checkableA (L T : List Seg) : ∀ {arms : List (ℕ × Val)},
+    (∀ r a, (r, a) ∈ arms → a.CheckableA) → ∀ r a, (r, a) ∈ atArms L T arms → a.CheckableA
   | [], _, _, _, h => nomatch h
   | (r', a') :: arms, ha, r, a, h => by
     simp only [atArms, List.mem_cons, Prod.mk.injEq] at h
     rcases h with ⟨rfl, rfl⟩ | h
-    · exact Val.atTarget_checkableA T (ha _ _ List.mem_cons_self)
-    · exact atArms_checkableA T (fun r a hm => ha r a (List.mem_cons_of_mem _ hm)) r a h
+    · exact Val.atTarget_checkableA L T (ha _ _ List.mem_cons_self)
+    · exact atArms_checkableA L T (fun r a hm => ha r a (List.mem_cons_of_mem _ hm)) r a h
 
-theorem atPairs_checkableA (T : List Seg) : ∀ {ps : List (Val × Val)},
+theorem atPairs_checkableA (L T : List Seg) : ∀ {ps : List (Val × Val)},
     (∀ p r, (p, r) ∈ ps → p.CheckableA) → (∀ p r, (p, r) ∈ ps → r.CheckableA) →
-    (∀ p r, (p, r) ∈ atPairs T ps → p.CheckableA) ∧ (∀ p r, (p, r) ∈ atPairs T ps → r.CheckableA)
+    (∀ p r, (p, r) ∈ atPairs L T ps → p.CheckableA) ∧ (∀ p r, (p, r) ∈ atPairs L T ps → r.CheckableA)
   | [], _, _ => ⟨fun _ _ h => (nomatch h), fun _ _ h => (nomatch h)⟩
   | (p', r') :: ps, hp, hr => by
-    have ih := atPairs_checkableA T (ps := ps) (fun p r hm => hp p r (List.mem_cons_of_mem _ hm))
+    have ih := atPairs_checkableA L T (ps := ps) (fun p r hm => hp p r (List.mem_cons_of_mem _ hm))
       (fun p r hm => hr p r (List.mem_cons_of_mem _ hm))
     refine ⟨fun p r h => ?_, fun p r h => ?_⟩ <;>
       simp only [atPairs, List.mem_cons, Prod.mk.injEq] at h <;> rcases h with ⟨rfl, rfl⟩ | h
-    · exact Val.atTarget_checkableA T (hp _ _ List.mem_cons_self)
+    · exact Val.atTarget_checkableA L T (hp _ _ List.mem_cons_self)
     · exact ih.1 p r h
-    · exact Val.atTarget_checkableA T (hr _ _ List.mem_cons_self)
+    · exact Val.atTarget_checkableA L T (hr _ _ List.mem_cons_self)
     · exact ih.2 p r h
 
-theorem atCovers_checkableA (T : List Seg) : ∀ {cs : List Cover},
+theorem atCovers_checkableA (L T : List Seg) : ∀ {cs : List Cover},
     (∀ c, c ∈ cs → ∀ v, c.1 = some v → v.CheckableA) →
     (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → v.CheckableA) →
     (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → v.CheckableA) →
-    (∀ c, c ∈ atCovers T cs → ∀ v, c.1 = some v → v.CheckableA) ∧
-    (∀ c, c ∈ atCovers T cs → ∀ v, c.2.1 = some v → v.CheckableA) ∧
-    (∀ c, c ∈ atCovers T cs → ∀ v, c.2.2 = some v → v.CheckableA)
+    (∀ c, c ∈ atCovers L T cs → ∀ v, c.1 = some v → v.CheckableA) ∧
+    (∀ c, c ∈ atCovers L T cs → ∀ v, c.2.1 = some v → v.CheckableA) ∧
+    (∀ c, c ∈ atCovers L T cs → ∀ v, c.2.2 = some v → v.CheckableA)
   | [], _, _, _ => ⟨fun _ h => (nomatch h), fun _ h => (nomatch h), fun _ h => (nomatch h)⟩
   | (c1, c2, c3) :: cs, h1, h2, h3 => by
-    have ih := atCovers_checkableA T (cs := cs) (fun c hm => h1 c (List.mem_cons_of_mem _ hm))
+    have ih := atCovers_checkableA L T (cs := cs) (fun c hm => h1 c (List.mem_cons_of_mem _ hm))
       (fun c hm => h2 c (List.mem_cons_of_mem _ hm)) (fun c hm => h3 c (List.mem_cons_of_mem _ hm))
     refine ⟨fun c h => ?_, fun c h => ?_, fun c h => ?_⟩ <;>
       simp only [atCovers, List.mem_cons] at h <;> rcases h with rfl | h
-    · exact atSpread_checkableA T (h1 _ List.mem_cons_self)
+    · exact atSpread_checkableA L T (h1 _ List.mem_cons_self)
     · exact ih.1 c h
-    · exact atSpread_checkableA T (h2 _ List.mem_cons_self)
+    · exact atSpread_checkableA L T (h2 _ List.mem_cons_self)
     · exact ih.2.1 c h
-    · exact atSpread_checkableA T (h3 _ List.mem_cons_self)
+    · exact atSpread_checkableA L T (h3 _ List.mem_cons_self)
     · exact ih.2.2 c h
 end
 
@@ -4681,7 +4686,7 @@ theorem referFlow_checkableA {ds : Decls} {roots : List Val} {miss acc t : Val} 
       rw [hq] at hu
       simp only [Option.bind_some] at hu
       obtain ⟨root, -, hr⟩ := List.exists_of_findSome?_eq_some hu
-      exact .meet hacc (putW_checkableA (Val.atTarget_checkableA p ht) p hr)
+      exact .meet hacc (putW_checkableA (Val.atTarget_checkableA pos p ht) p hr)
   next =>
     split
     · exact hacc
@@ -4794,7 +4799,7 @@ theorem ownFlow_checkableA {R acc t : Val} {pos : List Seg} {a : Addr}
     | some p =>
       rw [hq] at hu
       simp only [Option.bind_some] at hu
-      exact .meet hacc (putW_checkableA (Val.atTarget_checkableA p ht) p hu)
+      exact .meet hacc (putW_checkableA (Val.atTarget_checkableA pos p ht) p hu)
   next => exact hacc
 
 theorem foldl_ownFlow_checkableA {R t : Val} {pos : List Seg} (ht : t.CheckableA) :

@@ -4540,17 +4540,17 @@ its own where the copy stands. So
 `v: 2`, and a link the template carries reads its relative address
 from where that template lands. A path that names no member of the
 target's is an error, as any path to nothing is. A path that climbs
-past the template, as `..k` does in `relate({v: ..k})`, both engines
-read where the document writes the link, and the definition from the
-target, which differ only where the target isn't the link's sibling.
-[#1001](https://github.com/aontu-lang/aontu/issues/1001) asks which
-holds.
+past the template, as `..k` does in `relate({v: ..k})`, has left what
+lands, so it reads where the document writes the link: with `k: 7`,
+`x: {k: 3, n: relate({v: ..k}) & path($.out)}` and `out: {}`, the link
+sends `v: 3` into `out`.
 
 In the definition, `relate(t)` reads as the relation kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets each link's template, its marks cleared, at the target its
-address names from where the link stands, each relative path in the
-template read from that target (`Val.atTarget`). It reads the targets in
+address names from where the link stands, each relative path that
+stays inside the template read from that target, and one that climbs
+past it from where the link stands (`Val.atTarget`). It reads the targets in
 passes, so one link's template can make another link's target,
 whichever the document writes first. Since the template rides the value
 the link meets, the definition reads each link where it lands: where
