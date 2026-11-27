@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FuncBaseVal = void 0;
 exports.trialUnify = trialUnify;
 exports.sameMembers = sameMembers;
+exports.feeding = feeding;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
@@ -94,6 +95,12 @@ function wrapSettled(args) {
 function openWrap(ctx, v) {
     return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v;
 }
+// A member under a call whose data is being driven is its input, not its output.
+function feeding(ctx, path) {
+    const out = ctx.clone({});
+    out.feeds = [...(ctx.feeds ?? []), path.join('\u0000')];
+    return out;
+}
 // What a call that waits for its place reads as: any value, which a use reads again.
 function waiting(ctx) {
     const out = (0, top_1.top)().clone(ctx);
@@ -122,7 +129,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     driveStagedArgs(ctx, count) {
         const TOP = (0, top_1.top)();
         let alldone = true;
-        const actx = ctx.clone({});
+        const actx = feeding(ctx, this.path);
         actx.argsnap = true;
         for (let i = 0; i < count && i < this.peg.length; i++) {
             const arg = this.peg[i];
@@ -314,6 +321,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     deferResolve(_ctx, _args) {
         return false;
     }
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 exports.FuncBaseVal = FuncBaseVal;
 //# sourceMappingURL=FuncBaseVal.js.map

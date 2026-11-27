@@ -133,6 +133,14 @@ function openWrap(ctx: AontuContext, v: any): Val {
 }
 
 
+// A member under a call whose data is being driven is its input, not its output.
+function feeding(ctx: AontuContext, path: string[]): AontuContext {
+  const out: any = ctx.clone({})
+  out.feeds = [...((ctx as any).feeds ?? []), path.join('\u0000')]
+  return out
+}
+
+
 // What a call that waits for its place reads as: any value, which a use reads again.
 function waiting(ctx: AontuContext): Val {
   const out: any = top().clone(ctx)
@@ -177,7 +185,7 @@ class FuncBaseVal extends FeatureVal {
     const TOP = top()
     let alldone = true
 
-    const actx: AontuContext = ctx.clone({})
+    const actx: AontuContext = feeding(ctx, this.path)
     ; (actx as any).argsnap = true
 
     for (let i = 0; i < count && i < this.peg.length; i++) {
@@ -426,11 +434,12 @@ class FuncBaseVal extends FeatureVal {
   }
 
 
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 
 
 export {
   trialUnify,
   sameMembers,
+  feeding,
   FuncBaseVal,
 }

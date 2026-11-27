@@ -82,3 +82,13 @@ filter-in-each-member-place-is-the-candidate	gen	l: [1, 2, 3]\np: each(["x"], {l
 filter-in-nested-pack-member	gen	l: [1, 2, 3]\np: pack(["x"], {lim: 2, q: pack(["y"], {f: filter($.l, ....lim)})})	{"l":[1,2,3],"p":{"x":{"lim":2,"q":{"y":{"f":[2]}}}}}
 filter-in-match-result-reads-the-member	gen	l: [1, 2, 3]\nk: 1\np: match($.k, 1, {lim: 2, f: filter($.l, ..lim)})	{"k":1,"l":[1,2,3],"p":{"f":[2],"lim":2}}
 filter-in-pack-member-index	gen	folders: {a: {parent: "-"}, b: {parent: a}, c: {parent: a}, d: {parent: b}}\nsubs: pack($.folders, {id: key(), kids: filter($.folders, {parent: ...id})})	{"folders":{"a":{"parent":"-"},"b":{"parent":"a"},"c":{"parent":"a"},"d":{"parent":"b"}},"subs":{"a":{"id":"a","kids":{"b":{"parent":"a"},"c":{"parent":"a"}}},"b":{"id":"b","kids":{"d":{"parent":"b"}}},"c":{"id":"c","kids":{}},"d":{"id":"d","kids":{}}}}
+#
+# A filter in a call's data or a match's pattern is the call's input, not a
+# member it makes, and does not wait for it.
+filter-in-pack-data-reads-the-root	gen	n: 1\nout: pack({a: {f: filter([1, 2], $.n)}}, _)	{"n":1,"out":{"a":{"f":[1]}}}
+filter-in-each-data-reads-the-root	gen	n: 1\nout: each([{f: filter([1, 2], $.n)}], _)	{"n":1,"out":[{"f":[1]}]}
+filter-in-apply-data-reads-the-root	gen	n: 1\nout: apply({f: filter([1, 2], $.n)}, _)	{"n":1,"out":{"f":[1]}}
+filter-in-match-scrutinee-reads-the-root	gen	n: 1\nout: match({f: filter([1, 2], $.n)}, {f: [1]}, yes, no)	{"n":1,"out":"yes"}
+filter-in-data-of-a-made-generator	gen	n: 1\np: pack(["x"], {lim: 2, q: pack({a: {f: filter([1, 2], $.n)}}, _)})	{"n":1,"p":{"x":{"lim":2,"q":{"a":{"f":[1]}}}}}
+filter-in-data-of-a-made-generator-reads-the-member	gen	l: [1, 2, 3]\np: pack(["x"], {lim: 2, q: each([{f: filter($.l, ....lim)}], _)})	{"l":[1,2,3],"p":{"x":{"lim":2,"q":[{"f":[2]}]}}}
+filter-in-match-pattern-reads-the-root	gen	n: 1\nout: match([1], filter([1, 2], $.n), yes, no)	{"n":1,"out":"yes"}

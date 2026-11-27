@@ -32,11 +32,14 @@ const making = (v: any): boolean =>
   true === v?.isFunc && !v.done && MAKERS.has(v.funcname())
 
 
-// A member a generator is still making is not yet where a path reads it.
+// A member a generator is still making is not yet where a path reads it; its input is.
 function unmade(ctx: AontuContext, path: string[]): boolean {
+  const feeds: string[] = (ctx as any).feeds ?? []
   for (let i = 0; i < path.length; i++) {
-    const node: any = unmarked(walkTarget(ctx.root, path.slice(0, i)))
-    if (making(node) || (true === node?.isConjunct && node.peg.some(making))) {
+    const at = path.slice(0, i)
+    const node: any = unmarked(walkTarget(ctx.root, at))
+    if (!feeds.includes(at.join('\u0000')) &&
+      (making(node) || (true === node?.isConjunct && node.peg.some(making)))) {
       return true
     }
   }

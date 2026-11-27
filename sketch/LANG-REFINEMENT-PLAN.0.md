@@ -712,8 +712,10 @@ found nothing, and each candidate was refused. Now a `filter` whose
 condition holds a path waits while any place above it is a `pack`,
 `each`, `apply` or `match` still to fire, and is tried once the
 member is in the tree (`unmade` in `ts/src/val/FilterFuncVal.ts` and
-`go/generate.go`). A condition with no path fires as before, so no
-document without one takes more passes. The 16 rows `filter-in-*` of
+`go/generate.go`). A filter in a call's data, or in a `match`'s
+pattern, is the call's input and does not wait for it. A condition with
+no path fires as before, so no document without one takes more passes.
+The 23 rows `filter-in-*` of
 `test/spec/gen-filter.tsv` pin it, each expectation from the parity
 probe. No C7 row pinned the empty answer: k4 reads a path inside the
 member it tries, which names nothing by the reference, and stays `[]`,
