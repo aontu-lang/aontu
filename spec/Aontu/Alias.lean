@@ -4124,12 +4124,10 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     | exact (match ha with | .link h ht => .link (hr _ _ h hb) ht)
     | exact (match hb with | .link h ht => .link (hr _ _ ha h) ht)
     | exact meetNodes_checkableA hr ha hb
-    | (split
-        · exact (match ha with | .pref h => hr _ _ (.ride h.super) hb)
-        · exact meetNodes_checkableA hr ha hb)
-    | (split
-        · exact (match hb with | .pref h => hr _ _ ha (.ride h.super))
-        · exact meetNodes_checkableA hr ha hb)
+    | (split <;> first
+        | exact (match ha with | .pref h => hr _ _ (.ride h.super) hb)
+        | exact (match hb with | .pref h => hr _ _ ha (.ride h.super))
+        | exact meetNodes_checkableA hr ha hb)
     | exact meetMap_of_checkableA hr ha hb
     | exact meetMap_of_checkableA hr hany hb
     | exact meetMap_of_checkableA hr ha hany
