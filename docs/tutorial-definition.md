@@ -5249,6 +5249,12 @@ A mark a key's second declaration carries rides the meet the same way,
 so `{a: integer} & {a: hide(integer)}` against `{}` is `valid`: the
 output leaves `a` out, and the data needn't give it.
 
+Nothing holds the root of a document, so a root a mark leaves out
+writes `null`: `hide({a: 1})` and `type([1])` write `null`, as both
+engines do for a map or a list, in rows gr0 on of
+[`test/spec/def-gaps.tsv`](../test/spec/def-gaps.tsv). Both engines
+still write a marked scalar root, `hide(1)` as `1`, which #1078 tracks.
+
 A spread's template meets each member without the marks written around
 it, which the reading drops before the template meets anything, since
 a mark belongs to the place it's written at: `{&: hide({n: 1})} & {a: {}}`
