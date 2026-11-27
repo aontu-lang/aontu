@@ -111,7 +111,6 @@ function markedElement(list, e) {
     return (true === e?.mark?.hide && true !== list.mark.hide) ||
         (true === e?.mark?.type && true !== list.mark.type);
 }
-// A copy is an instance: its marks are cleared, and a type's copy is sealed.
 function liftCopy(v, typed) {
     let out = dropMarkedElements(v);
     // The copy carries a held constraint without its type.
@@ -819,6 +818,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
             this.prefix ? 'prefix' : '',
         ].filter(p => '' != p).join(',');
     }
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 12 */
 exports.RefVal = RefVal;
 //# sourceMappingURL=RefVal.js.map

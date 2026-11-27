@@ -18,6 +18,14 @@ import { fixSeals } from './SealVal'
 import { throughWrap } from './RecurseVal'
 
 
+// A list counts a negative integer from its end, which a path step does not.
+function step(node: any, key: any): Val | undefined {
+  const at = 'number' === typeof key.peg && true === node?.isList && key.peg < 0 ?
+    node.peg.length + key.peg : key.peg
+  return true === node?.isMap || true === node?.isList ? member(node, String(at)) : undefined
+}
+
+
 class AtFuncVal extends FuncBaseVal {
   isAtFunc = true
 
@@ -75,14 +83,6 @@ class AtFuncVal extends FuncBaseVal {
     return this.place(liftCopy(out, true === node.mark.type))
   }
 } /* node:coverage ignore next 5 */
-
-
-// A list counts a negative integer from its end, which a path step does not.
-function step(node: any, key: any): Val | undefined {
-  const at = 'number' === typeof key.peg && true === node?.isList && key.peg < 0 ?
-    node.peg.length + key.peg : key.peg
-  return true === node?.isMap || true === node?.isList ? member(node, String(at)) : undefined
-}
 
 
 export {

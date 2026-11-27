@@ -40,6 +40,7 @@ the [Explanation](explanation.md).
 - [Functions](#functions)
 - [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
 - [Projecting fields: `pick`](#projecting-fields-pick)
+- [The member at a key: `at`](#the-member-at-a-key-at)
 - [Optional input: `maybe`](#optional-input-maybe)
 - [Ordering: `sort`](#ordering-sort)
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
@@ -2891,9 +2892,10 @@ and `text` supplies literal text. An unmarked argument supplies a value.
 For collection operations, compare [pack and each](#generating-children-pack-and-each),
 [the `_ & …` idiom](#the-_---idiom-construction-and-bound), [filter and
 match](#selecting-filter-and-match), [pick](#projecting-fields-pick),
-and [emit](#transforming-emit).
+[at](#the-member-at-a-key-at), and [emit](#transforming-emit).
 `pack` and `each` construct collections; `filter` selects members;
-`pick` projects a field; `emit` applies a rule table and flattens its output.
+`pick` projects a field; `at` reads one member; `emit` applies a rule
+table and flattens its output.
 
 ### `abnf(g: string) : string`
 
@@ -2924,6 +2926,12 @@ Example: `add(2, 3)` → `5`
 The one instance `each([v], f)` would make, standing where the call stands: `f` with each hole that no generator or `apply` inside it binds standing for `v`. See [form](#apply-one-instance).
 
 Example: `apply("hello", upper(_))` → `"HELLO"`
+
+### `at(d: map|list, ...k: string|integer) : any`
+
+Read the member of a map at a key, or of a list at a position, as a path step reads it; more keys step further, and a negative position counts from the end of a list. See [the member at a key](#the-member-at-a-key-at).
+
+Example: `at([a, b, c], -1)` → `"c"`
 
 ### `below(n: number|string) : constraint`
 
@@ -3670,6 +3678,108 @@ member's information rather than extracting one field from it.
 
 Compose the resulting list with [sum](#aggregating-sum-least-greatest)
 for a total or [join](#folding-to-a-string-join) for a line of text.
+
+## The member at a key: `at`
+
+`at(d, k)` reads what a path step reads: in a map, the member under the
+key `k` spells, and in a list, the member at the index it spells. More
+keys step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key is
+read as its value, so it can be computed, and that is what a written
+path can't do: `at(_, port)` is a field of the member a template is
+made for, and `at($.teams, at(_, team), email)` looks a record up by a
+field of that member.
+
+```aontu
+svc: { a: { port:1 team:core } b: { port:2 team:web } }
+teams: { core:email:"core@x" web:email:"web@x" }
+ports: pack($.svc, at(_, port))
+owners: pack($.svc, at($.teams, at(_, team), email))
+```
+
+```json
+{"owners":{"a":"core@x","b":"web@x"},"ports":{"a":1,"b":2},"svc":{"a":{"port":1,"team":"core"},"b":{"port":2,"team":"web"}},"teams":{"core":{"email":"core@x"},"web":{"email":"web@x"}}}
+```
+
+A key is a string or an integer. In a map, an integer names the key
+its digits write, so `at({"1": z}, 1)` is `"z"`. In a list, a string
+names the index its digits write in canonical decimal, as a path
+segment does, so `at(xs, "1")` and `$.xs.1` agree, and `"01"` names
+nothing. A key given by a reference, a sum, `key()` or another `at` is
+read once it settles:
+
+```aontu
+m: { a:b:1 k:a }
+x: at($.m, $.m.k, b)
+y: at($.m, "a" + "", b)
+```
+
+```json
+{"m":{"a":{"b":1},"k":"a"},"x":1,"y":1}
+```
+
+### Positions from the end
+
+A negative integer counts from the end of a list, which a path step
+doesn't: `at(xs, -1)` is the last member and `at(xs, -2)` the one
+before it. A position before the first member or past the last names
+nothing. A negative integer in a map names the key its digits write,
+and a string that starts with `-` names no position in a list. Paired
+with `key()`, a position reads the member of another list:
+
+```aontu
+xs: [a b c]
+last: at($.xs, -1)
+first: at($.xs, -3)
+pairs: each([x y], { k:_ v:at($.xs, key()) })
+```
+
+```json
+{"first":"a","last":"c","pairs":[{"k":"x","v":"a"},{"k":"y","v":"b"}],"xs":["a","b","c"]}
+```
+
+### The answer is a copy
+
+The answer is a copy of the member, as a reference's is: it meets what
+it's met with, and the member it was read from is unchanged. A member
+marked with `hide()` or `type()` is read as a path reads it. The copy is
+unmarked, so it is generated where it lands, and a type's copy is
+sealed, so a meet that adds a key is refused as `closed`:
+
+```aontu
+m: { a:hide({ b:1 }) t:type({ n:integer }) }
+x: at($.m, a, b)
+y: at($.m, t) & { n:2 }
+```
+
+```json
+{"m":{},"x":1,"y":{"n":2}}
+```
+
+### What `at` refuses
+
+A step that names nothing is refused as a path's is, `no_path`: a key
+the map doesn't hold, a position the list doesn't reach, and any step
+into a scalar. `maybe` counts `at` as a reference, so `maybe(at(…))` is
+[absence](#optional-input-maybe) where a step names nothing, or where
+the data is a reference that names nothing:
+
+<!-- test: run -->
+```sh
+$ echo 'xs: [a, b, c]  x: at($.xs, 3)' | aontu
+[aontu/no_path]: Cannot resolve value at path $.x
+...
+$ echo $?
+1
+$ echo 'm: {a: 1}  x: maybe(at($.m, b))  y: [1, maybe(at($.m, b))]' | aontu -c
+{"m":{"a":1},"x":maybe(),"y":[1]}
+```
+
+`maybe` forgives the step and nothing else, as it forgives a reference
+at the top of its argument and no call: a key that is itself a
+reference naming nothing is still `no_path`, and so is
+`maybe(upper(at($.m, b)))`. A key that is neither a string nor an
+integer, such as `true`, `1.5`, a kind or a list, is `func_arg`, and a
+call with no key is `func_arity`.
 
 ## Optional input: `maybe`
 

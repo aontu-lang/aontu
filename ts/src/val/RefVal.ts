@@ -145,7 +145,6 @@ function markedElement(list: any, e: any): boolean {
 }
 
 
-// A copy is an instance: its marks are cleared, and a type's copy is sealed.
 function liftCopy(v: Val, typed: boolean): Val {
   let out = dropMarkedElements(v)
   // The copy carries a held constraint without its type.
@@ -985,7 +984,7 @@ class RefVal extends FeatureVal {
     ].filter(p => '' != p).join(',')
   }
 
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 12 */
 
 
 export {

@@ -395,6 +395,55 @@ pairs: each($.ks, { k: _, y: at($.ys, key()) })
    path `$.xs.-1` is today. A position further back than the first
    member is still a miss.
 
+Progress on 2026-11-27. C1 is built in both engines. `at(d, ...k)`
+steps as a path steps and copies the member as a reference does, its
+marks cleared and a type's copy sealed, through `liftCopy`, which the
+reference's copy now shares. The three spellings proposed above for a
+field of each member and for a lookup are the ones both engines answer;
+the pairing by position answers as proposed. Five things the rulings
+left open were settled in the building, and each is the maintainer's to
+change:
+
+- The signature is `at(d: map|list, ...k: string|integer) : any`. The
+  parenthesised group proposed above doesn't parse, since a group's
+  member is one word, and the rest slot written as `neq`'s is means the
+  same.
+- A key of another kind is `func_arg`, the signature gate's code, read
+  off the rest slot the gate stops at; no code is added. A choice of
+  keys such as `*a | b` is refused with it too, where the gate lets a
+  choice through to a fixed slot.
+- Only an integer counts from the end. A string names a position as a
+  path segment does, in canonical digits, so `at(xs, "-1")` and
+  `at(xs, "01")` name nothing.
+- Under `maybe`, a miss of a step and a miss of the data are absence,
+  `maybe(at($.gone, a))` as `maybe($.gone.a)` is; a key that is itself a
+  reference naming nothing is still `no_path`, as `maybe(upper($.gone))`
+  is.
+- `key()` reads the level it reads anywhere: at the top of a `pack`
+  template it is the template's own key, so the lookup by the member's
+  key is written in a map, `{v: at($.m, key())}`, or as `key(0)`.
+
+The condition over two fields doesn't answer as proposed. In
+`filter($.xs, {a: above(at(_, b))})` the bound's argument holds the
+hole, and in the trial it reads nothing, in either engine, so the
+condition keeps no member, the answer k4 pins. `above(sum(pick([_], b)))`
+does the same, and a `match` whose pattern is such a bound never
+resolves. In TypeScript the fill of the hole doesn't reach a bound that
+waits on its argument (`rebuild` in `ts/src/val/PlaceVal.ts` leaves the
+bound's `pending` arguments as they were); the Go cause isn't traced.
+It is not filed. The direct spelling is a `match` over
+the difference,
+`each($.xs, match(sub(at(_, a), at(_, b)), above(0), at(_, a), maybe($.none)))`,
+and a row pins the silent answer beside it. `at($.xs, -1, -1)` overflows
+the TypeScript stack, the parser defect IS3 holds, where Go answers;
+`at(at($.xs, -1), -1)` answers in both.
+
+The rows are the 105 of `test/spec/at.tsv`, and the eight `-at` rows of
+`test/spec/comprehension.tsv`, one beside each of k4, k5, k18 to k21,
+k33 and k37. The definition is owed: no Lean toolchain was installed
+where it was built, so `at` has no meaning under `spec/`, and `maybeOf`
+doesn't yet count it as a reference, as ruling 2 asks.
+
 ## C2: a key for each child of `pack`
 
 **Proposed:** `pack(d: map|list, template t: any, template k?: string) : map`

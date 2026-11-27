@@ -121,5 +121,11 @@ at-key-list	errc	m: {a: 1}\nx: at($.m, [a])	func_arg
 at-key-map	errc	m: {a: 1}\nx: at($.m, {a: 1})	func_arg
 at-key-second-bad	errc	m: {a: {b: 1}}\nx: at($.m, a, false)	func_arg
 at-key-bad-message	err	m: {a: 1}\nx: at($.m, true)	argument 2 (`k`) was `true`
+at-key-path-value	errc	m: {a: 1}\nx: at($.m, path(a))	func_arg
+at-key-kind	errc	m: {a: 1}\nx: at($.m, string)	func_arg
+at-key-choice	errc	m: {a: 1, b: 2}\nx: at($.m, *a | b)	func_arg
+at-key-biginteger	errc	xs: [1, 2]\nx: at($.xs, 99999999999999999999)	func_arg
+at-key-float-whole	errc	xs: [1, 2]\nx: at($.xs, 1.0)	func_arg
+at-key-negative-zero	gen	xs: [1, 2]\nx: at($.xs, -0)	{"x":1,"xs":[1,2]}
 at-no-key	errc	m: {a: 1}\nx: at($.m)	func_arity
 at-no-args	errc	x: at()	func_arity

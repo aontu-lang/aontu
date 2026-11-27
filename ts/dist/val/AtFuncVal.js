@@ -8,6 +8,12 @@ const FuncBaseVal_1 = require("./FuncBaseVal");
 const RefVal_1 = require("./RefVal");
 const SealVal_1 = require("./SealVal");
 const RecurseVal_1 = require("./RecurseVal");
+// A list counts a negative integer from its end, which a path step does not.
+function step(node, key) {
+    const at = 'number' === typeof key.peg && true === node?.isList && key.peg < 0 ?
+        node.peg.length + key.peg : key.peg;
+    return true === node?.isMap || true === node?.isList ? (0, RefVal_1.member)(node, String(at)) : undefined;
+}
 class AtFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -48,10 +54,4 @@ class AtFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
 } /* node:coverage ignore next 5 */
 exports.AtFuncVal = AtFuncVal;
-// A list counts a negative integer from its end, which a path step does not.
-function step(node, key) {
-    const at = 'number' === typeof key.peg && true === node?.isList && key.peg < 0 ?
-        node.peg.length + key.peg : key.peg;
-    return true === node?.isMap || true === node?.isList ? (0, RefVal_1.member)(node, String(at)) : undefined;
-}
 //# sourceMappingURL=AtFuncVal.js.map

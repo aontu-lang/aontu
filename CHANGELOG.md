@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### `at`: the member at a key or a position
+
+A new built-in, in both engines. `at(d, k)` reads what a path step
+reads, the member of a map under a key or of a list at a position, and
+more keys step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key
+is read as its value, so a template can read a field of its member,
+`pack($.svc, at(_, port))`, and look a record up by one,
+`at($.teams, at(_, team), email)`. A negative position counts from the
+end of a list, so `at(xs, -1)` is the last member. A step that names
+nothing is `no_path`, and absence under `maybe`; a key that is neither
+a string nor an integer is `func_arg`. A member marked with `hide()` or
+`type()` is read as a path reads it. `test/spec/at.tsv` holds both
+engines to 105 rows, and `test/spec/comprehension.tsv` gains the `at`
+spelling beside each of the eight routes it replaces.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call
