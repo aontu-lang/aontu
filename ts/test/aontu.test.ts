@@ -726,3 +726,18 @@ describe('aontu-template-error-path', () => {
     })
   }
 })
+
+
+describe('aontu-declaration-in-template', () => {
+  for (const src of [
+    'm: { &: { %n = 1, v: %n }, a: {} }',
+    'm: { &: { %n = 1, v: %n } }',
+    'm: { &: { %n = 1 } }',
+    'm: [&: { %n = 1, v: %n }]',
+  ]) {
+    test(src, () => {
+      expect(() => new Aontu().generate(src))
+        .throws(/aontu\/alias_not_toplevel\]: Cannot resolve value at path \$\.m\b/)
+    })
+  }
+})

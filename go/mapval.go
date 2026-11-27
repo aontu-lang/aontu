@@ -840,7 +840,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 // what it reports names this path rather than the template's.
 func placeShared(child Val, at []string) Val {
 	switch child.(type) {
-	case *ScalarVal, *ExpectVal:
+	case *ScalarVal, *ExpectVal, *NilVal:
 		return child
 	}
 	if !pathEq(child.vpath(), at) {

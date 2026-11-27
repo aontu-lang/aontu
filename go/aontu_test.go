@@ -186,3 +186,17 @@ func TestTemplateErrorPath(t *testing.T) {
 		}
 	}
 }
+
+func TestDeclarationInTemplate(t *testing.T) {
+	want := regexp.MustCompile(`aontu/alias_not_toplevel\]: Cannot resolve value at path \$\.m\b`)
+	for _, src := range []string{
+		`m: { &: { %n = 1, v: %n }, a: {} }`,
+		`m: { &: { %n = 1, v: %n } }`,
+		`m: { &: { %n = 1 } }`,
+		`m: [&: { %n = 1, v: %n }]`,
+	} {
+		if _, err := New().Generate(src); nil == err || !want.MatchString(err.Error()) {
+			t.Errorf("%s: got %v", src, err)
+		}
+	}
+}

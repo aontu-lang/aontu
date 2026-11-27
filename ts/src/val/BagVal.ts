@@ -139,7 +139,7 @@ abstract class BagVal extends FeatureVal {
       let child = item[1]
 
       const at = [...this.path, String(p)]
-      if (true !== child.isScalar && true !== child.isExpect && child.path.join('\u0000') !== at.join('\u0000')) {
+      if (true !== child.isScalar && true !== child.isExpect && true !== child.isNil && child.path.join('\u0000') !== at.join('\u0000')) {
         child = child.clone(ctx, { path: at })
         repathInstance(child, at)
       }
@@ -306,11 +306,6 @@ export function putKey(out: any, key: string, val: any): void {
 }
 
 
-// A conjunct of exactly one sizing constraint and one container: the
-// shape ConstraintVal.admitContainer leaves when its reading is still
-// provisional, and the one ConjunctVal.gen knows how to finish. Kept
-// here rather than as a flag on the conjunct because it is a question
-// about the TERMS, and they can change until the meet converges.
 // A template stands below the root, so a declaration in it is refused there.
 export function templateDeclares(bag: any): Val | undefined {
   const t = bag.spread?.cj
@@ -329,6 +324,11 @@ export function templateDeclares(bag: any): Val | undefined {
 }
 
 
+// A conjunct of exactly one sizing constraint and one container: the
+// shape ConstraintVal.admitContainer leaves when its reading is still
+// provisional, and the one ConjunctVal.gen knows how to finish. Kept
+// here rather than as a flag on the conjunct because it is a question
+// about the TERMS, and they can change until the meet converges.
 export function sizingResidue(v: any): { con: any, bag: any } | undefined {
   if (true !== v?.isConjunct || 2 !== v.peg?.length) {
     return undefined
