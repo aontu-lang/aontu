@@ -8,6 +8,16 @@ each change affects.
 
 ## Unreleased
 
+### The definition waits on a call inside `contains`, `rest`, `len` and a starred branch
+
+Ruling 91 (#977), in the definition, after both engines moved in
+#1060. A call still waiting for an operand, `integer + 1`, makes
+`contains`, `rest`, `len` and a starred branch of `nof` wait with it,
+so `vet` says `incomplete`, and `valid` under `--partial`, where the
+definition said `invalid`. Rows wx0 to wx44 of `test/spec/def-path.tsv`
+hold the definition and both engines to the nine documents of #977 and
+to the same forms over a value that doesn't wait.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call
