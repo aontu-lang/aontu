@@ -2390,6 +2390,17 @@ Finish phase P11 of aontu's Lean definition: links and relations. Its row in the
 4. **#1007**: a path nested in a relation's template, to a subtype of the type that declares the relation, generates or is `unify_cycle` by the order written, in both engines. Find the order-independent answer, which the definition gives or should, and bring both engines to it.
 
 The cases for links are in `spec/Oracle/PathsLinks.lean` and the graph's in the modules that print the `g`-tagged path rows. Update `spec/README.md`, the P11 row of the plan when its status changes, `docs/tutorial-definition.md` and `CHANGELOG.md` as you go.
+## 2026-11-27 16:33:11 UTC · Claude Code · session_01D35vdc7ygzcgtWxtPLX3iR
+
+```text
+# Track A: the output option `custom`, and the last generation case (phase P9)
+
+Two pieces of aontu's Lean definition are left in phase P9 (holes, templates and generation). Build both in the definition, with generated rows that both engines answer as the definition does.
+
+1. **`custom`.** `gen(spec)` has a rule in the definition: `spec/Aontu/Annotation.lean` reads the annotation, the staging in `spec/Aontu/Verdict.lean` holds each value to its record, and `spec/Aontu/Writing.lean` writes what every output option says, except `custom`, an expression whose hole the `gen` call binds. Today `Data.writeBy` returns `none` for a record that holds `custom`, so such a value writes nothing in the definition, and `spec/README.md` lists it as a gap. A `Record` holds data, not terms, so the rider needs a way to carry the expression; writing evaluates it with the hole bound to the value, as `apply()` does. Both engines already agree with each other on `custom` in `test/spec/annotation-gen.tsv`; read those rows and `docs/reference-language.md` (output options) first, then probe both engines on new documents before you write rows. Generated rows go after wa161 in `def-gen.tsv` (the writing rows) or in a file of your own, and the `vet` reading of `custom` belongs with the annotation's rows (an0 to an650 in `def-path.tsv`).
+2. **A recursion through a named table over a selection the data alone supplies, deeper than the document's own turns reach.** See the P9 row of the plan in `sketch/DEFINITION.0.md` (§5, the phase table, "Not yet built") and the emit rows in `spec/Oracle/CallsTemplates.lean`.
+
+Update `spec/README.md` (remove each gap you close), the P9 row of the plan when its status changes, `docs/tutorial-definition.md` (the step on output annotations, 14, and the generation steps) and `CHANGELOG.md`.
 
 ## How to work (all tracks)
 
