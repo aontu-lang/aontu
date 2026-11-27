@@ -5,6 +5,8 @@ package aontu
 import (
 	"math"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -37,6 +39,21 @@ func TestCheckCtxErrUnion(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected budget_passes problem, got %v", probs)
+	}
+}
+
+// The server's twin is TestKeyAndPathAcrossAnInclude in
+// go/lsp/hover_test.go.
+func TestCheckPlacesAnIncludedConflictAtTheDocumentsOperand(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "two.aontu"), []byte("2\n"), 0o644); nil != err {
+		t.Fatal(err)
+	}
+	src := `y: @"` + filepath.ToSlash(dir) + `/two.aontu"` + "\ny: 3\n"
+	probs := New().Check(src)
+	if 1 != len(probs) || "scalar_value" != probs[0].Why ||
+		strings.LastIndex(src, "3") != probs[0].Pos || 1 != probs[0].Len {
+		t.Fatalf("problems: %+v", probs)
 	}
 }
 
@@ -74,8 +91,8 @@ func TestCheckWalkersDirect(t *testing.T) {
 	if valKind(newNil("x")) != "error" {
 		t.Fatalf("nil kind")
 	}
-	if valKind(newMap()) != "value" {
-		t.Fatalf("default kind")
+	if valKind(newMap()) != "map" {
+		t.Fatalf("map kind")
 	}
 
 	var nils []*NilVal

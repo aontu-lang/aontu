@@ -987,13 +987,13 @@ describe('coverage3-lsp', () => {
     }
     // A self-reference is a cycle unless a container guards it.
     Assert.match(label('a:$.a', 2), /\*error\*/)
-    Assert.match(label('a:{b:$.a}', 5), /\*recurse\*/)
+    Assert.match(label('a:{b:$.a}', 3), /\*recurse\*/)
     Assert.match(label('a:$.nope', 2), /\*error\*/)
     Assert.match(label(
       'a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:$.l l:1',
       2), /\*reference\*/)
     Assert.match(label('n:1.5', 2), /\*float\*/)
-    Assert.match(label('x:null', 2), /\*scalar\*/)
+    Assert.match(label('x:null', 2), /\*null\*/)
     Assert.match(label('x:null|any', 2), /\*disjunct\*/)
     Assert.match(label('x:any|any', 2), /\*any\*/)
   })

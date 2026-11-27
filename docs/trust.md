@@ -223,8 +223,9 @@ implementations, at every surface:
   / `Aontu.Trust` (Go). The default remains `'system'`.
 - **LSP**: confined to the **workspace root** by default, from the
   `initialize` params (workspaceFolders, rootUri, rootPath, in that
-  order). The capability governs the **whole** server: hover and
-  hover-provenance as well as the diagnostics it publishes. An explicit
+  order). The capability governs the **whole** server: hover, hover
+  provenance, and go to definition as well as the diagnostics it
+  publishes. An explicit
   `initializationOptions.aontu.trust.include` of
   `'system'`, `'none'`, `{root}` or `{mem}` widens or narrows it, and
   an unrecognised value confines to nothing rather than silently

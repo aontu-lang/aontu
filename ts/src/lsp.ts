@@ -11,8 +11,11 @@ import { collectDeprecations, deprecationMessage,
 } from './utility'
 import { why } from './query'
 import { format } from './format'
-import { pathAt, sitesOf } from './cursor'
-import type { CursorPath, PathSite } from './cursor'
+import { utf8Bytes } from './escape'
+import {
+  pathAt, sitesOf, describeAt, definitionAt, describeVal,
+} from './cursor'
+import type { CursorPath, PathSite, PathValue } from './cursor'
 import type { WhyConjunct } from './provenance'
 
 
@@ -129,14 +132,19 @@ function computeDiagnostics(
 // Convert a NilVal (1-based site row/col) to an LSP diagnostic (0-based
 // line/character).
 function nilToDiagnostic(nil: any): Diagnostic {
-  const row = nil.site?.row ?? -1
-  const col = nil.site?.col ?? -1
+  // An included file's row and column mean nothing here: use this
+  // file's operand.
+  const elsewhere = (v: any): boolean => '' !== (v?.site?.url ?? '')
+  const other = null != nil.secondary &&
+    elsewhere(nil.primary) && !elsewhere(nil.secondary)
+  const row = (other ? nil.secondary : nil).site?.row ?? -1
+  const col = (other ? nil.secondary : nil).site?.col ?? -1
 
   let start: Position
   let end: Position
   if (row >= 1 && col >= 1) {
     start = { line: row - 1, character: col - 1 }
-    const len = labelLength(nil)
+    const len = other ? siteExtent(nil.secondary) : labelLength(nil)
     end = { line: row - 1, character: col - 1 + len }
   }
   else {
@@ -423,6 +431,17 @@ function computeDefinition(
 }
 
 
+// Every site that writes the path a key or a reference names.
+function computePathDefinition(
+  src: string, position: Position, uri: string, trust?: any): Location[] | null {
+  const places = definitionAt(src, position, { trust })
+  return places?.map((p) => ({
+    uri: '' === p.file ? uri : pathToUri(p.file),
+    range: p.range,
+  })) ?? null
+}
+
+
 function computeHover(
   src: string, position: Position, provenance?: boolean,
   trust?: any): Hover | null {
@@ -442,6 +461,20 @@ function computeHover(
     }
   }
 
+  // On a key or a reference, what stands at the path it names.
+  const at = 'string' === typeof src ?
+    describeAt(src, position, { trust }) : undefined
+  if (undefined !== at) {
+    return {
+      contents: {
+        kind: 'markdown',
+        value: hoverMarkdown(at) +
+          (true === provenance ? provenanceMarkdown(src, at.path, trust) : ''),
+      },
+      range: at.range,
+    }
+  }
+
   let root: any
   try {
     root = new Aontu(null == trust ? {} : { trust }).unify(src, { collect: true })
@@ -453,8 +486,11 @@ function computeHover(
   const cands: { val: any, line: number, start: number, end: number }[] = []
   collectHoverCandidates(root, cands, new Set())
 
+  // A span measured by its canon stops at the end of its line.
+  const lines = 'string' === typeof src ? src.split('\n') : []
   let best: { val: any, line: number, start: number, end: number } | null = null
   for (const c of cands) {
+    c.end = Math.min(c.end, lines[c.line]?.length ?? c.end)
     if (c.line === position.line &&
       c.start <= position.character && position.character < c.end) {
       // Most specific (smallest) span wins.
@@ -466,7 +502,7 @@ function computeHover(
   return {
     contents: {
       kind: 'markdown',
-      value: hoverMarkdown(best.val) +
+      value: hoverMarkdown(describeVal(best.val)) +
         (true === provenance
           ? provenanceMarkdown(src, best.val.path, trust) : ''),
     },
@@ -496,8 +532,9 @@ function collectHoverCandidates(
   const span = siteExtent(v)
   const spanSrc = 'string' === typeof v.site?.src ? v.site.src : ''
   const multiline = '' === spanSrc ? canon.includes('\n') : spanSrc.includes('\n')
+  // An included file's row and column mean nothing here.
   if (row >= 1 && col >= 1 && canon.length > 0 && !multiline &&
-    !v.isMap && !v.isList) {
+    !v.isMap && !v.isList && '' === (v.site.url ?? '')) {
     out.push({ val: v, line: row - 1, start: col - 1, end: col - 1 + span })
   }
 
@@ -513,43 +550,12 @@ function collectHoverCandidates(
 }
 
 
-function hoverMarkdown(val: any): string {
-  // No try needed: a Val only becomes a hover candidate after
-  // collectHoverCandidates read this same getter successfully.
-  const canon = val.canon
-  return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*' +
-    annotationMarkdown(val)
-}
-
-
-// A value's titles, in bold, and its descriptions, from its annotations:
-// the text a record holds under each key, as the Go hover reads it.
-function annotationMarkdown(val: any): string {
-  const meta = val.meta ?? {}
-  const texts = (key: string): string[] =>
-    (meta[key] ?? []).map((t: any) => t.peg).filter((t: any) => 'string' === typeof t)
-  return [...texts('title').map((t) => '**' + t + '**'), ...texts('description')]
-    .map((said: string) => '\n\n' + said).join('')
-}
-
-
-// A short human description of a Val's kind, shown under the hover canon.
-function valKind(val: any): string {
-  if (val.isNil) return 'error'
-  if (val.isTop) return 'any'
-  if (val.isScalarKind) return 'type'
-  if (val.isConstraint) return 'constraint'
-  if (val.isRef) return 'reference'
-  if (val.isInteger) return 'integer'
-  // NumberVal is the binary64 leaf, whose kind keyword is `float`;
-  // `number` is the supertype and never labels a concrete value.
-  if (val.isNumber) return 'float'
-  if (val.isBigInteger) return 'biginteger'
-  if (val.isBigDecimal) return 'bigdecimal'
-  if (val.isString) return 'string'
-  if (val.isBoolean) return 'boolean'
-  if (val.isScalar) return 'scalar'
-  return val.constructor.name.replace(/Val$/, '').toLowerCase()
+// A value's canon and kind, then its titles in bold and its
+// descriptions, as the Go hover writes them.
+function hoverMarkdown(val: PathValue): string {
+  return '```aontu\n' + val.canon + '\n```\n\n' + '*' + val.kind + '*' +
+    [...val.titles.map((t) => '**' + t + '**'), ...val.descriptions]
+      .map((said: string) => '\n\n' + said).join('')
 }
 
 
@@ -629,6 +635,10 @@ function computeCompletions(src: string): CompletionItem[] {
 }
 
 
+const URI_PLAIN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' +
+  "0123456789-._~/!$&'()*+,;=:@"
+
+
 export function uriToPath(uri: unknown): string | undefined {
   if ('string' !== typeof uri || !uri.startsWith('file://')) {
     return undefined
@@ -648,6 +658,19 @@ function percentDecode(text: string): string {
   catch {
     return text
   }
+}
+
+
+// The inverse of uriToPath, as pathToURI is in go/lsp/handler.go.
+export function pathToUri(path: string): string {
+  const p = driveLetterPath('/' + path) ?
+    '/' + path.replaceAll('\\', '/') : path
+  let out = 'file://'
+  for (const ch of p) {
+    out += URI_PLAIN.includes(ch) ? ch : utf8Bytes(ch).map((b) =>
+      '%' + b.toString(16).toUpperCase().padStart(2, '0')).join('')
+  }
+  return out
 }
 
 
@@ -777,7 +800,8 @@ class LspHandler {
         const pos = msg.params?.position
         const text = null != uri ? this.docs.get(uri) : undefined
         const at = (null != text && null != pos)
-          ? computeDefinition(text, pos, uri) : null
+          ? computeDefinition(text, pos, uri) ??
+          computePathDefinition(text, pos, uri, this.trust) : null
         return [{ jsonrpc: '2.0', id: msg.id, result: at }]
       }
 
@@ -808,13 +832,14 @@ class LspHandler {
     return publishDiagnosticsMsg(uri,
       computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }))
   }
-} /* node:coverage ignore next 36 */
+} /* node:coverage ignore next 37 */
 
 
 export {
   computeDiagnostics,
   computeHover,
   computeDefinition,
+  computePathDefinition,
   computeCompletions,
   computeFormatting,
   computePathAt,

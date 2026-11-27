@@ -30,11 +30,14 @@ to run the server. Wiring it into an editor is a task, and lives in the
 The server provides these features:
 
 - **Diagnostics**: unification problems published as you edit.
-- **Hover**: the resolved value and kind under the cursor, or the
-  declaration of the alias name it is on.
+- **Hover**: the resolved value and kind under the cursor, what stands
+  at the path a key or a reference names, or the declaration of the
+  alias name it is on.
 - **Completion**: the built-in functions, scalar-kind keywords and
   literals, and the alias names the document binds.
-- **Go to definition**: from an alias name to where the file binds it.
+- **Go to definition**: from a key or a reference to every site that
+  writes its path, across includes, and from an alias name to where
+  the file binds it.
 - **Signature help**: the parameters of the function being called.
 - **Formatting**: the document as `aontu fmt` writes it.
 
@@ -74,10 +77,28 @@ values joined with `; `.
 
 **Hover** reads the *unified* tree, so hovering a value shows what it
 resolves to: hovering `8080` in `port: 8080` shows `8080` with kind
-*integer*; hovering `string` in a schema shows kind *type*. Hover targets
-concrete values (scalars, kinds, references), not containers. A value
+*integer*; hovering `string` in a schema shows kind *type*. On a key,
+hover shows what unified at the key's path, whether a scalar, a map,
+or a list. On a reference, it shows what stands at the path the
+reference reads, which an included file may have written. A value
 annotated with `meta()` adds the text its `title` keys hold, each in
 bold, then the text its `description` keys hold, under the kind.
+
+The kind is one word, the same in both servers: the value's own kind
+(`integer`, `float`, `string`, `boolean`, `null`, `path`, `map`,
+`list`, and so on), `type` for a kind such as `string`, `constraint`,
+`reference` for a reference not yet resolved, `recurse` for a
+recursive position, `disjunct` for alternatives, `pref` for a default,
+`function` for a call that waits on its arguments, `any`, and `error`
+for a conflict.
+
+**Go to definition** on a key answers every site that writes the key's
+path, and on a reference every site that writes the path it reads:
+the sites `aontu model why` prints for that path, in its order. A site
+in an included file is a location in that file, by its `file://` URI.
+A value an include loads is written in its own file, so the
+definition of `base` in `base: @"./base.aontu"` is in `base.aontu`.
+On an alias name, it goes to where the file binds the name.
 
 **Completion** offers a context-free list (clients filter by the typed
 prefix): the built-in functions (the engine's full roster, 68 today, the
@@ -142,10 +163,10 @@ all the analysis and protocol logic:
   not import `lsp-server.ts`; the dependency is one-way (server →
   library). Drive `new LspHandler()` with message objects.
 
-In both, `computeDiagnostics`/`Diagnostics`, `computeHover`/`Hover`, and
+In both, `computeDiagnostics`/`Diagnostics`, `computeHover`/`Hover`,
+`computePathDefinition`/`PathDefinition`, and
 `computeCompletions`/`Completions` take the document's text and are
-usable standalone, with no
-JSON-RPC at all.
+usable standalone, with no JSON-RPC at all.
 
 
 ## Running the server
@@ -232,16 +253,23 @@ computeDiagnostics('a:1\na:2')
 computeDiagnostics('a:string') // []  (valid schema)
 ```
 
-#### `computeHover(src, position) => Hover | null`
+#### `computeHover(src, position, provenance?, trust?) => Hover | null`
 
-Resolve the value at a 0-based `{ line, character }` position and describe
-it, or `null` if the position is not over a concrete value.
+Describe what is at a 0-based `{ line, character }` position: the
+alias name there, else what stands at the path a key or a reference
+there names, else the concrete value there. The answer is `null` where
+the position is on none of them. `provenance` appends the
+contributions record, and `trust` is the include capability the
+document is evaluated under.
 
 <!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by ts/test/lsp.test.ts -->
 ```ts
 computeHover('port: 8080', { line: 0, character: 7 })
 // { contents: { kind: 'markdown', value: '```aontu\n8080\n```\n\n*integer*' },
 //   range: { start: { line: 0, character: 6 }, end: { line: 0, character: 10 } } }
+computeHover('base: { port: 8080 }', { line: 0, character: 1 })
+// { contents: { kind: 'markdown', value: '```aontu\n{"port":8080}\n```\n\n*map*' },
+//   range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } } }
 ```
 
 #### `computeCompletions(src) => CompletionItem[]`
@@ -257,6 +285,23 @@ function-name list.
 Where the document binds the alias name at a 0-based position, or
 `null` where the position is not on one, or names nothing the file
 binds. `Location` is `{ uri, range }`.
+
+#### `computePathDefinition(src, position, uri, trust?) => Location[] | null`
+
+Every site that writes the path a key or a reference at a 0-based
+position names, as a `Location`: `uri` for a site in the document, and
+the `file://` URI of an included file for a site there. The answer is
+`null` where the position names no path, or the document does not
+evaluate. The server asks this where `computeDefinition` answers
+`null`.
+
+<!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by ts/test/lsp.test.ts -->
+```ts
+const src = 'base: { port: 8080 }\ndb: { port: $.base.port }\n'
+computePathDefinition(src, { line: 1, character: 15 }, 'file:///d.aontu')
+// [{ uri: 'file:///d.aontu',
+//    range: { start: { line: 0, character: 14 }, end: { line: 0, character: 18 } } }]
+```
 
 #### `computeFormatting(src) => TextEdit[] | null`
 
@@ -355,10 +400,12 @@ lsp.Diagnostics("a:string") // len 0 (valid schema)
 
 #### `func Hover(src string, line, character int, provenance bool) *HoverResult`
 
-Resolve the value at a 0-based position, or `nil`. `HoverResult` is
-`{ Contents MarkupContent; Range *Range }`. Built on the core
-`(*aontu.Aontu).Spans(src) []aontu.ValueSpan`, which lists positioned
-non-container values.
+Describe what is at a 0-based position, as `computeHover` answers it,
+or `nil`. `HoverResult` is `{ Contents MarkupContent; Range *Range }`.
+`HoverTrust` takes the include capability as well. On a key or a
+reference it is built on the core `(*aontu.Aontu).DescribeAt`, and on
+a value on `(*aontu.Aontu).Spans(src) []aontu.ValueSpan`, which lists
+positioned non-container values.
 
 #### `func Completions(src string) []CompletionItem`
 
@@ -374,6 +421,12 @@ the engine via `aontu.BuiltinFuncNames()`, and the alias names via
 Where the document binds the alias name at a 0-based position, or `nil`
 where the position is not on one, or names nothing the file binds.
 `Location` is `{ URI string; Range Range }`.
+
+#### `func PathDefinition(src string, line, character int, uri string, trust *aontu.TrustOptions) []Location`
+
+Every site that writes the path a key or a reference at a 0-based
+position names, as `computePathDefinition` answers it, or `nil`. Built
+on the core `(*aontu.Aontu).DefinitionAt`.
 
 #### `func Formatting(src string) []TextEdit`
 
@@ -434,9 +487,9 @@ characters `(` and `,`, and `documentFormattingProvider: true`.
 | `textDocument/didOpen` | notification | Stores the document, publishes diagnostics. |
 | `textDocument/didChange` | notification | Replaces the document with the last content change (Full sync), publishes diagnostics. |
 | `textDocument/didClose` | notification | Drops the document, publishes an empty diagnostic list (clears markers). |
-| `textDocument/hover` | request | Replies with a hover for the alias name at the position, else for the value there, else `null`. |
+| `textDocument/hover` | request | Replies with a hover for the alias name at the position, else for what stands at the path a key or a reference there names, else for the value there, else `null`. |
 | `textDocument/completion` | request | Replies with the completion item list for the open document. |
-| `textDocument/definition` | request | Replies with the `Location` where the document binds the alias name at the position, or `null`. |
+| `textDocument/definition` | request | Replies with the `Location` where the document binds the alias name at the position, else with a `Location` for every site that writes the path a key or a reference there names, in the document or in a file it includes, else `null`. |
 | `textDocument/signatureHelp` | request | Replies with the signature of the call the position is inside, or `null`. |
 | `textDocument/formatting` | request | Replies with one edit that replaces the document with the text `aontu fmt` writes, no edit where it already is that text, and `null` where it doesn't parse, which its diagnostics report. |
 | `textDocument/publishDiagnostics` | notification (server→client) | Carries `{ uri, diagnostics }`. |
@@ -478,7 +531,10 @@ The analysis layer turns source into diagnostics in three steps:
    These become a 0-based LSP range whose end extends across the canon
    length. The message is the engine's full error text (the
    `[aontu/<code>]` marker line, the hint, and the located source
-   frames) identical in both languages.
+   frames) identical in both languages. A conflict between a value an
+   included file wrote and one the document wrote is placed at the
+   document's operand, since the included file's row and column mean
+   nothing in the document.
 
 A hard **syntax error** (which prevents producing a tree) is reported as a
 single diagnostic with code `parse`, positioned where the parser failed if
@@ -516,19 +572,28 @@ alias name, signature help and formatting. The layered design
 makes additions localised: most new features are implemented once in the
 analysis layer (layer 1) and advertised in `initialize` (layer 2):
 
-- **Hover** targets concrete values (scalars, kinds, references), not
-  containers, and uses canon length to size the hit span on a single
+- **Hover on a value** targets concrete values (scalars, kinds,
+  references), not containers, which hover on their key shows instead.
+  It uses canon length to size the hit span, stopping at the end of the
   line; a value resolved from a reference is shown at its definition
-  site. Hovering a multi-line container or the cursor exactly on a `{`
-  brace may not resolve.
+  site. Hovering the cursor exactly on a `{` brace may not resolve.
 - **Completion** offers the built-ins and the names the document
   binds, but not sibling keys yet. The analysis layer maps a cursor to
   a path and a path to its sites (`computePathAt`, `computeSitesOf`),
-  which key completion, definition on a key, and references will use.
+  which hover and definition on a key or a reference use, and which
+  key completion and references will use.
 - **The cursor mapping** answers nothing on a key spelled with an
-  escape, or on what an included file holds. The sites of a top-level
-  key written `""` include the document's own, since provenance keeps
-  a path by its segments joined with dots.
+  escape, on the key of an include written in parentheses,
+  `p: (@"./x.aontu")`, or on what an included file holds. The sites of
+  a top-level key written `""` include the document's own, since
+  provenance keeps a path by its segments joined with dots.
+- **Includes are read from the folder the server runs in.** The server
+  evaluates the text of an open document, not its file, so an include
+  with a relative path is resolved against the server's working
+  directory, which the editor sets, and not against the document's
+  folder as `aontu` resolves it at the command line. An error raised
+  inside an included file, with no operand in the document, is placed
+  at that file's row and column in the document.
 - **The alias features read the document's text**, not its tree, so
   they answer while a document is half-written and would not parse. The
   cost is that they know only what the text says: a name arriving
@@ -537,8 +602,8 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   other file. Following it across the boundary would mean the server
   reading that file itself, outside the include capability that governs
   every other read.
-- **Go-to-definition on a key or path**, cancellation, rename: not
-  implemented; unknown requests get a `-32601` reply.
+- **Cancellation, rename**: not implemented; unknown requests get a
+  `-32601` reply.
 - **Incremental sync**: the server uses Full document sync for
   simplicity; range-based incremental edits could be added in the handler
   without touching the analysis layer.

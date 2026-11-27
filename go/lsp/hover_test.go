@@ -4,6 +4,9 @@ package lsp
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -275,5 +278,128 @@ func TestHandlerHoverProvenance(t *testing.T) {
 		if got := provenanceFromInitialize(json.RawMessage(c.params)); got != c.want {
 			t.Fatalf("%s: want %v, got %v", c.params, c.want, got)
 		}
+	}
+}
+
+// Twin: ts/test/lsp.test.ts lsp-key-and-path.
+const keyPathSrc = "base: { port: 8080 }\ndb: { port: $.base.port }\n"
+
+func rangeOf(l0, c0, l1, c1 int) Range {
+	return Range{Position{l0, c0}, Position{l1, c1}}
+}
+
+func TestHoverOnAKeyShowsWhatUnifiedUnderIt(t *testing.T) {
+	h := Hover(keyPathSrc, 0, 1, false)
+	if nil == h || "```aontu\n{\"port\":8080}\n```\n\n*map*" != h.Contents.Value ||
+		rangeOf(0, 0, 0, 4) != *h.Range {
+		t.Fatalf("hover = %+v", h)
+	}
+}
+
+func TestHoverOnAReferenceShowsThePathItReads(t *testing.T) {
+	h := Hover(keyPathSrc, 1, 15, true)
+	want := "```aontu\n8080\n```\n\n*integer*" +
+		"\n\n---\n\nContributions:\n- `8080` — literal (1:15)"
+	if nil == h || want != h.Contents.Value || rangeOf(1, 12, 1, 23) != *h.Range {
+		t.Fatalf("hover = %+v", h)
+	}
+}
+
+func TestPathDefinitionGoesToEverySiteOfThePath(t *testing.T) {
+	at := func(line, character int) []Location {
+		return PathDefinition(keyPathSrc, line, character, "file:///d.aontu", nil)
+	}
+	if got := at(1, 15); !reflect.DeepEqual(got,
+		[]Location{{URI: "file:///d.aontu", Range: rangeOf(0, 14, 0, 18)}}) {
+		t.Errorf("reference: %+v", got)
+	}
+	if got := at(1, 7); 2 != len(got) || (Position{0, 14}) != got[0].Range.Start ||
+		(Position{1, 12}) != got[1].Range.Start {
+		t.Errorf("key: %+v", got)
+	}
+	if got := at(0, 14); nil != got {
+		t.Errorf("a plain value: %+v", got)
+	}
+	if got := PathDefinition("a: }", 0, 0, "file:///d.aontu", nil); nil != got {
+		t.Errorf("unparsed: %+v", got)
+	}
+}
+
+func TestKeyAndPathAcrossAnInclude(t *testing.T) {
+	dir := t.TempDir()
+	for name, text := range map[string]string{
+		"base.aontu": "port: 8080\n", "far.aontu": "   5\n", "two.aontu": "2\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); nil != err {
+			t.Fatal(err)
+		}
+	}
+	trust := &aontu.TrustOptions{IncludeRoot: dir}
+	src := `base: @"` + srcPath(dir) + `/base.aontu"` + "\nx: $.base.port\n"
+
+	locs := PathDefinition(src, 1, 5, "file:///d.aontu", trust)
+	if 1 != len(locs) || !strings.HasPrefix(locs[0].URI, "file:///") ||
+		!strings.HasSuffix(locs[0].URI, "/base.aontu") || rangeOf(0, 6, 0, 10) != locs[0].Range {
+		t.Fatalf("definition: %+v", locs)
+	}
+
+	// The key that holds the include answers with what the file wrote.
+	if h := HoverTrust(src, 0, 1, false, trust); nil == h ||
+		!strings.Contains(h.Contents.Value, `{"port":8080}`) {
+		t.Fatalf("key hover: %+v", h)
+	}
+
+	// The loaded 5 is at 1:4 of its own file, which is the `@` here.
+	far := `n: @"` + srcPath(dir) + `/far.aontu"` + "\n"
+	if h := HoverTrust(far, 0, 3, false, trust); nil != h {
+		t.Errorf("hover read another file's position here: %+v", h)
+	}
+	if h := HoverTrust(far, 0, 0, false, trust); nil == h ||
+		!strings.Contains(h.Contents.Value, "\n5\n") {
+		t.Errorf("key hover: %+v", h)
+	}
+
+	// A conflict with a loaded value is placed at the operand written here.
+	ds := DiagnosticsTrust(`y: @"`+srcPath(dir)+`/two.aontu"`+"\ny: 3\n", nil, trust)
+	if 1 != len(ds) || "scalar_value" != ds[0].Code || rangeOf(1, 3, 1, 4) != ds[0].Range {
+		t.Errorf("diagnostics: %+v", ds)
+	}
+}
+
+func TestAPathBecomesAFileURI(t *testing.T) {
+	for path, want := range map[string]string{
+		"/a/b c.aontu": "file:///a/b%20c.aontu",
+		`C:\a\b.aontu`: "file:///C:/a/b.aontu",
+		"/é/#?%.aontu": "file:///%C3%A9/%23%3F%25.aontu",
+	} {
+		if got := pathToURI(path); want != got {
+			t.Errorf("%q: %q, want %q", path, got, want)
+		}
+	}
+}
+
+func TestTheHandlerGoesToAnAliasThenToAPath(t *testing.T) {
+	h := NewHandler()
+	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{
+		"uri": "file:///d.aontu", "text": "%p = 1\n" + keyPathSrc}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
+	def := func(line, character int) string {
+		params, _ := json.Marshal(map[string]any{
+			"textDocument": map[string]any{"uri": "file:///d.aontu"},
+			"position":     map[string]any{"line": line, "character": character}})
+		out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"),
+			Method: "textDocument/definition", Params: params})[0])
+		return string(out)
+	}
+	if got := def(0, 1); !strings.Contains(got,
+		`"result":{"uri":"file:///d.aontu","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":2}}}`) {
+		t.Errorf("alias: %s", got)
+	}
+	if got := def(2, 15); !strings.Contains(got,
+		`"result":[{"uri":"file:///d.aontu","range":{"start":{"line":1,"character":14},"end":{"line":1,"character":18}}}]`) {
+		t.Errorf("path: %s", got)
+	}
+	if got := def(1, 14); !strings.Contains(got, `"result":null`) {
+		t.Errorf("a plain value: %s", got)
 	}
 }

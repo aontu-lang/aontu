@@ -8,6 +8,47 @@ each change affects.
 
 ## Unreleased
 
+### The language servers answer hover and go to definition on a key and on a reference
+
+Task LS2, in both servers.
+
+- **Hover** on a key shows what unified at its path, a map or a list as
+  much as a scalar, and on a reference what stands at the path it
+  reads.
+- **Go to definition** on a key answers every site that writes its
+  path, and on a reference every site that writes the path it reads:
+  the sites `aontu model why` prints, a site in an included file being
+  a location in that file. An alias name still goes to where the file
+  binds it.
+
+| `base: { port: 8080 }` then `db: { port: $.base.port }` | hover | definition |
+|---|---|---|
+| on the key `base` | `{"port":8080}`, *map* | `{` on line 1 |
+| on the reference `$.base.port` | `8080`, *integer* | `8080` on line 1 |
+
+The kind under a hover is one word, the same in both servers. They
+differed on seven shapes: `null` and a `path(...)` value, which
+TypeScript called *scalar*; a recursive position, which Go called
+*value* (#859); a disjunction with a default and one without, which Go
+showed as its first member; and two errors whose span ran past the end
+of their line, differently in each port. Each now stops at the end of
+the line.
+
+A value that an include loads is sited in its own file in both ports,
+as ruling 50 of the plan reads the API reference (#845). TypeScript
+sited it at the `@` in the including file, or at a `(` around the
+include, and Go sited a map from an included file at the right row
+and column of the wrong file. The key an include stands under is still
+found, from where the include is written. A conflict between a value
+an included file wrote and one the document wrote is now placed at the
+document's operand in both servers: Go had placed it at the included
+file's row and column, and TypeScript would have with the siting
+fixed.
+
+Two new shared-row modes, `describe` and `define`, hold both ports to
+one answer, in 99 new rows of `test/spec/cursor.tsv`, 26 of them across
+includes.
+
 ### Go: `vet --no-fill` reads a map's keys as the document writes them
 
 Under `--no-fill`, `vet` compares the data with what the schema

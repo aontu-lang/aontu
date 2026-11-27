@@ -4,9 +4,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.COMPLETION_KEYWORD = exports.COMPLETION_VARIABLE = exports.COMPLETION_FUNCTION = exports.SEVERITY_HINT = exports.SEVERITY_INFORMATION = exports.SEVERITY_WARNING = exports.SEVERITY_ERROR = exports.BUILTIN_FUNCS = exports.LSP_VERSION = exports.LspHandler = void 0;
 exports.contributionsMarkdown = contributionsMarkdown;
 exports.uriToPath = uriToPath;
+exports.pathToUri = pathToUri;
 exports.computeDiagnostics = computeDiagnostics;
 exports.computeHover = computeHover;
 exports.computeDefinition = computeDefinition;
+exports.computePathDefinition = computePathDefinition;
 exports.computeCompletions = computeCompletions;
 exports.computeFormatting = computeFormatting;
 exports.computePathAt = computePathAt;
@@ -17,6 +19,7 @@ const walk_1 = require("./walk");
 const utility_1 = require("./utility");
 const query_1 = require("./query");
 const format_1 = require("./format");
+const escape_1 = require("./escape");
 const cursor_1 = require("./cursor");
 // LSP DiagnosticSeverity subset.
 const SEVERITY_ERROR = 1;
@@ -86,13 +89,18 @@ function computeDiagnostics(src, opts) {
 // Convert a NilVal (1-based site row/col) to an LSP diagnostic (0-based
 // line/character).
 function nilToDiagnostic(nil) {
-    const row = nil.site?.row ?? -1;
-    const col = nil.site?.col ?? -1;
+    // An included file's row and column mean nothing here: use this
+    // file's operand.
+    const elsewhere = (v) => '' !== (v?.site?.url ?? '');
+    const other = null != nil.secondary &&
+        elsewhere(nil.primary) && !elsewhere(nil.secondary);
+    const row = (other ? nil.secondary : nil).site?.row ?? -1;
+    const col = (other ? nil.secondary : nil).site?.col ?? -1;
     let start;
     let end;
     if (row >= 1 && col >= 1) {
         start = { line: row - 1, character: col - 1 };
-        const len = labelLength(nil);
+        const len = other ? siteExtent(nil.secondary) : labelLength(nil);
         end = { line: row - 1, character: col - 1 + len };
     }
     else {
@@ -347,6 +355,14 @@ function computeDefinition(src, position, uri) {
         },
     };
 }
+// Every site that writes the path a key or a reference names.
+function computePathDefinition(src, position, uri, trust) {
+    const places = (0, cursor_1.definitionAt)(src, position, { trust });
+    return places?.map((p) => ({
+        uri: '' === p.file ? uri : pathToUri(p.file),
+        range: p.range,
+    })) ?? null;
+}
 function computeHover(src, position, provenance, trust) {
     // A NAME IS NOT A VALUE: the tree holds what it resolves to, at the
     // declaration's site, so a use has no span for the walk below to
@@ -363,6 +379,19 @@ function computeHover(src, position, provenance, trust) {
             },
         };
     }
+    // On a key or a reference, what stands at the path it names.
+    const at = 'string' === typeof src ?
+        (0, cursor_1.describeAt)(src, position, { trust }) : undefined;
+    if (undefined !== at) {
+        return {
+            contents: {
+                kind: 'markdown',
+                value: hoverMarkdown(at) +
+                    (true === provenance ? provenanceMarkdown(src, at.path, trust) : ''),
+            },
+            range: at.range,
+        };
+    }
     let root;
     try {
         root = new aontu_1.Aontu(null == trust ? {} : { trust }).unify(src, { collect: true });
@@ -372,8 +401,11 @@ function computeHover(src, position, provenance, trust) {
     }
     const cands = [];
     collectHoverCandidates(root, cands, new Set());
+    // A span measured by its canon stops at the end of its line.
+    const lines = 'string' === typeof src ? src.split('\n') : [];
     let best = null;
     for (const c of cands) {
+        c.end = Math.min(c.end, lines[c.line]?.length ?? c.end);
         if (c.line === position.line &&
             c.start <= position.character && position.character < c.end) {
             // Most specific (smallest) span wins.
@@ -386,7 +418,7 @@ function computeHover(src, position, provenance, trust) {
     return {
         contents: {
             kind: 'markdown',
-            value: hoverMarkdown(best.val) +
+            value: hoverMarkdown((0, cursor_1.describeVal)(best.val)) +
                 (true === provenance
                     ? provenanceMarkdown(src, best.val.path, trust) : ''),
         },
@@ -416,8 +448,9 @@ function collectHoverCandidates(v, out, seen) {
     const span = siteExtent(v);
     const spanSrc = 'string' === typeof v.site?.src ? v.site.src : '';
     const multiline = '' === spanSrc ? canon.includes('\n') : spanSrc.includes('\n');
+    // An included file's row and column mean nothing here.
     if (row >= 1 && col >= 1 && canon.length > 0 && !multiline &&
-        !v.isMap && !v.isList) {
+        !v.isMap && !v.isList && '' === (v.site.url ?? '')) {
         out.push({ val: v, line: row - 1, start: col - 1, end: col - 1 + span });
     }
     const peg = v.peg;
@@ -433,50 +466,12 @@ function collectHoverCandidates(v, out, seen) {
     if (spreadCj)
         collectHoverCandidates(spreadCj, out, seen);
 }
+// A value's canon and kind, then its titles in bold and its
+// descriptions, as the Go hover writes them.
 function hoverMarkdown(val) {
-    // No try needed: a Val only becomes a hover candidate after
-    // collectHoverCandidates read this same getter successfully.
-    const canon = val.canon;
-    return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*' +
-        annotationMarkdown(val);
-}
-// A value's titles, in bold, and its descriptions, from its annotations:
-// the text a record holds under each key, as the Go hover reads it.
-function annotationMarkdown(val) {
-    const meta = val.meta ?? {};
-    const texts = (key) => (meta[key] ?? []).map((t) => t.peg).filter((t) => 'string' === typeof t);
-    return [...texts('title').map((t) => '**' + t + '**'), ...texts('description')]
-        .map((said) => '\n\n' + said).join('');
-}
-// A short human description of a Val's kind, shown under the hover canon.
-function valKind(val) {
-    if (val.isNil)
-        return 'error';
-    if (val.isTop)
-        return 'any';
-    if (val.isScalarKind)
-        return 'type';
-    if (val.isConstraint)
-        return 'constraint';
-    if (val.isRef)
-        return 'reference';
-    if (val.isInteger)
-        return 'integer';
-    // NumberVal is the binary64 leaf, whose kind keyword is `float`;
-    // `number` is the supertype and never labels a concrete value.
-    if (val.isNumber)
-        return 'float';
-    if (val.isBigInteger)
-        return 'biginteger';
-    if (val.isBigDecimal)
-        return 'bigdecimal';
-    if (val.isString)
-        return 'string';
-    if (val.isBoolean)
-        return 'boolean';
-    if (val.isScalar)
-        return 'scalar';
-    return val.constructor.name.replace(/Val$/, '').toLowerCase();
+    return '```aontu\n' + val.canon + '\n```\n\n' + '*' + val.kind + '*' +
+        [...val.titles.map((t) => '**' + t + '**'), ...val.descriptions]
+            .map((said) => '\n\n' + said).join('');
 }
 const sig_1 = require("./sig");
 const aliasname_1 = require("./aliasname");
@@ -544,6 +539,8 @@ function computeCompletions(src) {
     }
     return out;
 }
+const URI_PLAIN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' +
+    "0123456789-._~/!$&'()*+,;=:@";
 function uriToPath(uri) {
     if ('string' !== typeof uri || !uri.startsWith('file://')) {
         return undefined;
@@ -561,6 +558,16 @@ function percentDecode(text) {
     catch {
         return text;
     }
+}
+// The inverse of uriToPath, as pathToURI is in go/lsp/handler.go.
+function pathToUri(path) {
+    const p = driveLetterPath('/' + path) ?
+        '/' + path.replaceAll('\\', '/') : path;
+    let out = 'file://';
+    for (const ch of p) {
+        out += URI_PLAIN.includes(ch) ? ch : (0, escape_1.utf8Bytes)(ch).map((b) => '%' + b.toString(16).toUpperCase().padStart(2, '0')).join('');
+    }
+    return out;
 }
 // Whether p is `/X:…` for a drive letter X — the one shape whose
 // leading slash is uri syntax rather than path. Mirrors the same
@@ -675,7 +682,8 @@ class LspHandler {
                 const pos = msg.params?.position;
                 const text = null != uri ? this.docs.get(uri) : undefined;
                 const at = (null != text && null != pos)
-                    ? computeDefinition(text, pos, uri) : null;
+                    ? computeDefinition(text, pos, uri) ??
+                        computePathDefinition(text, pos, uri, this.trust) : null;
                 return [{ jsonrpc: '2.0', id: msg.id, result: at }];
             }
             case 'textDocument/signatureHelp': {
@@ -702,6 +710,6 @@ class LspHandler {
     publish(uri) {
         return publishDiagnosticsMsg(uri, computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }));
     }
-} /* node:coverage ignore next 36 */
+} /* node:coverage ignore next 37 */
 exports.LspHandler = LspHandler;
 //# sourceMappingURL=lsp.js.map

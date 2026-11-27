@@ -37,6 +37,21 @@ type PathSite struct {
 	Role  string      `json:"role"`
 }
 
+// CursorValue is what stands at the path a key or a reference names.
+type CursorValue struct {
+	Path         []string    `json:"path"`
+	Range        CursorRange `json:"range"`
+	Canon        string      `json:"canon"`
+	Kind         string      `json:"kind"`
+	Titles       []string    `json:"titles"`
+	Descriptions []string    `json:"descriptions"`
+}
+
+type PathPlace struct {
+	File  string      `json:"file"`
+	Range CursorRange `json:"range"`
+}
+
 type cursorHit struct {
 	on         string
 	path       []string
@@ -320,12 +335,18 @@ func cursorHits(src string, root Val) (keys, values []cursorHit) {
 		if "" == k.v.srcurl() {
 			at = k.v.pos()
 		}
-		if 0 <= at && at <= len(src) {
-			if 0 < len(k.path) {
-				if s, e, ok := keySpan(src, at, k.path[len(k.path)-1]); ok {
-					keys = append(keys, cursorHit{on: "key", path: k.path, start: s, end: e})
-				}
+		// A value another file wrote has its key where this document
+		// loaded it.
+		from := at
+		if sp, url, ok := k.v.load(); 0 > at && ok && "" == url {
+			from = sp
+		}
+		if 0 <= from && from <= len(src) && 0 < len(k.path) {
+			if s, e, ok := keySpan(src, from, k.path[len(k.path)-1]); ok {
+				keys = append(keys, cursorHit{on: "key", path: k.path, start: s, end: e})
 			}
+		}
+		if 0 <= at && at <= len(src) {
 			if h, ok := valueHit(src, k.v, at, k.path); ok {
 				values = append(values, h)
 			}
@@ -345,6 +366,10 @@ func (a *Aontu) PathAt(src string, pos CursorPosition) *CursorPath {
 	if nil != err || nil == root {
 		return nil
 	}
+	return cursorAt(src, pos, root)
+}
+
+func cursorAt(src string, pos CursorPosition, root Val) *CursorPath {
 	lines := newSrcLines(src)
 	if 0 > pos.Line || len(lines.starts) <= pos.Line {
 		return nil
@@ -376,6 +401,54 @@ func (a *Aontu) PathAt(src string, pos CursorPosition) *CursorPath {
 		Range: CursorRange{Start: lines.positionOf(best.start), End: lines.positionOf(best.end)},
 		Reads: best.reads,
 	}
+}
+
+// namedPath is the path a cursor names: a key its own, a reference the
+// one it reads, and a plain value none.
+func namedPath(at *CursorPath) []string {
+	if nil == at {
+		return nil
+	}
+	if "key" == at.On {
+		return at.Path
+	}
+	return at.Reads
+}
+
+// DescribeAt is what stands, once the document has unified, at the path
+// a key or a reference under the cursor names; nil where it names none,
+// or names a path that holds nothing.
+func (a *Aontu) DescribeAt(src string, pos CursorPosition) *CursorValue {
+	root, err := a.parseEntry(src)
+	if nil != err || nil == root {
+		return nil
+	}
+	at := cursorAt(src, pos, root)
+	path := namedPath(at)
+	if nil == path {
+		return nil
+	}
+	node := anchorParts(unifyRoot(root, &Ctx{root: root, src: src}), path)
+	if nil == node {
+		return nil
+	}
+	return &CursorValue{Path: path, Range: at.Range, Canon: node.Canon(),
+		Kind: valKind(node), Titles: metaTexts(node, "title"),
+		Descriptions: metaTexts(node, "description")}
+}
+
+// DefinitionAt is where the path a key or a reference under the cursor
+// names is written: its sites, as places to go to.
+func (a *Aontu) DefinitionAt(src string, pos CursorPosition) []PathPlace {
+	path := namedPath(a.PathAt(src, pos))
+	if nil == path {
+		return nil
+	}
+	var out []PathPlace
+	for _, s := range a.SitesOf(src, path) {
+		out = append(out, PathPlace{File: s.File, Range: s.Range})
+	}
+	return out
 }
 
 // SitesOf is every site that writes a path, as `model why` reads them;

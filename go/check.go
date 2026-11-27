@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -69,6 +70,10 @@ func (a *Aontu) CheckVars(src string, vars map[string]Val) []Problem {
 		}
 		if n.primary != nil {
 			p.Len = srcSpanLen(n.primary)
+		}
+		// An included file's offset means nothing here: use this file's operand.
+		if nil != n.secondary && "" != n.primary.srcurl() && "" == n.secondary.srcurl() {
+			p.Pos, p.Len = n.secondary.pos(), srcSpanLen(n.secondary)
 		}
 		out = append(out, p)
 	}
@@ -137,17 +142,9 @@ func collectSpans(v Val, out *[]ValueSpan, seen map[Val]bool) {
 			collectSpans(t.spread, out, seen)
 		}
 		return
-	case *ConjunctVal:
-		for _, e := range t.peg {
-			collectSpans(e, out, seen)
-		}
-	case *DisjunctVal:
-		for _, e := range t.peg {
-			collectSpans(e, out, seen)
-		}
 	}
 
-	if p := v.pos(); p >= 0 {
+	if p := v.pos(); p >= 0 && "" == v.srcurl() {
 		c := v.Canon()
 		if len(c) > 0 {
 			*out = append(*out, ValueSpan{
@@ -157,9 +154,21 @@ func collectSpans(v Val, out *[]ValueSpan, seen map[Val]bool) {
 			})
 		}
 	}
+
+	// After the junction itself, so that a tie finds the whole, as in TS.
+	switch t := v.(type) {
+	case *ConjunctVal:
+		for _, e := range t.peg {
+			collectSpans(e, out, seen)
+		}
+	case *DisjunctVal:
+		for _, e := range t.peg {
+			collectSpans(e, out, seen)
+		}
+	}
 }
 
-// valKind is a short human label for a Val's kind, shown in hovers.
+// valKind names a value's kind in a word, its type's where no arm does.
 func valKind(v Val) string {
 	switch t := v.(type) {
 	case *ScalarVal:
@@ -175,18 +184,13 @@ func valKind(v Val) string {
 		return "reference"
 	case *NilVal:
 		return "error"
-	case *ConjunctVal:
-		return "conjunct"
-	case *DisjunctVal:
-		return "disjunct"
-	case *PrefVal:
-		return "pref"
 	case *FuncVal:
 		return "function"
 	case *TopVal:
 		return "any"
 	}
-	return "value"
+	name := fmt.Sprintf("%T", v)
+	return strings.ToLower(strings.TrimSuffix(name[1+strings.LastIndex(name, "."):], "Val"))
 }
 
 // Deprecation is one value carrying the deprecate() record after

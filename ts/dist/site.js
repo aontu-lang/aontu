@@ -14,7 +14,8 @@ class Site {
         this.len = site?.len ?? -1;
         this.src = site?.src ?? '';
         this.via = site?.via;
+        this.load = site?.load;
     }
-} /* node:coverage ignore next 10 */
+} /* node:coverage ignore next 11 */
 exports.Site = Site;
 //# sourceMappingURL=site.js.map

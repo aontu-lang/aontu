@@ -13,6 +13,11 @@ type ViaSite = {
     src: string;
     name: string;
 };
+type LoadSite = {
+    row: number;
+    col: number;
+    url?: string;
+};
 declare class Site {
     row: number;
     col: number;
@@ -20,7 +25,8 @@ declare class Site {
     len: number;
     src: string;
     via?: ViaSite;
+    load?: LoadSite;
     constructor(val?: Val | SiteSpec);
 }
 export { Site, };
-export type { ViaSite, };
+export type { LoadSite, ViaSite, };

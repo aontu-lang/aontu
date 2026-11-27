@@ -218,12 +218,15 @@ func (h *Handler) Handle(m Message) []Out {
 		if !ok {
 			return []Out{newResponse(m.ID, nil)}
 		}
-		at := Definition(text, p.Position.Line, p.Position.Character,
-			p.TextDocument.URI)
-		if nil == at {
-			return []Out{newResponse(m.ID, nil)}
+		if at := Definition(text, p.Position.Line, p.Position.Character,
+			p.TextDocument.URI); nil != at {
+			return []Out{newResponse(m.ID, at)}
 		}
-		return []Out{newResponse(m.ID, at)}
+		if at := PathDefinition(text, p.Position.Line, p.Position.Character,
+			p.TextDocument.URI, h.trust); nil != at {
+			return []Out{newResponse(m.ID, at)}
+		}
+		return []Out{newResponse(m.ID, nil)}
 
 	case "textDocument/signatureHelp":
 		var p struct {
@@ -364,6 +367,29 @@ func uriToPath(uri string) string {
 		path = path[1:]
 	}
 	return path
+}
+
+// pathToURI is the file URI of an absolute path, the inverse of
+// uriToPath: a drive-letter path gains the slash that is URI syntax.
+// Mirrors pathToUri in ts/src/lsp.ts.
+func pathToURI(path string) string {
+	if driveLetterPath("/" + path) {
+		path = "/" + strings.ReplaceAll(path, "\\", "/")
+	}
+	var b strings.Builder
+	b.WriteString("file://")
+	for i := 0; i < len(path); i++ {
+		c := path[i]
+		if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' ||
+			strings.IndexByte("-._~/!$&'()*+,;=:@", c) >= 0 {
+			b.WriteByte(c)
+		} else {
+			b.WriteByte('%')
+			b.WriteByte("0123456789ABCDEF"[c>>4])
+			b.WriteByte("0123456789ABCDEF"[c&0xF])
+		}
+	}
+	return b.String()
 }
 
 // driveLetterPath reports whether p is "/X:..." for a drive letter X --

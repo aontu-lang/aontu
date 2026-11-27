@@ -1093,6 +1093,30 @@ LSP4J 1.0.0, the protocol library LSP4IJ ships, which read every
 answer of a session alike from each. Opening a file in an IDE, and
 the Windows command on Windows, are still to be tried by hand.
 
+Progress on 2026-11-27. LS2 is built in both servers. Hover on a key
+shows what unified at its path, containers included, and on a
+reference what stands at the path it reads; go to definition on
+either answers every site `model why` lists for that path, a site in
+an included file being a location in that file. The library answers
+are `describeAt` and `definitionAt` (`DescribeAt` and `DefinitionAt`
+in Go), held to one answer by two new row modes, `describe` and
+`define`, in 99 rows of `test/spec/cursor.tsv`. A differential probe
+of both servers, hover and definition at every character of fourteen
+documents, 2,346 requests, found one difference left, which is not the
+servers': through a call's argument, `model why` lists the value the
+argument read in TypeScript and not in Go. Three things changed on the
+way. The kind under a hover is one word in both ports, which settles
+#859. Ruling 50 is applied to an include: a value the include loads is
+sited in its own file in both ports, which settles #845, and the site
+keeps a record of where the include is written, from which the cursor
+finds the key. A conflict between a value from an included file and
+one the document wrote is placed at the document's operand, which
+settles the part of #320 a conflict reaches; an error with no operand
+in the document is still placed at the included file's row and column.
+One limit is documented, not fixed: the servers evaluate an open
+document's text, so a relative include is read from the server's
+working directory, not from the document's folder.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same

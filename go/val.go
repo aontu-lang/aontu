@@ -63,6 +63,8 @@ type Val interface {
 	srcurl() string
 	via() (int, string, string)
 	setVia(sp int, url, name string)
+	load() (int, string, bool)
+	setLoad(sp int, url string)
 	setSrcurl(u string)
 	cjo() int
 	superior() Val
@@ -129,11 +131,19 @@ type viaSite struct {
 // carries a row and a column; docs/contributing/parity.md says why.
 // `spu` marks a position a clone carried rather than the source gave.
 type site struct {
-	url string
-	src string
+	url  string
+	src  string
+	sp   int
+	spu  bool
+	via  viaSite
+	load *loadSite
+}
+
+// WHERE AN INCLUDE LOADED a value another file wrote: the key it stands
+// under is written there, though the value keeps its own file's site.
+type loadSite struct {
 	sp  int
-	spu bool
-	via viaSite
+	url string
 }
 
 type base struct {
@@ -232,6 +242,15 @@ func (b *base) via() (int, string, string) {
 }
 func (b *base) setVia(sp int, url, name string) {
 	b.site.via = viaSite{sp: sp, url: url, name: name}
+}
+func (b *base) load() (int, string, bool) {
+	if nil == b.site.load {
+		return -1, "", false
+	}
+	return b.site.load.sp, b.site.load.url, true
+}
+func (b *base) setLoad(sp int, url string) {
+	b.site.load = &loadSite{sp: sp, url: url}
 }
 
 func (b *base) srcurl() string      { return b.site.url }
