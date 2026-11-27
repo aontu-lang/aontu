@@ -31,7 +31,7 @@ class AtFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        if (!this.stagedReady(ctx, this.peg.length)) {
+        if (!this.foldReady(ctx, this.peg.length)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

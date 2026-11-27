@@ -56,7 +56,7 @@ class AtFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(ctx, this.peg.length)) {
+    if (!this.foldReady(ctx, this.peg.length)) {
       return this.residuate(peer, ctx)
     }
 
