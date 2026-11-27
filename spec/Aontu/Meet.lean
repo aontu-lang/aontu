@@ -694,9 +694,22 @@ def Val.isAny : Val → Bool
 theorem isAny_eq {v : Val} (h : v.isAny = true) : v = .any := by
   cases v <;> simp [Val.isAny] at h <;> rfl
 
+/-- Whether a term is `any`, or `any` carrying output annotations alone,
+which say how a value is written and nothing of one that isn't there. -/
+def Val.isAnyNote : Val → Bool
+  | .any => true
+  | .ride .gen v _ => v.isAnyNote
+  | _ => false
+
+theorem admits_of_isAnyNote : ∀ {v : Val}, v.isAnyNote = true → ∀ j, Admits env root v j
+  | .any, _, _ => .any
+  | .ride .gen v _, h, j => .ride (admits_of_isAnyNote (v := v) h j)
+
 /-- A meet with absence: what the other side's normal form is, but
-absence where that is `any`, which absence is below. -/
-def absentOr (v : Val) : Val := if v.isAny then .absent else v
+absence where that is `any`, which absence is below, an output
+annotation or more around it or not, so that `maybe(v) & gen(r)` is
+absence where `v` names nothing. -/
+def absentOr (v : Val) : Val := if v.isAnyNote then .absent else v
 
 /-- A meet with an atom over an argument outside its domain: the atom
 where the other side is `any`, the other side where it is a `nil` the
@@ -904,7 +917,8 @@ theorem admits_unparent : ∀ (v : Val) (j : Data), Admits env root v.unparent j
     exact judge_ride_iff.symm
   | .ride .metadata _ _, _ | .ride .deprecate _ _, _ | .ride .ident _ _, _ | .ride .type _ _, _
   | .ride .hide _ _, _ | .ride .opened _ _, _ | .ride .lifts _ _, _ | .ride .seals _ _, _
-  | .ride (.move _) _ _, _ | .ride .void _ _, _ | .ride .acyclic _ _, _ | .ride (.inverse _) _ _, _ => Iff.rfl
+  | .ride (.move _) _ _, _ | .ride .void _ _, _ | .ride .acyclic _ _, _ | .ride (.inverse _) _ _, _
+  | .ride .gen _ _, _ => Iff.rfl
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _ | .anyString, _
   | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .lit _, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _ | .re _, _
@@ -2534,7 +2548,7 @@ theorem admits_absent_left {m : Val → Val → Val}
   unfold absentOr
   split
   · rename_i h
-    have hb := (hm .any b j).mp (by rw [isAny_eq h]; exact .any)
+    have hb := (hm .any b j).mp (admits_of_isAnyNote h j)
     exact ⟨fun _ => ⟨.absent, hb.2⟩, fun _ => .absent⟩
   · rw [hm]
     exact ⟨fun h => ⟨.absent, h.2⟩, fun h => ⟨.any, h.2⟩⟩
@@ -2546,7 +2560,7 @@ theorem admits_absent_right {m : Val → Val → Val}
   unfold absentOr
   split
   · rename_i h
-    have ha := (hm a .any j).mp (by rw [isAny_eq h]; exact .any)
+    have ha := (hm a .any j).mp (admits_of_isAnyNote h j)
     exact ⟨fun _ => ⟨ha.1, .absent⟩, fun _ => .absent⟩
   · rw [hm]
     exact ⟨fun h => ⟨h.1, .absent⟩, fun h => ⟨h.1, .any⟩⟩

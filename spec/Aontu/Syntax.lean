@@ -55,6 +55,7 @@ inductive Rider where
   | parent                                  -- around `super(x)` in the `x | super(x)` a lone `*x` is (`Val.parentOf`)
   | acyclic                                 -- `acyclic()`, a graph atom: the relation its key names holds no cycle
   | inverse (k : String)                    -- `inverse(k)`, a graph atom: each edge of its relation is mirrored under `k`
+  | gen                                     -- `gen(r)`, the output annotation: `r` says how the value is written
   deriving DecidableEq
 
 /-- A rider's record: the members of a map of data, as both ports take
@@ -434,7 +435,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .ride .void v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _
   | .ride .lifts v _ | .ride .seals v _ | .ride .parent v _ | .ride .acyclic v _
-  | .ride (.inverse _) v _ => by
+  | .ride (.inverse _) v _ | .ride .gen v _ => by
     simp only [Val.super]; exact Val.keyed_super v
   | .link v _ => by simp only [Val.super]; exact Val.keyed_super v
   | .pref _ x => by simp only [Val.super]; exact Val.keyed_super x

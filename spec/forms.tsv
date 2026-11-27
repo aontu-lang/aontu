@@ -76,6 +76,8 @@ call	call	lower
 call	call	translate
 call	call	esc
 call	call	usc
+call	call	encode
+call	call	decode
 call	call	super
 call	call	pref
 call	call	move
@@ -106,4 +108,5 @@ call	call	apply
 absent	call	maybe
 call	call	acyclic
 call	call	inverse
+call	call	gen
 hole	syntax	_

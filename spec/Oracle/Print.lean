@@ -137,6 +137,7 @@ def Rider.name : Rider → String
   | .parent => "parent"
   | .acyclic => "acyclic"
   | .inverse _ => "inverse"
+  | .gen => "gen"
 
 /-! `close()` seals every level, so a sealed container prints as
 `close(…)` only where no open container sits beneath it, and a reference
@@ -233,6 +234,7 @@ def Fn.name : Fn → String
   | .maybe => "maybe"
   | .acyclic => "acyclic"
   | .inverse => "inverse"
+  | .gen => "gen"
   | .bnd .min => "min"
   | .bnd .max => "max"
   | .bnd .above => "above"
@@ -332,6 +334,7 @@ def Val.src : Val → Option String
   | .ride .void .nil [] => some "nil"
   | .ride .type _ _ | .ride .hide _ _ | .ride .opened _ _ | .ride .lifts _ _ | .ride .seals _ _
   | .ride (.move _) _ _ | .ride .void _ _ | .ride .acyclic _ _ | .ride (.inverse _) _ _ => none
+  | .ride .gen v r => do pure s!"({← v.src}) & gen({← (Data.map r).src})"
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
   | .link v t => do pure s!"(relate({← t.src})) & ({← v.src})"
 

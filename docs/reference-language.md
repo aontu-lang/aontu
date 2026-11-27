@@ -5897,10 +5897,21 @@ holds that only a float has a rounding its leaf does not hold, and
 it is. `Number.written` is the string, and `fixedText` its plain form.
 Rows gs0 and gw0 on of
 [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
-them. The annotation itself is not yet a term of the definition, nor
-are the options of the other types, and
-[`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
-both engines to each other on every other rule in this section.
+them.
+
+The annotation itself is a term of the definition, in
+[`spec/Aontu/Annotation.lean`](../spec/Aontu/Annotation.lean):
+`Val.annotation` is `any` carrying the record, `Shape.takes` holds the
+standard options of each type, and `Record.unify` unifies two records
+as maps. `Val.heldTo` holds a value to its record, and
+`admits_heldTo` proves that the result admits what the value admits,
+of the types that take the record. `Val.staged` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) meets the
+records each value carries, then holds each value to its own. Rows an0
+on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
+engines to it. What the other types' options write, and `custom`, wait,
+and [`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv)
+holds both engines to each other on them.
 
 ## Closed values: `close` / `open`
 
