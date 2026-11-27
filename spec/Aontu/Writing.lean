@@ -241,7 +241,9 @@ def writeWith (chk : Val → Data → Bool) (cw : Val → Data → Option (Optio
   | .call _ _ | .hole => none
 
 /-- The members a map's declarations write, as `genFieldsWith` generates
-them, a member left out where its value is. -/
+them, a member left out where its value is, and an optional one left out
+where what it writes is an empty map or list, as where what it generates
+is: emptiness is judged on what is written. -/
 def writeFieldsWith (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) (spread : Option Val) :
     List (String × Bool × Val) → Option (List (String × Data))
   | [] => some []
@@ -249,7 +251,8 @@ def writeFieldsWith (chk : Val → Data → Bool) (cw : Val → Data → Option 
     match genWith chk v with
     | some x =>
       if spreadOk chk k spread x then
-        if o && x.emptyBag then writeFieldsWith chk cw place spread fs
+        if o && (x.emptyBag || (writeWith chk cw (place ++ [k]) v).any (·.any Data.emptyBag)) then
+          writeFieldsWith chk cw place spread fs
         else consWrites ((writeWith chk cw (place ++ [k]) v).map (·.map ((k, ·))))
           (writeFieldsWith chk cw place spread fs)
       else if o then writeFieldsWith chk cw place spread fs else none
@@ -426,7 +429,7 @@ theorem writeFieldsWith_plain (chk : Val → Data → Bool) (cw : Val → Data �
     cases genWith chk v with
     | none => rfl
     | some x =>
-      dsimp only [Option.map]
+      simp only [Option.map, Option.any, Bool.or_self]
       split
       · split
         · rfl
