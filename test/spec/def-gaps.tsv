@@ -3,9 +3,20 @@
 # reading otherwise than both engines (ts/scripts/defcheck.cjs), as `gens`
 # rows whose expectation is the JSON `outputW` (spec/Aontu/Writing.lean)
 # writes: a root left out, under `hide()` or `type()`, written as `null`
-# (#1075), in rows gr0 on. Regenerate with `make spec`; never edit by hand.
+# (#1075), in rows gr0 on; and data a call reads through a path, read as the
+# output has it, a marked member left out (#1069), in rows gh0 on.
+# Regenerate with `make spec`; never edit by hand.
 gr0	gens	hide({"a": 1})	null
 gr1	gens	type({"a": 1})	null
 gr2	gens	hide([1])	null
 gr3	gens	hide({})	null
 gr4	gens	(hide({"a": 1})) & ({"b": 2})	null
+gh0	gens	"m": {"a": "keep", "b": hide("SECRET")}, "o": each($.m, (_) & (_))	{"m":{"a":"keep"},"o":["keep"]}
+gh1	gens	"m": {"a": "keep", "b": hide("SECRET")}, "f": filter($.m, string)	{"f":{"a":"keep"},"m":{"a":"keep"}}
+gh2	gens	"m": {"a": "keep", "b": hide("SECRET")}, "leak": join($.m, "-")	{"leak":"keep","m":{"a":"keep"}}
+gh3	gens	"m": {"a": 1, "b": hide(2)}, "d": pack($.m, {"x": 1})	{"d":{"a":{"x":1}},"m":{"a":1}}
+gh4	gens	"m": {"a": "keep", "b": hide("SECRET")}, "l": $.m	{"l":{"a":"keep","b":"SECRET"},"m":{"a":"keep"}}
+gh5	gens	"m": [1, hide(2), 3], "s": sum($.m)	{"m":[1,3],"s":4}
+gh6	gens	"m": {"a": {"x": 1, "y": hide(2)}}, "o": each($.m, _)	{"m":{"a":{"x":1}},"o":[{"x":1}]}
+gh7	gens	"m": hide({"a": 1, "b": 2}), "o": each($.m, _)	{"o":[1,2]}
+gh8	gens	"m": {"a": {"o": 1}, "b": hide({"o": 2})}, "r": pick($.m, "o")	{"m":{"a":{"o":1}},"r":[1]}
