@@ -50,7 +50,7 @@ def rowAnswer (pr : Profile) (g s : Decls × Val) : Option String :=
       | .gen => (dHolds && marksAt ns ng && marksBelow ns ng,
           dFails || (markPaths ns).any (marksRefuteAt sv gv))
     else
-      (pr == .values && (leCoD 64 g.1 g.2 s.1 s.2).isSome, refutes)
+      ((match pr with | .values => true | _ => false) && (leCoD 64 g.1 g.2 s.1 s.2).isSome, refutes)
   if holds && fails then some "both"
   else if holds then some "[\"subsumes\",\"undecided\"]"
   else if fails then some "[\"does_not_subsume\",\"undecided\"]"
