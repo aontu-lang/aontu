@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.HIGHLIGHT_WRITE = exports.HIGHLIGHT_READ = exports.COMPLETION_KEYWORD = exports.COMPLETION_VARIABLE = exports.COMPLETION_FIELD = exports.COMPLETION_FUNCTION = exports.SEVERITY_HINT = exports.SEVERITY_INFORMATION = exports.SEVERITY_WARNING = exports.SEVERITY_ERROR = exports.BUILTIN_FUNCS = exports.LSP_VERSION = exports.LspHandler = void 0;
+exports.REQUEST_FAILED = exports.HIGHLIGHT_WRITE = exports.HIGHLIGHT_READ = exports.COMPLETION_KEYWORD = exports.COMPLETION_VARIABLE = exports.COMPLETION_FIELD = exports.COMPLETION_FUNCTION = exports.SEVERITY_HINT = exports.SEVERITY_INFORMATION = exports.SEVERITY_WARNING = exports.SEVERITY_ERROR = exports.BUILTIN_FUNCS = exports.LSP_VERSION = exports.LspHandler = void 0;
 exports.contributionsMarkdown = contributionsMarkdown;
 exports.uriToPath = uriToPath;
 exports.pathToUri = pathToUri;
@@ -16,6 +16,9 @@ exports.computeSitesOf = computeSitesOf;
 exports.computeSymbols = computeSymbols;
 exports.computeReferences = computeReferences;
 exports.computeHighlights = computeHighlights;
+exports.computePrepareRename = computePrepareRename;
+exports.computeRename = computeRename;
+exports.computeCodeActions = computeCodeActions;
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const walk_1 = require("./walk");
@@ -23,6 +26,8 @@ const utility_1 = require("./utility");
 const query_1 = require("./query");
 const format_1 = require("./format");
 const escape_1 = require("./escape");
+const node_path_1 = require("node:path");
+const keyorder_1 = require("./keyorder");
 const cursor_1 = require("./cursor");
 // LSP DiagnosticSeverity subset.
 const SEVERITY_ERROR = 1;
@@ -40,6 +45,9 @@ const HIGHLIGHT_READ = 2;
 exports.HIGHLIGHT_READ = HIGHLIGHT_READ;
 const HIGHLIGHT_WRITE = 3;
 exports.HIGHLIGHT_WRITE = HIGHLIGHT_WRITE;
+// JSON-RPC RequestFailed, which LSP gives a request the server refuses.
+const REQUEST_FAILED = -32803;
+exports.REQUEST_FAILED = REQUEST_FAILED;
 function computeDiagnostics(src, opts) {
     const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(opts ?? {}));
     let root;
@@ -196,6 +204,8 @@ function initializeResult() {
             documentSymbolProvider: true,
             referencesProvider: true,
             documentHighlightProvider: true,
+            renameProvider: { prepareProvider: true },
+            codeActionProvider: { codeActionKinds: ['quickfix'] },
         },
         serverInfo: {
             name: 'aontu-lsp',
@@ -381,6 +391,46 @@ function computeHighlights(src, position, trust) {
     const here = (ps, kind) => ps.filter((p) => '' === p.file).map((p) => ({ range: p.range, kind }));
     return undefined === refs ? null :
         [...here(refs.writes, HIGHLIGHT_WRITE), ...here(refs.reads, HIGHLIGHT_READ)];
+}
+// A rename's answer under the workspace root, the open document's folder
+// where there is none: refused for a document outside it.
+function renamed(uri, root, ask, answer) {
+    const path = uriToPath(uri);
+    const top = root ?? (undefined === path ? undefined : (0, node_path_1.dirname)(path));
+    const outside = undefined === path ? undefined : (0, cursor_1.fileRefusal)(path, top, true);
+    if (undefined !== outside) {
+        return { error: 'cannot rename: the document' + outside.slice(path.length) };
+    }
+    const r = ask(top);
+    return undefined === r ? { result: null } :
+        undefined !== r.refused ? { error: r.refused } : { result: answer(r) };
+}
+// The range and the name a rename at the position would replace.
+function computePrepareRename(src, position, uri, root, trust) {
+    return renamed(uri, root, (top) => (0, cursor_1.renameAt)(src, position, '', { trust, root: top, prepare: true }), (r) => ({ range: r.range, placeholder: r.placeholder }));
+}
+// The edits of a rename, each in its own document, or why no edit of
+// text keeps the document true.
+function computeRename(src, position, uri, newName, root, trust) {
+    return renamed(uri, root, (top) => (0, cursor_1.renameAt)(src, position, newName, { trust, root: top }), (r) => {
+        const changes = {};
+        const byUri = r.edits.map((e) => ({ uri: '' === e.file ? uri : pathToUri(e.file), e }))
+            .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.uri, b.uri));
+        for (const { uri: at, e } of byUri) {
+            (changes[at] ??= []).push({ range: e.range, newText: e.newText });
+        }
+        return { changes };
+    });
+}
+// The quick fixes at a range, none where the client asks only for kinds
+// a quick fix is not.
+function computeCodeActions(src, range, uri, only, trust) {
+    const kinds = Array.isArray(only) ? only : ['quickfix'];
+    const acts = kinds.some((k) => 'quickfix' === k || '' === k) ?
+        (0, cursor_1.actionsAt)(src, range, { trust }) : [];
+    return acts?.map((a) => ({
+        title: a.title, kind: 'quickfix', edit: { changes: { [uri]: a.edits } },
+    })) ?? null;
 }
 // Go to where the name is BOUND: its declaration, or the destructure
 // that brought it in, which is where this file gets the name.
@@ -651,6 +701,7 @@ class LspHandler {
         this.shutdownOK = false;
         this.exited = false;
         this.trust = undefined;
+        this.root = undefined;
         // Hover provenance (G7 phase 7): off unless an editor asks for it
         // with `initializationOptions.aontu.provenance`. It costs a second,
         // instrumented evaluation per hover, which is a cost to opt into.
@@ -681,12 +732,12 @@ class LspHandler {
                                         ? { include: { mem: explicit.mem } } :
                                         { include: 'none' };
                 }
-                else {
-                    const root = uriToPath(params.workspaceFolders?.[0]?.uri)
-                        ?? uriToPath(params.rootUri)
-                        ?? (('string' === typeof params.rootPath && '' !== params.rootPath)
-                            ? params.rootPath : undefined);
-                    this.trust = null != root ? { include: { root } } : undefined;
+                this.root = uriToPath(params.workspaceFolders?.[0]?.uri)
+                    ?? uriToPath(params.rootUri)
+                    ?? (('string' === typeof params.rootPath && '' !== params.rootPath)
+                        ? params.rootPath : undefined);
+                if (null == explicit) {
+                    this.trust = null != this.root ? { include: { root: this.root } } : undefined;
                 }
                 return [{ jsonrpc: '2.0', id: msg.id, result: initializeResult() }];
             }
@@ -770,6 +821,32 @@ class LspHandler {
                                 computeHighlights(text, pos, this.trust),
                     }];
             }
+            case 'textDocument/prepareRename':
+            case 'textDocument/rename': {
+                const uri = msg.params?.textDocument?.uri;
+                const pos = msg.params?.position;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                const name = msg.params?.newName;
+                const answer = null == text || null == pos ? { result: null } :
+                    'textDocument/prepareRename' === msg.method ?
+                        computePrepareRename(text, pos, uri, this.root, this.trust) :
+                        computeRename(text, pos, uri, 'string' === typeof name ? name : '', this.root, this.trust);
+                return [{
+                        jsonrpc: '2.0', id: msg.id,
+                        ...('error' in answer ? { error: { code: REQUEST_FAILED, message: answer.error } } :
+                            { result: answer.result }),
+                    }];
+            }
+            case 'textDocument/codeAction': {
+                const uri = msg.params?.textDocument?.uri;
+                const range = msg.params?.range;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                return [{
+                        jsonrpc: '2.0', id: msg.id,
+                        result: null == text || null == range?.start || null == range?.end ? null :
+                            computeCodeActions(text, range, uri, msg.params?.context?.only, this.trust),
+                    }];
+            }
             case 'textDocument/definition': {
                 const uri = msg.params?.textDocument?.uri;
                 const pos = msg.params?.position;
@@ -803,6 +880,6 @@ class LspHandler {
     publish(uri) {
         return publishDiagnosticsMsg(uri, computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }));
     }
-} /* node:coverage ignore next 45 */
+} /* node:coverage ignore next 51 */
 exports.LspHandler = LspHandler;
 //# sourceMappingURL=lsp.js.map

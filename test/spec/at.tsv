@@ -129,3 +129,15 @@ at-key-float-whole	errc	xs: [1, 2]\nx: at($.xs, 1.0)	func_arg
 at-key-negative-zero	gen	xs: [1, 2]\nx: at($.xs, -0)	{"x":1,"xs":[1,2]}
 at-no-key	errc	m: {a: 1}\nx: at($.m)	func_arity
 at-no-args	errc	x: at()	func_arity
+# A lookup copied by a reference before it answers is as usable as the
+# path it stands for: the copy reads its data where the data stands.
+at-copied-default-relative	gen	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: $.b	{"a":{"x":1,"y":1},"b":1,"c":1}
+at-copied-default-relative-path	gen	a: {x: *1 | integer, y: .x}\nb: $.a.y\nc: $.b	{"a":{"x":1,"y":1},"b":1,"c":1}
+at-copied-twice	gen	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: $.b\nd: $.b	{"a":{"x":1,"y":1},"b":1,"c":1,"d":1}
+at-copied-deeper	gen	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: {d: $.b}\ne: [$.b, $.c.d]	{"a":{"x":1,"y":1},"b":1,"c":{"d":1},"e":[1,1]}
+at-copied-from-deeper	gen	a: {x: 1, y: .x}\nq: {b: at($.a, y)}\nc: $.q.b	{"a":{"x":1,"y":1},"c":1,"q":{"b":1}}
+at-copied-into-each	gen	a: {x: 2, y: .x}\nb: at($.a, y)\nout: each([1, 2], {v: $.b, n: _})	{"a":{"x":2,"y":2},"b":2,"out":[{"n":1,"v":2},{"n":2,"v":2}]}
+at-copied-into-pack	gen	a: {x: 2, y: .x}\nb: at($.a, y)\nout: pack({p: 1, q: 2}, add($.b, _))	{"a":{"x":2,"y":2},"b":2,"out":{"p":3,"q":4}}
+at-copied-nested-call	gen	a: {m: {x: 1, y: .x}}\nb: at(at($.a, m), y)\nc: $.b	{"a":{"m":{"x":1,"y":1}},"b":1,"c":1}
+at-copied-lookup-of-lookup	gen	a: {m: {x: 1, y: .x}}\nb: at($.a, m)\nc: at($.b, y)\nd: $.c	{"a":{"m":{"x":1,"y":1}},"b":{"x":1,"y":1},"c":1,"d":1}
+at-copied-canon	canon	a: {x: *1 | integer, y: .x}\nb: at($.a, y)\nc: $.b	{"a":{"x":*1|integer,"y":*1|integer},"b":*1|integer,"c":*1|integer}

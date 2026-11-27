@@ -1860,20 +1860,30 @@ def admitItems (ds : Decls) : List Val → List Val → Bool
 end
 
 /-- Whether a `filter`'s condition `c`, read for the child, takes the
-child `v` as the term it is (ruling 51), as both ports try it: the child
-met with the condition doesn't die and is alike the child
-(`Val.admitAlike`), so that the meet narrows nothing and every value the
-child admits is one the condition admits, a meet that is a disjunction,
-where the child is none, alike where one of its arms is; or, where the
-child is a disjunction with no preference among its arms, the meet
-doesn't die, so that an arm the condition takes keeps it. -/
-def filterTakes (ds : Decls) (c v : Val) : Bool :=
+value `v` as the term it is: `v` met with the condition doesn't die and
+is alike `v` (`Val.admitAlike`), so that the meet narrows nothing and
+every value `v` admits is one the condition admits, a meet that is a
+disjunction, where `v` is none, alike where one of its arms is. -/
+def filterTakesArm (ds : Decls) (c v : Val) : Bool :=
   let met := normaliseD ds (meetD ds c v)
-  !met.dead && ((normaliseD ds v).freeChoice ||
+  !met.dead &&
     match (normaliseD ds v).unride.kindless, met.unride.one.kindless with
     | .or _, w => (normaliseD ds v).unride.kindless.admitAlike ds w
     | _, .or arms => arms.any fun a => (normaliseD ds v).unride.kindless.admitAlike ds a.2.unride.one.kindless
-    | _, w => (normaliseD ds v).unride.kindless.admitAlike ds w)
+    | _, w => (normaliseD ds v).unride.kindless.admitAlike ds w
+
+/-- Whether a `filter`'s condition `c`, read for the child, takes the
+child `v` as the term it is (ruling 51), as both ports try it: as
+`filterTakesArm` takes it; where the child is a disjunction that prefers
+an arm, each of its arms, read preferring nothing (`Val.unranked`), so
+that a meet stacking ranks on the preferred arm doesn't refuse it; and
+where the child is a disjunction with no preference among its arms,
+where the meet doesn't die, so that an arm the condition takes keeps it. -/
+def filterTakes (ds : Decls) (c v : Val) : Bool :=
+  !(normaliseD ds (meetD ds c v)).dead && ((normaliseD ds v).freeChoice ||
+    match (normaliseD ds (normaliseD ds v).unranked).unride.kindless with
+    | .or arms => arms.all fun a => filterTakesArm ds c a.2
+    | _ => filterTakesArm ds c v)
 
 mutual
 /-- The references into the node a term holds as written, but those in

@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### The definition's `filter` reads a preferred disjunction arm by arm
+
+In the definition, a `filter` now takes a child that is a disjunction
+preferring an arm when its condition takes each arm. Before, the meet
+stacked a rank on the preferred arm, and the child was dropped as no
+longer alike. So `filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)` keeps
+all three members, as both engines do since #1083 (#963), and a lone
+`*1` under the same condition is dropped, since it admits integers the
+condition refuses, as both engines read it since #1086. Rows fq0 to
+fq17 of `test/spec/def-path.tsv` and fr0 to fr5 of
+`test/spec/def-gen.tsv` hold the definition and both engines to it.
+
 ### `at`: the member at a key or a position
 
 A new built-in, in both engines. `at(d, k)` reads what a path step
@@ -44,6 +56,24 @@ states and the definition writes. A map or list root already did. A
 scalar root wrote its value: `hide(1)` was `1`. In TypeScript a hidden
 root that is a default wrote the default: `hide(*{a: 1} | {b: 2})` was
 `{"a": 1}`. Each is now `null`.
+
+### A guide to CUE comprehensions in aontu
+
+Task C8 of the lang refinement plan. A new how-to,
+`docs/how-to/map-cue-comprehensions.md`, gives the aontu spelling of
+each comprehension idiom in the order a CUE user reaches for it: a list
+from each member with `emit` and `filter`, a choice under a condition
+with `match`, a local value with `apply`, the keys and values of a map,
+a field of the member and a lookup with `at`, and a map keyed by a field
+with `pack`'s third argument. Idioms that take helper fields today, an
+inner loop that reads the outer member, a grouping, a reversal, a slice
+and a loop over a number, are shown as they are written now. It says
+where aontu's answer is in another order than CUE's. Every CUE example
+quotes `test/cue/`, and every aontu example is the agreed form of a
+shared row, run by both engines; `ts/test/cuecorpus.test.ts` holds the
+page to that, and `test/spec/comprehension.tsv` gains four rows for it.
+The guide for CUE users links the new page for comprehensions. Neither
+engine changes.
 
 ### A guide for CUE users
 
@@ -102,6 +132,72 @@ the contract allows. `ts/test/subsume-contract.test.ts` and
 them, and where a document reads otherwise than the definition read it.
 They found #1071: both ports' `subsume` read a list literal in an arm as
 open, where their `vet` reads it as its own length.
+
+### The language servers offer a quick fix that removes a redundant entry
+
+Task LS8, in both servers. `textDocument/codeAction` answers, for every
+entry `aontu trim --check` reports that the requested range meets, a
+quick fix that deletes every place the document writes the entry, with
+its line where it stands alone, else the comma or the blanks beside it;
+`codeActionProvider` is advertised with `codeActionKinds: ["quickfix"]`.
+It is the one action offered, and it is offered by range alone, since
+the servers publish no diagnostic for what trim finds. An entry written
+where it cannot be found, or in an included file, or whose text the
+document would unify differently without, is not offered. The library
+answers are `actionsAt` and `ActionsAt`; a new shared-row mode,
+`actions`, holds both ports to one answer in 26 rows of
+`test/spec/cursor.tsv`.
+
+### The language servers rename a key and every reference to it
+
+Task LS7, in both servers. `textDocument/rename` renames the key at the
+position, or the path up to the segment of a reference there, and the
+segment that names it in every reference that reads the path or a path
+inside it, as one `WorkspaceEdit` across the open document and the
+files it includes under the workspace root. `textDocument/prepareRename`
+answers the range and the name, and `renameProvider: { prepareProvider:
+true }` is advertised. A key keeps its quotes and a name that is not a
+plain name is quoted. The whole rename is refused, with a `-32803`
+error that names the site, where no edit of text keeps the document
+true: a key a generator makes, a pattern matches, `key()` reads or a
+spread's template writes, a path a reference copies where the copy is
+written or read, a site in a bundled model, a package or a file outside
+the root or unread, a key the cursor cannot find, and a name that
+needs an escape or is taken. The library answers are `renameAt` and
+`RenameAt`; a new shared-row mode, `rename`, holds both ports to one
+answer in 79 rows of `test/spec/cursor.tsv`.
+
+### The language servers find references and highlight them
+
+Task LS6, in both servers. `textDocument/references` answers, on a key
+or a reference, every site that writes the path it names, as go to
+definition answers them, where the client asks for the declaration,
+then every reference that reads the path, across includes: a reference
+in an included file is a location in that file.
+`textDocument/documentHighlight` answers the same within the open
+document, a site with the kind Write and a reference with the kind
+Read. `referencesProvider` and `documentHighlightProvider` are
+advertised. A relative reference is read from where it stands, as the
+engine reads it, and a reference among a constraint's arguments or
+alone in a group is found too. The library answers are `referencesAt`
+and `ReferencesAt`; a new shared-row mode, `refs`, holds both ports to
+one answer in 34 rows of `test/spec/cursor.tsv`.
+
+### The language servers outline a document's keys
+
+Task LS5, in both servers. `textDocument/documentSymbol` answers the
+outline of what the document writes, and `documentSymbolProvider` is
+advertised. Each key is a symbol where it is written, so a key written
+twice is two, and `a: b: c: 1` nests three; a list's elements are named
+by their position, and a spread's template is `&`. A symbol's range
+runs from its key to the end of its value and its selection range is
+the key, and its kind is the value's: `Object`, `Array`, `String`,
+`Number`, `Boolean` or `Null`, and `Variable` for a reference, a call or
+anything else.
+A key that holds an include is a symbol, the included file's keys are
+not, and a declaration is none. The library answers are `symbolsOf`
+and `SymbolsOf`; a new shared-row mode, `symbols`, holds both ports to
+one answer in 33 rows of `test/spec/cursor.tsv`.
 
 ### A `filter` reads a member that is a default alone as its parent type too
 
@@ -222,7 +318,8 @@ Task LS6, in both servers. `textDocument/references` answers, on a key
 or a reference, every site that writes the path it names, as go to
 definition answers them, where the client asks for the declaration,
 then every reference that reads the path, across includes: a reference
-in an included file is a location in that file.
+in an included file is a location in that file, ranged by its span as
+written there.
 `textDocument/documentHighlight` answers the same within the open
 document, a site with the kind Write and a reference with the kind
 Read. `referencesProvider` and `documentHighlightProvider` are
@@ -230,7 +327,7 @@ advertised. A relative reference is read from where it stands, as the
 engine reads it, and a reference among a constraint's arguments or
 alone in a group is found too. The library answers are `referencesAt`
 and `ReferencesAt`; a new shared-row mode, `refs`, holds both ports to
-one answer in 34 rows of `test/spec/cursor.tsv`.
+one answer in 37 rows of `test/spec/cursor.tsv`.
 
 ### The language servers outline a document's keys
 
@@ -285,6 +382,22 @@ is now this. `test/spec/gen-pack-key.tsv` holds both engines to 45
 rows, and `test/spec/comprehension.tsv` gains the keyed spelling beside
 each of the six routes it replaces.
 
+### `at`: the member at a key or a position
+
+A new built-in, in both engines. `at(d, k)` reads what a path step
+reads, the member of a map under a key or of a list at a position, and
+more keys step further, so `at(d, a, b)` is `at(at(d, a), b)`. Each key
+is read as its value, so a template can read a field of its member,
+`pack($.svc, at(_, port))`, and look a record up by one,
+`at($.teams, at(_, team), email)`. A negative position counts from the
+end of a list, so `at(xs, -1)` is the last member. A step that names
+nothing is `no_path`, and absence under `maybe`; a key that is neither
+a string nor an integer is `func_arg`. A member marked with `hide()` or
+`type()` is read as a path reads it. `test/spec/at.tsv` holds both
+engines to 115 rows, and `test/spec/comprehension.tsv` gains the `at`
+spelling beside each of the eight routes it replaces.
+
+
 ### A how-to on carrying binary data
 
 `docs/how-to/carry-binary-data.md` carries bytes through a JSON
@@ -329,6 +442,17 @@ nothing, and kept nothing, with no error. Rows `filter-in-*` of
 | `p: each(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p[0].f` is `[]` | `[2]` |
 | `p: pack(["x"], {lim: 2, f: filter($.l, $.p.x.lim)})` | `p.x.f` is `[]` | `[2]` |
 | `p: pack(["x"], {lim: 2, f: filter($.l, min(..lim))})` | `p.x.f` is `[]` | `[2, 3]` |
+
+### A fold copied before it answers reads its data where the data stands
+
+In TypeScript, a fold that a reference copied before it answered never
+answered where its data held a relative read: with `a: {x: 1, y: .x}`,
+`b: pick([$.a], y)` and `c: $.b`, `b` and `c` stayed residues where Go
+answers `[1]`. `sum`, `least`, `greatest`, `pick`, `sort`, `join` and
+`at` each now keep the arguments they were written with while they
+wait, as Go's do. Rows in `test/spec/agg.tsv`, `gen-join.tsv` and
+`sort.tsv` hold both engines to it.
+
 
 ### The definition reads a call's data argument where its target stands
 

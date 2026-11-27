@@ -91,7 +91,7 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
         for (let i = 1; i < last; i += 2) {
             const arg = this.peg[i];
             if (!arg.done) {
-                this.peg[i] = arg.unify((0, top_1.top)(), (0, ConstraintVal_1.readsPlace)(arg, this.path) ? held : ctx);
+                this.peg[i] = arg.unify((0, top_1.top)(), (0, FuncBaseVal_1.feeding)((0, ConstraintVal_1.readsPlace)(arg, this.path) ? held : ctx, this.path));
             }
             ready = ready && true === this.peg[i].done;
         }

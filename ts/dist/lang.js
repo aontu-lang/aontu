@@ -1869,10 +1869,10 @@ function makeModelResolver(options) {
     // The manifest sink rides the parse meta (Lang.parse seeds it, the
     // multisource plugin's child-meta spread carries it to every nested
     // include), so the recorded closure covers the whole include tree.
-    const record = (ctx, path, cap) => {
+    const record = (ctx, path, cap, src) => {
         const manifest = ctx?.meta?.aontu?.manifest;
         if (Array.isArray(manifest)) {
-            manifest.push({ path, capability: cap });
+            manifest.push({ path, capability: cap, src });
         }
     };
     return function ModelResolver(spec, popts, rule, ctx, jsonic) {
@@ -1893,7 +1893,7 @@ function makeModelResolver(options) {
             if (null == model) {
                 modelNotFound(path);
             }
-            record(ctx, path, 'aontu');
+            record(ctx, path, 'aontu', model);
             return { found: true, path, full: path, kind: 'aontu', src: model, search: [] };
         }
         let search = [];
@@ -1905,7 +1905,7 @@ function makeModelResolver(options) {
             // read them, or the mem capability becomes a way to include what
             // the filesystem would refuse.
             gateExtension(path, res.full ?? path);
-            record(ctx, res.full ?? path, 'mem');
+            record(ctx, res.full ?? path, 'mem', res.src);
             return res;
         }
         const modref = memCapability ? undefined : (0, mod_1.parseModuleRef)(path);
@@ -1935,7 +1935,7 @@ function makeModelResolver(options) {
             if (null != rootDir && outsideRoot(rootDir, found.full)) {
                 deny(path);
             }
-            record(ctx, found.full, 'mod');
+            record(ctx, found.full, 'mod', found.src);
             return {
                 found: true, path, full: found.full,
                 kind: 'aontu', src: found.src, search: [],
@@ -1972,7 +1972,7 @@ function makeModelResolver(options) {
                 outsideRoot(options.trustWarnRoot, full)) {
                 options.trustWarn('escape', full);
             }
-            record(ctx, full, 'file');
+            record(ctx, full, 'file', res.src);
             return res;
         }
         search = search.concat(res.search);
@@ -1989,7 +1989,7 @@ function makeModelResolver(options) {
             if (null != options.trustWarn) {
                 options.trustWarn('pkg', res.full);
             }
-            record(ctx, res.full, 'pkg');
+            record(ctx, res.full, 'pkg', res.src);
             return res;
         }
         res.search = search.concat(res.search);

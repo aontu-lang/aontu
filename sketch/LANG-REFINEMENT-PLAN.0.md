@@ -438,7 +438,15 @@ and a row pins the silent answer beside it. `at($.xs, -1, -1)` overflows
 the TypeScript stack, the parser defect IS3 holds, where Go answers;
 `at(at($.xs, -1), -1)` answers in both.
 
-The rows are the 105 of `test/spec/at.tsv`, and the eight `-at` rows of
+Review then found that a lookup a reference copied before it answered
+never answered in TypeScript, `b: at($.a, y)` with `c: $.b` where `a.y`
+is the relative read `.x`. The waiting call held its driven bag, and the
+copy moved the bag's `.x` to read from `c`. A waiting `at` now keeps the
+arguments it was written with, as Go's does; ten rows hold it. `pick`
+and the folds share the defect in TypeScript, `b: pick([$.a], y)` with
+`c: $.b` answering a residue where Go answers, and it is not filed.
+
+The rows are the 115 of `test/spec/at.tsv`, and the eight `-at` rows of
 `test/spec/comprehension.tsv`, one beside each of k4, k5, k18 to k21,
 k33 and k37. The definition is owed: no Lean toolchain was installed
 where it was built, so `at` has no meaning under `spec/`, and `maybeOf`
@@ -827,8 +835,10 @@ found nothing, and each candidate was refused. Now a `filter` whose
 condition holds a path waits while any place above it is a `pack`,
 `each`, `apply` or `match` still to fire, and is tried once the
 member is in the tree (`unmade` in `ts/src/val/FilterFuncVal.ts` and
-`go/generate.go`). A condition with no path fires as before, so no
-document without one takes more passes. The 16 rows `filter-in-*` of
+`go/generate.go`). A filter in a call's data, or in a `match`'s
+pattern, is the call's input and does not wait for it. A condition with
+no path fires as before, so no document without one takes more passes.
+The 23 rows `filter-in-*` of
 `test/spec/gen-filter.tsv` pin it, each expectation from the parity
 probe. No C7 row pinned the empty answer: k4 reads a path inside the
 member it tries, which names nothing by the reference, and stays `[]`,
@@ -903,6 +913,40 @@ order and CUE in source order:
   "twice": [{ "v": 2 }, { "v": 4 }, { "v": 6 }],
   "pairs": ["a=2", "b=1"] }
 ```
+
+Progress on 2026-11-27. C8 is written, as
+`docs/how-to/map-cue-comprehensions.md`, after C1 and C2. It takes the
+idioms in the order a CUE user reaches for them: a list from each
+member, flattening and joining, a choice under a condition, a local
+value, the keys of a map, a field of the member, two fields compared, a
+lookup, a pairing by position, the last member, a map keyed by a field,
+and the members another list names, then the longer constructions. All
+38 probes are shown. The 35 CUE fences quote `test/cue/`. Of the 42
+aontu fences, one quotes `k30.aontu` and 41 are executed, each followed
+by its answer. The corpus files aren't in the agreed form, which the
+docs fence check requires, so an executed fence is the agreed form of a
+row's source: a `routes-kNN`, `-at` or `-pack` row, `at.tsv`'s
+`at-condition-bound-reads-nothing`, or one of four `guide-*` rows added
+to `test/spec/comprehension.tsv` for the three entries above and one
+more. `ts/test/cuecorpus.test.ts` holds each fence to that, each answer
+to its row's, and the page to every probe. Both engines give every
+answer, formatted alike. Three things were settled in the writing, and
+each is the maintainer's to change:
+
+- The direct entries give only the direct spelling, for C1's and C2's
+  rows. The long routes those replace stay as rows and aren't shown.
+- k26 has a direct spelling with C1 that the table doesn't list,
+  `filter(each($.xs, apply(mul(at(_, a), 2), { v:_ })), { v:above(2) })`,
+  and the guide gives it as the `let` entry.
+- The page says that a bound reading the member in a `filter` pattern
+  keeps nothing and isn't refused, with k4's route as the example, and
+  writes the comparison with `match` and `sub`.
+
+The longer constructions are shown as today's routes and shorten as
+the rest lands: k7, k8 and the outer half of k12, k13 and k17 with C5,
+k34 with C3, and k30 to k32, k35 and k36 with C4. The CUE-users guide
+now links this page for the comprehensions, in place of the reference
+sections.
 
 ## Which task makes which idiom direct
 
@@ -1330,14 +1374,17 @@ parsed tree that enters a constraint's arguments, each read by the
 path the parser records for it, as the engine's `plainRefPath` reads
 it, so a relative reference, one under a key chain and one in a list
 are all read where they stand, and so is one alone in a group. By
-ruling 16, a reference in an included file is a location in that file;
-its range is as long as its spelling, which a quoted segment shortens,
-since neither port keeps the file's text for the cursor in a form both
-share. The library answer is `referencesAt` (`ReferencesAt` in Go),
+ruling 16, a reference in an included file is a location in that file,
+ranged by its span as written there, read from the text the include
+loaded: Go's parse keeps it, and TypeScript's include record now keeps
+it too. Review found the first build ranging such a reference by its
+spelling from its site, which a group or a quoted segment made wrong;
+three rows over a second fixture, `cursor_refs_written.aontu`, hold
+the fix. The library answer is `referencesAt` (`ReferencesAt` in Go),
 with `computeReferences`, `computeHighlights`, `References` and
 `Highlights` in the servers, held by a new row mode, `refs`, in 34 rows
-of `test/spec/cursor.tsv`, which both engines wrote alike, with a new
-fixture, `cursor_refs.aontu`, whose references read the including
+of `test/spec/cursor.tsv`, 37 with the review's, which both engines
+wrote alike, with a new fixture, `cursor_refs.aontu`, whose references read the including
 document. A probe of both servers, references with and without the
 declaration and highlights at every character of 57 documents, found no
 difference. Three limits stand. The sites are those `model why` lists,
@@ -1346,6 +1393,60 @@ reads among its sites, and a document that does not evaluate has none.
 An alias name's uses are not followed. Hover, definition and
 references still do not start from a reference in a group or among a
 constraint's arguments, which the cursor does not find.
+
+Progress on 2026-11-27, LS7. Rename is built in both servers, which
+advertise `renameProvider` with `prepareProvider`. On a key it renames
+the key's path, and on a reference the path up to the segment the
+cursor is in. The edit is read from the parse, not from the sites
+`model why` lists: the key at every place the parse writes the path,
+in the document or in an included file, and the segment that names it
+in every reference that reads the path or a path inside it, relative
+ones included, where the reference spells it. Each file it edits must
+be under the workspace root, the first folder or `rootUri` of
+`initialize`, else the document's folder. By ruling 17 the whole
+rename is refused, the message naming the site, where no edit of text
+keeps the document true: a key a generator makes (`pack`, `each`,
+`apply`, `emit`, a `match` outside a spread), a key a pattern matches
+(`keyed` or a `match` in a spread), a key `key()` reads, a key a
+spread's template writes, a key written `%n:`, a site in a bundled
+model, a package, a file outside the root or one whose text the server
+does not hold, a key or reference it cannot find as written, a path no
+key writes, and a new name that needs an escape or is taken. Read most
+conservatively, a path a reference copies is refused where the copy is
+written or read, as an instance of a type writes the type's keys, rather
+than renamed at every copy; that is the question the ruling leaves
+open. The library answer is `renameAt` (`RenameAt` in Go), with
+`computePrepareRename`, `computeRename`, `PrepareRename` and `Rename`
+in the servers, held by a new row mode, `rename`, in 79 rows of
+`test/spec/cursor.tsv`, which both engines wrote alike. A probe of both
+servers, prepare rename and rename to two names at every character of
+96 documents, 12,271 requests, found no difference.
+
+Progress on 2026-11-27, LS8. Code actions are built in both servers,
+which advertise `codeActionProvider` with the one kind `quickfix`. The
+one action is the one whose edit was decided: removing an entry that
+`trim --check` reports. It is offered where the requested range meets
+the entry, and its edit deletes every place the document writes it, as
+the outline ranges them: the key and its value, with the line where it
+stands alone on a line that ends, a comment after it included, else
+the comma beside it, else the blanks that part it from its neighbour,
+overlapping deletions joined. The servers publish no diagnostic for
+what trim finds, so the action is offered by range alone and is
+attached to none. It is not offered where a place that writes the
+entry is not found as written or is in an included file, where two
+paths share the spelling trim reports, or where the text without it
+does not unify to what the document unifies to, which a key chain's
+last key is. The library answer is `actionsAt` (`ActionsAt` in Go), with
+`computeCodeActions` and `CodeActions` in the servers, held by a new row
+mode, `actions`, in 26 rows of `test/spec/cursor.tsv`, which both
+engines wrote alike; twinned tests apply each edit and find that trim
+no longer reports the entry. A probe of both servers, code actions over
+every line range of up to three lines and at every character of 126
+documents, 6,159 requests, found no difference, and rename, whose
+module changed with it, probed again over the same documents, 15,988
+requests, found none. Each request runs
+`trim --check`, which evaluates the document once for each entry it
+could remove.
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and

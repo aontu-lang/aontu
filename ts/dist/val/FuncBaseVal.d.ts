@@ -3,6 +3,7 @@ import { AontuContext } from '../ctx';
 import { FeatureVal } from '../val/FeatureVal';
 declare function sameMembers(a: any, b: any, ctx: AontuContext, admit?: boolean): boolean;
 declare function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined;
+declare function feeding(ctx: AontuContext, path: string[]): AontuContext;
 declare class FuncBaseVal extends FeatureVal {
     isFunc: boolean;
     forgives: boolean;
@@ -14,6 +15,7 @@ declare class FuncBaseVal extends FeatureVal {
     make(ctx: AontuContext, _spec: ValSpec): Val;
     driveStagedArgs(ctx: AontuContext, count: number): boolean;
     stagedReady(ctx: AontuContext, count: number): boolean;
+    foldReady(ctx: AontuContext, count: number): boolean;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     residuate(peer: Val, ctx: AontuContext): Val;
     unify(peer: Val, ctx: AontuContext): Val;
@@ -25,4 +27,4 @@ declare class FuncBaseVal extends FeatureVal {
     resolve(ctx: AontuContext, _args: Val[]): Val;
     deferResolve(_ctx: AontuContext, _args?: Val[]): boolean;
 }
-export { trialUnify, sameMembers, FuncBaseVal, };
+export { trialUnify, sameMembers, feeding, FuncBaseVal, };

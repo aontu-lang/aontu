@@ -44,7 +44,9 @@ The how-to guides are one page per task, grouped seven ways: coming
 from another language; run, embed and integrate; templates, defaults
 and composition; schemas and constraints; query, explain and change;
 validate and evolve; modules and multi-file. If you already know CUE,
-start with [Move from CUE to aontu](how-to/aontu-for-cue-users.md).
+start with [Move from CUE to aontu](how-to/aontu-for-cue-users.md), and
+turn CUE comprehensions into aontu with
+[Map CUE comprehensions to aontu](how-to/map-cue-comprehensions.md).
 
 Three capabilities have doorways of their own:
 
