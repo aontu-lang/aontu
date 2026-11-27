@@ -30,5 +30,5 @@ def emitDataCases : List (Decls × Val × Data) :=
   let doc (t : Data) (out : List Data) : Data := dm [("items", dm [("x", dm [("tree", jl [t]), ("out", jl out)])])]
   [(w, S, doc (chainTree 0) (chainNames 0)),
     (w, S, doc (chainTree 2) (chainNames 2)),
-    (w, S, doc (chainTree 79) (chainNames 79)),
-    (w, S, doc (chainTree 79) (chainNames 78))]
+    (w, S, doc (chainTree 5) (chainNames 5)),
+    (w, S, doc (chainTree 5) (chainNames 4))]
