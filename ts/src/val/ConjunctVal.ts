@@ -241,7 +241,8 @@ class ConjunctVal extends JunctionVal {
 
   gen(ctx?: AontuContext) {
     const residue = sizingResidue(this)
-    if (undefined !== residue) {
+    // An atom whose trial still waits on a call can't yet admit or refuse (ruling 91).
+    if (undefined !== residue && null == residue.con.pending) {
       const settled: any = residue.con.settleContainer(residue.bag, ctx)
       return true === settled?.isNil ? undefined : settled.gen(ctx)
     }

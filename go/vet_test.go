@@ -725,3 +725,32 @@ func TestParseFindingUnplacedError(t *testing.T) {
 		t.Fatalf("want -1:-1, got %d:%d", s.Row, s.Col)
 	}
 }
+
+// Ruling 91 (#977): a trial or a size over a call that waits, waits with it.
+func TestVetACallThatWaits(t *testing.T) {
+	cases := [][2]string{
+		{`v: contains(integer + 1)`, `v: []`},
+		{`v: contains(integer + 1)`, `v: [5]`},
+		{`v: contains(integer + 1, 2)`, `v: [5]`},
+		{`v: rest(1, {members: integer + 1})`, `v: [5]`},
+		{`v: rest(integer + 1)`, `v: [5]`},
+		{`v: len(integer + 1)`, `v: "ab"`},
+		{`v: len(integer + 1)`, `v: [1, 2]`},
+		{`v: nof(0, *(integer + 1))`, `v: 5`},
+		{`v: {&: integer + 1}`, `v: {a: 5}`},
+	}
+	for _, c := range cases {
+		if r := vetRun(c[0], c[1], nil); VetIncomplete != r.Verdict {
+			t.Errorf("%s against %s: %s", c[0], c[1], r.Verdict)
+		}
+		if r := vetRun(c[0], c[1], &VetOptions{Partial: true}); VetValid != r.Verdict {
+			t.Errorf("%s against %s, partial: %s", c[0], c[1], r.Verdict)
+		}
+	}
+	if r := vetRun(`v: {&: 1 + 1}`, `v: {a: 2}`, nil); VetValid != r.Verdict {
+		t.Errorf("a template that computes: %s", r.Verdict)
+	}
+	if r := vetRun(`v: {&: 1 + 1}`, `v: {a: 3}`, nil); VetInvalid != r.Verdict {
+		t.Errorf("a template that computes, refused: %s", r.Verdict)
+	}
+}

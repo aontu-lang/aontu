@@ -117,7 +117,8 @@ func junctChildCanon(v Val) string {
 }
 
 func (c *ConjunctVal) Gen(ctx *Ctx) (any, error) {
-	if con, bag, ok := sizingResidue(c); ok {
+	// An atom whose trial still waits on a call can't yet admit or refuse (ruling 91).
+	if con, bag, ok := sizingResidue(c); ok && nil == con.pending {
 		settled := con.settleContainer(bag, ctx)
 		if n, isNil := settled.(*NilVal); isNil {
 			if nil != ctx {

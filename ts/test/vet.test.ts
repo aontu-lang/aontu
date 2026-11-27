@@ -818,3 +818,31 @@ describe('vet-cover-through', () => {
     Assert.equal(r.coverage?.vacuous, true)
   })
 })
+
+
+// Ruling 91 (#977): a trial or a size over a call that waits, waits with it.
+describe('vet-a-call-that-waits', () => {
+  const CASES: [string, string][] = [
+    ['v: contains(integer + 1)', 'v: []'],
+    ['v: contains(integer + 1)', 'v: [5]'],
+    ['v: contains(integer + 1, 2)', 'v: [5]'],
+    ['v: rest(1, {members: integer + 1})', 'v: [5]'],
+    ['v: rest(integer + 1)', 'v: [5]'],
+    ['v: len(integer + 1)', 'v: "ab"'],
+    ['v: len(integer + 1)', 'v: [1, 2]'],
+    ['v: nof(0, *(integer + 1))', 'v: 5'],
+    ['v: {&: integer + 1}', 'v: {a: 5}'],
+  ]
+
+  for (const [schema, data] of CASES) {
+    test(schema + ' against ' + data, () => {
+      Assert.equal(vet(schema, data).verdict, 'incomplete')
+      Assert.equal(vet(schema, data, { partial: true }).verdict, 'valid')
+    })
+  }
+
+  test('a-template-that-computes-meets-its-member', () => {
+    Assert.equal(vet('v: {&: 1 + 1}', 'v: {a: 2}').verdict, 'valid')
+    Assert.equal(vet('v: {&: 1 + 1}', 'v: {a: 3}').verdict, 'invalid')
+  })
+})
