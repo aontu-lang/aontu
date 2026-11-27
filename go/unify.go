@@ -274,6 +274,9 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 			return drive(b, a)
 		}
 	}
+	if _, op := b.(*PlusOpVal); op && DONE != b.Dc() && isScalarVal(a) {
+		return drive(b, a)
+	}
 	return drive(a, b)
 }
 
@@ -772,4 +775,9 @@ func residuePaths(v Val, max int) []string {
 func isDrivingOp(v Val) bool {
 	_, ok := v.(*PlusOpVal)
 	return ok && (waitsOnHole(v) || holdsStaged(v))
+}
+
+func isScalarVal(v Val) bool {
+	_, ok := v.(*ScalarVal)
+	return ok
 }
