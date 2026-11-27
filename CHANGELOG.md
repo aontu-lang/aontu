@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### The language servers find references and highlight them
+
+Task LS6, in both servers. `textDocument/references` answers, on a key
+or a reference, every site that writes the path it names, as go to
+definition answers them, where the client asks for the declaration,
+then every reference that reads the path, across includes: a reference
+in an included file is a location in that file.
+`textDocument/documentHighlight` answers the same within the open
+document, a site with the kind Write and a reference with the kind
+Read. `referencesProvider` and `documentHighlightProvider` are
+advertised. A relative reference is read from where it stands, as the
+engine reads it, and a reference among a constraint's arguments or
+alone in a group is found too. The library answers are `referencesAt`
+and `ReferencesAt`; a new shared-row mode, `refs`, holds both ports to
+one answer in 34 rows of `test/spec/cursor.tsv`.
+
 ### The language servers outline a document's keys
 
 Task LS5, in both servers. `textDocument/documentSymbol` answers the

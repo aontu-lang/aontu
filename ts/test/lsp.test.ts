@@ -23,6 +23,10 @@ import {
   computePathAt,
   computeSitesOf,
   computeSymbols,
+  computeReferences,
+  computeHighlights,
+  HIGHLIGHT_READ,
+  HIGHLIGHT_WRITE,
   computePathDefinition,
   pathToUri,
   COMPLETION_FIELD,
@@ -698,7 +702,7 @@ describe('lsp-handler', () => {
 
   test('unknown-request-is-method-not-found', () => {
     const h = new LspHandler()
-    const outs = h.handle({ id: 3, method: 'textDocument/references' })
+    const outs = h.handle({ id: 3, method: 'textDocument/codeLens' })
     Assert.equal(outs.length, 1)
     Assert.equal(outs[0].error?.code, -32601)
     // Unknown notification (no id) is ignored.
@@ -1139,6 +1143,88 @@ describe('lsp-symbols', () => {
       ask('file:///s.aontu').map((s: any) => [s.name, s.range, s.children.map((c: any) => c.name)]),
       [['a', range(0, 0, 0, 7), ['b']], ['a', range(1, 0, 1, 4), []]])
     Assert.strictEqual(ask('file:///none.aontu'), null)
+    Assert.strictEqual(h.handle({ id: 3, method: 'textDocument/documentSymbol', params: {} })[0]
+      .result, null)
+  })
+
+})
+
+
+// Twin: go/lsp/lsp_test.go, the tests from TestReferencesListTheSitesAndTheReads on.
+describe('lsp-references', () => {
+
+  const SRC = 'base: { port: 8080 }\ndb: { port: $.base.port }\nx: $.base.port\n'
+  const range = (l0: number, c0: number, l1: number, c1: number) =>
+    ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } })
+  const U = 'file:///r.aontu'
+
+  test('references-list-the-sites-and-the-reads', () => {
+    Assert.deepStrictEqual(computeReferences(SRC, { line: 0, character: 9 }, U, true), [
+      { uri: U, range: range(0, 14, 0, 18) },
+      { uri: U, range: range(1, 12, 1, 23) },
+      { uri: U, range: range(2, 3, 2, 14) },
+    ])
+    Assert.deepStrictEqual(computeReferences(SRC, { line: 2, character: 5 }, U, false), [
+      { uri: U, range: range(1, 12, 1, 23) },
+      { uri: U, range: range(2, 3, 2, 14) },
+    ])
+    Assert.strictEqual(computeReferences(SRC, { line: 0, character: 15 }, U, true), null)
+    Assert.strictEqual(computeReferences('a: )\n', { line: 0, character: 0 }, U, true), null)
+  })
+
+  test('highlights-tell-a-write-from-a-read', () => {
+    Assert.deepStrictEqual(computeHighlights(SRC, { line: 1, character: 20 }), [
+      { range: range(0, 14, 0, 18), kind: HIGHLIGHT_WRITE },
+      { range: range(1, 12, 1, 23), kind: HIGHLIGHT_READ },
+      { range: range(2, 3, 2, 14), kind: HIGHLIGHT_READ },
+    ])
+    Assert.deepStrictEqual(computeHighlights('x: $.nope\n', { line: 0, character: 5 }),
+      [{ range: range(0, 3, 0, 9), kind: HIGHLIGHT_READ }])
+    Assert.strictEqual(computeHighlights(SRC, { line: 0, character: 15 }), null)
+  })
+
+  test('references-across-an-include', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'))
+    try {
+      Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\nr: $.top\n')
+      const trust = { include: { root: dir } }
+      const src = `top: 1\nbase: @"${srcPath(dir)}/base.aontu"\n`
+      const [own, there, ...more] =
+        computeReferences(src, { line: 0, character: 1 }, U, true, trust) ?? []
+      Assert.deepStrictEqual(more, [])
+      Assert.deepStrictEqual(own, { uri: U, range: range(0, 5, 0, 6) })
+      Assert.ok(there.uri.startsWith('file:///') && there.uri.endsWith('/base.aontu'), there.uri)
+      Assert.deepStrictEqual(there.range, range(1, 3, 1, 8))
+      // A highlight is in the open document alone.
+      Assert.deepStrictEqual(computeHighlights(src, { line: 0, character: 1 }, trust),
+        [{ range: range(0, 5, 0, 6), kind: HIGHLIGHT_WRITE }])
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('references-and-highlights-through-the-handler', () => {
+    const h = new LspHandler()
+    const caps = h.handle({ id: 1, method: 'initialize', params: {} })[0].result.capabilities
+    Assert.deepStrictEqual([caps.referencesProvider, caps.documentHighlightProvider], [true, true])
+    h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } })
+    const ask = (method: string, params: any) => h.handle({
+      id: 2, method, params: { textDocument: { uri: U }, ...params },
+    })[0].result
+    const at = { position: { line: 0, character: 9 } }
+    Assert.strictEqual(ask('textDocument/references',
+      { ...at, context: { includeDeclaration: true } }).length, 3)
+    Assert.strictEqual(ask('textDocument/references', at).length, 2)
+    Assert.deepStrictEqual(ask('textDocument/documentHighlight', at)
+      .map((x: any) => x.kind), [HIGHLIGHT_WRITE, HIGHLIGHT_READ, HIGHLIGHT_READ])
+    Assert.strictEqual(ask('textDocument/references', {}), null)
+    Assert.strictEqual(h.handle({ id: 4, method: 'textDocument/references', params: {} })[0].result,
+      null)
+    Assert.strictEqual(h.handle({
+      id: 3, method: 'textDocument/documentHighlight',
+      params: { textDocument: { uri: 'file:///none.aontu' }, ...at },
+    })[0].result, null)
   })
 
 })

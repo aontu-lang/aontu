@@ -34,6 +34,11 @@ type PathPlace = {
     file: string;
     range: Range;
 };
+type CursorRefs = {
+    path: string[];
+    writes: PathPlace[];
+    reads: PathPlace[];
+};
 type Member = {
     key: string;
     canon: string;
@@ -77,6 +82,7 @@ declare function mapAt(src: string, root: any, off: number): {
 declare function membersAt(src: string, pos: Position, opts?: CursorOptions): CursorMembers | undefined;
 declare function symbolsOf(src: string, opts?: CursorOptions): DocSymbol[] | undefined;
 declare function symbolTree(src: string, root: any): DocSymbol[];
+declare function referencesAt(src: string, pos: Position, opts?: CursorOptions): CursorRefs | undefined;
 declare function sitesOf(src: string, path: string[], opts?: CursorOptions): PathSite[] | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, };
-export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorValue, DocSymbol, Member, PathPlace, PathSite, PathValue, Position, Range, };
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, };
+export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorValue, DocSymbol, Member, PathPlace, PathSite, PathValue, Position, Range, };

@@ -80,7 +80,7 @@ func TestSpec(t *testing.T) {
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode ||
 				"at" == mode || "describe" == mode || "define" == mode ||
-				"members" == mode
+				"members" == mode || "refs" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -619,6 +619,32 @@ func TestSpec(t *testing.T) {
 					if !jsonEqual(got, expect) {
 						gj, _ := json.Marshal(got)
 						t.Fatalf("members mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "refs":
+					ls, cs, _ := strings.Cut(data, ":")
+					line, lerr := strconv.Atoi(ls)
+					character, cerr := strconv.Atoi(cs)
+					if nil != lerr || nil != cerr {
+						t.Fatalf("bad refs position %q", data)
+					}
+					var got any
+					if refs := New().ReferencesAt(src, CursorPosition{line, character}); nil != refs {
+						// A place in an included file is named by the file
+						// alone: the directory it is in is this machine's.
+						for _, ps := range [][]PathPlace{refs.Writes, refs.Reads} {
+							for i, p := range ps {
+								if "" != p.File {
+									ps[i].File = "__FIXTURES__/" +
+										filepath.Base(filepath.FromSlash(p.File))
+								}
+							}
+						}
+						got = refs
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("refs mismatch\n want: %s\n got:  %s", expect, gj)
 					}
 
 				case "symbols":
