@@ -82,7 +82,8 @@ declare function mapAt(src: string, root: any, off: number): {
 declare function membersAt(src: string, pos: Position, opts?: CursorOptions): CursorMembers | undefined;
 declare function symbolsOf(src: string, opts?: CursorOptions): DocSymbol[] | undefined;
 declare function symbolTree(src: string, root: any): DocSymbol[];
+declare function readsOf(src: string, root: any, path: string[], texts: Record<string, string>): PathPlace[];
 declare function referencesAt(src: string, pos: Position, opts?: CursorOptions): CursorRefs | undefined;
 declare function sitesOf(src: string, path: string[], opts?: CursorOptions): PathSite[] | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, };
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, readsOf, };
 export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorValue, DocSymbol, Member, PathPlace, PathSite, PathValue, Position, Range, };
