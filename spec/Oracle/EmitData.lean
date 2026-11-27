@@ -32,3 +32,17 @@ def emitDataCases : List (Decls × Val × Data) :=
     (w, S, doc (chainTree 2) (chainNames 2)),
     (w, S, doc (chainTree 5) (chainNames 5)),
     (w, S, doc (chainTree 5) (chainNames 4))]
+
+/-- Variants, while the definition's answer is read. -/
+def emitDataProbe : List (Decls × Val × Data) :=
+  let nd (k : String) : Val := .path [.node, .key k]
+  let rule (b : List Val) : Val := mp [("match", mp [("name", .string)]), ("body", lst b)]
+  let w : Decls := [("W", c .emit [.hole, rule [nd "name", c .emit [nd "kids", .alias "W"]]])]
+  let t0 : Data := dm [("name", js "n0"), ("kids", jl [])]
+  let one (out : Val) : Val := m [("items", tmpl (m [("tree", .listKind), ("out", out)]))]
+  let doc (out : List Data) : Data := dm [("items", dm [("x", dm [("tree", jl [t0]), ("out", jl out)])])]
+  [([], one (c .each [rel 1 ["tree"], .hole]), doc [t0]),
+    ([], one (c .emit [rel 1 ["tree"], rule [nd "name"]]), doc [js "n0"]),
+    (w, m [("items", m [("x", m [("tree", lst [m [("name", str "n0"), ("kids", lst [])]]), ("out", c .emit [rel 1 ["tree"], .alias "W"])])])], doc [js "n0"]),
+    (w, m [("items", m [("x", m [("tree", .listKind), ("out", c .emit [rel 1 ["tree"], .alias "W"])])])], doc [js "n0"]),
+    ([], m [("items", m [("x", m [("tree", .listKind), ("out", c .emit [rel 1 ["tree"], rule [nd "name"]])])])], doc [js "n0"])]
