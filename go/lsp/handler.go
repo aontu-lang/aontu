@@ -216,6 +216,21 @@ func (h *Handler) Handle(m Message) []Out {
 		}
 		return []Out{newResponse(m.ID, Formatting(text))}
 
+	case "textDocument/documentSymbol":
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		text, ok := h.docs[p.TextDocument.URI]
+		if !ok {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		return []Out{newResponse(m.ID, Symbols(text, h.trust))}
+
 	case "textDocument/definition":
 		var p struct {
 			TextDocument struct {
@@ -442,6 +457,7 @@ func initializeResult() map[string]any {
 				"triggerCharacters": []string{"(", ","},
 			},
 			"documentFormattingProvider": true,
+			"documentSymbolProvider":     true,
 		},
 		"serverInfo": map[string]any{
 			"name":    "aontu-lsp",

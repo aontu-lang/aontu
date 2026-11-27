@@ -947,3 +947,65 @@ func TestCompletionThroughTheHandler(t *testing.T) {
 		t.Errorf("dot: %+v", got)
 	}
 }
+
+// Twin: ts/test/lsp.test.ts describe('lsp-symbols').
+func TestSymbolsOutlineWhatTheDocumentWrites(t *testing.T) {
+	got, _ := json.Marshal(Symbols("a: { b: 1 }\nl: [$.a]\n", nil))
+	want := `[{"name":"a","kind":19,` +
+		`"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":11}},` +
+		`"selectionRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}},` +
+		`"children":[{"name":"b","kind":16,` +
+		`"range":{"start":{"line":0,"character":5},"end":{"line":0,"character":9}},` +
+		`"selectionRange":{"start":{"line":0,"character":5},"end":{"line":0,"character":6}},` +
+		`"children":[]}]},` +
+		`{"name":"l","kind":18,` +
+		`"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":8}},` +
+		`"selectionRange":{"start":{"line":1,"character":0},"end":{"line":1,"character":1}},` +
+		`"children":[{"name":"0","kind":13,` +
+		`"range":{"start":{"line":1,"character":4},"end":{"line":1,"character":7}},` +
+		`"selectionRange":{"start":{"line":1,"character":4},"end":{"line":1,"character":7}},` +
+		`"children":[]}]}]`
+	if want != string(got) {
+		t.Errorf("symbols: %s", got)
+	}
+	if got := Symbols("1\n", nil); nil == got || 0 != len(got) {
+		t.Errorf("no key: %+v", got)
+	}
+	if got := Symbols("a: )\n", nil); nil != got {
+		t.Errorf("unparsed: %+v", got)
+	}
+}
+
+func TestSymbolsThroughTheHandler(t *testing.T) {
+	h := NewHandler()
+	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize"})[0])
+	if !strings.Contains(string(init), `"documentSymbolProvider":true`) {
+		t.Errorf("initialize: %s", init)
+	}
+	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{
+		"uri": "file:///s.aontu", "text": "a: b: 1\na: 2\n"}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
+	ask := func(uri string) string {
+		raw, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": uri}})
+		out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("2"),
+			Method: "textDocument/documentSymbol", Params: raw})[0])
+		return string(out)
+	}
+	got := ask("file:///s.aontu")
+	for _, part := range []string{
+		`"name":"a","kind":19,"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":7}}`,
+		`"children":[{"name":"b"`,
+		`"name":"a","kind":16,"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}}`,
+	} {
+		if !strings.Contains(got, part) {
+			t.Errorf("symbols: %s", got)
+		}
+	}
+	if got := ask("file:///none.aontu"); !strings.Contains(got, `"result":null`) {
+		t.Errorf("unopened: %s", got)
+	}
+	if out := h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/documentSymbol",
+		Params: json.RawMessage(`[`)}); 1 != len(out) {
+		t.Errorf("malformed: %+v", out)
+	}
+}

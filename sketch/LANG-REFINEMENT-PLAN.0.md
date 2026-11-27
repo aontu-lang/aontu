@@ -1164,6 +1164,27 @@ or single quotes, a map with a size constraint, and a map or a
 reference in a group. Both servers now read the reference with the
 parser, as the engine reads it, and 25 rows hold the cases.
 
+Progress on 2026-11-27, LS5. Document symbols are built in both
+servers, which advertise `documentSymbolProvider`. The outline is of
+what the document writes, read from the parse: each key where it is
+written, so a key written twice is two symbols and a key chain nests,
+a list's elements named by position, a spread's template named `&`,
+and the keys of a map a call takes as an argument, a generator's
+template among them. A key that holds an include is a symbol, and the
+keys of the file are not. A declaration writes no key and is no
+symbol. The range runs from the key to the end of the value, over
+brackets, quoted text and comments, and the selection range is the
+key; the kind is the LSP `SymbolKind` of the value the key is written
+with, Variable for anything that is not a map, list or scalar. The
+library answer is `symbolsOf` (`SymbolsOf` in Go), with `computeSymbols`
+and `Symbols` in the servers, held by a new row mode, `symbols`, in 33
+rows of `test/spec/cursor.tsv`, which both engines wrote alike. A
+range on a line that names a fixture depends on where the fixtures
+are, so both runners count a place after the fixture's name as the row
+writes it. A probe of both servers over 50 documents found no
+difference. A key the cursor cannot find, spelled with an escape or an
+include in parentheses, has no symbol, as it has no hover.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same

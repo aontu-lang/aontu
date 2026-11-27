@@ -111,6 +111,22 @@ They answer `"aGVsbG8"` and `"FF"`.
 agreed by both, `test/spec/jsonschema.tsv` to two and
 `test/spec/jsonschema-import.tsv` to three.
 
+### The language servers outline a document's keys
+
+Task LS5, in both servers. `textDocument/documentSymbol` answers the
+outline of what the document writes, and `documentSymbolProvider` is
+advertised. Each key is a symbol where it is written, so a key written
+twice is two, and `a: b: c: 1` nests three; a list's elements are named
+by their position, and a spread's template is `&`. A symbol's range
+runs from its key to the end of its value and its selection range is
+the key, and its kind is the value's: `Object`, `Array`, `String`,
+`Number`, `Boolean` or `Null`, and `Variable` for a reference, a call or
+anything else.
+A key that holds an include is a symbol, the included file's keys are
+not, and a declaration is none. The library answers are `symbolsOf`
+and `SymbolsOf`; a new shared-row mode, `symbols`, holds both ports to
+one answer in 33 rows of `test/spec/cursor.tsv`.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call
