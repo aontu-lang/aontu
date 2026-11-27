@@ -2310,3 +2310,15 @@ are there other rules about comments?
 ```text
 when need consistent instructions in all places: comments are only for surprising code, and must be kept as short as possible - update dev-process template too
 ```
+
+## 2026-11-27 00:48:19 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Continue
+```
+
+## 2026-11-27 00:54:05 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+Status?
+```
