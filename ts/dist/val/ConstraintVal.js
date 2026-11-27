@@ -688,7 +688,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             return built.unify(peer, ctx);
         }
         // Settled, a path into the check's own place that names nothing there is the schema's error.
-        if (true === ctx.settle && TRIAL_ATOMS.includes(pend.atom) && (null == peer || peer.isTop)) {
+        if (true === ctx.settle && ('when' === pend.atom || 'nof' === pend.atom) && (null == peer || peer.isTop)) {
             for (const a of args) {
                 const stray = (0, PrefVal_1.strayIn)(a, this.path);
                 if (undefined !== stray) {

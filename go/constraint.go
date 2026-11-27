@@ -969,7 +969,7 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	}
 
 	// Settled, a path into the check's own place that names nothing there is the schema's error.
-	if ctx.settle && trialAtoms[c.pending.atom] && (nil == peer || isTop(peer)) {
+	if ctx.settle && ("when" == c.pending.atom || "nof" == c.pending.atom) && (nil == peer || isTop(peer)) {
 		for _, a := range args {
 			if stray := strayIn(a, c.path); nil != stray {
 				return makeNilErr(ctx, "no_path", stray, nil)

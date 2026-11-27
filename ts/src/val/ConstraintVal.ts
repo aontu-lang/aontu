@@ -907,7 +907,7 @@ class ConstraintVal extends FeatureVal {
     }
 
     // Settled, a path into the check's own place that names nothing there is the schema's error.
-    if (true === ctx.settle && TRIAL_ATOMS.includes(pend.atom) && (null == peer || peer.isTop)) {
+    if (true === ctx.settle && ('when' === pend.atom || 'nof' === pend.atom) && (null == peer || peer.isTop)) {
       for (const a of args) {
         const stray = strayIn(a, this.path)
         if (undefined !== stray) {
