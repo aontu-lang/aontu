@@ -17,8 +17,9 @@ declare class RecurseVal extends FeatureVal {
 }
 declare function walkTarget(root: any, target: string[]): Val | undefined;
 export declare function throughWrap(v: any): any;
+declare function unmarked(v: any): any;
 export declare function throughRider(v: any): any;
 export declare function declaration(cj: any, key: string): Val | undefined;
 declare function bumpRecurse(v: any, xc: number): void;
 declare function containsRecurseOf(v: any, target: string[], d: number, root?: any, seen?: Set<string>, links?: boolean): boolean;
-export { RecurseVal, bumpRecurse, containsRecurseOf, walkTarget, };
+export { RecurseVal, bumpRecurse, containsRecurseOf, unmarked, walkTarget, };

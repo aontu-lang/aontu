@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### A `filter` in a member a generator makes reads the member
+
+#754, in both engines. A `filter` whose condition holds a path, and
+which stands in a member that `pack`, `each`, `apply` or `match`
+makes, now reads the member as the same `filter` in a written
+member does. Before, it was tried before the member was in place, read
+nothing, and kept nothing, with no error. Rows `filter-in-*` of
+`test/spec/gen-filter.tsv` hold both engines to it.
+
+| Document, with `l: [1, 2, 3]` | Was | Now |
+|---|---|---|
+| `p: pack(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p.x.f` is `[]` | `[2]` |
+| `p: each(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p[0].f` is `[]` | `[2]` |
+| `p: pack(["x"], {lim: 2, f: filter($.l, $.p.x.lim)})` | `p.x.f` is `[]` | `[2]` |
+| `p: pack(["x"], {lim: 2, f: filter($.l, min(..lim))})` | `p.x.f` is `[]` | `[2, 3]` |
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call

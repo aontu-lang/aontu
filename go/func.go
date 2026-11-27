@@ -382,7 +382,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		} else {
 			driven = stagedDrive(ctx, f, base)
 		}
-		ready := driven && ctx.settle
+		ready := driven && ctx.settle && ("filter" != f.name || !holdsRef(f.peg[1]) || !unmade(ctx, base))
 
 		if !ready {
 			return residuate(f, base, peer)
