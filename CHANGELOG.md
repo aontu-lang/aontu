@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a failed default as a conflict
+
+A lone default whose own value fails, `v: *(1 & 2)`, is a conflict
+where it stands, as both ports report it: the meet reads it as its
+parent type under the mark `failed` (`Val.failedOf`), which admits what
+the preference admits, so the meet's theorem holds as it was, and the
+verdict reads the mark as a conflict. An arm that holds one drops, and
+a spread's template that holds one refuses each member (#1042). Rows
+fd0 on in `test/spec/def-verdict.tsv`, both ports answering as the
+definition does.
+
+### The subsume differential
+
+`test/spec/def-subsume-rows.tsv` holds, for each row of
+`test/spec/subsume.tsv` whose documents the definition reads, the
+answers its profile's contract allows: 97 rows, both ports answering as
+the contract allows. `ts/test/subsume-contract.test.ts` and
+`go/subsume_contract_test.go` fail where a golden verdict is not one of
+them, and where a document reads otherwise than the definition read it.
+They found #1071: both ports' `subsume` read a list literal in an arm as
+open, where their `vet` reads it as its own length.
+
 ### `subsume` compares a spread template that is a name
 
 Both ports. A spread's template that is a name, `kids?: [&: %R]`, is

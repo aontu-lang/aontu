@@ -17,6 +17,7 @@ import Oracle.Forms
 import Oracle.Calls
 import Oracle.CallsTemplates
 import Oracle.SubsumeRows
+import Oracle.FailedDefault
 
 /-!
 # The oracle
@@ -157,6 +158,11 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "na" armCases
     verdictRows "pa" prefArmCases
     verdictRows "rk" rankFoldCases
+    IO.println "# A lone default whose own value fails is a conflict where it stands, as both"
+    IO.println "# ports report it: an error alone, under a key, met and preferred twice; an arm"
+    IO.println "# that holds one drops; a spread's template that holds one refuses each member;"
+    IO.println "# and a default only a meet refuses is no conflict (failed_verdict_exact)."
+    verdictRows "fd" failedCases
     readRows "n"
     return 0
   | ["alias"] =>

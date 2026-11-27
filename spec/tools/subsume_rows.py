@@ -125,7 +125,11 @@ class Reader:
         return nxt in (":", "?")
 
     def expr(self, under):
+        start = self.i
         arms = [self.conj(under)]
+        if not under and self.peek()[1] == "|":
+            self.i = start
+            arms = [self.conj(True)]
         while self.peek()[1] == "|":
             self.take()
             arms.append(self.conj(True))
