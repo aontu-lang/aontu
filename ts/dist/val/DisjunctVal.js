@@ -214,6 +214,14 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         }
         // Only the defaults the rank rule picks fold: foldArms in spec/Aontu/Meet.lean.
         const lead = Math.min(...prefs.map((vI) => this.peg[vI].rank));
+        const written = this.peg.slice();
+        const plain = (v) => {
+            while (true === v.isPref) {
+                v = v.peg;
+            }
+            return v;
+        };
+        let first = undefined;
         let at = undefined;
         for (const vI of prefs) {
             const pref = this.peg[vI];
@@ -229,12 +237,12 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 }
                 this.peg[at] = folded;
                 // The arms the fold stands for stay at rank 0, so the disjunction admits no wider.
-                let plain = folded;
-                while (true === plain.isPref) {
-                    plain = plain.peg;
-                }
-                this.peg[vI] = plain;
+                this.peg[vI] = plain(written[vI]);
+                first = at;
             }
+        }
+        if (undefined !== first) {
+            this.peg.splice(first + 1, 0, plain(written[first]));
         }
         this.peg = this.peg.filter((p) => null != p);
         this.prefsRanked = true;
