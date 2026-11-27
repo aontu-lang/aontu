@@ -2125,6 +2125,14 @@ function rawToVal(n) {
     }
     return new MapVal_1.MapVal({ peg });
 }
+function sitedAt(v, url) {
+    v.site.url = url;
+    const peg = v.peg;
+    if (true === v.isList || true === v.isMap) {
+        Object.values(peg).forEach((c) => sitedAt(c, url));
+    }
+    return v;
+}
 class Lang {
     constructor(options) {
         this.opts = Object.assign((0, type_1.DEFAULT_OPTS)(), options);
@@ -2172,7 +2180,7 @@ class Lang {
         let val;
         try {
             val = undefined === format ? this.jsonic(src, jm) :
-                rawToVal(DATA_READERS[format](src, path));
+                sitedAt(rawToVal(DATA_READERS[format](src, path)), path);
             // An implicit top-level list (`a b`, `1,2`) is built by the core
             // jsonic grammar without passing through the aontu val/list rules,
             // so the root (and its elements) arrive as raw JS values. Convert

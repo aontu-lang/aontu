@@ -353,7 +353,12 @@ finding names `d.toml:-1:-1`. Third, Go's syntax frame put the caret
 a line low where an error stands past a file's last newline, which no
 aontu document reached; it is fixed to match TypeScript's. The tests
 are `cli-operand` in `ts/test/cli.test.ts` and its twin
-`go/cmd/aontu/operand_test.go`, over the same files and text.
+`go/cmd/aontu/operand_test.go`, over the same files and text. A review
+then found two gaps, now closed. `view` dropped the option in the
+evaluations it makes for a poset, a ladder and a set of views, and
+`trim` in the parse that finds its candidates. Go's data reader
+skipped the parsed-tree depth check that TypeScript applies, so a
+deep data operand under a small depth budget reached evaluation.
 
 Three of these change a decision on record, and each lands with the
 record it changes:

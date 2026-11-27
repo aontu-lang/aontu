@@ -20,6 +20,8 @@ var operandFiles = map[string]string{
 	"bad.toml":     "name = \"web\"\nport = 0\ntags = [\"a\", \"b\"]\n",
 	"broken.yaml":  "a: [1\nb: 2\n",
 	"broken.toml":  "a = [1\n",
+	"p.toml":       "port = 1\n",
+	"q.aontu":      "port: 1\n",
 }
 
 var operandCases = []struct {
@@ -52,6 +54,12 @@ var operandCases = []struct {
 	{[]string{"hash", "d.yaml"}, 0, "aon1-6pedjVnb7z2Yp37UYQM7f2pvCrsd3VgmoCvu1Rxgrrc\n"},
 	{[]string{"hash", "d.toml"}, 0, "aon1-6pedjVnb7z2Yp37UYQM7f2pvCrsd3VgmoCvu1Rxgrrc\n"},
 	{[]string{"hash", "d.data"}, 0, "aon1-6pedjVnb7z2Yp37UYQM7f2pvCrsd3VgmoCvu1Rxgrrc\n"},
+	{[]string{"view", "poset", "p.toml", "q.aontu"}, 0,
+		"%% aontu subsumption poset  profile=defaults  documents=2  nodes=1\n" +
+			"graph BT\n  n0[\"p.toml = q\"]\n"},
+	{[]string{"view", "ladder", "--at", "$.port", "p.toml"}, 0,
+		"graph TD\n  any((\"any\"))\n  c0[\"1<br/>literal | p.toml:-1:-1\"]\n" +
+			"  val{{\"1\"}}\n  any --> c0\n  c0 --> val\n"},
 }
 
 func TestADataOperandIsReadByItsExtension(t *testing.T) {

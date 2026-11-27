@@ -2755,7 +2755,7 @@ func parseWithTrust(src, base, file, format string, trust *trustSink, exact bool
 	}
 
 	if "" != format {
-		return parseData(src, file, format)
+		return parseData(src, file, format, depth)
 	}
 
 	lang, err := langForBase(base)
@@ -2816,13 +2816,18 @@ func parseWithTrust(src, base, file, format string, trust *trustSink, exact bool
 }
 
 // parseData reads an entry document by a data format's reader.
-func parseData(src, file, format string) (Val, error) {
+func parseData(src, file, format string, depth int) (Val, error) {
 	out, err := dataReaders[format].ParseMeta(src, map[string]any{"fileName": file})
 	if err != nil {
 		msg, marker, row, col := syntaxParts(err)
 		return newMap(), parseRefusal("syntax", marker, msg, row, col, file, src, "")
 	}
 	root := dataToVal(out)
+	if valTreeDepth(root, 2*depth) > 2*depth {
+		n := newNil("max_depth")
+		return newMap(), &AontuError{Msg: n.FullMessage(src, file, nil), Code: "max_depth"}
+	}
+	stampURL(root, file)
 	setPaths(root, []string{})
 	return root, nil
 }

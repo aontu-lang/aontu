@@ -123,7 +123,7 @@ export function trimCheck(src: string, opts?: TrimOptions): TrimReport {
     }
   }
 
-  const aontu = new Aontu()
+  const aontu = new Aontu({ readByExtension: options.readByExtension })
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const parsed: any = aontu.parse(src, parseOpts, ctx)

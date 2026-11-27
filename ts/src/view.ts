@@ -2664,7 +2664,7 @@ function drawLadder(
   const rep = why(src, options.at,
     {
       path: options.path, trust: options.trust, textExt: options.textExt,
-      hostVars: options.hostVars,
+      hostVars: options.hostVars, readByExtension: options.readByExtension,
     })
   if (undefined === rep.record) {
     return { errors: rep.findings }
@@ -2763,6 +2763,7 @@ const compareBySubsume: ViewCompare = (general, specific, options) => {
     at: options.at, profile: options.profile,
     generalPath: general.path, specificPath: specific.path,
     trust: options.trust, textExt: options.textExt, hostVars: options.hostVars,
+    readByExtension: options.readByExtension,
   })
   return { verdict: r.verdict, code: r.findings[0]?.code ?? 'undecided' }
 }
@@ -4766,6 +4767,7 @@ export function viewSet(
     const each: ViewOptions = {
       ...plan.opts, path: options.path, trust: options.trust,
       textExt: options.textExt, hostVars: options.hostVars, style: options.style,
+      readByExtension: options.readByExtension,
     }
     // A Val tree generates once: the declarations were generated from
     // this one, so a figure that generates draws from a fresh

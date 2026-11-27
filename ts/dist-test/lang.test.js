@@ -346,6 +346,10 @@ let P = lang.parse.bind(lang);
         (0, expect_1.expect)(read('c.json', 'port: - 1')).equal('{"port":-1}');
         (0, expect_1.expect)(read(undefined, 'port: - 1')).equal('{"port":-1}');
         (0, expect_1.expect)(new aontu_1.Aontu({ path: 'c.yaml' }).unify('port: - 1').canon).equal('{"port":-1}');
+        const deep = new aontu_1.Aontu({ path: 'x.yaml', readByExtension: true, trust: { budget: { depth: 2 } } });
+        const ctx = deep.ctx({ collect: true });
+        deep.unify('a:\n b:\n  c:\n   d:\n    e:\n     f:\n      g:\n       h: 1\n', undefined, ctx);
+        (0, expect_1.expect)(ctx.err.map((e) => e.why)).equal(['max_depth']);
     });
 });
 function makeCtx(opts) {

@@ -91,7 +91,7 @@ function trimCheck(src, opts) {
             errors: [(0, vet_1.failureFinding)(sink.ctx, options.path, sink.failed)],
         };
     }
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu({ readByExtension: options.readByExtension });
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const parsed = aontu.parse(src, parseOpts, ctx);

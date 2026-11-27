@@ -1792,7 +1792,8 @@ func (a *Aontu) compareBySubsume(at, profile string) viewCompare {
 	return func(general, specific viewPosetDoc) (string, string) {
 		r := Subsume(general.src, specific.src, &SubsumeOptions{
 			Trust: a.Trust, HostVars: a.HostVars, Profile: profile, At: at,
-			GeneralPath: general.path, SpecificPath: specific.path,
+			ReadByExtension: a.ReadByExtension,
+			GeneralPath:     general.path, SpecificPath: specific.path,
 		})
 		code := "undecided"
 		if 0 < len(r.Findings) {
