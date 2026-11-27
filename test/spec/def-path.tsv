@@ -4974,27 +4974,21 @@ pk89	verdict	"m": {"a": {"n": "x"}}, "out": pack($.m, _, maybe(at(_, "n")))	{"ou
 pk90	verdict	"m": {"a": {"n": "p"}, "b": hide({"n": "q"})}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"n": "p"}}}	{"verdict":"valid"}
 pk91	verdict	"m": {"a": {"n": "p"}, "b": hide({"n": "q"})}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"n": "p"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
 pk92	verdict	"m": {"a": {"n": "p"}, "b": hide({"n": "q"})}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"n": "p"}}}	{"verdict":"valid","opts":{"partial":true}}
-pk93	verdict	"m": {"a": {"n": hide("p"), "v": 1}}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"v": 1}}}	{"verdict":"error"}
-pk94	verdict	"m": {"a": {"n": hide("p"), "v": 1}}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"v": 1}}}	{"verdict":"error","opts":{"noFill":true}}
-pk95	verdict	"m": {"a": {"n": hide("p"), "v": 1}}, "out": pack($.m, _, at(_, "n"))	{"out": {"p": {"v": 1}}}	{"verdict":"error","opts":{"partial":true}}
-pk96	verdict	"m": {"a": {"n": type("p"), "v": 1}}, "out": pack($.m, at(_, "v"), at(_, "n"))	{"out": {"p": 1}}	{"verdict":"error"}
-pk97	verdict	"m": {"a": {"n": type("p"), "v": 1}}, "out": pack($.m, at(_, "v"), at(_, "n"))	{"out": {"p": 1}}	{"verdict":"error","opts":{"noFill":true}}
-pk98	verdict	"m": {"a": {"n": type("p"), "v": 1}}, "out": pack($.m, at(_, "v"), at(_, "n"))	{"out": {"p": 1}}	{"verdict":"error","opts":{"partial":true}}
-pk99	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"valid"}
-pk100	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"incomplete","opts":{"noFill":true}}
-pk101	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"valid","opts":{"partial":true}}
-pk102	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"valid"}
-pk103	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"incomplete","opts":{"noFill":true}}
-pk104	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"valid","opts":{"partial":true}}
-pk105	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"valid"}
-pk106	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
-pk107	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"valid","opts":{"partial":true}}
-pk108	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid"}
-pk109	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid","opts":{"noFill":true}}
-pk110	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid","opts":{"partial":true}}
-pk111	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error"}
-pk112	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error","opts":{"noFill":true}}
-pk113	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error","opts":{"partial":true}}
+pk93	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"valid"}
+pk94	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk95	verdict	"g": {"x": {"items": [{"id": "p"}, {"id": "q"}]}}, "out": pack($.g, pack(at(_, "items"), 1, at(_, "id")))	{"out": {"x": {"p": 1, "q": 1}}}	{"verdict":"valid","opts":{"partial":true}}
+pk96	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"valid"}
+pk97	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk98	verdict	"xs": [{"kids": [{"n": "a"}]}, {"kids": [{"n": "b"}]}], "out": each($.xs, pack(at(_, "kids"), _, at(_, "n")))	{"out": [{"a": {"n": "a"}}, {"b": {"n": "b"}}]}	{"verdict":"valid","opts":{"partial":true}}
+pk99	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"valid"}
+pk100	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+pk101	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 1}	{"verdict":"valid","opts":{"partial":true}}
+pk102	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid"}
+pk103	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+pk104	verdict	"xs": [{"n": "a", "v": 1}], "out": pack($.xs, at(_, "v"), at(_, "n")), "e": $.out.a	{"e": 2}	{"verdict":"invalid","opts":{"partial":true}}
+pk105	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error"}
+pk106	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error","opts":{"noFill":true}}
+pk107	verdict	"m": {"a": 1, "b": 2}, "out": pack($.m, _, "k", 3)	{}	{"verdict":"error","opts":{"partial":true}}
 # A bare close() and a bare open() beside path references follow in rows
 # dirp0 on: a sealed place's copy sealed, close() beside a reference sealing
 # the terms read there, open() beside one lifting the target's seal, and

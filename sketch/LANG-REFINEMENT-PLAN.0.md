@@ -585,6 +585,25 @@ k11, k14, k15 and k16, each answer agreed by both engines. The
 definition is owed: `spec/` doesn't read a third argument, so `pack`
 with a key has no meaning there yet.
 
+The definition is built, on 2026-11-27, and the owed definition is
+paid. `Fn.takes` lets `pack` take two or three arguments, and
+`resolveD` in `spec/Aontu/Verdict.lean` reads `pack(d, t, k)`: each
+member of the data with the step its own place takes
+(`Val.segMembers`, a map's key and a list's index), `k` read there,
+the call waiting while any member's key waits and `nil` where one is no
+string, and each instance of `t` read under the string `k` answered,
+the instances of one string met. The 36 cases of
+`spec/Oracle/PackKey.lean` generate rows pk0 to pk107 of
+`test/spec/def-path.tsv`, 108 rows, and both engines answer every one
+as the definition does; no engine changed. Two readings are left out,
+each with no row: a marked field of a member that `k` reads with
+`at`, `pack($.m, _, at(_, n))` over `m: {a: {n: hide(p), v: 1}}`, which
+both engines read as `p` and the definition, which reads a generator's
+source as the output has it (#1069), as no field; and a relative path
+in `t` or `k` of a call with three arguments, which the definition's
+reading of a template's relative paths (`Val.genTemplate`, `ntArgs`)
+doesn't yet take.
+
 ## C3: a position as an integer
 
 **Proposed:** `index(up?: integer|biginteger) : integer`

@@ -380,7 +380,10 @@ missing field is not a key either. With `k`, a list's members need not
 be strings. A call of `pack` with three arguments was `func_arity`, and
 is now this. `test/spec/gen-pack-key.tsv` holds both engines to 45
 rows, and `test/spec/comprehension.tsv` gains the keyed spelling beside
-each of the six routes it replaces.
+each of the six routes it replaces. The definition
+reads the third argument too (`resolveD` in `spec/Aontu/Verdict.lean`),
+and rows pk0 to pk107 of `test/spec/def-path.tsv` hold both engines to
+it.
 
 ### `at`: the member at a key or a position
 
