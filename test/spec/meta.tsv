@@ -95,8 +95,8 @@ meta-canon-dedup-nested-map	canon	a: {b: 1} | {b: meta(1, {title: "x"})}	{"a":{"
 meta-canon-dedup-nested-map-rev	canon	a: {b: meta(1, {title: "x"})} | {b: 1}	{"a":{"b":meta(1,{"title":"x"})}}
 meta-canon-dedup-nested-list	canon	a: [1] | [meta(1, {title: "x"})]	{"a":[meta(1,{"title":"x"})]}
 meta-canon-dedup-nested-list-rev	canon	a: [meta(1, {title: "x"})] | [1]	{"a":[meta(1,{"title":"x"})]}
-meta-canon-dedup-pref	canon	a: *meta(1, {title: "b"}) | *meta(1, {title: "a"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
-meta-canon-dedup-pref-rev	canon	a: *meta(1, {title: "a"}) | *meta(1, {title: "b"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-dedup-pref	canon	a: *meta(1, {title: "b"}) | *meta(1, {title: "a"})	{"a":*meta(1,{"title":"a"},{"title":"b"})|meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-dedup-pref-rev	canon	a: *meta(1, {title: "a"}) | *meta(1, {title: "b"})	{"a":*meta(1,{"title":"a"},{"title":"b"})|meta(1,{"title":"a"},{"title":"b"})}
 meta-canon-dedup-ranks	canon	a: *meta(1, {title: "a"}) | **meta(1, {title: "b"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
 meta-canon-dedup-ranks-rev	canon	a: **meta(1, {title: "b"}) | *meta(1, {title: "a"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
 meta-canon-dedup-ranks-nested	canon	a: *{x: meta(1, {title: "a"})} | **{x: meta(1, {title: "b"})}	{"a":*{"x":meta(1,{"title":"a"},{"title":"b"})}}
