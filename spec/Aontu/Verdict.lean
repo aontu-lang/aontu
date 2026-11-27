@@ -3116,11 +3116,14 @@ def Decls.templatesClash (ds : Decls) (S : Val) : Bool :=
   ((normaliseD ds (ds.readU S)).staged ds).spreadsClash ||
     ds.any fun d => ((normaliseD ds (ds.readU d.2)).staged ds).spreadsClash
 
-/-- How a document reads against data: the schema as read, met with the
-data, the data last, and read again, so that a call whose arguments the
-data settles is made. -/
+/-- How a document reads against data: the schema as read, its
+recursive names expanded again for as many turns as the data holds
+terms, met with the data, the data last, and read again, so that a call
+whose arguments the data settles is made, and a rule set that names
+itself walks a selection the data alone supplies as deep as the data
+goes, past the turns the document's own expansion has. -/
 def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
-  resolveD ds none (some []) (.meet (ds.readR S) j.term)
+  resolveD ds none (some []) (.meet (expandF ds j.term.size (ds.readR S)) j.term)
 
 theorem mem_resolveFields {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
@@ -4716,7 +4719,7 @@ theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.Ch
 wherever the document alone does. -/
 theorem readJ_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : (ds.readR S).CheckableA) (j : Data) : (ds.readJ S j).CheckableA :=
-  resolveD_checkableA hb (.meet hS (Data.term_checkableA j)) fun _ h => nomatch h
+  resolveD_checkableA hb (.meet (expandF_checkableA hb _ _ hS) (Data.term_checkableA j)) fun _ h => nomatch h
 
 /-- A document whose schema the checker can read reads, with its keys as
 written, as a term it can read too. -/
