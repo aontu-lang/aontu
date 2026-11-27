@@ -2718,8 +2718,10 @@ until the phase that encodes it lands.
    by arm, each arm read preferring nothing (`filterTakesArm`,
    `Val.unranked`), so that a meet stacking a rank on the preferred arm
    no longer drops it, and `filter({a: *1 | 2, b: 2 | *1, c: 1}, *1 | 2)`
-   keeps all three, as both ports do since #1083. Rows fq0 to fq11 of
-   `test/spec/def-path.tsv` and fr0 to fr3 of `test/spec/def-gen.tsv`
+   keeps all three, as both ports do since #1083, while a lone `*1`
+   there is dropped, since it admits integers the condition refuses, as
+   both ports read it since #1086. Rows fq0 to fq17 of
+   `test/spec/def-path.tsv` and fr0 to fr5 of `test/spec/def-gen.tsv`
    hold it.
 
 52. **A `key(n)` in an `emit` body.** Raised 2026-10-23 by Codex on
