@@ -197,6 +197,16 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
     }
     rankPrefs(ctx) {
         const prefs = [];
+        // A star over a call or a path adds to the rank of what it reads as (ruling 89).
+        for (let vI = 0; vI < this.peg.length; vI++) {
+            const v = this.peg[vI];
+            if (v instanceof PrefVal_1.PrefVal && !v.peg.done) {
+                this.peg[vI] = (0, unify_1.unite)(ctx, v, (0, top_1.top)(), 'dj-rank');
+                if (!this.peg[vI].peg?.done) {
+                    return undefined;
+                }
+            }
+        }
         for (let vI = 0; vI < this.peg.length; vI++) {
             const v = this.peg[vI];
             if (v.isDisjunct) {

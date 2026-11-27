@@ -331,6 +331,15 @@ func (d *DisjunctVal) forGen(ctx *Ctx) (Val, bool) {
 }
 
 func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
+	// A star over a call or a path adds to the rank of what it reads as (ruling 89).
+	for vI, v := range d.peg {
+		if p, ok := v.(*PrefVal); ok && DONE != p.peg.Dc() {
+			d.peg[vI] = unite(ctx, p, top())
+			if rp, ok := d.peg[vI].(*PrefVal); !ok || DONE != rp.peg.Dc() {
+				return nil
+			}
+		}
+	}
 	prefs := []int{}
 	lead := -1
 	for vI := 0; vI < len(d.peg); vI++ {
