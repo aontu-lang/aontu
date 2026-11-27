@@ -346,6 +346,11 @@ const meet = (ctx: AontuContext, a: any, b: any, whence: string) => {
         out = update(a, b)
         why = 'up'
       }
+      else if (true === a.isScalar && true === b.isOp && !b.done) {
+        out = b.unify(a, te ? ctx.clone({ explain: ec(te, 'BO') }) : ctx)
+        unified = true
+        why = 'bo'
+      }
       else {
         out = a.unify(b, te ? ctx.clone({ explain: ec(te, 'GN') }) : ctx)
         unified = true

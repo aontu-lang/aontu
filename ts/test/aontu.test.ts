@@ -707,3 +707,37 @@ def: garage: {
 function makeCtx(r?: any) {
   return new AontuContext({ root: r || new MapVal({ peg: {} }) })
 }
+
+
+describe('aontu-template-error-path', () => {
+  const CASES: [string, string][] = [
+    ['x: { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }', '$.x.h.0.s'],
+    ['x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ { at: "z" } ] }',
+      '$.x.h.0.s'],
+    ['x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }',
+      '$.x.h.0.at'],
+    ['x: { h: { &: { s: "a" | "b" } } } & { h: { k: {} } }', '$.x.h.k.s'],
+  ]
+
+  for (const [src, path] of CASES) {
+    test(src, () => {
+      const at = path.replace(/[.$]/g, (c) => '\\' + c)
+      expect(() => new Aontu().generate(src)).throws(new RegExp('at path ' + at + '\\b'))
+    })
+  }
+})
+
+
+describe('aontu-declaration-in-template', () => {
+  for (const src of [
+    'm: { &: { %n = 1, v: %n }, a: {} }',
+    'm: { &: { %n = 1, v: %n } }',
+    'm: { &: { %n = 1 } }',
+    'm: [&: { %n = 1, v: %n }]',
+  ]) {
+    test(src, () => {
+      expect(() => new Aontu().generate(src))
+        .throws(/aontu\/alias_not_toplevel\]: Cannot resolve value at path \$\.m\b/)
+    })
+  }
+})

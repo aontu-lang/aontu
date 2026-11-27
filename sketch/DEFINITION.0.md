@@ -3581,7 +3581,13 @@ until the phase that encodes it lands.
    `routes-k20` of `test/spec/comprehension.tsv` relies on the ports'
    reading. **Ruled 2026-11-27 (the project's owner): where the link is
    written**, as both ports read it: a path that leaves the template has
-   left what lands. The definition moves.
+   left what lands. The definition moves. **Built 2026-11-27**:
+   `Val.atTarget` reads a path that climbs past the template from the
+   link's own place, and one that stays inside from the target; rows
+   lc0 to lc50 of `test/spec/def-path.tsv` hold the definition and both
+   ports to it, past the template by one step and two, from deeper in
+   it, under a call, past the top, and in a declaration's body. No other
+   generated row changed.
 93. **A call's data argument that is a path.** Raised 2026-11-26 by
    #1012. In `src: {w: 1, a: {v: ..w}}`, `c: {w: 2, d: each($.src.a, _)}`,
    both ports read `$.src.a` where `src.a` stands, so `d` is `[1]`, and
@@ -3604,6 +3610,11 @@ until the phase that encodes it lands.
    document `aontu` writes, one rule for every verb, and a disjunction
    with a default reads as the arm generation takes. Both ports move;
    the definition states the edges already (`Val.edges`).
+   **Built**: both ports read so, rows `edge-a-default-writes` on in
+   `test/spec/graph.tsv`, `reaches-through-a-preferred-arm` and
+   `unreachable-through-the-arm-not-taken` in `test/spec/reach.tsv`,
+   and `graph-draws-a-default-edge` and
+   `graph-draws-the-preferred-arm-only` in `test/spec/view.tsv`.
 95. **Arms where none is preferred, and two points of the graph.**
    Raised 2026-11-26 when rulings 72 and 73 were built in the
    definition. Where no arm of a disjunction is preferred, the relation

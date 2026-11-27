@@ -845,6 +845,40 @@ func subIdentical(g, s Val) bool {
 	return h == hcanonIdentity(s) && !strings.Contains(h, "$.") && !strings.Contains(h, "%")
 }
 
+func subNamed(root, v Val) Val {
+	if r, ok := v.(*RefVal); ok {
+		if k, ok := r.aliasKey(); ok {
+			if d := walkTarget(root, []string{k}); nil != d {
+				return d
+			}
+		}
+	}
+	return v
+}
+
+// placeBound follows a name in a template to its definition as written.
+func placeBound(root, v Val, seen map[string]bool) bool {
+	if nil == v || !hasPathFunc(v) {
+		return false
+	}
+	return pathFuncBy(v, func(x Val) bool { return placeBound(root, x, seen) },
+		func(r *RefVal) bool {
+			k, ok := r.aliasKey()
+			if !ok {
+				return true
+			}
+			if seen[k] {
+				return false
+			}
+			seen[k] = true
+			d := r.expansion
+			if nil == d {
+				d = walkTarget(root, []string{k})
+			}
+			return nil == d || placeBound(root, d, seen)
+		})
+}
+
 // subUnfold answers a recursion's definition in its own document, or the
 // value itself.
 func subUnfold(root, v Val) Val {
@@ -1017,12 +1051,12 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 			// An open specific side admits a value at the key, its template's
 			// or any, which the general side's optional key must admit.
 			if optional && !s.closed {
-				if nil != s.spread && hasPathFunc(s.spread) {
+				if nil != s.spread && placeBound(st.sroot, s.spread, map[string]bool{}) {
 					st.record("sub_path_dependent_spread", kp, gChild, s.spread,
 						"a path-dependent spread template cannot be compared structurally")
 					out = subWorse(out, subUndecided)
 				} else {
-					sSpread := s.spread
+					sSpread := subNamed(st.sroot, s.spread)
 					if nil == sSpread {
 						sSpread = top()
 					}
@@ -1069,9 +1103,10 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 	if nil != g.spread || nil != s.spread {
 		sameTemplate := nil != g.spread && nil != s.spread &&
 			hcanonIdentity(g.spread) == hcanonIdentity(s.spread)
+		gt, sp := subNamed(st.groot, g.spread), subNamed(st.sroot, s.spread)
 		if !sameTemplate &&
-			((nil != g.spread && hasPathFunc(g.spread)) ||
-				(nil != s.spread && hasPathFunc(s.spread))) {
+			((nil != g.spread && placeBound(st.groot, g.spread, map[string]bool{})) ||
+				(nil != s.spread && placeBound(st.sroot, s.spread, map[string]bool{}))) {
 			gOperand, sOperand := g.val, s.val
 			if nil != g.spread {
 				gOperand = g.spread
@@ -1086,18 +1121,18 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 			for _, k := range s.keys {
 				if !contains(g.keys, k) {
 					kp := append(append([]string{}, path...), k)
-					out = subWorse(out, subsumeNode(st, kp, g.spread, s.child(k)))
+					out = subWorse(out, subsumeNode(st, kp, gt, s.child(k)))
 				}
 			}
 			// A sealed specific side with no template has no member beyond
 			// the ones the loop above holds to the general template.
 			if !s.closed || nil != s.spread {
-				sSpread := s.spread
+				sSpread := sp
 				if nil == sSpread {
 					sSpread = top()
 				}
 				kp := append(append([]string{}, path...), "&")
-				out = subWorse(out, subsumeNode(st, kp, g.spread, sSpread))
+				out = subWorse(out, subsumeNode(st, kp, gt, sSpread))
 			}
 		}
 	}

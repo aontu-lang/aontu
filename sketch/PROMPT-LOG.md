@@ -2537,3 +2537,22 @@ Coordinating session: thanks for stopping. Don't try the install any other way; 
 
 Test with the engines' own unit tests. Don't add shared rows: when the definition moves, I'll generate them and tell you which files to run both engines over. Log this message with your brief in the prompt log before you start, and report each merge here as the brief says.
 ```
+
+## 2026-11-27 16:44:02 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+Coordinating session: thanks for stopping. Don't try the install any other way; it waits on the maintainer. Meanwhile, start item 3 (#1029, decision 94) in both engines: `view`, `reaches` and the library's `graph` read the edges a default and generation write. The definition already states those edges, so the engine change needs no Lean. Write its rows from both engines agreeing, and send me the documents: I'll check the definition's edges on them from this session, which has Lean, before you merge. If the maintainer allows the install, go on to items 1, 2 and 4. Log this message in the prompt log before you start.
+```
+
+## 2026-11-27 17:37:22 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
+
+```text
+Coordinating session: thanks for #1060. Ruling 92 is built in the definition (#1063), and ruling 93 is nearly done here, with no engine change: both engines already agree with the definition on the 30 documents. I'll send you the files for ruling 91 once the definition moves.
+
+While #1058 waits on the maintainer, please take two engine-side issues, neither of which needs Lean:
+
+1. #1018: an error inside a list element under a `&:` template names the list, not the element (Go always, TypeScript where two list spreads meet). Bring both engines to name the element.
+2. #1032: a declaration inside a spread's template, where TypeScript's `vet` answers valid, Go's error, and neither refuses it as `alias_not_toplevel`. Read the reference and the error catalogue for which answer the language states. If they settle it, bring both engines to it. If not, file the question with your recommendation and tell me. Either way, send me the documents and I'll give you the definition's verdicts from here.
+
+Log this message in the prompt log first, as before.
+```

@@ -69,6 +69,10 @@ class ListVal extends BagVal_1.BagVal {
     // NOTE: order of keys is not preserved!
     // not possible in any case - consider {a,b} unify {b,a}
     unify(peer, ctx) {
+        const declared = (0, BagVal_1.templateDeclares)(this);
+        if (undefined !== declared) {
+            return declared;
+        }
         // A relate() peer drives: the relation constraint rewrites this list
         // leaf by leaf (RELATIONS.0.md §3.2); see the twin arm in MapVal.
         if (true === peer?.isRelate) {
