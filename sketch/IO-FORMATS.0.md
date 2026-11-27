@@ -326,6 +326,35 @@ Ruled by the maintainer on 2026-11-21.
 | E, operands | a verb reads a data file by its extension, by the table an include uses |
 | F, the pipe alone | not taken |
 
+Progress on 2026-11-27. E is built in both CLIs, with no new
+dependency. A verb's document operand is read by the include's table:
+`aontu d.yaml` prints the YAML's value, and `aontu vet schema.aontu
+d.toml` reads the TOML as the data. Both engines gain one option,
+`readByExtension` in TypeScript and `ReadByExtension` in Go, which
+reads the entry by its path's extension through the include's own
+readers, and the library verbs carry it to their engines. The bare
+command, `vet` (schema and data), `subsume`, `trim`, `relations`,
+`reaches`, `view`, `jsonschema`, `hash`, `model get`, `model why`,
+`allow` and `agentsmd` set it. `fmt`, `template`, `trace`, `render`,
+`breaking`, `model set`, `jsonschema import`, `--vars`, the REPL, the
+MCP server and the language server read as before. A data file that
+doesn't parse is refused at the operand, framed in that file, under
+the code its reader gives, `unexpected` in the readers tried; both
+CLIs print the same bytes. The reference states what an operand is.
+Three things were found. First, `.json` and `.jsonld` stay aontu
+source: the include's JSON reader rounds a whole number no double
+holds and ignores `--exact-numbers`, where aontu source refuses it as
+`lossy_integer_literal`, and use cases 07 and 10 hold `vet` to the
+refusal. The same reader rounds silently in every data format, so a
+nineteen-digit identifier in a `.yaml` operand reaches `vet` rounded,
+as it does through an include. Second, a value read from a data
+operand carries no row or column, as an include's doesn't, so a
+finding names `d.toml:-1:-1`. Third, Go's syntax frame put the caret
+a line low where an error stands past a file's last newline, which no
+aontu document reached; it is fixed to match TypeScript's. The tests
+are `cli-operand` in `ts/test/cli.test.ts` and its twin
+`go/cmd/aontu/operand_test.go`, over the same files and text.
+
 Three of these change a decision on record, and each lands with the
 record it changes:
 

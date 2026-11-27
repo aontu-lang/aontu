@@ -3993,3 +3993,90 @@ describe('render', () => {
   })
 
 })
+
+
+// --- a document operand read by its extension ---------------------------
+
+// The same files and the same expected text as go/cmd/aontu/operand_test.go.
+const OPERAND_FILES: Record<string, string> = {
+  'schema.aontu': 'name: string\nport: integer & min(1)\ntags: [&: string]\n',
+  'd.yaml': 'name: web\nport: 8080\ntags:\n  - a\n  - b\n',
+  'd.toml': 'name = "web"\nport = 8080\ntags = ["a", "b"]\n',
+  'd.json': 'name: "web", port: 8080, tags: ["a", "b"]\n',
+  'd.data': 'name: web\nport: 8080\ntags: [a, b]\n',
+  'bad.toml': 'name = "web"\nport = 0\ntags = ["a", "b"]\n',
+  'broken.yaml': 'a: [1\nb: 2\n',
+  'broken.toml': 'a = [1\n',
+}
+
+const OPERAND_CASES: [string[], number, string][] = [
+  [['-c', 'd.yaml'], 0, '{"name":"web","port":8080,"tags":["a","b"]}\n'],
+  [['-c', 'd.toml'], 0, '{"name":"web","port":8080,"tags":["a","b"]}\n'],
+  [['-c', 'd.json'], 0, '{"name":"web","port":8080,"tags":["a","b"]}\n'],
+  [['-c', 'd.data'], 0, '{"name":"web","port":8080,"tags":["a","b"]}\n'],
+  [['vet', 'schema.aontu', 'd.yaml', 'd.toml', 'd.json', 'd.data'], 0, 'verdict: valid\n'],
+  [['vet', 'schema.aontu', 'bad.toml'], 1,
+    'verdict: invalid\n\n$.port: constraint [conflict]\n' +
+    '  [aontu/constraint]: Cannot unify values at path $.port\n' +
+    '  expected: integer&min(1)\n  actual:   0\n  data: bad.toml:-1:-1 (0)\n' +
+    '  schema: schema.aontu:2:17 (integer&min(1))\n'],
+  [['broken.yaml'], 1,
+    '[aontu/unexpected]: unexpected character(s): \n\n' +
+    'The text is not valid Aontu syntax. The frame points at the\n' +
+    'character the parser stopped on; the fault is usually just before\n' +
+    'it, and commenting out the suspect lines with # isolates which.\n\n' +
+    ' unexpected character(s): \n  --> broken.yaml:3:1\n' +
+    '  1 | a: [1\n  2 | b: 2\n  3 | \n      ^ unexpected character(s): \n' +
+    '  4 | \n  5 | \n\n'],
+  [['vet', 'schema.aontu', 'broken.toml'], 1,
+    'verdict: invalid\n\n$: syntax [parse]\n' +
+    '  [aontu/unexpected]: unexpected character(s): \n' +
+    '  data: broken.toml:2:1 (nil)\n'],
+  [['hash', 'd.yaml'], 0, 'aon1-6pedjVnb7z2Yp37UYQM7f2pvCrsd3VgmoCvu1Rxgrrc\n'],
+  [['hash', 'd.toml'], 0, 'aon1-6pedjVnb7z2Yp37UYQM7f2pvCrsd3VgmoCvu1Rxgrrc\n'],
+  [['hash', 'd.data'], 0, 'aon1-6pedjVnb7z2Yp37UYQM7f2pvCrsd3VgmoCvu1Rxgrrc\n'],
+]
+
+// The verb's whole output and exit code, run in-process; vet settles its
+// exit code on a promise.
+async function operandRun(args: string[]): Promise<{ text: string, code: number }> {
+  const so = process.stdout.write
+  const se = process.stderr.write
+  let text = ''
+  ;(process.stdout as any).write = (s: any) => ((text += s), true)
+  ;(process.stderr as any).write = (s: any) => ((text += s), true)
+  process.exitCode = 0
+  try {
+    cliMainVet(['node', 'cli', ...args])
+  }
+  finally {
+    process.stdout.write = so
+    process.stderr.write = se
+  }
+  await new Promise((r) => setImmediate(r))
+  const code = Number(process.exitCode)
+  process.exitCode = 0
+  return { text, code }
+}
+
+describe('cli-operand', () => {
+
+  test('a-data-operand-is-read-by-its-extension', async () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-operand-'))
+    for (const [name, src] of Object.entries(OPERAND_FILES)) {
+      Fs.writeFileSync(Path.join(dir, name), src)
+    }
+    const cwd = process.cwd()
+    process.chdir(dir)
+    try {
+      for (const [args, code, text] of OPERAND_CASES) {
+        Assert.deepEqual(await operandRun(args), { text, code }, args.join(' '))
+      }
+    }
+    finally {
+      process.chdir(cwd)
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+})

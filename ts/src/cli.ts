@@ -1061,6 +1061,11 @@ function exactOpts(exact: boolean | undefined): { exactNumbers?: true } {
 }
 
 
+// A document operand is read by its extension, by the table an include
+// uses.
+const OPERAND = { readByExtension: true }
+
+
 function withdrawnMsg(file: string): string {
   return `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu`
 }
@@ -1095,6 +1100,7 @@ function runFile(
     errfs: { existsSync, readFileSync },
     ...trustOpts(trust, dirname(path)),
     ...exactOpts(exact),
+    ...OPERAND,
   })
   return emitEval(evalSource(aontu, src, mode), format)
 }
@@ -1630,6 +1636,7 @@ function vetOnce(args: VetArgs, trust: TrustArg): number {
   for (const source of sources) {
     const report = vet(schemaSrc, source.src, {
       ...verbOpts(trust, entryRootOf(args.schema)),
+      ...OPERAND,
       at: args.at,
       closed: args.closed,
       partial: args.partial,
@@ -1924,7 +1931,7 @@ function runSubsume(argv: string[]): number {
   }
 
   const report = subsume(generalSrc, specificSrc, {
-    ...verbOpts(trust, entryRootOf(args.general)),
+    ...verbOpts(trust, entryRootOf(args.general)), ...OPERAND,
     profile: args.profile,
     at: args.at,
     generalUrl: args.general,
@@ -2381,7 +2388,7 @@ function runTrim(argv: string[]): number {
   }
 
   const report = trimCheck(src, {
-    path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
+    path: files[0], ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
   })
   const text = 'json' === format
     ? renderTrimJson(report)
@@ -3160,7 +3167,7 @@ function runRelations(argv: string[]): number {
 
   const report = relationCheck(src, {
     path: files[0], count: true,
-    ...verbOpts(trust, entryRootOf(files[0])),
+    ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
   })
   const text = 'json' === format
     ? renderRelationsJson(report)
@@ -3703,7 +3710,7 @@ function runReaches(argv: string[]): number {
 
   const report = reachCheck(src, rest[0], rest[1], {
     path: rest[2], relation,
-    ...verbOpts(trust, entryRootOf(rest[2])),
+    ...verbOpts(trust, entryRootOf(rest[2])), ...OPERAND,
   })
   const text = 'json' === format
     ? renderReachesJson(report)
@@ -3966,7 +3973,7 @@ function runView(argv: string[]): number {
     ...verbOpts(trust, entryRootOf(files[0])),
     docs: files.slice(1).map((path, i) => ({ src: srcs[i + 1], path })),
   }
-  const report = view(srcs[0], viewOpts)
+  const report = view(srcs[0], { ...viewOpts, ...OPERAND })
 
   if ('error' !== report.verdict && null != report.text) {
     const bare = view('{}', viewOpts)
@@ -4038,7 +4045,7 @@ function runViewSet(
   }
 
   const report = viewSet(src, {
-    ...opts, path: file, ...verbOpts(trust, entryRootOf(file)),
+    ...opts, path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
   })
 
   if ('json' === how.format) {
@@ -4466,7 +4473,7 @@ function runJsonSchema(argv: string[]): number {
   }
 
   const report = jsonSchema(src, {
-    at, path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
+    at, path: files[0], ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
   })
 
   if ('json' === format) {
@@ -4694,7 +4701,7 @@ function runHash(argv: string[]): number {
 
   // The file's own directory is the include base, as every verb
   // resolves a named file (vet's aontuForPath rule).
-  const aontu = new Aontu(verbOpts(trust, entryRootOf(files[0])))
+  const aontu = new Aontu({ ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND })
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(src, { path: files[0] }, ctx)
   if (0 < ctx.err.length || true === v?.isNil) {
@@ -4800,7 +4807,7 @@ function runGet(argv: string[]): number {
   }
 
   const report = get(src, path, {
-    view, depth, path: file, ...verbOpts(trust, entryRootOf(file)),
+    view, depth, path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
   })
   if ('json' === format) {
     process.stdout.write(exactJSON({
@@ -4884,7 +4891,7 @@ function runWhy(argv: string[]): number {
   }
 
   const report = why(src, path, {
-    path: file, ...verbOpts(trust, entryRootOf(file)),
+    path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
   })
   if ('json' === format) {
     process.stdout.write(exactJSON({
@@ -5212,7 +5219,7 @@ function runAllow(argv: string[]): number {
   }
 
   const report = allow(src, role, paths, {
-    at, path: file, ...verbOpts(trust, entryRootOf(file)),
+    at, path: file, ...verbOpts(trust, entryRootOf(file)), ...OPERAND,
   })
 
   const text = 'json' === format ?
@@ -5302,7 +5309,7 @@ function runAgentsMd(argv: string[]): number {
 
   const report = agentsMd(src, {
     depth, name: files[0], path: files[0],
-    ...verbOpts(trust, entryRootOf(files[0])),
+    ...verbOpts(trust, entryRootOf(files[0])), ...OPERAND,
   })
   if (!report.ok) {
     process.stderr.write(

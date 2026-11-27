@@ -174,7 +174,7 @@ func runAllow(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFileTrust(file, trust).Allow(
+	report := operand(aontuForFileTrust(file, trust)).Allow(
 		string(src), role, paths, &aontu.AllowOptions{At: at})
 
 	text := renderAllowText(report)

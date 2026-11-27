@@ -113,10 +113,13 @@ type VetOptions struct {
 	NoFill bool
 	// ExactNumbers reads every data number by its exact value (G12).
 	ExactNumbers bool
+
+	// ReadByExtension reads each document by its path's extension.
+	ReadByExtension bool
 }
 
 func aontuForPathTrust(path string, trust *TrustOptions, textExt []string,
-	hostVars map[string]HostVar) *Aontu {
+	hostVars map[string]HostVar, byExt bool) *Aontu {
 	a := New()
 	if "" != path {
 		a = NewWithBase(filepath.Dir(path))
@@ -126,6 +129,8 @@ func aontuForPathTrust(path string, trust *TrustOptions, textExt []string,
 	}
 	a.TextExt = textExt
 	a.HostVars = hostVars
+	a.entry = path
+	a.ReadByExtension = byExt
 	return a
 }
 
@@ -374,7 +379,7 @@ func anchorParts(root Val, parts []string) Val {
 func filledFindings(generated any, unified Val, dataSrc string,
 	options VetOptions, prov vetProv, sources vetSources) []VetFinding {
 	ownA := aontuForPathTrust(options.DataPath, options.Trust, options.TextExt,
-		options.HostVars)
+		options.HostVars, options.ReadByExtension)
 	ownA.ExactNumbers = options.ExactNumbers
 	parsed, _ := ownA.Parse(dataSrc)
 	stampURL(parsed, prov.dataURL)
@@ -623,9 +628,11 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	}
 
 	schemaA := aontuForPathTrust(
-		options.SchemaPath, options.Trust, options.TextExt, options.HostVars)
+		options.SchemaPath, options.Trust, options.TextExt, options.HostVars,
+		options.ReadByExtension)
 	dataA := aontuForPathTrust(
-		options.DataPath, options.Trust, options.TextExt, options.HostVars)
+		options.DataPath, options.Trust, options.TextExt, options.HostVars,
+		options.ReadByExtension)
 	dataA.ExactNumbers = options.ExactNumbers
 
 	// 1. The schema alone. If it does not stand up on its own, the data
@@ -762,7 +769,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	if options.Coverage {
 		measured := dataVal
 		coverA := aontuForPathTrust(
-			options.DataPath, options.Trust, options.TextExt, options.HostVars)
+			options.DataPath, options.Trust, options.TextExt, options.HostVars,
+			options.ReadByExtension)
 		coverA.ExactNumbers = options.ExactNumbers
 		if parsed, cerr := coverA.Parse(dataSrc); nil == cerr {
 			coverCtx := &Ctx{root: parsed, vars: hostVals(options.HostVars),

@@ -3,6 +3,7 @@ type IncludeOptions = {
     trust?: TrustOptions;
     textExt?: string[];
     hostVars?: HostVars;
+    readByExtension?: boolean;
 };
 declare function includeOpts(options: IncludeOptions): Partial<AontuOptions>;
 declare function propagateMarks(source: Val, target: Val): void;

@@ -141,6 +141,7 @@ export type ViewOptions = {
   // (docs/trust.md).
   trust?: TrustOptions
   textExt?: string[]
+  readByExtension?: boolean
   hostVars?: HostVars
   // Restrict the figure to nodes (or paths) under this path. For the
   // ladder it is the path drawn, and required; for the poset it is

@@ -209,15 +209,15 @@ func TestTrustVerbOptionsConfineTheEngine(t *testing.T) {
 		t.Fatalf("patch ignored Trust: %s", v)
 	}
 
-	open := aontuForPathTrust(entry, nil, nil, nil)
+	open := aontuForPathTrust(entry, nil, nil, nil, false)
 	if got := open.Get(src, "$.a.secret", nil); !got.OK {
 		t.Fatalf("get, unconfined: %+v", got.Findings)
 	}
-	shut := aontuForPathTrust(entry, none, nil, nil)
+	shut := aontuForPathTrust(entry, none, nil, nil, false)
 	if got := shut.Get(src, "$.a.secret", nil); got.OK {
 		t.Fatal("get ignored the capability")
 	}
-	if got := aontuForPathTrust(entry, none, nil, nil).Why(src, "$.a.secret"); got.OK {
+	if got := aontuForPathTrust(entry, none, nil, nil, false).Why(src, "$.a.secret"); got.OK {
 		t.Fatal("why ignored the capability")
 	}
 }
