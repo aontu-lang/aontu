@@ -227,7 +227,6 @@ test-go:
 # lean and lake from the release spec/lean-toolchain names on PATH; in CI,
 # spec.yml fetches that release by hash.
 spec:
-	python3 -I spec/tools/subsume_rows.py test/spec/subsume.tsv spec/Oracle/SubsumeRowCases.lean
 	cd spec && lake build
 	cd spec && lake exe oracle > ../test/spec/def-fragment.tsv
 	cd spec && lake exe oracle bounds > ../test/spec/def-bounds.tsv
@@ -244,7 +243,7 @@ spec:
 	cd spec && lake exe oracle custom > ../test/spec/def-custom.tsv
 	cd spec && lake exe oracle gaps > ../test/spec/def-gaps.tsv
 	cd spec && lake exe oracle forms > forms.tsv
-	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv test/spec/def-verdict.tsv test/spec/def-alias.tsv test/spec/def-path.tsv test/spec/def-trial.tsv test/spec/def-subsume.tsv test/spec/def-subsume-docs.tsv test/spec/def-subsume-rows.tsv spec/Oracle/SubsumeRowCases.lean test/spec/def-call.tsv test/spec/def-custom.tsv test/spec/def-gaps.tsv spec/forms.tsv
+	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv test/spec/def-verdict.tsv test/spec/def-alias.tsv test/spec/def-path.tsv test/spec/def-trial.tsv test/spec/def-subsume.tsv test/spec/def-subsume-docs.tsv test/spec/def-subsume-rows.tsv test/spec/def-call.tsv test/spec/def-custom.tsv test/spec/def-gaps.tsv spec/forms.tsv
 
 clean-go:
 	cd go && go clean

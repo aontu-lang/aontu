@@ -11,6 +11,8 @@ import { Aontu } from '../dist/aontu'
 import { hcanon } from '../dist/hcanon'
 import { subsume } from '../dist/subsume'
 
+const Rows = require('../../ts/scripts/subsume-rows.cjs')
+
 
 const SPEC = Path.join(__dirname, '..', '..', 'test', 'spec')
 
@@ -43,6 +45,11 @@ describe('subsume-contract', () => {
     .filter((r) => 'subsume' === r[1])
     .map((r) => [r[0], r]))
   const contract = rows('def-subsume-rows.tsv')
+
+  test('the-cases-are-the-rows-read-now', () => {
+    Assert.strictEqual(Fs.readFileSync(Rows.OUT, 'utf8'), Rows.generated(),
+      'run node ts/scripts/subsume-rows.cjs, then make spec')
+  })
 
   test('every-contract-row-names-a-golden-row', () => {
     Assert.ok(50 < contract.length, `only ${contract.length} rows`)

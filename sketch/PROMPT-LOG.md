@@ -2617,3 +2617,17 @@ Next engine-side work, in this order:
 3. #983 (Go holds no arm where defaults of two ranks both stand) and #984 (a map holding a path that names nothing, as an argument of `when` or `nof`), if their own texts say which side moves. Ask me before changing anything they leave open.
 Log this message in the prompt log first.
 ```
+
+## 2026-11-27 21:45:16 UTC · Claude Code · session_01D35vdZaS5uN2Wb4n2156JH
+
+```text
+Carry on with track C without waiting for me: first P5's 45 unread rows of `subsume.tsv`, then P12.
+
+- **P5:** read the 45 rows with `ts/scripts/defterm.cjs` and hold each to its profile's contract.
+  - #1071 is closed by E's #1089, which says it took `list-witness` out of both contract tests' awaits lists. Check your differential no longer expects that row to fail.
+- **P12:** the shaping of a grammar's tree by its annotations, stated over a raw parse the host supplies.
+
+The `spec/README.md` gap bullets for #1042 and `list-witness` are stale. I'll fix them in my next PR, so leave them alone.
+
+Don't stop between items. Send me a one-line report at each merge.
+```

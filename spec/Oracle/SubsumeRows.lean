@@ -68,7 +68,7 @@ def rowSrc (c : Decls × Val) : Option String := do
 printer spells, under its own name with `def-` in front, its documents
 as the definition read them. -/
 def subsumeRowRows : IO Unit := do
-  for (name, pr, g, s) in subsumeRowCases do
+  for (name, pr, g, s) in SubsumeRowCases.cases do
     if let (some want, some gsrc, some ssrc) := (rowAnswer pr g s, rowSrc g, rowSrc s) then
       if want == "both" then throw (IO.userError s!"a row both holds and fails: {name}")
       let pname := match pr with | .values => "values" | .defaults => "defaults" | .gen => "gen"
