@@ -8,6 +8,7 @@ exports.admitsJson = admitsJson;
 exports.genToward = genToward;
 exports.towardMember = towardMember;
 exports.armAdmits = armAdmits;
+exports.sealedMiss = sealedMiss;
 exports.ownJson = ownJson;
 exports.admitsSettled = admitsSettled;
 const type_1 = require("../type");
@@ -112,6 +113,17 @@ function armAdmits(arm, ctx, own) {
     const actx = ctx.clone({ err: [], collect: true });
     const out = (0, genwrite_1.genPlain)(arm, actx);
     return 0 === actx.err.length && undefined !== out && admitsJson(arm, out, own);
+}
+// A list literal in a pattern is sealed to its own length.
+function sealedMiss(pattern, own) {
+    if (true === pattern?.isList && null == pattern.spread?.cj && Array.isArray(own)) {
+        return own.length !== pattern.peg.length ||
+            pattern.peg.some((p, i) => sealedMiss(p, own[i]));
+    }
+    if (true === pattern?.isMap && isObject(own)) {
+        return Object.keys(pattern.peg).some((k) => hasOwn(own, k) && sealedMiss(pattern.peg[k], own[k]));
+    }
+    return false;
 }
 function ownJson(value, ctx) {
     const gctx = ctx.clone({ err: [], collect: true });

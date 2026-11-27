@@ -3572,6 +3572,13 @@ until the phase that encodes it lands.
    tries the call can't answer yet and `vet` says `incomplete`. The
    definition and both ports move for `contains`, `rest`, `len` and the
    starred branch, and both ports move for the spread's template.
+   **Built 2026-11-27**: both ports in #1060, and the definition after
+   it: `resolveD` reads `contains`, `rest`, over its template and its
+   covers, and `len` through `waitOr`, and `Val.stalls` reads through a
+   preference, so a starred branch waits. Rows wx0 to wx44 of
+   `test/spec/def-path.tsv` hold the definition and both ports to the
+   nine documents of #977 and to the same forms over a value that
+   doesn't wait.
 92. **A path that climbs past a link's template.** Raised 2026-11-25 by
    #1001, the case ruling 50 left. In `k: 7`,
    `x: {k: 3, n: relate({v: ..k}) & path($.out)}`, `out: {}`, the path
