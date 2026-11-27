@@ -162,6 +162,11 @@ function entries(v) {
 
 // A relative path's climb: `.b` is one level up, each `.` before the
 // first key one more.
+// A step that spells a position in canonical decimal reads as one.
+function step(s) {
+  return /^(0|[1-9]\d*)$/.test(s) ? `.idx ${s}` : `.key ${leanStr(s)}`
+}
+
 function path(v, ctx) {
   const steps = v.peg.slice()
   if (steps.some((s) => 'string' !== typeof s)) unsupported('a path with a computed step')
@@ -170,7 +175,7 @@ function path(v, ctx) {
       return `.alias ${leanStr(aliasName(steps[0]))}`
     }
     if (steps.includes('.')) unsupported('a path with a climb after a step')
-    return `.path ${list(steps.map((s) => `.key ${leanStr(s)}`))}`
+    return `.path ${list(steps.map(step))}`
   }
   let up = 1
   while ('.' === steps[0]) {
@@ -180,8 +185,8 @@ function path(v, ctx) {
   if (steps.includes('.') || steps.some((s) => s.startsWith('\u0000'))) {
     unsupported('a path the definition has no steps for')
   }
-  if (1 === up && ctx.emitBody) return `.path ${list(['.node', ...steps.map((s) => `.key ${leanStr(s)}`)])}`
-  return `.path ${list([`.up ${up}`, ...steps.map((s) => `.key ${leanStr(s)}`)])}`
+  if (1 === up && ctx.emitBody) return `.path ${list(['.node', ...steps.map(step)])}`
+  return `.path ${list([`.up ${up}`, ...steps.map(step)])}`
 }
 
 function aliasName(key) {
