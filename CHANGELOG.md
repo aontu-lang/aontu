@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### `subsume` reads a list literal in a disjunction's arm as its own length
+
+#1071, in both engines. `subsume` reads a list literal in a
+disjunction's arm, and the value of a default alone, as `vet` reads
+it: sealed at its own length.
+
+| General | Specific | Before | Now |
+|---|---|---|---|
+| `a: [1] \| [2]` | `a: [1, 5]` | `subsumes` | `does_not_subsume` |
+| `a: close([1]) \| close([2])` | `a: [1] \| [2]` | `does_not_subsume` | `subsumes` |
+| `a: *[1]` | `a: [1, 5]` | `subsumes` | `does_not_subsume` |
+
 ### The definition reads a failed default as a conflict
 
 A lone default whose own value fails, `v: *(1 & 2)`, is a conflict

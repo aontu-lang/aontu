@@ -35,7 +35,7 @@ function same(a: string, b: string): boolean {
 
 
 // Rows both ports' subsume read otherwise than their vet.
-const AWAITS: Record<string, number> = { 'list-witness': 1071 }
+const AWAITS: Record<string, number> = {}
 
 
 describe('subsume-contract', () => {
