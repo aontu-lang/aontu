@@ -43,6 +43,7 @@ own.
 | [`spec/Aontu/Read.lean`](../spec/Aontu/Read.lean) | how `vet` reads a number the data writes, in each read mode |
 | [`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean) | how an output option writes a generated number |
 | [`spec/Aontu/Annotation.lean`](../spec/Aontu/Annotation.lean) | the output annotation: each type's options, and how two records unify |
+| [`spec/Aontu/Writing.lean`](../spec/Aontu/Writing.lean) | what a document writes, each value by the record it carries |
 | [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) | the verdicts of `vet`, and how the calls, the generators and the component tree read |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
@@ -6042,12 +6043,63 @@ one makes the place an error, as both engines answer, and `recordArms`
 reads it so.
 
 Rows from an0 on hold both engines to it, 570 rows from 190 documents,
-and both answer every one as the definition does. The definition says
-what an option writes for a number alone, in
-[`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean). The other
-types' options and `custom` wait, and
+and both answer every one as the definition does.
+
+### What an annotation writes
+
+What a document writes is the last step, and
+[`spec/Aontu/Writing.lean`](../spec/Aontu/Writing.lean) takes it.
+`writeWith` generates a term as `genWith` does, and where a value
+carries a record, it writes the value by the record:
+
+<!-- test: quote spec/Aontu/Writing.lean -->
+```lean
+def rideWrites (r : Record) (place : List String) : Option (Option Data) → Option (Option Data)
+  | some (some d) => (d.writeBy r place).map fun d' => if r.omits && d'.emptyWritten then none else some d'
+  | w => w
+```
+
+`Data.writeBy` writes a number rounded or as text, a boolean as a
+number or as its name, a string in a case, an address in a form, and a
+map's keys in a style. Under `empty: "omit"` a value written empty
+drops out of the map or list that holds it. An address resolves from
+the place the document writes it at, with the keys the document
+writes, before any style. Write `written.aontu`:
+
+<!-- test: scenario written -->
+<!-- test: file written.aontu -->
+```aontu
+order: {
+  orderId: 7 & gen({ as:"string" })
+  note: "" & gen({ empty:"omit" })
+  status: "open" & gen({ case:"upper" })
+  self: path(.orderId) & gen("pointer")
+} & gen({ keys:"snake" })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu written.aontu
+{
+  "order": {
+    "order_id": "7",
+    "self": "/order/orderId",
+    "status": "OPEN"
+  }
+}
+```
+
+`writeWith_plain` proves that a term with no annotation writes exactly
+what it generates, so writing changes nothing where no record asks it
+to. Rows from wa0 on of
+[`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
+it, 162 rows, and both answer every one as the definition does.
+`custom`, an expression, waits: a record that holds it writes nothing
+here, and
 [`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
-both engines to each other on them.
+both engines to each other on it.
 
 ## 15. Where the definition and the engines differ
 
@@ -11979,10 +12031,8 @@ place keeps its template as written, so a relative path in it resolves
 nowhere, and so does a generator's template there, whether the
 document writes it there or in a name it uses there.
 
-Nor does it say what an output option writes, but for a number's.
-Step 14 shows what `vet` reads of an annotation, and a string's
-`case`, an empty value's `empty`, an address's `form`, a map's `keys`,
-a boolean's `as`, and the expression `custom` wait.
+Nor does it say what `custom` writes, the one output option that's an
+expression. Step 14 shows what the others write.
 
 Nor does it seal a path's copy of a place that a bare `close()` beside
 a path seals. The directive seals the place itself, as step 9 shows,

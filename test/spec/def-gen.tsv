@@ -16,9 +16,14 @@
 # reads them: the list holds no position for the element.
 # Numbers at so many significant digits follow in rows gs0 on:
 # `Number.significant` (spec/Aontu/Written.lean), written as the gen() call
-# both engines read, whose annotation is not yet a term of the definition.
+# both engines read.
 # Numbers at so many places, at both counts, and as strings follow in rows gw0
 # on: `Number.rounded` and `Number.written`, in the same module.
+# What a document writes under its output annotations follows in rows wa0 on:
+# `outputW` (spec/Aontu/Writing.lean), each value written by the record it
+# carries, a number rounded or as text, a boolean as a number or its name, a
+# string in a case, an address in a form, a map's keys in a style, and a value
+# written empty left out under empty: "omit".
 g0	gens	v: 1	{"v":1}
 g1	gens	v: *(1)	{"v":1}
 g5	gens	v: *(null)	{"v":null}
@@ -300,3 +305,165 @@ gw60	gens	v: 0d24.456 & gen({"places": 0, "as": "string"})	{"v":"24"}
 gw61	gens	v: 0d24.5 & gen({"places": 4, "as": "string"})	{"v":"24.5000"}
 gw62	gens	v: 0d1000.0 & gen({"places": 2, "as": "string"})	{"v":"1000.00"}
 gw63	gens	v: 1234.5678 & gen({"significant": 3, "places": 2, "as": "string"})	{"v":"1230.00"}
+wa0	gens	"v": (3.14159) & (gen({"significant": 2}))	{"v":3.1}
+wa1	gens	"v": (1234) & (gen({"significant": 2}))	{"v":1200}
+wa2	gens	"v": (1.5) & (gen({"as": "string"}))	{"v":"1.5"}
+wa3	gens	"v": (24) & (gen({"places": 2, "as": "string"}))	{"v":"24.00"}
+wa4	gens	"v": ((7) & (gen({"as": "string"}))) & (max(9)), "w": add($.v, 1)	{"v":"7","w":8}
+wa5	gens	"v": (true) & (gen({"as": "number"}))	{"v":1}
+wa6	gens	"v": (false) & (gen({"as": "number"}))	{"v":0}
+wa7	gens	"v": (true) & (gen({"as": "string"}))	{"v":"true"}
+wa8	gens	"v": (false) & (gen({"as": "string"}))	{"v":"false"}
+wa9	gens	"v": ((boolean) & (gen({"as": "number"}))) & (true)	{"v":1}
+wa10	gens	"v": *((false) & (gen({"as": "string"}))) | (boolean)	{"v":"false"}
+wa11	gens	"v": ("Ada") & (gen({"case": "upper"}))	{"v":"ADA"}
+wa12	gens	"v": ("Ada") & (gen({"case": "lower"}))	{"v":"ada"}
+wa13	gens	"v": ((string) & (gen({"case": "upper"}))) & ("ada")	{"v":"ADA"}
+wa14	gens	"m": ({&: (string) & (gen({"case": "upper"}))}) & ({"a": "x", "b": "y"})	{"m":{"a":"X","b":"Y"}}
+wa15	gens	"v": ((("active") | ("closed")) & (gen({"case": "upper"}))) & ("active")	{"v":"ACTIVE"}
+wa16	gens	"u": {"name": "ada", "nick": ("") & (gen({"empty": "omit"}))}	{"u":{"name":"ada"}}
+wa17	gens	"u": {"nick": ("") & (gen({"empty": "keep"}))}	{"u":{"nick":""}}
+wa18	gens	"u": {"nick": ("x") & (gen({"empty": "omit"}))}	{"u":{"nick":"x"}}
+wa19	gens	"u": {"note": (null) & (gen({"empty": "omit"})), "n": 1}	{"u":{"n":1}}
+wa20	gens	"u": {"note": (null) & (gen({"empty": "keep"}))}	{"u":{"note":null}}
+wa21	gens	"u": {"note": *((null) & (gen({"empty": "omit"}))) | (string)}	{"u":{}}
+wa22	gens	"u": {"m": ({}) & (gen({"empty": "omit"})), "n": 1}	{"u":{"n":1}}
+wa23	gens	"u": {"m": ({}) & (gen({"empty": "keep"}))}	{"u":{"m":{}}}
+wa24	gens	"u": {"m": ({"a": 1}) & (gen({"empty": "omit"}))}	{"u":{"m":{"a":1}}}
+wa25	gens	"u": {"m": ({"a": hide(1)}) & (gen({"empty": "omit"}))}	{"u":{}}
+wa26	gens	"u": {"m": ({"a": (null) & (gen({"empty": "omit"}))}) & (gen({"empty": "omit"}))}	{"u":{}}
+wa27	gens	"u": {"m": {"a": (null) & (gen({"empty": "omit"}))}}	{"u":{"m":{}}}
+wa28	gens	"a": {"b": ({"c": ({"d": ("") & (gen({"empty": "omit"}))}) & (gen({"empty": "omit"}))}) & (gen({"empty": "omit"}))}	{"a":{}}
+wa29	gens	"u": {"l": ([]) & (gen({"empty": "omit"})), "n": 1}	{"u":{"n":1}}
+wa30	gens	"u": {"l": ([hide(1)]) & (gen({"empty": "omit"}))}	{"u":{}}
+wa31	gens	"l": [1, ("") & (gen({"empty": "omit"})), (null) & (gen({"empty": "omit"})), ([]) & (gen({"empty": "omit"})), ({}) & (gen({"empty": "omit"})), 2]	{"l":[1,2]}
+wa32	gens	"m": ({&: (string & empty()) & (gen({"empty": "omit"}))}) & ({"a": "", "b": "x", "c": ""})	{"m":{"b":"x"}}
+wa33	gens	"u": {"a"?: ("") & (gen({"empty": "omit"})), "b"?: (null) & (gen({"empty": "omit"}))}	{"u":{}}
+wa34	gens	({}) & (gen({"empty": "omit"}))	null
+wa35	gens	"u": {"note": (((null) | (string)) & (gen({"empty": "omit"}))) & (null)}	{"u":{}}
+wa36	gens	"u": {"note": (((null) | (string)) & (gen({"empty": "omit"}))) & ("s")}	{"u":{"note":"s"}}
+wa37	gens	"a": hide(("") & (gen({"empty": "omit"}))), "u": {"b": $.a, "c": 1}	{"u":{"c":1}}
+wa38	gens	"a": {"x": (path(..b.c)) & (gen({"form": "verbatim"}))}	{"a":{"x":"..b.c"}}
+wa39	gens	"a": {"x": (path(..b.c)) & (gen({"form": "absolute"}))}	{"a":{"x":"$.b.c"}}
+wa40	gens	"a": {"x": (path(..b.c)) & (gen({"form": "pointer"}))}	{"a":{"x":"/b/c"}}
+wa41	gens	"a": {"x": (path(..b.c)) & (gen({"form": "key"}))}	{"a":{"x":"c"}}
+wa42	gens	"x": (path($.a.b)) & (gen({"form": "absolute"}))	{"x":"$.a.b"}
+wa43	gens	"x": (path($.a.b)) & (gen({"form": "pointer"}))	{"x":"/a/b"}
+wa44	gens	"x": (path($.a.b)) & (gen({"form": "key"}))	{"x":"b"}
+wa45	gens	"a": {"x": (path(.b)) & (gen({"form": "absolute"}))}	{"a":{"x":"$.a.b"}}
+wa46	gens	"x": (path(.b)) & (gen({"form": "pointer"}))	{"x":"/b"}
+wa47	gens	"l": [(path(.b)) & (gen({"form": "absolute"})), {"q": (path(.b)) & (gen({"form": "absolute"}))}]	{"l":["$.l.b",{"q":"$.l.1.b"}]}
+wa48	gens	"a/b": {"x": 1, "p": (path(.x)) & (gen({"form": "pointer"}))}	{"a/b":{"p":"/a~1b/x","x":1}}
+wa49	gens	"c~d": {"x": 1, "p": (path(.x)) & (gen({"form": "pointer"}))}	{"c~d":{"p":"/c~0d/x","x":1}}
+wa50	gens	"~/": {"x": 1, "p": (path(.x)) & (gen({"form": "pointer"}))}	{"~/":{"p":"/~0~1/x","x":1}}
+wa51	gens	"a": {"r": (relate()) & ((path(.b)) & (gen({"form": "absolute"}))), "b": {}}	{"a":{"b":{},"r":"$.a.b"}}
+wa52	gens	"a": {"r": (relate()) & ((path(.b)) & (gen({"form": "pointer"}))), "b": {}}	{"a":{"b":{},"r":"/a/b"}}
+wa53	gens	"a": {"r": (relate()) & ((path(.b)) & (gen({"form": "key"}))), "b": {}}	{"a":{"b":{},"r":"b"}}
+wa54	gens	"a": {"x": (path(..b.c)) & (gen("key"))}	{"a":{"x":"c"}}
+wa55	gens	"a": {"x": (path(..b.c)) & (gen("absolute"))}	{"a":{"x":"$.b.c"}}
+wa56	gens	"a": {"x": (path(..b.c)) & (gen("pointer"))}	{"a":{"x":"/b/c"}}
+wa57	gens	"a": {"x": (path(.b)) & (gen({"form": "absolute"}))}, "c": {"d": {"e": $.a.x}}	{"a":{"x":"$.a.b"},"c":{"d":{"e":"$.c.d.b"}}}
+wa58	gens	"y": ({&: {"p": (path(.b)) & (gen({"form": "absolute"}))}}) & ({"k": {}, "j": {}})	{"y":{"j":{"p":"$.y.j.b"},"k":{"p":"$.y.k.b"}}}
+wa59	gens	"x": *((path(.b)) & (gen({"form": "absolute"}))) | (path)	{"x":"$.b"}
+wa60	gens	"x": ((path(.b)) | (1)) & (gen({"form": "pointer"}))	{"x":"/b"}
+wa61	gens	"x": (path(..b)) & (gen({"form": "key"}))	{"x":"b"}
+wa62	gens	"o": ({"orderId": 7, "shipTo": "Cork"}) & (gen({"keys": "snake"}))	{"o":{"order_id":7,"ship_to":"Cork"}}
+wa63	gens	"o": ({"order_id": 7, "ship-to": "Cork"}) & (gen({"keys": "camel"}))	{"o":{"orderId":7,"shipTo":"Cork"}}
+wa64	gens	"o": ({"order_id": 7, "ship-to": "Cork"}) & (gen({"keys": "pascal"}))	{"o":{"OrderId":7,"ShipTo":"Cork"}}
+wa65	gens	"o": ({"orderId": 7, "shipTo": "Cork"}) & (gen({"keys": "kebab"}))	{"o":{"order-id":7,"ship-to":"Cork"}}
+wa66	gens	"o": ({"orderId": 7, "shipTo": "Cork"}) & (gen({"keys": "upper"}))	{"o":{"ORDER_ID":7,"SHIP_TO":"Cork"}}
+wa67	gens	"o": ({"orderId": 7, "shipTo": "Cork"}) & (gen({"keys": "dot"}))	{"o":{"order.id":7,"ship.to":"Cork"}}
+wa68	gens	"o": ({"orderId": 7, "shipTo": "Cork"}) & (gen({"keys": "path"}))	{"o":{"order/id":7,"ship/to":"Cork"}}
+wa69	gens	"o": ({"orderId": 7, "shipTo": "Cork"}) & (gen({"keys": "title"}))	{"o":{"Order Id":7,"Ship To":"Cork"}}
+wa70	gens	"o": ({"orderId": 7, "shipTo": "Cork"}) & (gen({"keys": "text"}))	{"o":{"Order id":7,"Ship to":"Cork"}}
+wa71	gens	"o": ({"HTTPServer2Go": 1}) & (gen({"keys": "kebab"})), "n": nom("HTTPServer2Go", "kebab")	{"n":"http-server-2-go","o":{"http-server-2-go":1}}
+wa72	gens	"o": ({"orderId": {"innerKey": 1}}) & (gen({"keys": "snake"}))	{"o":{"order_id":{"innerKey":1}}}
+wa73	gens	"o": ({"orderId": ({"innerKey": 1}) & (gen({"keys": "upper"}))}) & (gen({"keys": "snake"}))	{"o":{"order_id":{"INNER_KEY":1}}}
+wa74	gens	"o": ({"_": 1, "-": 2, "aB": 3}) & (gen({"keys": "snake"}))	{"o":{"-":2,"_":1,"a_b":3}}
+wa75	gens	"o": ({"zebra_one": 1, "AlphaTwo": 2}) & (gen({"keys": "camel"}))	{"o":{"alphaTwo":2,"zebraOne":1}}
+wa76	gens	"o": ((map) & (gen({"keys": "snake"}))) & ({"orderId": 7})	{"o":{"order_id":7}}
+wa77	gens	"m": ({&: (map) & (gen({"keys": "snake"}))}) & ({"a": {"orderId": 1}, "bB": {"shipTo": 2}})	{"m":{"a":{"order_id":1},"bB":{"ship_to":2}}}
+wa78	gens	"l": ([&: (map) & (gen({"keys": "snake"}))]) & ([{"orderId": 1}])	{"l":[{"order_id":1}]}
+wa79	gens	"o": ({"orderId": 7, "a_b": hide(1), "aB": 2}) & (gen({"keys": "snake"}))	{"o":{"a_b":2,"order_id":7}}
+wa80	gens	"o": ({"orderId": 7}) & (gen({"keys": "snake"})), "w": $.o.orderId	{"o":{"order_id":7},"w":7}
+wa81	gens	"u": {"o": ({"a": hide(1)}) & (gen({"keys": "snake", "empty": "omit"}))}	{"u":{}}
+wa82	gens	"o": ({"a_b": 1, "aB": 2}) & (gen({"keys": "verbatim"}))	{"o":{"aB":2,"a_b":1}}
+wa83	gens	"o": ({"__proto__": 2, "a": 1}) & (gen({"keys": "snake"}))	{"o":{"a":1,"proto":2}}
+wa84	gens	"x": (1.2345) & (gen({"significant": 3})), "y": $.x	{"x":1.23,"y":1.23}
+wa85	gens	"m": ({&: (number) & (gen({"significant": 2}))}) & ({"a": 1.234, "b": 5678})	{"m":{"a":1.2,"b":5700}}
+wa86	gens	"v": (*(1.2345)) & (gen({"significant": 2}))	{"v":1.2}
+wa87	gens	"v": ((*(1.2345) | (float)) & (gen({"significant": 2}))) & (9.8765)	{"v":9.9}
+wa88	gens	"x": type((1.25) & (gen({"significant": 2}))), "y": $.x	{"y":1.2}
+wa89	gens	"x": hide((1.25) & (gen({"significant": 2}))), "y": $.x	{"y":1.2}
+wa90	gens	"a": {"b": (1.25) & (gen({"significant": 2}))}, "c": sum($.a)	{"a":{"b":1.2},"c":1.25}
+wa91	gens	"x": (1.2345) & (gen({"significant": 3})), "y": add($.x, 0)	{"x":1.23,"y":1.2345}
+wa92	gens	"v": ((1.25) & (gen({"significant": 2}))) + (1)	{"v":2.25}
+wa93	gens	"v": ((1.2345) & (gen({"significant": 2}))) | ((1.2345) & (gen({"significant": 2})))	{"v":1.2}
+wa94	gens	"v": ({"a": (1.25) & (gen({"significant": 2}))}) | ({"a": (1.25) & (gen({"significant": 2})), "b"?: string})	{"v":{"a":1.2}}
+wa95	gens	"v": *((1.255) & (gen({"significant": 2}))) | **((1.255) & (gen({"significant": 1})))	{"v":1.3}
+wa96	gens	"v": (((float) | (string)) & (gen({"significant": 1}))) & (1.5)	{"v":2}
+wa97	gens	"v": (((boolean) | (number)) & (gen({"as": "string"}))) & (7)	{"v":"7"}
+wa98	gens	"v": (((boolean) | (number)) & (gen({"as": "string"}))) & (true)	{"v":"true"}
+wa99	gens	"x": ((1.5) & (gen({"places": 0}))) & (gen({"as": "string"})), "y": ((path(.b)) & (gen("key"))) & (gen({}))	{"x":"2","y":"b"}
+wa100	gens	"v": (3.14159) & (gen({"places": 2}))	{"v":3.14}
+wa101	gens	"v": (0.125) & (gen({"places": 2}))	{"v":0.12}
+wa102	gens	"v": (24) & (gen({"places": 2}))	{"v":24}
+wa103	gens	"v": (-0.004) & (gen({"places": 2}))	{"v":0}
+wa104	gens	"v": (1.2451) & (gen({"significant": 4, "places": 2}))	{"v":1.25}
+wa105	gens	"v": ((1.2451) & (gen({"places": 2}))) & (gen({"significant": 4}))	{"v":1.25}
+wa106	gens	"v": (3.14159) & (gen({"significant": "all"}))	{"v":3.14159}
+wa107	gens	"v": (3.14159) & (gen({}))	{"v":3.14159}
+wa108	gens	"v": (3.14159) & (gen({"as": "number"}))	{"v":3.14159}
+wa109	gens	"v": ((number) & (gen({"as": "string"}))) & (7)	{"v":"7"}
+wa110	gens	"v": (24.5) & (gen({"places": 2, "as": "string"}))	{"v":"24.50"}
+wa111	gens	"v": (-0.004) & (gen({"places": 2, "as": "string"}))	{"v":"0.00"}
+wa112	gens	"m": ({&: (number) & (gen({"places": 2, "as": "string"}))}) & ({"a": 19.99, "b": 5})	{"m":{"a":"19.99","b":"5.00"}}
+wa113	gens	"v": (-3.14159) & (gen({"significant": 3}))	{"v":-3.14}
+wa114	gens	"v": (99.96) & (gen({"significant": 3}))	{"v":100}
+wa115	gens	"v": (25) & (gen({"significant": 1}))	{"v":20}
+wa116	gens	"v": (999) & (gen({"significant": 2}))	{"v":1000}
+wa117	gens	%m = (number) & (gen({"significant": 2}))\n"v": (%m) & (1.255), "w": (%m) & (7.777)	{"v":1.3,"w":7.8}
+wa118	gens	"x": (1.25) & (gen({"significant": 2})), "y": copy($.x)	{"x":1.2,"y":1.2}
+wa119	gens	"a": {"b": (1.25) & (gen({"significant": 2}))}, "c": $.a	{"a":{"b":1.2},"c":{"b":1.2}}
+wa120	gens	"v": [(1.2345) & (gen({"significant": 2})), 2.3456]	{"v":[1.2,2.3456]}
+wa121	gens	"l": ([&: (number) & (gen({"significant": 1}))]) & ([1.25, 35])	{"l":[1,40]}
+wa122	gens	"v": (**(1.25)) & (gen({"significant": 2}))	{"v":1.2}
+wa123	gens	"v": *((1.2345) & (gen({"significant": 2})))	{"v":1.2}
+wa124	gens	"v": (meta(1.2345, {"title": "t"})) & (gen({"significant": 2}))	{"v":1.2}
+wa125	gens	"v": (((float) & (gen({"significant": 2}))) & (min(1))) & (1.2345)	{"v":1.2}
+wa126	gens	"v": (gen({"significant": 2})) & (1.2345)	{"v":1.2}
+wa127	gens	"v": (1.25) & (gen({"significant": $.n})), "n": 2	{"n":2,"v":1.2}
+wa128	gens	"v": (1.25) & (gen({"significant": add(1, 1)}))	{"v":1.2}
+wa129	gens	"s": hide({"money": {"significant": 2}}), "p": (3.14159) & (gen($.s.money))	{"p":3.1}
+wa130	gens	"v": ((1.2345) & (gen({"significant": 2}))) & (max(1.24))	{"v":1.2}
+wa131	gens	"v": match((1.25) & (gen({"significant": 1})), number, "n", "other")	{"v":"n"}
+wa132	gens	"v": upper((1.25) & (gen({"significant": 1})))	{"v":2}
+wa133	gens	"x": (1.2345) & (gen({"significant": 3})), "y": ("v") + ($.x)	{"x":1.23,"y":"v1.2345"}
+wa134	gens	"v": *((1.255) & (gen({"significant": 2}))) | *((1.255) & (gen({"significant": 2})))	{"v":1.3}
+wa135	gens	"v": (*(1.2345) | (float)) & (gen({"significant": 2}))	{"v":1.2}
+wa136	gens	"v": ((*(1.255) | (float)) & (gen({"significant": 2}))) & (gen({"significant": 2}))	{"v":1.3}
+wa137	gens	"v": ((*(1.255) | (float)) & (gen({"significant": 2}))) & (*(1.255) | (float))	{"v":1.3}
+wa138	gens	"l": ([&: (boolean) & (gen({"as": "number"}))]) & ([true, false])	{"l":[1,0]}
+wa139	gens	"v": (true) & (gen({"as": "number"})), "w": match($.v, true, "yes", "no")	{"v":1,"w":"yes"}
+wa140	gens	"l": [("a") & (gen({"case": "upper"})), ("B") & (gen({"case": "lower"})), "c"]	{"l":["A","b","c"]}
+wa141	gens	"l": [[("") & (gen({"empty": "omit"})), 1], ([(null) & (gen({"empty": "omit"}))]) & (gen({"empty": "omit"})), 2]	{"l":[[1],2]}
+wa142	gens	"o": ({"fooBar": ("") & (gen({"empty": "omit"})), "bazQux": 1}) & (gen({"keys": "snake"}))	{"o":{"baz_qux":1}}
+wa143	gens	"a": ("") & (gen({"empty": "keep"})), "b": ("") & (gen({"empty": "omit"}))	{"a":""}
+wa144	gens	"l": [({"aB": {"cD": 1}}) & (gen({"keys": "kebab"}))]	{"l":[{"a-b":{"cD":1}}]}
+wa145	gens	"o": ({"a_b": ("") & (gen({"empty": "omit"})), "aB": 2}) & (gen({"keys": "snake"}))	{"o":{"a_b":2}}
+wa146	gens	"m": ({&: (map) & (gen({"keys": "upper"}))}) & ({"x": {"someKey": 1}})	{"m":{"x":{"SOME_KEY":1}}}
+wa147	gens	"o": ({"orderId": 7}) & (gen({"keys": "snake"})), "c": $.o	{"c":{"order_id":7},"o":{"order_id":7}}
+wa148	gens	"t": type({"p": (path(.b)) & (gen({"form": "absolute"}))}), "y": {"z": $.t}	{"y":{"z":{"p":"$.y.z.b"}}}
+wa149	gens	"y": ({&: {"p": *((path(.b)) & (gen({"form": "absolute"}))) | (path)}}) & ({"k": {}})	{"y":{"k":{"p":"$.y.k.b"}}}
+wa150	gens	"a": ({"r": (relate()) & (gen({"form": "key"})), "b": {}}) & ({"r": path($.a.b)})	{"a":{"b":{},"r":"b"}}
+wa151	gens	({"aB": 1}) & (gen({"keys": "snake"}))	{"a_b":1}
+wa152	gens	({"a": 1}) & (gen({"empty": "omit"}))	{"a":1}
+wa153	gens	"a": ("s") & (gen({})), "b": (true) & (gen({})), "c": (null) & (gen({})), "d": ({"x": 1}) & (gen({})), "e": ([1]) & (gen({})), "f": (path($.a)) & (gen({}))	{"a":"s","b":true,"c":null,"d":{"x":1},"e":[1],"f":"$.a"}
+wa154	gens	"v": (3.14159) & (gen({"significant": "all", "places": "all", "as": "number"}))	{"v":3.14159}
+wa155	gens	"v": ("Ada") & (gen({"case": "verbatim", "empty": "keep"}))	{"v":"Ada"}
+wa156	gens	"v": (true) & (gen({"as": "boolean"}))	{"v":true}
+wa157	gens	"v": (path(.b)) & (gen({"form": "verbatim"}))	{"v":".b"}
+wa158	gens	"v": ({"aB": 1, "c": {}}) & (gen({"keys": "verbatim", "empty": "keep"}))	{"v":{"aB":1,"c":{}}}
+wa159	gens	"v": ([]) & (gen({"empty": "keep"}))	{"v":[]}
+wa160	gens	"v": ((1.5) | ("a")) & (gen({"significant": 1}))	{"v":2}
+wa161	gens	"v": ((path(.b)) & (gen("key"))) & (gen({"form": "key"}))	{"v":"b"}

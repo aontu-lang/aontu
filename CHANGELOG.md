@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### The definition writes what the output options say
+
+What a document writes under its output annotations was stated for a
+number alone. The definition now writes every option but `custom`, as
+both engines do: a boolean as a number or its name, a string in a
+case, an address in a form, a map's keys in a style, and a value
+written empty left out under `empty: "omit"`.
+
+```aontu
+order: {
+  orderId: 7 & gen({ as:"string" })
+  note: "" & gen({ empty:"omit" })
+  status: "open" & gen({ case:"upper" })
+  self: path(.orderId) & gen("pointer")
+} & gen({ keys:"snake" })
+```
+
+```json
+{"order":{"order_id":"7","self":"/order/orderId","status":"OPEN"}}
+```
+
+`spec/Aontu/Writing.lean` states it, with the proof that a term with no
+annotation writes what it generates, and 162 rows of
+`test/spec/def-gen.tsv`, wa0 on, hold both engines to it. No engine
+changes. `custom`, an expression, waits.
+
 ### The definition reads the output annotation
 
 `gen(r)` was the one built-in function the definition held no rule for.
