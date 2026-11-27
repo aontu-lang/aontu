@@ -438,7 +438,15 @@ and a row pins the silent answer beside it. `at($.xs, -1, -1)` overflows
 the TypeScript stack, the parser defect IS3 holds, where Go answers;
 `at(at($.xs, -1), -1)` answers in both.
 
-The rows are the 105 of `test/spec/at.tsv`, and the eight `-at` rows of
+Review then found that a lookup a reference copied before it answered
+never answered in TypeScript, `b: at($.a, y)` with `c: $.b` where `a.y`
+is the relative read `.x`. The waiting call held its driven bag, and the
+copy moved the bag's `.x` to read from `c`. A waiting `at` now keeps the
+arguments it was written with, as Go's does; ten rows hold it. `pick`
+and the folds share the defect in TypeScript, `b: pick([$.a], y)` with
+`c: $.b` answering a residue where Go answers, and it is not filed.
+
+The rows are the 115 of `test/spec/at.tsv`, and the eight `-at` rows of
 `test/spec/comprehension.tsv`, one beside each of k4, k5, k18 to k21,
 k33 and k37. The definition is owed: no Lean toolchain was installed
 where it was built, so `at` has no meaning under `spec/`, and `maybeOf`

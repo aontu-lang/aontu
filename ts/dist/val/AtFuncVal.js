@@ -30,8 +30,12 @@ class AtFuncVal extends FuncBaseVal_1.FuncBaseVal {
     prepare(_ctx, _args) {
         return null;
     }
+    // A call that waits keeps the arguments it was written with: a copy of
+    // it moves, and a driven bag would carry its relative reads along.
     unify(peer, ctx) {
+        const written = [...this.peg];
         if (!this.stagedReady(ctx, this.peg.length)) {
+            this.peg = written;
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

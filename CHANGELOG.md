@@ -20,7 +20,7 @@ end of a list, so `at(xs, -1)` is the last member. A step that names
 nothing is `no_path`, and absence under `maybe`; a key that is neither
 a string nor an integer is `func_arg`. A member marked with `hide()` or
 `type()` is read as a path reads it. `test/spec/at.tsv` holds both
-engines to 105 rows, and `test/spec/comprehension.tsv` gains the `at`
+engines to 115 rows, and `test/spec/comprehension.tsv` gains the `at`
 spelling beside each of the eight routes it replaces.
 
 ### The definition reads a call's data argument where its target stands
