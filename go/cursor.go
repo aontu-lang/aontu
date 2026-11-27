@@ -931,3 +931,78 @@ func symbolTree(src string, root Val) []DocSymbol {
 	}
 	return out
 }
+
+// CursorRefs is where the path a cursor names is written, and where it
+// is read.
+type CursorRefs struct {
+	Path   []string    `json:"path"`
+	Writes []PathPlace `json:"writes"`
+	Reads  []PathPlace `json:"reads"`
+}
+
+// readsOf is where a reference that reads path is written: in the
+// document, its span, and in an included file, its site and the length
+// of its spelling.
+func readsOf(src string, root Val, path []string, texts map[string]string) []PathPlace {
+	lines := newSrcLines(src)
+	out := []PathPlace{}
+	cursorWalk(root, func(v Val, _ []string) bool {
+		ref, isRef := v.(*RefVal)
+		if !isRef || !slices.Equal(ref.plainRefPath(), path) {
+			return false
+		}
+		if file := v.srcurl(); "" != file {
+			if text, ok := texts[file]; ok && 0 <= v.pos() {
+				row, col := rowCol(text, v.pos())
+				start := CursorPosition{Line: row - 1, Character: col - 1}
+				end := CursorPosition{Line: start.Line, Character: start.Character + utf16Len(ref.spelling())}
+				out = append(out, PathPlace{File: file, Range: CursorRange{Start: start, End: end}})
+			}
+			return false
+		}
+		// A reference that is all a group holds is sited at the group.
+		at := v.pos()
+		p := at
+		for 0 <= p && p < len(src) && strings.IndexByte("( \t\r\n", src[p]) >= 0 {
+			p++
+		}
+		if 0 <= at && at <= len(src) {
+			if end, spelt := refSpan(src, p); spelt == ref.spelling() {
+				out = append(out, PathPlace{Range: CursorRange{Start: lines.positionOf(p),
+					End: lines.positionOf(end)}})
+			}
+		}
+		return false
+	})
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		if a.Range.Start.Line != b.Range.Start.Line {
+			return a.Range.Start.Line < b.Range.Start.Line
+		}
+		return a.Range.Start.Character < b.Range.Start.Character
+	})
+	return out
+}
+
+// ReferencesAt is where the path a key or a reference under the cursor
+// names is written, its sites as `model why` reads them, and where a
+// reference reads it; nil where the cursor names no path.
+func (a *Aontu) ReferencesAt(src string, pos CursorPosition) *CursorRefs {
+	root, err := a.parseEntry(src)
+	if nil != err || nil == root {
+		return nil
+	}
+	path := namedPath(cursorAt(src, pos, root))
+	if nil == path {
+		return nil
+	}
+	reads := readsOf(src, root, path, a.IncludeText)
+	writes := []PathPlace{}
+	for _, s := range a.SitesOf(src, path) {
+		writes = append(writes, PathPlace{File: s.File, Range: s.Range})
+	}
+	return &CursorRefs{Path: path, Writes: writes, Reads: reads}
+}

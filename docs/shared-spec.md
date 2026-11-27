@@ -28,11 +28,11 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `verdict`, `subsume`, `subsumption`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace`, `template`, `tlog`, `at`, `describe`, `define`, `members` or `symbols` (see below) |
+| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `verdict`, `subsume`, `subsumption`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace`, `template`, `tlog`, `at`, `describe`, `define`, `members`, `refs` or `symbols` (see below) |
 | `src`    | aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
-Sixteen modes take a FIFTH column. `vet` validates a data document
+Seventeen modes take a FIFTH column. `vet` validates a data document
 against a schema document, `verdict` does the same and compares the
 verdict alone, `jsonschema-output` checks data against an imported
 schema, `subsume` and `subsumption` compare two documents, `query`
@@ -40,7 +40,7 @@ and `why` each select a path within one, `patch` carries the
 overlay and the assignments as a JSON object, `diff` carries the
 second document, `agentsmd` carries the name to call the document,
 `fmt-template` and `fmt-template-lint` each carry the marker that opens
-an aontu line, and `at`, `describe`, `define` and `members` carry a
+an aontu line, and `at`, `describe`, `define`, `members` and `refs` carry a
 cursor's position, so each has a
 second input: `src` is the schema (or the
 general document, or the document), the fourth column is the data (or
@@ -107,6 +107,7 @@ name <TAB> at <TAB> src <TAB> line:character <TAB> expect
 | `describe` | five columns: what stands, once the document has unified, at the path a key or a reference at `line:character` names, as both language servers' hover reads it (`describeAt` of `ts/src/cursor.ts`, and `DescribeAt` of `package aontu`): its `path`, the `range` of the key or reference, its `canon`, its one-word `kind`, and its `titles` and `descriptions`, or `null` where the cursor names no path or the path holds nothing. Positioned as in `at` |
 | `define` | five columns: every site that writes the path a key or a reference at `line:character` names, as both language servers' go to definition reads it (`definitionAt`, and `DefinitionAt`), each as its `file` and `range`, or `null`. `file` is empty for the document itself, and a site in an included fixture is written `__FIXTURES__/` and the file's name, since the directory is the machine's |
 | `members` | five columns: what may be written at `line:character`, as both language servers' completion reads it (`membersAt` of `ts/src/cursor.ts`, and `MembersAt` of `package aontu`): `on`, `key` or `path`; the `path` whose members are offered; and the `members`, each its `key`, its value's `canon` and whether it is `optional`. At a key the members are the keys the map takes once unified and has not written; after a dot in a reference, the members of the path. `null` where the cursor is at neither. Positioned as in `at` |
+| `refs` | five columns: where the path a key or a reference at `line:character` names is written and read, as both language servers' references and highlights read it (`referencesAt` of `ts/src/cursor.ts`, and `ReferencesAt` of `package aontu`): the `path`; its `writes`, every site that writes it, as `define` answers them; and its `reads`, every reference that reads it, in order of file, line and character; each place its `file`, written as in `define`, and `range`; or `null` where the cursor names no path. Positioned as in `at` |
 | `symbols` | the outline of what the document writes, as both language servers' document symbols read it (`symbolsOf` of `ts/src/cursor.ts`, and `SymbolsOf` of `package aontu`): each symbol its `name`, its LSP `kind`, the `range` of its entry, the `selectionRange` of its key and its `children`, in the order written, or `null` where the document does not parse. A place after a fixture's name on its line is counted as the row writes `__FIXTURES__`, so the answer is the same wherever the fixtures are |
 | `fmt-template-lint` | five columns: `format(src, {template: marker, lint: true})` must format, and its style findings, in the shape `fmt-lint` pins them, must equal `expect`. What the row is for is the COLUMN a finding reports: a site is in the template, not in the document the template carries |
 

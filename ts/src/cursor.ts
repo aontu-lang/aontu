@@ -33,6 +33,9 @@ type CursorValue = PathValue & { path: string[], range: Range }
 
 type PathPlace = { file: string, range: Range }
 
+// Where the path a cursor names is written, and where it is read.
+type CursorRefs = { path: string[], writes: PathPlace[], reads: PathPlace[] }
+
 type Member = { key: string, canon: string, optional: boolean }
 
 // What may be written at a cursor: the keys a map there may take, or the
@@ -731,6 +734,55 @@ function symbolTree(src: string, root: any): DocSymbol[] {
 }
 
 
+// Where a reference that reads path is written: in the document, its
+// span, and in an included file, its site and the length of its spelling.
+function readsOf(src: string, root: any, path: string[]): PathPlace[] {
+  const starts = lineStarts(src)
+  const want = JSON.stringify(path)
+  const out: PathPlace[] = []
+  cursorWalk(root, (v) => {
+    if (true !== v.isRef || JSON.stringify(v.plainRefPath()?.map(String)) !== want) {
+      return false
+    }
+    const file: string = v.site.url ?? ''
+    const at = siteOffset(starts, v)
+    if ('' !== file) {
+      const start = { line: v.site.row - 1, character: v.site.col - 1 }
+      out.push({ file, range: { start, end: { ...start, character: start.character + v.spelling.length } } })
+      return false
+    }
+    // A reference that is all a group holds is sited at the group.
+    let p = at
+    while (0 <= p && '( \t\r\n'.includes(src[p])) p++
+    const [end, spelt] = refSpan(src, p)
+    if (0 <= at && spelt === v.spelling) {
+      out.push({ file, range: { start: positionOf(starts, p), end: positionOf(starts, end) } })
+    }
+    return false
+  })
+  const key = (r: PathPlace) => [r.range.start.line, r.range.start.character]
+  return out.sort((a, b) => cmpCodePoint(a.file, b.file) ||
+    key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1])
+}
+
+
+// Where the path a key or a reference under the cursor names is written,
+// its sites as `model why` reads them, and where a reference reads it.
+function referencesAt(
+  src: string, pos: Position, opts?: CursorOptions): CursorRefs | undefined {
+  const doc = parsed(src, opts)
+  const path = namedPath(undefined === doc ? undefined : hitAt(src, pos, doc.root))
+  if (undefined === doc || undefined === path) {
+    return undefined
+  }
+  return {
+    path,
+    writes: (sitesOf(src, path, opts) ?? []).map((s) => ({ file: s.file, range: s.range })),
+    reads: readsOf(src, doc.root, path),
+  }
+}
+
+
 // Every site that writes a path, as `model why` reads them; nothing
 // where the document does not evaluate or names no such path.
 function sitesOf(
@@ -752,11 +804,11 @@ function sitesOf(
 
 export {
   pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal,
-  membersAt, mapAt, symbolsOf, symbolTree,
+  membersAt, mapAt, symbolsOf, symbolTree, referencesAt,
 }
 
 export type {
-  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorValue, DocSymbol,
+  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorValue, DocSymbol,
   Member,
   PathPlace, PathSite, PathValue, Position, Range,
 }
