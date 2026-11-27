@@ -2406,18 +2406,6 @@ You are one of several sessions working in parallel to complete aontu's Lean def
 **Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
 ```
 
-## 2026-11-27 16:34:00 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
-
-```text
-# Track D: check the hand-written rows against the definition in bulk
-
-78.5% of the shared test rows (39,418 of 50,235, not counting `signature.tsv`) are generated from aontu's Lean definition by the oracle. The other 10,817 are hand-written. Most cover tools around the language (`vet`'s reports, `view`, `fmt`, the JSON Schema importer), but many are language rows that the definition has never been run against. Today every case for the definition is written by hand as Lean terms. Build the tooling to run the definition over the hand-written language rows in bulk, and turn the result into a worklist.
-
-1. **A converter from aontu text to the definition's terms.** The definition (`spec/Aontu/Syntax.lean`, `Val`) starts from parsed terms, and `Val.src` prints a term back as aontu source. Write the other direction: a script in `ts/scripts/` that reads a document with the TypeScript engine's parser and prints it as a Lean `Val` expression (and data as `Data`), following the reader's conventions the definition states (for example, `*x` as an arm reads as the arm `x` of rank one, a list literal in a disjunction's arm is sealed, a written `nil` is `Val.void`). Where a construct has no term in the definition, say so and skip the row. Round-trip check: `Val.src` of the term should print a document the engines read the same way as the original.
-2. **A runner.** For each hand-written row whose kind the definition answers (the `verdict` rows `vet` reads in its three modes, and the `gens` rows of generation), build the Lean terms, evaluate them with the definition (`vetG`/`vetP` for verdicts, the output functions for generation; see how `spec/Oracle.lean`'s `main` and the modules under `spec/Oracle/` print rows), and compare with the row's expected value. Batch the evaluation: one Lean file per few hundred rows, run with `lake env lean`, as the agents probing the definition so far have done.
-3. **The worklist.** Report agreement per file. For each disagreement, check both engines on the document: where both engines and the definition agree on something other than the row, the row is wrong; where the definition differs from both engines, it's a gap in the definition. Post the gaps as GitHub issues, grouped by cause rather than one per row, and send the coordinating session the totals and the issue numbers. Rows the definition agrees with can later move into generated files, but don't move them in this track.
-
-The script and runner are tools, so put them under `ts/scripts/` or `admin/scripts/` with a short README, and keep `make quick` passing. Don't change the definition in this track; its gaps go to the issues.
 ## 2026-11-27 16:33:34 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
 
 ```text
@@ -2459,6 +2447,36 @@ You are one of several sessions working in parallel to complete aontu's Lean def
 3. **P12, grammars.** The definition reads `abnf` and `parse` over a host that parses; what's left is the shaping of the parse tree by a grammar's annotations, stated over a raw parse the host supplies, with rows for the shaping on which both engines agree. See P12's row in the plan, and find where `parseOf` lives in `spec/Aontu/`.
 
 Update `spec/README.md`, the P5 and P12 rows of the plan when their status changes, `docs/tutorial-definition.md` and `CHANGELOG.md` as you go.
+
+## How to work (all tracks)
+
+You are one of several sessions working in parallel to complete aontu's Lean definition (`spec/`) as fast as possible. The maintainer's standing instructions: work in small steps and commit often; open each pull request ready for review (never a draft) and merge it yourself with a merge commit once your local checks pass; do not wait for CI; test locally with the repository's fast checks; post the problems you find as GitHub issues on aontu-lang/aontu; keep `docs/tutorial-definition.md` current as the definition changes. Read `CLAUDE.md`, `DEV-PROCESS.md` and `spec/README.md` before you start, and follow them: every prompt you receive is logged in `sketch/PROMPT-LOG.md` before work starts (this brief included, on a branch and pull request of its own); an expected value in a shared row comes from running both engines and the definition and requiring them to agree, never from one of them; comments only for surprising code; the prose gate stays at its recorded counts.
+
+**Set-up.** Lean is not installed in a new session. Install it with `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none`, then `export PATH=$HOME/.elan/bin:$PATH` in every shell, and run `cd spec && lake build` (the definition and the oracle; core Lean only, no packages). The TypeScript engine is `node ts/bin/aontu.js`; the Go engine builds with `cd go && go build -o /tmp/aontu-go ./cmd/aontu`.
+
+**The oracle** (`lake exe oracle <file>`) writes the generated files of `test/spec/def-*.tsv` and `spec/forms.tsv`. Its cases live in one module per area under `spec/Oracle/`, sharing `spec/Oracle/Base.lean`; `spec/Oracle.lean` holds only `main`. Add your cases to your area's module, or to a new module of your own that `spec/Oracle.lean` imports, so that sessions don't edit the same file. Mind the memory: the four largest modules (`Gen`, `PathsRefs`, `PathsLinks`, `PathsSources`) need 6 to 12 GB each, so they import one another for order only and build one at a time. A full oracle build takes about 10 minutes, so never run two `lake` builds at once, and keep any new module small. For a quick look at the definition's answer on a few documents, write a probe file that imports the modules you need and `#eval`s them with `lake env lean`, rather than rebuilding the oracle. Never edit a generated file by hand: regenerate every file `main` writes, check that the rows you didn't mean to change stay byte for byte, and run both engines over the files you changed (`cd ts && AONTU_SPEC_SHARES=1 node --test --test-name-pattern='FILE.tsv' dist-test/spec.test.js`; `cd go && go test -run 'TestSpec/FILE' -count=1 .`).
+
+**Before each push:** `make quick`; the tests of what changed; for documentation changes, `cd ts && node --test dist-test/docs.test.js dist-test/docs-shard-2.test.js dist-test/docs-shard-3.test.js dist-test/docs-style.test.js`; `node ts/scripts/vale-counts.cjs` must report "as recorded". `make test`, `make cov` and the use cases belong to the daily run; don't run them.
+
+**Sharing the repository.** Other sessions merge into `main` while you work. Merge `main` into your branch before you merge, never rebase or force-push. In a conflict on a generated file, take main's version and regenerate; in `CHANGELOG.md`, keep both entries. Stay inside your track's files where you can.
+
+**Rulings.** Don't decide a language question yourself. Where the engines and the definition disagree and no ruling settles it, file an issue that states the question, the documents and each side's answer, give your recommendation, and tell the coordinating session (below); carry on with the rest of your track meanwhile. Rulings 1 to 90 are recorded in §7 of `sketch/DEFINITION.0.md`, and the rulings given on 27 November follow them there.
+
+**Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
+```
+
+## 2026-11-27 16:34:00 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
+
+```text
+# Track D: check the hand-written rows against the definition in bulk
+
+78.5% of the shared test rows (39,418 of 50,235, not counting `signature.tsv`) are generated from aontu's Lean definition by the oracle. The other 10,817 are hand-written. Most cover tools around the language (`vet`'s reports, `view`, `fmt`, the JSON Schema importer), but many are language rows that the definition has never been run against. Today every case for the definition is written by hand as Lean terms. Build the tooling to run the definition over the hand-written language rows in bulk, and turn the result into a worklist.
+
+1. **A converter from aontu text to the definition's terms.** The definition (`spec/Aontu/Syntax.lean`, `Val`) starts from parsed terms, and `Val.src` prints a term back as aontu source. Write the other direction: a script in `ts/scripts/` that reads a document with the TypeScript engine's parser and prints it as a Lean `Val` expression (and data as `Data`), following the reader's conventions the definition states (for example, `*x` as an arm reads as the arm `x` of rank one, a list literal in a disjunction's arm is sealed, a written `nil` is `Val.void`). Where a construct has no term in the definition, say so and skip the row. Round-trip check: `Val.src` of the term should print a document the engines read the same way as the original.
+2. **A runner.** For each hand-written row whose kind the definition answers (the `verdict` rows `vet` reads in its three modes, and the `gens` rows of generation), build the Lean terms, evaluate them with the definition (`vetG`/`vetP` for verdicts, the output functions for generation; see how `spec/Oracle.lean`'s `main` and the modules under `spec/Oracle/` print rows), and compare with the row's expected value. Batch the evaluation: one Lean file per few hundred rows, run with `lake env lean`, as the agents probing the definition so far have done.
+3. **The worklist.** Report agreement per file. For each disagreement, check both engines on the document: where both engines and the definition agree on something other than the row, the row is wrong; where the definition differs from both engines, it's a gap in the definition. Post the gaps as GitHub issues, grouped by cause rather than one per row, and send the coordinating session the totals and the issue numbers. Rows the definition agrees with can later move into generated files, but don't move them in this track.
+
+The script and runner are tools, so put them under `ts/scripts/` or `admin/scripts/` with a short README, and keep `make quick` passing. Don't change the definition in this track; its gaps go to the issues.
 
 ## How to work (all tracks)
 
