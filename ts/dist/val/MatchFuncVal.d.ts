@@ -12,6 +12,7 @@ declare class MatchFuncVal extends FuncBaseVal {
     hasDefault(): boolean;
     unify(peer: Val, ctx: AontuContext): Val;
     certain(ctx: AontuContext): boolean;
+    private taking;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
 declare class KeyedFuncVal extends MatchFuncVal {

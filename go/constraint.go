@@ -968,6 +968,15 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 		return built.Unify(peer, ctx)
 	}
 
+	// Settled, a path into the check's own place that names nothing there is the schema's error.
+	if ctx.settle && trialAtoms[c.pending.atom] && (nil == peer || isTop(peer)) {
+		for _, a := range args {
+			if stray := strayIn(a, c.path); nil != stray {
+				return makeNilErr(ctx, "no_path", stray, nil)
+			}
+		}
+	}
+
 	c.notdone()
 
 	// Where nothing moved the atom is still this one, so a meet beside

@@ -15,6 +15,7 @@ const utility_1 = require("../utility");
 const Val_1 = require("./Val");
 const keyorder_1 = require("../keyorder");
 const ConjunctVal_1 = require("./ConjunctVal");
+const PrefVal_1 = require("./PrefVal");
 const BagVal_1 = require("./BagVal");
 const NilVal_1 = require("./NilVal");
 const admission_1 = require("./admission");
@@ -685,6 +686,15 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return built;
             }
             return built.unify(peer, ctx);
+        }
+        // Settled, a path into the check's own place that names nothing there is the schema's error.
+        if (true === ctx.settle && TRIAL_ATOMS.includes(pend.atom) && (null == peer || peer.isTop)) {
+            for (const a of args) {
+                const stray = (0, PrefVal_1.strayIn)(a, this.path);
+                if (undefined !== stray) {
+                    return (0, err_1.makeNilErr)(ctx, 'no_path', stray);
+                }
+            }
         }
         this.notdone();
         // A fresh pending atom carrying the partially-resolved arguments, so

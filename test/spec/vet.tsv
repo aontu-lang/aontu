@@ -1228,3 +1228,20 @@ vet-recursive-name-in-an-empty-list-of-links-stays-residual-under-partial	verdic
 vet-recursive-name-in-an-empty-list-of-links-unfolds-at-a-map	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: {} & %T	{}	{"verdict":"valid"}
 vet-recursive-name-in-an-empty-list-of-links-unfolds-at-a-map-with-no-fill	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: {} & %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 vet-recursive-name-in-an-empty-list-of-links-unfolds-at-a-map-under-partial	verdict	%T = {m: {}, ns: relate(%T) & []}\nx: {} & %T	{}	{"verdict":"valid","opts":{"partial":true}}
+# A path into the place of a check or a match that names nothing there is the schema's error,
+# in an argument of when or nof, and in a match's result whether taken or not (#984).
+vet-stray-path-under-when-true	verdict	x: when(true, {a: 1, b: .d}, 2)	{}	{"verdict":"error"}
+vet-stray-path-under-when-true-no-fill	verdict	x: when(true, {a: 1, b: .d}, 2)	{}	{"opts":{"noFill":true},"verdict":"error"}
+vet-stray-path-under-when-true-partial	verdict	x: when(true, {a: 1, b: .d}, 2)	{}	{"opts":{"partial":true},"verdict":"error"}
+vet-stray-path-under-when-false	verdict	x: when(false, {a: 1, b: .d}, 2)	{}	{"verdict":"error"}
+vet-stray-path-under-when-false-no-fill	verdict	x: when(false, {a: 1, b: .d}, 2)	{}	{"opts":{"noFill":true},"verdict":"error"}
+vet-stray-path-under-when-false-partial	verdict	x: when(false, {a: 1, b: .d}, 2)	{}	{"opts":{"partial":true},"verdict":"error"}
+vet-stray-path-under-nof	verdict	x: nof(1, {a: 1, b: .d})	{}	{"verdict":"error"}
+vet-stray-path-under-nof-no-fill	verdict	x: nof(1, {a: 1, b: .d})	{}	{"opts":{"noFill":true},"verdict":"error"}
+vet-stray-path-under-nof-partial	verdict	x: nof(1, {a: 1, b: .d})	{}	{"opts":{"partial":true},"verdict":"error"}
+vet-stray-path-in-a-match-result-not-taken	verdict	x: match(1, 2, {a: 1, b: .d}, 3)	{}	{"verdict":"error"}
+vet-stray-path-in-a-match-result-not-taken-no-fill	verdict	x: match(1, 2, {a: 1, b: .d}, 3)	{}	{"opts":{"noFill":true},"verdict":"error"}
+vet-stray-path-in-a-match-result-not-taken-partial	verdict	x: match(1, 2, {a: 1, b: .d}, 3)	{}	{"opts":{"partial":true},"verdict":"error"}
+vet-stray-path-in-a-match-result-taken	verdict	x: match(1, 1, {a: 1, b: .d}, 3)	{}	{"verdict":"error"}
+vet-stray-path-in-a-match-result-taken-no-fill	verdict	x: match(1, 1, {a: 1, b: .d}, 3)	{}	{"opts":{"noFill":true},"verdict":"error"}
+vet-stray-path-in-a-match-result-taken-partial	verdict	x: match(1, 1, {a: 1, b: .d}, 3)	{}	{"opts":{"partial":true},"verdict":"error"}

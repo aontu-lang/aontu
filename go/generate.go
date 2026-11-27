@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -323,6 +324,37 @@ func outputOf(v Val, own any) Val {
 	return out
 }
 
+// matchTaking: a result not taken that holds a path into the match's place naming nothing there is still the schema's error.
+func matchTaking(ctx *Ctx, args []Val, base []string, taken int) Val {
+	out := clonePath(args[taken], base)
+	results := []int{}
+	last := len(args)
+	if matchHasDefault(args) {
+		last--
+	}
+	for i := 2; i <= last; i += 2 {
+		results = append(results, i)
+	}
+	if matchHasDefault(args) {
+		results = append(results, len(args)-1)
+	}
+	for _, ri := range results {
+		if ri == taken {
+			continue
+		}
+		r := instanceClone(args[ri], base)
+		stray := strayRef(r, func(ref *RefVal) bool {
+			to := ref.plainRefPath()
+			return len(base) < len(to) && slices.Equal(base, to[:len(base)]) &&
+				namesNothing(r, to[len(base):]) && namesNothing(out, to[len(base):])
+		})
+		if nil != stray {
+			return makeNilErr(ctx, "no_path", stray, nil)
+		}
+	}
+	return out
+}
+
 func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	scrutinee := effectiveScrutinee(args[0])
 	last := len(args)
@@ -344,7 +376,7 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		if nil != output {
 			if admits, ok := admitsSettled(ctx, args[i], output, own, base); ok {
 				if admits && !sealedMiss(args[i], own) {
-					return clonePath(args[i+1], base)
+					return matchTaking(ctx, args, base, i+1)
 				}
 				continue
 			}
@@ -357,12 +389,12 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 			// value rather than narrowing the scrutinee by the arm (see
 			// the TS MatchFuncVal header for why the design's `v & p & r`
 			// cannot be what a match is for).
-			return clonePath(args[i+1], base)
+			return matchTaking(ctx, args, base, i+1)
 		}
 	}
 
 	if matchHasDefault(args) {
-		return clonePath(args[len(args)-1], base)
+		return matchTaking(ctx, args, base, len(args)-1)
 	}
 
 	return makeNilErrFull(ctx, "match_none", f, nil, "resolve",
