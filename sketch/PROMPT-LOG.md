@@ -2416,6 +2416,19 @@ You are one of several sessions working in parallel to complete aontu's Lean def
 3. **P12, grammars.** The definition reads `abnf` and `parse` over a host that parses; what's left is the shaping of the parse tree by a grammar's annotations, stated over a raw parse the host supplies, with rows for the shaping on which both engines agree. See P12's row in the plan, and find where `parseOf` lives in `spec/Aontu/`.
 
 Update `spec/README.md`, the P5 and P12 rows of the plan when their status changes, `docs/tutorial-definition.md` and `CHANGELOG.md` as you go.
+## 2026-11-27 16:33:34 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+# Track B: links and relations (phase P11)
+
+Finish phase P11 of aontu's Lean definition: links and relations. Its row in the plan, `sketch/DEFINITION.0.md` §5, lists what's left:
+
+1. **Not yet read:** a link in the template of a generator whose data another link's template makes, which both engines read; and a `refer` or a `rel` inside a disjunction or a selection, which both engines read in the arm taken.
+2. **Not yet proved:** a relation in a spread's template, which the definition's reading answers too slowly to prove its graph atoms' judgement (`spec/Aontu/Graph.lean`). Make that reading fast enough, or restate it so the proof goes through.
+3. **#1029**, ruled on 27 November as recommended (decision 94): `view`, `reaches` and the library's `graph` read the edges a default and generation write. That is an engine change in both TypeScript and Go, with shared rows; the definition already states the edges.
+4. **#1007**: a path nested in a relation's template, to a subtype of the type that declares the relation, generates or is `unify_cycle` by the order written, in both engines. Find the order-independent answer, which the definition gives or should, and bring both engines to it.
+
+The cases for links are in `spec/Oracle/PathsLinks.lean` and the graph's in the modules that print the `g`-tagged path rows. Update `spec/README.md`, the P11 row of the plan when its status changes, `docs/tutorial-definition.md` and `CHANGELOG.md` as you go.
 
 ## How to work (all tracks)
 
