@@ -38,11 +38,16 @@ function offsetAt(src, starts, pos) {
     return starts[pos.line] + Math.max(0, Math.min(pos.character, end - starts[pos.line]));
 }
 function positionOf(starts, off) {
-    let line = starts.length - 1;
-    while (0 < line && off < starts[line]) {
-        line--;
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (starts[mid] <= off)
+            lo = mid;
+        else
+            hi = mid - 1;
     }
-    return { line, character: off - starts[line] };
+    return { line: lo, character: off - starts[lo] };
 }
 function siteOffset(starts, v) {
     const row = v.site?.row ?? -1;
@@ -536,7 +541,10 @@ function docSymbol(src, starts, s) {
     const at = (off) => positionOf(starts, off);
     const children = s.children.sort((a, b) => a.start - b.start)
         .map((c) => docSymbol(src, starts, c));
-    const end = balancedEnd(src, s.start, Math.max(s.end, ...children.map((c) => c[1])));
+    let last = s.end;
+    for (const c of children)
+        last = Math.max(last, c[1]);
+    const end = balancedEnd(src, s.start, last);
     return [{
             name: s.name,
             kind: s.kind,

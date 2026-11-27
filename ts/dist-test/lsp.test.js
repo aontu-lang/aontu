@@ -930,6 +930,16 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.deepStrictEqual((0, lsp_1.computeSymbols)('1\n'), []);
         Assert.strictEqual((0, lsp_1.computeSymbols)('a: )\n'), null);
     });
+    (0, node_test_1.test)('symbols-outline-a-large-list', () => {
+        const got = (0, lsp_1.computeSymbols)('items: [' + '0,'.repeat(130000) + ']\n');
+        Assert.strictEqual(got.length, 1);
+        Assert.strictEqual(got[0].name, 'items');
+        Assert.strictEqual(got[0].kind, 18);
+        Assert.deepStrictEqual(got[0].range, range(0, 0, 0, 260009));
+        Assert.strictEqual(got[0].children.length, 130000);
+        Assert.deepStrictEqual(got[0].children[0].range, range(0, 8, 0, 9));
+        Assert.strictEqual(got[0].children[129999].name, '129999');
+    });
     (0, node_test_1.test)('symbols-through-the-handler', () => {
         const h = new lsp_1.LspHandler();
         const init = h.handle({ id: 1, method: 'initialize', params: {} });

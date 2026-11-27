@@ -87,11 +87,14 @@ function offsetAt(src: string, starts: number[], pos: Position): number {
 
 
 function positionOf(starts: number[], off: number): Position {
-  let line = starts.length - 1
-  while (0 < line && off < starts[line]) {
-    line--
+  let lo = 0
+  let hi = starts.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (starts[mid] <= off) lo = mid
+    else hi = mid - 1
   }
-  return { line, character: off - starts[line] }
+  return { line: lo, character: off - starts[lo] }
 }
 
 
@@ -649,7 +652,9 @@ function docSymbol(src: string, starts: number[], s: Sym): [DocSymbol, number] {
   const at = (off: number) => positionOf(starts, off)
   const children = s.children.sort((a, b) => a.start - b.start)
     .map((c) => docSymbol(src, starts, c))
-  const end = balancedEnd(src, s.start, Math.max(s.end, ...children.map((c) => c[1])))
+  let last = s.end
+  for (const c of children) last = Math.max(last, c[1])
+  const end = balancedEnd(src, s.start, last)
   return [{
     name: s.name,
     kind: s.kind,

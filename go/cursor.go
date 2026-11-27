@@ -97,16 +97,27 @@ const tokenEnd = keyDelims + "&|"
 type srcLines struct {
 	src    string
 	starts []int
+	units  []int
 }
 
+// newSrcLines also counts the code units before each byte, so a
+// position costs no scan of its line.
 func newSrcLines(src string) srcLines {
 	starts := []int{0}
-	for i := 0; i < len(src); i++ {
+	units := make([]int, len(src)+1)
+	n := 0
+	for i := 0; i < len(src); {
 		if '\n' == src[i] {
 			starts = append(starts, i+1)
 		}
+		r, size := utf8.DecodeRuneInString(src[i:])
+		n += len(utf16.Encode([]rune{r}))
+		for k := 1; k <= size; k++ {
+			units[i+k] = n
+		}
+		i += size
 	}
-	return srcLines{src: src, starts: starts}
+	return srcLines{src: src, starts: starts, units: units}
 }
 
 // A character past the end of its line is the line's end, as LSP has it.
@@ -132,15 +143,8 @@ func (l srcLines) advance(off, units int) int {
 }
 
 func (l srcLines) positionOf(off int) CursorPosition {
-	line := len(l.starts) - 1
-	for 0 < line && off < l.starts[line] {
-		line--
-	}
-	n := 0
-	for _, r := range l.src[l.starts[line]:off] {
-		n += len(utf16.Encode([]rune{r}))
-	}
-	return CursorPosition{Line: line, Character: n}
+	line := sort.Search(len(l.starts), func(i int) bool { return off < l.starts[i] }) - 1
+	return CursorPosition{Line: line, Character: l.units[off] - l.units[l.starts[line]]}
 }
 
 // quoteEnd is where quoted text that opens at k closes, or the end.

@@ -976,6 +976,18 @@ func TestSymbolsOutlineWhatTheDocumentWrites(t *testing.T) {
 	}
 }
 
+func TestSymbolsOutlineALargeList(t *testing.T) {
+	got := Symbols("items: ["+strings.Repeat("0,", 130000)+"]\n", nil)
+	if 1 != len(got) || "items" != got[0].Name || 18 != got[0].Kind ||
+		130000 != len(got[0].Children) || 260009 != got[0].Range.End.Character {
+		t.Fatalf("large list: %d symbols", len(got))
+	}
+	first, last := got[0].Children[0], got[0].Children[129999]
+	if 8 != first.Range.Start.Character || 9 != first.Range.End.Character || "129999" != last.Name {
+		t.Errorf("children: %+v %+v", first, last)
+	}
+}
+
 func TestSymbolsThroughTheHandler(t *testing.T) {
 	h := NewHandler()
 	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize"})[0])

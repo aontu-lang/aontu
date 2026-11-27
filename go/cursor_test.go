@@ -34,3 +34,16 @@ func TestCursorOutlineVisitsASharedValueOnceAndStepsOverNothing(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestSrcLinesPositionCountsUTF16Units(t *testing.T) {
+	l := newSrcLines("a\U0001F600b: 1\nc: 2\n")
+	if p := l.positionOf(5); 0 != p.Line || 3 != p.Character {
+		t.Errorf("astral: %+v", p)
+	}
+	if p := l.positionOf(10); 1 != p.Line || 0 != p.Character {
+		t.Errorf("line: %+v", p)
+	}
+	if p := l.positionOf(len(l.src)); 2 != p.Line || 0 != p.Character {
+		t.Errorf("end: %+v", p)
+	}
+}
