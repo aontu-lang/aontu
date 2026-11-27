@@ -82,8 +82,47 @@ declare function mapAt(src: string, root: any, off: number): {
 declare function membersAt(src: string, pos: Position, opts?: CursorOptions): CursorMembers | undefined;
 declare function symbolsOf(src: string, opts?: CursorOptions): DocSymbol[] | undefined;
 declare function symbolTree(src: string, root: any): DocSymbol[];
-declare function readsOf(src: string, root: any, path: string[], texts: Record<string, string>): PathPlace[];
 declare function referencesAt(src: string, pos: Position, opts?: CursorOptions): CursorRefs | undefined;
 declare function sitesOf(src: string, path: string[], opts?: CursorOptions): PathSite[] | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, readsOf, };
-export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorValue, DocSymbol, Member, PathPlace, PathSite, PathValue, Position, Range, };
+type FileEdit = {
+    file: string;
+    range: Range;
+    newText: string;
+};
+type CursorRename = {
+    path: string[];
+    range: Range;
+    placeholder: string;
+    edits?: FileEdit[];
+} | {
+    refused: string;
+};
+type RenameOptions = CursorOptions & {
+    root?: string;
+    prepare?: boolean;
+};
+type Entry = {
+    v: any;
+    path: string[];
+    calls: any[];
+    arg: boolean;
+    step: boolean;
+    kid: number;
+};
+declare function renameEntries(root: any): Entry[];
+declare function fileRefusal(file: string, root: string | undefined, readable: boolean): string | undefined;
+declare function fileText(file: string, mem?: Record<string, string>): string | undefined;
+declare function renameAt(src: string, pos: Position, name: string, opts?: RenameOptions): CursorRename | undefined;
+type DocEdit = {
+    range: Range;
+    newText: string;
+};
+type CursorAction = {
+    title: string;
+    path: string[];
+    edits: DocEdit[];
+};
+declare function entryDeletion(src: string, s: number, e: number): [number, number];
+declare function actionsAt(src: string, range: Range, opts?: CursorOptions): CursorAction[] | undefined;
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, renameAt, renameEntries, fileRefusal, actionsAt, entryDeletion, fileText, };
+export type { CursorAction, CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename, CursorValue, DocEdit, DocSymbol, FileEdit, Member, RenameOptions, PathPlace, PathSite, PathValue, Position, Range, };

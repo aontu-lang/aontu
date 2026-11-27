@@ -65,6 +65,8 @@ type Handler struct {
 
 	trust *aontu.TrustOptions
 
+	root string
+
 	provenance bool
 }
 
@@ -99,6 +101,7 @@ func (h *Handler) Handle(m Message) []Out {
 	switch m.Method {
 	case "initialize":
 		h.trust = trustFromInitialize(m.Params)
+		h.root = rootFromInitialize(m.Params)
 		h.provenance = provenanceFromInitialize(m.Params)
 		return []Out{newResponse(m.ID, initializeResult())}
 
@@ -242,6 +245,63 @@ func (h *Handler) Handle(m Message) []Out {
 		}
 		return []Out{newResponse(m.ID, Highlights(text, p.Position.Line, p.Position.Character, h.trust))}
 
+	case "textDocument/prepareRename", "textDocument/rename":
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+			Position *struct {
+				Line      int `json:"line"`
+				Character int `json:"character"`
+			} `json:"position"`
+			NewName json.RawMessage `json:"newName"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		text, ok := h.docs[p.TextDocument.URI]
+		if !ok || nil == p.Position {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		var result any
+		var refused string
+		if "textDocument/prepareRename" == m.Method {
+			result, refused = PrepareRename(text, p.Position.Line, p.Position.Character,
+				p.TextDocument.URI, h.root, h.trust)
+		} else {
+			result, refused = Rename(text, p.Position.Line, p.Position.Character,
+				p.TextDocument.URI, jsonString(p.NewName), h.root, h.trust)
+		}
+		if "" != refused {
+			return []Out{newError(m.ID, RequestFailed, refused)}
+		}
+		return []Out{newResponse(m.ID, result)}
+
+	case "textDocument/codeAction":
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+			Range *struct {
+				Start *Position `json:"start"`
+				End   *Position `json:"end"`
+			} `json:"range"`
+			Context struct {
+				Only json.RawMessage `json:"only"`
+			} `json:"context"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		text, ok := h.docs[p.TextDocument.URI]
+		if !ok || nil == p.Range || nil == p.Range.Start || nil == p.Range.End {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		var kinds []any
+		_ = json.Unmarshal(p.Context.Only, &kinds)
+		return []Out{newResponse(m.ID, CodeActions(text, Range{Start: *p.Range.Start, End: *p.Range.End},
+			p.TextDocument.URI, kinds, h.trust))}
+
 	case "textDocument/documentSymbol":
 		var p struct {
 			TextDocument struct {
@@ -341,9 +401,6 @@ func provenanceFromInitialize(params json.RawMessage) bool {
 
 func trustFromInitialize(raw json.RawMessage) *aontu.TrustOptions {
 	var p struct {
-		RootURI               json.RawMessage `json:"rootUri"`
-		RootPath              json.RawMessage `json:"rootPath"`
-		Folders               json.RawMessage `json:"workspaceFolders"`
 		InitializationOptions json.RawMessage `json:"initializationOptions"`
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -381,6 +438,23 @@ func trustFromInitialize(raw json.RawMessage) *aontu.TrustOptions {
 		return &aontu.TrustOptions{IncludeNone: true}
 	}
 
+	if root := rootFromInitialize(raw); "" != root {
+		return &aontu.TrustOptions{IncludeRoot: root}
+	}
+	return nil
+}
+
+// rootFromInitialize is the workspace root initialize names: its first
+// folder, else its rootUri, else its rootPath.
+func rootFromInitialize(raw json.RawMessage) string {
+	var p struct {
+		RootURI  json.RawMessage `json:"rootUri"`
+		RootPath json.RawMessage `json:"rootPath"`
+		Folders  json.RawMessage `json:"workspaceFolders"`
+	}
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return ""
+	}
 	root := uriToPath(jsonString(p.RootURI))
 	var folders []struct {
 		URI json.RawMessage `json:"uri"`
@@ -393,10 +467,7 @@ func trustFromInitialize(raw json.RawMessage) *aontu.TrustOptions {
 	if rootPath := jsonString(p.RootPath); "" == root && "" != rootPath {
 		root = rootPath
 	}
-	if "" != root {
-		return &aontu.TrustOptions{IncludeRoot: root}
-	}
-	return nil
+	return root
 }
 
 // jsonString is raw decoded as a JSON string, or "" for absent, null,
@@ -486,6 +557,8 @@ func initializeResult() map[string]any {
 			"documentSymbolProvider":     true,
 			"referencesProvider":         true,
 			"documentHighlightProvider":  true,
+			"renameProvider":             map[string]any{"prepareProvider": true},
+			"codeActionProvider":         map[string]any{"codeActionKinds": []string{"quickfix"}},
 		},
 		"serverInfo": map[string]any{
 			"name":    "aontu-lsp",

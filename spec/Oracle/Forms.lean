@@ -73,6 +73,7 @@ def formSamples : List (String × Val) :=
     ("-", .call .neg [.integer]), ("sum", .call .sum [.listKind]),
     ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind]),
     ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
+    ("at", .call .at [.mapKind, .string]),
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]),

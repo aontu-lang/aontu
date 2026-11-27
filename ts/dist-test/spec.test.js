@@ -141,7 +141,7 @@ function loadRows() {
                 'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
                 'jsonschema-output' === parts[1] || 'at' === parts[1] ||
                 'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1] ||
-                'refs' === parts[1];
+                'refs' === parts[1] || 'rename' === parts[1] || 'actions' === parts[1];
             const want = vetRow ? 5 : 4;
             if (parts.length < want) {
                 throw new Error(`malformed spec row: ${file} line ${lineno}: ${want} columns` +
@@ -423,6 +423,27 @@ function runRow(row) {
         }));
         Assert.strictEqual((0, aontu_1.exactJSON)(null == got ? null :
             { ...got, writes: named(got.writes), reads: named(got.reads) }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `refs mismatch: ${row.name}`);
+    }
+    else if ('rename' === row.mode) {
+        // The position, then the name to rename to after a colon; none asks the
+        // prepare step. The fixtures are the workspace root.
+        const [line, character, ...name] = row.data.split(':');
+        const got = (0, cursor_1.renameAt)(row.src, { line: +line, character: +character }, name.join(':'), { root: FIXTURES_DIR, prepare: 0 === name.length });
+        const fixtured = (text) => [FIXTURES_DIR, FIXTURES_DIR.replaceAll('/', '\\')]
+            .reduce((t, dir) => t.split(dir).join('__FIXTURES__'), text).replaceAll('__FIXTURES__\\', '__FIXTURES__/');
+        Assert.strictEqual((0, aontu_1.exactJSON)(null == got ? null : undefined !== got.refused ? { refused: fixtured(got.refused) } : {
+            ...got,
+            ...(undefined === got.edits ? {} : {
+                edits: got.edits.map((e) => ({ ...e, file: fixtured(e.file) })),
+            }),
+        }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `rename mismatch: ${row.name}`);
+    }
+    else if ('actions' === row.mode) {
+        const [start, end] = row.data.split('-').map((at) => {
+            const [line, character] = at.split(':').map(Number);
+            return { line, character };
+        });
+        Assert.strictEqual((0, aontu_1.exactJSON)((0, cursor_1.actionsAt)(row.src, { start, end: end ?? start }) ?? null), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `actions mismatch: ${row.name}`);
     }
     else if ('symbols' === row.mode) {
         Assert.strictEqual((0, aontu_1.exactJSON)(asWritten(row.src, (0, cursor_1.symbolsOf)(row.src) ?? null)), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `symbols mismatch: ${row.name}`);

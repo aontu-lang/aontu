@@ -12,9 +12,12 @@ import { collectDeprecations, deprecationMessage,
 import { why } from './query'
 import { format } from './format'
 import { utf8Bytes } from './escape'
+import { dirname } from 'node:path'
+
+import { cmpCodePoint } from './keyorder'
 import {
   pathAt, sitesOf, describeAt, definitionAt, describeVal, membersAt, symbolsOf,
-  referencesAt,
+  referencesAt, renameAt, fileRefusal, actionsAt,
 } from './cursor'
 import type {
   CursorMembers, CursorPath, DocSymbol, Member, PathPlace, PathSite, PathValue,
@@ -33,6 +36,9 @@ const LSP_VERSION = VERSION
 // LSP DocumentHighlightKind subset.
 const HIGHLIGHT_READ = 2
 const HIGHLIGHT_WRITE = 3
+
+// JSON-RPC RequestFailed, which LSP gives a request the server refuses.
+const REQUEST_FAILED = -32803
 
 
 type Position = { line: number, character: number }
@@ -247,6 +253,8 @@ function initializeResult() {
       documentSymbolProvider: true,
       referencesProvider: true,
       documentHighlightProvider: true,
+      renameProvider: { prepareProvider: true },
+      codeActionProvider: { codeActionKinds: ['quickfix'] },
     },
     serverInfo: {
       name: 'aontu-lsp',
@@ -466,6 +474,71 @@ function computeHighlights(
     ps.filter((p) => '' === p.file).map((p) => ({ range: p.range, kind }))
   return undefined === refs ? null :
     [...here(refs.writes, HIGHLIGHT_WRITE), ...here(refs.reads, HIGHLIGHT_READ)]
+}
+
+
+type WorkspaceEdit = { changes: Record<string, TextEdit[]> }
+
+type Renamed<T> = { result: T | null } | { error: string }
+
+
+// A rename's answer under the workspace root, the open document's folder
+// where there is none: refused for a document outside it.
+function renamed<T>(
+  uri: string, root: string | undefined, ask: (root: string | undefined) => any,
+  answer: (r: any) => T): Renamed<T> {
+  const path = uriToPath(uri)
+  const top = root ?? (undefined === path ? undefined : dirname(path))
+  const outside = undefined === path ? undefined : fileRefusal(path, top, true)
+  if (undefined !== outside) {
+    return { error: 'cannot rename: the document' + outside.slice((path as string).length) }
+  }
+  const r = ask(top)
+  return undefined === r ? { result: null } :
+    undefined !== r.refused ? { error: r.refused } : { result: answer(r) }
+}
+
+
+// The range and the name a rename at the position would replace.
+function computePrepareRename(
+  src: string, position: Position, uri: string, root?: string,
+  trust?: any): Renamed<{ range: Range, placeholder: string }> {
+  return renamed(uri, root, (top) => renameAt(src, position, '', { trust, root: top, prepare: true }),
+    (r) => ({ range: r.range, placeholder: r.placeholder }))
+}
+
+
+// The edits of a rename, each in its own document, or why no edit of
+// text keeps the document true.
+function computeRename(
+  src: string, position: Position, uri: string, newName: string, root?: string,
+  trust?: any): Renamed<WorkspaceEdit> {
+  return renamed(uri, root, (top) => renameAt(src, position, newName, { trust, root: top }),
+    (r) => {
+      const changes: Record<string, TextEdit[]> = {}
+      const byUri = r.edits.map((e: any) => ({ uri: '' === e.file ? uri : pathToUri(e.file), e }))
+        .sort((a: any, b: any) => cmpCodePoint(a.uri, b.uri))
+      for (const { uri: at, e } of byUri) {
+        (changes[at] ??= []).push({ range: e.range, newText: e.newText })
+      }
+      return { changes }
+    })
+}
+
+
+type CodeAction = { title: string, kind: string, edit: WorkspaceEdit }
+
+
+// The quick fixes at a range, none where the client asks only for kinds
+// a quick fix is not.
+function computeCodeActions(
+  src: string, range: Range, uri: string, only?: unknown, trust?: any): CodeAction[] | null {
+  const kinds = Array.isArray(only) ? only : ['quickfix']
+  const acts = kinds.some((k) => 'quickfix' === k || '' === k) ?
+    actionsAt(src, range, { trust }) : []
+  return acts?.map((a) => ({
+    title: a.title, kind: 'quickfix', edit: { changes: { [uri]: a.edits } },
+  })) ?? null
 }
 
 
@@ -780,6 +853,8 @@ class LspHandler {
 
   private trust: any = undefined
 
+  private root: string | undefined = undefined
+
   // Hover provenance (G7 phase 7): off unless an editor asks for it
   // with `initializationOptions.aontu.provenance`. It costs a second,
   // instrumented evaluation per hover, which is a cost to opt into.
@@ -813,12 +888,12 @@ class LspHandler {
                     ? { include: { mem: explicit.mem } } :
                     { include: 'none' }
         }
-        else {
-          const root = uriToPath(params.workspaceFolders?.[0]?.uri)
-            ?? uriToPath(params.rootUri)
-            ?? (('string' === typeof params.rootPath && '' !== params.rootPath)
-              ? params.rootPath : undefined)
-          this.trust = null != root ? { include: { root } } : undefined
+        this.root = uriToPath(params.workspaceFolders?.[0]?.uri)
+          ?? uriToPath(params.rootUri)
+          ?? (('string' === typeof params.rootPath && '' !== params.rootPath)
+            ? params.rootPath : undefined)
+        if (null == explicit) {
+          this.trust = null != this.root ? { include: { root: this.root } } : undefined
         }
         return [{ jsonrpc: '2.0', id: msg.id, result: initializeResult() }]
       }
@@ -912,6 +987,34 @@ class LspHandler {
         }]
       }
 
+      case 'textDocument/prepareRename':
+      case 'textDocument/rename': {
+        const uri = msg.params?.textDocument?.uri
+        const pos = msg.params?.position
+        const text = null != uri ? this.docs.get(uri) : undefined
+        const name = msg.params?.newName
+        const answer: Renamed<any> = null == text || null == pos ? { result: null } :
+          'textDocument/prepareRename' === msg.method ?
+            computePrepareRename(text, pos, uri, this.root, this.trust) :
+            computeRename(text, pos, uri, 'string' === typeof name ? name : '', this.root, this.trust)
+        return [{
+          jsonrpc: '2.0', id: msg.id,
+          ...('error' in answer ? { error: { code: REQUEST_FAILED, message: answer.error } } :
+            { result: answer.result }),
+        }]
+      }
+
+      case 'textDocument/codeAction': {
+        const uri = msg.params?.textDocument?.uri
+        const range = msg.params?.range
+        const text = null != uri ? this.docs.get(uri) : undefined
+        return [{
+          jsonrpc: '2.0', id: msg.id,
+          result: null == text || null == range?.start || null == range?.end ? null :
+            computeCodeActions(text, range, uri, msg.params?.context?.only, this.trust),
+        }]
+      }
+
       case 'textDocument/definition': {
         const uri = msg.params?.textDocument?.uri
         const pos = msg.params?.position
@@ -949,7 +1052,7 @@ class LspHandler {
     return publishDiagnosticsMsg(uri,
       computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }))
   }
-} /* node:coverage ignore next 45 */
+} /* node:coverage ignore next 51 */
 
 
 export {
@@ -964,6 +1067,9 @@ export {
   computeSymbols,
   computeReferences,
   computeHighlights,
+  computePrepareRename,
+  computeRename,
+  computeCodeActions,
   LspHandler,
   LSP_VERSION,
   BUILTIN_FUNCS,
@@ -977,6 +1083,7 @@ export {
   COMPLETION_KEYWORD,
   HIGHLIGHT_READ,
   HIGHLIGHT_WRITE,
+  REQUEST_FAILED,
 }
 
 export type {
@@ -994,4 +1101,6 @@ export type {
   DocSymbol,
   DocumentHighlight,
   PathSite,
+  WorkspaceEdit,
+  CodeAction,
 }
