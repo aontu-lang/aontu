@@ -2575,6 +2575,8 @@ Next engine-side work, in this order. Each issue states the definition's answer,
 2. #970: a star over a `pref()` call or a path loses its arm beside another default.
 3. #963, #964, #965: the three `match` pattern fixes.
 If an issue's own text doesn't make clear which side moves, ask me before changing anything. Log this message in the prompt log first.
+```
+
 ## 2026-11-27 18:08:55 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
 
 ```text

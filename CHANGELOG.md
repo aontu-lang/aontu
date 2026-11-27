@@ -16,6 +16,29 @@ map or a list root. The definition wrote the root's value. Rows gr0 on
 in the new `test/spec/def-gaps.tsv`, which `ts/scripts/defcheck.cjs`'s
 gaps fill. Both ports answer every one as the definition does.
 
+### A `match` reads the value its scrutinee generates, and a `filter` each value of a member
+
+**Breaking.** #963, #964 and #965, in both engines.
+- **`match`:** where the scrutinee generates a value, the arm is taken
+  whose pattern admits that value, as the output writes it.
+- **`filter`:** keeps a member each value of which its condition admits,
+  reading a disjunction arm by arm (ruling 51).
+
+Before, each engine met the pattern with the scrutinee's term and compared
+canons. That read a default, an optional member or a marked member
+another way:
+
+| Document | Before | Now |
+|---|---|---|
+| `t: match(1, *1, "T", "D")` | `"D"` | `"T"` |
+| `t: match({x?: string}, {x?: integer}, "T", "D")` | `"D"` | `"T"` |
+| `t: match({a: 1, z: type(number)}, close({a: 1}), "T", "D")` | `"D"` | `"T"` |
+| `t: match({a: 1, z: type(number)}, {a: 1, z: 5}, "T", "D")` | `"T"` | `"D"` |
+| `x: filter({a: *1 \| 2, b: 2 \| *1, c: 1}, *1 \| 2)` | `{"a": 1}` | `{"a": 1, "b": 1, "c": 1}` |
+
+A list literal in a pattern still reads as sealed to its own length,
+so `match([1, 2], [], …)` takes no arm, pending #1070.
+
 ### The definition waits on a call inside `contains`, `rest`, `len` and a starred branch
 
 Ruling 91 (#977), in the definition, after both engines moved in
