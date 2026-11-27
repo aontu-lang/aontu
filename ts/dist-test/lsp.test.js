@@ -43,6 +43,7 @@ const lsp_1 = require("../dist/lsp");
 const srcpath_1 = require("./srcpath");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const cursor_1 = require("../dist/cursor");
+const trim_1 = require("../dist/trim");
 const alias_1 = require("../dist/alias");
 const lsp_server_1 = require("../dist/lsp-server");
 (0, node_test_1.describe)('lsp-diagnostics', () => {
@@ -804,6 +805,28 @@ const lsp_server_1 = require("../dist/lsp-server");
         const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site };
         Assert.strictEqual((0, cursor_1.mapAt)('1', both, 0), undefined);
     });
+    (0, node_test_1.test)('the-rename-walk-visits-a-shared-value-once-and-steps-over-nothing', () => {
+        const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } };
+        const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site };
+        Assert.deepStrictEqual((0, cursor_1.renameEntries)(both).map((e) => e.v), [both, one]);
+    });
+    (0, node_test_1.test)('a-file-a-rename-cannot-edit-is-named-with-why', () => {
+        for (const [file, root, readable, why] of [
+            ['/w/aontu_meta/vendor/p/main.aontu', '/w', true, '/w/aontu_meta/vendor/p/main.aontu is in a package'],
+            ['/w/a.aontu', '/w', false, 'the text of /w/a.aontu cannot be read'],
+            ['/w/a.aontu', '/w', true, undefined],
+            ['/v/a.aontu', '/w', true, '/v/a.aontu is outside the workspace root'],
+            ['/w/a.aontu', '', true, '/w/a.aontu is outside the workspace root'],
+        ]) {
+            Assert.strictEqual((0, cursor_1.fileRefusal)(file, root, readable), why, file);
+        }
+    });
+    (0, node_test_1.test)('a-file-is-read-as-the-parse-read-it', () => {
+        Assert.strictEqual((0, cursor_1.fileText)('aontu:lang/text'), undefined);
+        Assert.strictEqual((0, cursor_1.fileText)('m.aontu', { 'm.aontu': 'a: 1\n' }), undefined);
+        Assert.strictEqual((0, cursor_1.fileText)(Path.join(Os.tmpdir(), 'aontu-none', 'x.aontu')), undefined);
+        Assert.strictEqual((0, cursor_1.fileText)(Path.join(__dirname, '..', '..', 'test', 'spec', 'files', 'cursor_num.aontu'))?.trim(), '5');
+    });
     (0, node_test_1.test)('the-server-layer-answers-as-the-library', () => {
         const src = 'a: { b: 1 }\nc: $.a.b\n';
         const at = (0, lsp_1.computePathAt)(src, { line: 1, character: 5 });
@@ -1025,6 +1048,138 @@ const lsp_server_1 = require("../dist/lsp-server");
             id: 3, method: 'textDocument/documentHighlight',
             params: { textDocument: { uri: 'file:///none.aontu' }, ...at },
         })[0].result, null);
+    });
+});
+(0, node_test_1.describe)('lsp-rename', () => {
+    const SRC = 'base: { port: 8080 }\ndb: { port: $.base.port }\nx: $.base.port\n';
+    const range = (l0, c0, l1, c1) => ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } });
+    const U = 'file:///w/r.aontu';
+    (0, node_test_1.test)('rename-edits-the-key-and-every-reference', () => {
+        Assert.deepStrictEqual((0, lsp_1.computePrepareRename)(SRC, { line: 1, character: 20 }, U), {
+            result: { range: range(1, 19, 1, 23), placeholder: 'port' },
+        });
+        Assert.deepStrictEqual((0, lsp_1.computeRename)(SRC, { line: 0, character: 9 }, U, 'listen'), {
+            result: {
+                changes: {
+                    [U]: [
+                        { range: range(0, 8, 0, 12), newText: 'listen' },
+                        { range: range(1, 19, 1, 23), newText: 'listen' },
+                        { range: range(2, 10, 2, 14), newText: 'listen' },
+                    ],
+                },
+            },
+        });
+        Assert.deepStrictEqual((0, lsp_1.computeRename)(SRC, { line: 0, character: 9 }, U, 'a"b'), { error: 'cannot rename base.port to a"b: the name needs an escape' });
+        Assert.deepStrictEqual((0, lsp_1.computePrepareRename)(SRC, { line: 0, character: 15 }, U), { result: null });
+        Assert.deepStrictEqual((0, lsp_1.computeRename)(SRC, { line: 0, character: 15 }, U, 'q'), { result: null });
+    });
+    (0, node_test_1.test)('rename-keeps-to-the-workspace-root', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'));
+        try {
+            const root = Path.join(dir, 'root');
+            Fs.mkdirSync(root);
+            Fs.writeFileSync(Path.join(root, 'base.aontu'), 'port: 8080\nr: $.top.k\n');
+            Fs.writeFileSync(Path.join(dir, 'away.aontu'), 'port: 1\n');
+            const doc = (0, lsp_1.pathToUri)((0, srcpath_1.srcPath)(Path.join(root, 'doc.aontu')));
+            const there = (0, lsp_1.pathToUri)((0, srcpath_1.srcPath)(Path.join(root, 'base.aontu')));
+            const src = `top: { k: 1 }\nbase: @"${(0, srcpath_1.srcPath)(root)}/base.aontu"\naway: @"${(0, srcpath_1.srcPath)(dir)}/away.aontu"\n`;
+            const trust = { include: { root: dir } };
+            Assert.deepStrictEqual((0, lsp_1.computeRename)(src, { line: 0, character: 7 }, doc, 'j', undefined, trust), {
+                result: {
+                    changes: {
+                        [doc]: [{ range: range(0, 7, 0, 8), newText: 'j' }],
+                        [there]: [{ range: range(1, 9, 1, 10), newText: 'j' }],
+                    },
+                },
+            });
+            Assert.deepStrictEqual(Object.keys((0, lsp_1.computeRename)(src, { line: 1, character: 1 }, doc, 'b', (0, srcpath_1.srcPath)(root), trust)
+                .result.changes), [doc]);
+            const away = (0, lsp_1.computeRename)(src + 'y: $.away.port\n', { line: 3, character: 11 }, doc, 'p', (0, srcpath_1.srcPath)(root), trust);
+            Assert.match(away.error, /^cannot rename away\.port: .*away\.aontu is outside the workspace root$/);
+            Assert.deepStrictEqual((0, lsp_1.computeRename)('a: 1\n', { line: 0, character: 0 }, doc, 'b', (0, srcpath_1.srcPath)(dir)), { result: { changes: { [doc]: [{ range: range(0, 0, 0, 1), newText: 'b' }] } } });
+            Assert.deepStrictEqual((0, lsp_1.computeRename)('a: 1\n', { line: 0, character: 0 }, doc, 'b', (0, srcpath_1.srcPath)(Path.join(dir, 'x'))), { error: 'cannot rename: the document is outside the workspace root' });
+            Assert.deepStrictEqual((0, lsp_1.computePrepareRename)('a: 1\n', { line: 0, character: 0 }, (0, lsp_1.pathToUri)((0, srcpath_1.srcPath)(Path.join(root, 'aontu_meta', 'vendor', 'p', 'main.aontu')))), { error: 'cannot rename: the document is in a package' });
+            const untitled = (0, lsp_1.computeRename)(src + 'y: $.base.port\n', { line: 3, character: 11 }, 'untitled:1', 'q', undefined, trust);
+            Assert.match(untitled.error, /^cannot rename base\.port: .*base\.aontu is outside the workspace root$/);
+        }
+        finally {
+            Fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+    (0, node_test_1.test)('rename-names-a-file-whose-text-it-cannot-read', () => {
+        const trust = { include: { mem: { 'm.aontu': 'k: { n: key() }\n' } } };
+        const src = 'a: @"m.aontu"\ny: $.a.k\n';
+        Assert.deepStrictEqual((0, lsp_1.computeRename)(src, { line: 1, character: 7 }, U, 'j', '/', trust), { error: 'cannot rename a.k: key() reads the key at m.aontu' });
+        Assert.deepStrictEqual((0, lsp_1.computeRename)('a: @"n.aontu"\ny: $.a.k\n', { line: 1, character: 7 }, U, 'j', '/', { include: { mem: { 'n.aontu': 'k: 1\nr: $.a.k\n' } } }), { error: 'cannot rename a.k: the text of n.aontu cannot be read' });
+    });
+    (0, node_test_1.test)('rename-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        const caps = h.handle({ id: 1, method: 'initialize', params: { rootUri: 'file:///w' } })[0]
+            .result.capabilities;
+        Assert.deepStrictEqual(caps.renameProvider, { prepareProvider: true });
+        h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } });
+        const ask = (method, params) => h.handle({
+            id: 2, method, params: { textDocument: { uri: U }, ...params },
+        })[0];
+        const at = { position: { line: 0, character: 9 } };
+        Assert.deepStrictEqual(ask('textDocument/prepareRename', at).result.placeholder, 'port');
+        Assert.strictEqual(ask('textDocument/rename', { ...at, newName: 'p' }).result.changes[U].length, 3);
+        Assert.deepStrictEqual(ask('textDocument/rename', { ...at, newName: 7 }).error, {
+            code: lsp_1.REQUEST_FAILED, message: 'cannot rename base.port: the new name is empty',
+        });
+        Assert.strictEqual(ask('textDocument/rename', {}).result, null);
+        Assert.strictEqual(h.handle({ id: 3, method: 'textDocument/prepareRename', params: {} })[0].result, null);
+    });
+});
+(0, node_test_1.describe)('lsp-code-actions', () => {
+    const SRC = 'cfg: {\n  &: { port: 80, tls: false }\n  a: { port: 80, tls: false }\n  b: { x: 1 }\n}\n';
+    const range = (l0, c0, l1, c1) => ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } });
+    const U = 'file:///w/c.aontu';
+    (0, node_test_1.test)('an-action-removes-what-trim-reports', () => {
+        Assert.deepStrictEqual((0, lsp_1.computeCodeActions)(SRC, range(2, 7, 2, 7), U), [{
+                title: 'Remove $.cfg.a.port, which changes nothing',
+                kind: 'quickfix',
+                edit: { changes: { [U]: [{ range: range(2, 7, 2, 17), newText: '' }] } },
+            }]);
+        Assert.deepStrictEqual((0, lsp_1.computeCodeActions)(SRC, range(3, 0, 3, 3), U), []);
+        Assert.deepStrictEqual((0, lsp_1.computeCodeActions)(SRC, range(2, 7, 2, 7), U, ['refactor']), []);
+        Assert.strictEqual((0, lsp_1.computeCodeActions)(SRC, range(2, 7, 2, 7), U, ['quickfix'])?.length, 1);
+        Assert.strictEqual((0, lsp_1.computeCodeActions)('a: ]\n', range(0, 0, 0, 0), U), null);
+    });
+    (0, node_test_1.test)('the-text-without-the-entry-is-what-trim-no-longer-reports', () => {
+        for (const src of [
+            SRC,
+            'm: { &: { k: 1 }, a: { k: 1, k: 1 } }\n',
+            'm: {\n  &: { k: 1 }\n  a: {\n    k: 1 # same\n    j: 2\n  }\n}\n',
+            'm: { &: { k: 1 }, a: { j: 2 k: 1 } }\n',
+            'ys: [&: { k: 1 }, { k: 1 }]\n',
+        ]) {
+            const lines = src.split('\n');
+            const acts = (0, cursor_1.actionsAt)(src, range(0, 0, lines.length - 1, 0)) ?? [];
+            Assert.ok(0 < acts.length, src);
+            for (const act of acts) {
+                const off = (p) => lines.slice(0, p.line).join('\n').length + (0 < p.line ? 1 : 0) + p.character;
+                const text = [...act.edits].reverse().reduce((t, e) => t.slice(0, off(e.range.start)) + e.newText + t.slice(off(e.range.end)), src);
+                const report = (0, trim_1.trimCheck)(text);
+                Assert.notStrictEqual(report.verdict, 'error', text);
+                Assert.ok(!report.redundant.includes('$.' + act.path.join('.')), text);
+            }
+        }
+    });
+    (0, node_test_1.test)('code-actions-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        const caps = h.handle({ id: 1, method: 'initialize', params: {} })[0].result.capabilities;
+        Assert.deepStrictEqual(caps.codeActionProvider, { codeActionKinds: ['quickfix'] });
+        h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } });
+        const ask = (params) => h.handle({
+            id: 2, method: 'textDocument/codeAction', params: { textDocument: { uri: U }, ...params },
+        })[0].result;
+        Assert.strictEqual(ask({ range: range(1, 0, 3, 0), context: { diagnostics: [] } }).length, 2);
+        Assert.deepStrictEqual(ask({ range: range(1, 0, 3, 0), context: { only: ['source'] } }), []);
+        Assert.strictEqual(ask({ range: range(1, 0, 3, 0), context: { only: 'x' } }).length, 2);
+        Assert.strictEqual(ask({}), null);
+        Assert.strictEqual(ask({ range: { start: range(0, 0, 0, 0).start } }), null);
+        Assert.strictEqual(h.handle({ id: 3, method: 'textDocument/codeAction', params: {} })[0].result, null);
     });
 });
 //# sourceMappingURL=lsp.test.js.map

@@ -1359,6 +1359,60 @@ An alias name's uses are not followed. Hover, definition and
 references still do not start from a reference in a group or among a
 constraint's arguments, which the cursor does not find.
 
+Progress on 2026-11-27, LS7. Rename is built in both servers, which
+advertise `renameProvider` with `prepareProvider`. On a key it renames
+the key's path, and on a reference the path up to the segment the
+cursor is in. The edit is read from the parse, not from the sites
+`model why` lists: the key at every place the parse writes the path,
+in the document or in an included file, and the segment that names it
+in every reference that reads the path or a path inside it, relative
+ones included, where the reference spells it. Each file it edits must
+be under the workspace root, the first folder or `rootUri` of
+`initialize`, else the document's folder. By ruling 17 the whole
+rename is refused, the message naming the site, where no edit of text
+keeps the document true: a key a generator makes (`pack`, `each`,
+`apply`, `emit`, a `match` outside a spread), a key a pattern matches
+(`keyed` or a `match` in a spread), a key `key()` reads, a key a
+spread's template writes, a key written `%n:`, a site in a bundled
+model, a package, a file outside the root or one whose text the server
+does not hold, a key or reference it cannot find as written, a path no
+key writes, and a new name that needs an escape or is taken. Read most
+conservatively, a path a reference copies is refused where the copy is
+written or read, as an instance of a type writes the type's keys, rather
+than renamed at every copy; that is the question the ruling leaves
+open. The library answer is `renameAt` (`RenameAt` in Go), with
+`computePrepareRename`, `computeRename`, `PrepareRename` and `Rename`
+in the servers, held by a new row mode, `rename`, in 79 rows of
+`test/spec/cursor.tsv`, which both engines wrote alike. A probe of both
+servers, prepare rename and rename to two names at every character of
+96 documents, 12,271 requests, found no difference.
+
+Progress on 2026-11-27, LS8. Code actions are built in both servers,
+which advertise `codeActionProvider` with the one kind `quickfix`. The
+one action is the one whose edit was decided: removing an entry that
+`trim --check` reports. It is offered where the requested range meets
+the entry, and its edit deletes every place the document writes it, as
+the outline ranges them: the key and its value, with the line where it
+stands alone on a line that ends, a comment after it included, else
+the comma beside it, else the blanks that part it from its neighbour,
+overlapping deletions joined. The servers publish no diagnostic for
+what trim finds, so the action is offered by range alone and is
+attached to none. It is not offered where a place that writes the
+entry is not found as written or is in an included file, where two
+paths share the spelling trim reports, or where the text without it
+does not unify to what the document unifies to, which a key chain's
+last key is. The library answer is `actionsAt` (`ActionsAt` in Go), with
+`computeCodeActions` and `CodeActions` in the servers, held by a new row
+mode, `actions`, in 26 rows of `test/spec/cursor.tsv`, which both
+engines wrote alike; twinned tests apply each edit and find that trim
+no longer reports the entry. A probe of both servers, code actions over
+every line range of up to three lines and at every character of 126
+documents, 6,159 requests, found no difference, and rename, whose
+module changed with it, probed again over the same documents, 15,988
+requests, found none. Each request runs
+`trim --check`, which evaluates the document once for each entry it
+could remove.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same

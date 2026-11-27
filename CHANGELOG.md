@@ -103,6 +103,72 @@ them, and where a document reads otherwise than the definition read it.
 They found #1071: both ports' `subsume` read a list literal in an arm as
 open, where their `vet` reads it as its own length.
 
+### The language servers offer a quick fix that removes a redundant entry
+
+Task LS8, in both servers. `textDocument/codeAction` answers, for every
+entry `aontu trim --check` reports that the requested range meets, a
+quick fix that deletes every place the document writes the entry, with
+its line where it stands alone, else the comma or the blanks beside it;
+`codeActionProvider` is advertised with `codeActionKinds: ["quickfix"]`.
+It is the one action offered, and it is offered by range alone, since
+the servers publish no diagnostic for what trim finds. An entry written
+where it cannot be found, or in an included file, or whose text the
+document would unify differently without, is not offered. The library
+answers are `actionsAt` and `ActionsAt`; a new shared-row mode,
+`actions`, holds both ports to one answer in 26 rows of
+`test/spec/cursor.tsv`.
+
+### The language servers rename a key and every reference to it
+
+Task LS7, in both servers. `textDocument/rename` renames the key at the
+position, or the path up to the segment of a reference there, and the
+segment that names it in every reference that reads the path or a path
+inside it, as one `WorkspaceEdit` across the open document and the
+files it includes under the workspace root. `textDocument/prepareRename`
+answers the range and the name, and `renameProvider: { prepareProvider:
+true }` is advertised. A key keeps its quotes and a name that is not a
+plain name is quoted. The whole rename is refused, with a `-32803`
+error that names the site, where no edit of text keeps the document
+true: a key a generator makes, a pattern matches, `key()` reads or a
+spread's template writes, a path a reference copies where the copy is
+written or read, a site in a bundled model, a package or a file outside
+the root or unread, a key the cursor cannot find, and a name that
+needs an escape or is taken. The library answers are `renameAt` and
+`RenameAt`; a new shared-row mode, `rename`, holds both ports to one
+answer in 79 rows of `test/spec/cursor.tsv`.
+
+### The language servers find references and highlight them
+
+Task LS6, in both servers. `textDocument/references` answers, on a key
+or a reference, every site that writes the path it names, as go to
+definition answers them, where the client asks for the declaration,
+then every reference that reads the path, across includes: a reference
+in an included file is a location in that file.
+`textDocument/documentHighlight` answers the same within the open
+document, a site with the kind Write and a reference with the kind
+Read. `referencesProvider` and `documentHighlightProvider` are
+advertised. A relative reference is read from where it stands, as the
+engine reads it, and a reference among a constraint's arguments or
+alone in a group is found too. The library answers are `referencesAt`
+and `ReferencesAt`; a new shared-row mode, `refs`, holds both ports to
+one answer in 34 rows of `test/spec/cursor.tsv`.
+
+### The language servers outline a document's keys
+
+Task LS5, in both servers. `textDocument/documentSymbol` answers the
+outline of what the document writes, and `documentSymbolProvider` is
+advertised. Each key is a symbol where it is written, so a key written
+twice is two, and `a: b: c: 1` nests three; a list's elements are named
+by their position, and a spread's template is `&`. A symbol's range
+runs from its key to the end of its value and its selection range is
+the key, and its kind is the value's: `Object`, `Array`, `String`,
+`Number`, `Boolean` or `Null`, and `Variable` for a reference, a call or
+anything else.
+A key that holds an include is a symbol, the included file's keys are
+not, and a declaration is none. The library answers are `symbolsOf`
+and `SymbolsOf`; a new shared-row mode, `symbols`, holds both ports to
+one answer in 33 rows of `test/spec/cursor.tsv`.
+
 ### A `filter` reads a member that is a default alone as its parent type too
 
 Decision 51, in both engines. A member that is a default alone, `*1`,
@@ -344,6 +410,7 @@ nothing, and kept nothing, with no error. Rows `filter-in-*` of
 | `p: each(["x"], {lim: 2, f: filter($.l, ..lim)})` | `p[0].f` is `[]` | `[2]` |
 | `p: pack(["x"], {lim: 2, f: filter($.l, $.p.x.lim)})` | `p.x.f` is `[]` | `[2]` |
 | `p: pack(["x"], {lim: 2, f: filter($.l, min(..lim))})` | `p.x.f` is `[]` | `[2, 3]` |
+
 
 ### The definition reads a call's data argument where its target stands
 
