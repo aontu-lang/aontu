@@ -42,9 +42,11 @@ const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
+const aontu_1 = require("../dist/aontu");
 const REPO = Path.join(__dirname, '..', '..');
 const CORPUS = Path.join(REPO, 'test', 'cue');
 const GUIDE = Path.join(REPO, 'docs', 'how-to', 'aontu-for-cue-users.md');
+const COMPREHENSIONS = Path.join(REPO, 'docs', 'how-to', 'map-cue-comprehensions.md');
 // Every shared row, as `file/name` to its source and expectation.
 function sharedRows() {
     const rows = new Map();
@@ -53,7 +55,7 @@ function sharedRows() {
         for (const line of Fs.readFileSync(Path.join(dir, file), 'utf8').split('\n')) {
             const f = line.split('\t');
             if (!line.startsWith('#') && 4 <= f.length) {
-                rows.set(file.replace(/\.tsv$/, '') + '/' + f[0], { src: f[2].replace(/\\n/g, '\n'), expect: f[f.length - 1] });
+                rows.set(file.replace(/\.tsv$/, '') + '/' + f[0], { mode: f[1], src: f[2].replace(/\\n/g, '\n'), expect: f[f.length - 1] });
             }
         }
     }
@@ -145,6 +147,53 @@ function rowsOf(file) {
             }
         }
         Assert.ok(10 < fences && 100 < spans && 4 < tables, `${fences} ${spans} ${tables}`);
+    });
+    // Each aontu fence of the comprehension guide quotes the corpus, or is
+    // the agreed form of a row of comprehension.tsv or at.tsv followed by
+    // that row's answer; between them the fences name every probe k1 to k38.
+    (0, node_test_1.test)('the-comprehension-guide-prints-only-what-the-corpus-holds', () => {
+        const formed = new Map();
+        for (const [id, row] of sharedRows()) {
+            if ('gen' === row.mode && /^(comprehension|at)\//.test(id)) {
+                const r = (0, aontu_1.format)(row.src);
+                if ('error' !== r.verdict) {
+                    formed.set(r.text, { name: id.split('/')[1], expect: row.expect });
+                }
+            }
+        }
+        const named = new Set();
+        const lines = Fs.readFileSync(COMPREHENSIONS, 'utf8').split('\n');
+        let quotes = 0;
+        let rows = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const fence = lines[i].match(/^```(cue|aontu)$/);
+            if (!fence) {
+                continue;
+            }
+            let end = i + 1;
+            while ('```' !== lines[end]) {
+                end++;
+            }
+            const body = lines.slice(i + 1, end).join('\n') + '\n';
+            const quote = (lines[i - 1].match(/^<!-- test: quote test\/cue\/(\w+)\.(cue|aontu) -->$/) ?? []);
+            if (fence[1] === quote[2]) {
+                named.add(quote[1]);
+                quotes++;
+            }
+            else {
+                const row = formed.get(body);
+                Assert.ok('aontu' === fence[1] && row, `${i + 1}: a ${fence[1]} fence that neither quotes the corpus nor is a row in the agreed form`);
+                Assert.equal(lines[end + 1], '', `${i + 1}: the answer follows its fence`);
+                Assert.equal(lines[end + 2], '```json', `${i + 1}: the answer follows its fence`);
+                Assert.deepEqual(JSON.parse(lines[end + 3]), JSON.parse(row.expect), `${i + 1}: ${row.name}`);
+                named.add((row.name.match(/^routes-(k\d+)/) ?? [])[1] ?? row.name);
+                rows++;
+            }
+            i = end;
+        }
+        const probes = Array.from({ length: 38 }, (_, k) => 'k' + (k + 1));
+        Assert.deepEqual(probes.filter((id) => !named.has(id)), [], 'probes the guide does not show');
+        Assert.ok(30 < quotes && 30 < rows, `${quotes} ${rows}`);
     });
 });
 //# sourceMappingURL=cuecorpus.test.js.map

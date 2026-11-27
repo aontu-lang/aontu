@@ -15,6 +15,7 @@ the reference for depth. Every example is executed by
 Mapping what you already write elsewhere to aontu.
 
 - [Move from CUE to aontu](aontu-for-cue-users.md). Map what you write in CUE to what aontu writes, know where the same text gives another answer, and find the aontu verb for each `cue` command.
+- [Map CUE comprehensions to aontu](map-cue-comprehensions.md). Write each CUE comprehension in aontu, from a filtered list of new records to a map keyed by a field, with `each`, `pack`, `filter`, `emit`, `match`, `apply` and `at`.
 
 ## Run, embed and integrate
 

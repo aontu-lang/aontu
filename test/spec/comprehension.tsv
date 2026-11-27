@@ -115,3 +115,14 @@ routes-k37	errc	xs: [{name: web}, {name: db}]\nout: each($.xs, {n: .name})	no_pa
 routes-k37-at	gen	xs: [{name: web}, {name: db}]\nout: each($.xs, {n: at(_, name)})	{"out":[{"n":"web"},{"n":"db"}],"xs":[{"name":"web"},{"name":"db"}]}
 # k38: a condition that reads a value elsewhere in the document
 routes-k38	gen	limit: 2\nxs: [{a: 3}, {a: 1}]\nout: filter($.xs, {a: above($.limit)})	{"limit":2,"out":[{"a":3}],"xs":[{"a":3},{"a":1}]}
+# The spellings docs/how-to/map-cue-comprehensions.md prints beyond the
+# routes above, in the agreed form. Each expectation is what both engines
+# answer (the parity probe).
+# a filter, then a new record from each member it keeps
+guide-filter-then-emit	gen	xs: [{ name:web host:h1 port:80 } { name:db host:h2 port:5432 }]\n\nout: emit(filter($.xs, { port:above(1000) }), {\n  match: any\n  body: [{ name:.name addr:.host + ":" + .port }]\n})	{"out":[{"addr":"h2:5432","name":"db"}],"xs":[{"host":"h1","name":"web","port":80},{"host":"h2","name":"db","port":5432}]}
+# a local value, through apply
+guide-let-apply	gen	ns: [1 2 3]\ntwice: each($.ns, apply(mul(_, 2), { v:_ }))	{"ns":[1,2,3],"twice":[{"v":2},{"v":4},{"v":6}]}
+# k26 in one expression, a local value through apply and a field through at
+guide-let-apply-at	gen	xs: [a:1 a:2 a:3]\nout: filter(each($.xs, apply(mul(at(_, a), 2), { v:_ })), { v:above(2) })	{"out":[{"v":4},{"v":6}],"xs":[{"a":1},{"a":2},{"a":3}]}
+# each key and its value, through pack and key(0)
+guide-pairs-over-a-map	gen	m: { b:1 a:2 }\npairs: each(pack($.m, key(0) + "=" + _), _)	{"m":{"a":2,"b":1},"pairs":["a=2","b=1"]}

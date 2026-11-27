@@ -27,6 +27,24 @@ scalar root wrote its value: `hide(1)` was `1`. In TypeScript a hidden
 root that is a default wrote the default: `hide(*{a: 1} | {b: 2})` was
 `{"a": 1}`. Each is now `null`.
 
+### A guide to CUE comprehensions in aontu
+
+Task C8 of the lang refinement plan. A new how-to,
+`docs/how-to/map-cue-comprehensions.md`, gives the aontu spelling of
+each comprehension idiom in the order a CUE user reaches for it: a list
+from each member with `emit` and `filter`, a choice under a condition
+with `match`, a local value with `apply`, the keys and values of a map,
+a field of the member and a lookup with `at`, and a map keyed by a field
+with `pack`'s third argument. Idioms that take helper fields today, an
+inner loop that reads the outer member, a grouping, a reversal, a slice
+and a loop over a number, are shown as they are written now. It says
+where aontu's answer is in another order than CUE's. Every CUE example
+quotes `test/cue/`, and every aontu example is the agreed form of a
+shared row, run by both engines; `ts/test/cuecorpus.test.ts` holds the
+page to that, and `test/spec/comprehension.tsv` gains four rows for it.
+The guide for CUE users links the new page for comprehensions. Neither
+engine changes.
+
 ### A guide for CUE users
 
 Task CG4 of the lang refinement plan. A new how-to,
