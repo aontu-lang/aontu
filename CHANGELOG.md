@@ -21,6 +21,30 @@ generation counted it. A disjunction with no preferred arm is
 unchanged: its links are undecided, and `view` reports them as
 `edges_in_disjunct`.
 
+### A call that waits, inside `contains`, `rest`, `len`, a starred branch or a spread's template, waits
+
+**Breaking.** Ruling 91 (#977), in both engines. A call still waiting
+for an operand, such as `integer + 1`, neither admits nor refuses, so a
+trial or a size that tries one waits with it, as `nof`, `must`, `when`
+and `match` already did (#432). Each of these was answered before:
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `v: contains(integer + 1)` | `v: [5]` | `valid` | `incomplete` |
+| `v: rest(integer + 1)` | `v: [5]` | `valid` | `incomplete` |
+| `v: len(integer + 1)` | `v: [1, 2]` | `valid` | `incomplete` |
+| `v: nof(0, *(integer + 1))` | `v: 5` | `valid` | `incomplete` |
+| `v: {&: integer + 1}` | `v: {a: 5}` | `invalid` | `incomplete` |
+
+Under `--partial` each is `valid`. A scalar met with an operation still
+to decide now hands the meet to the operation, so a spread's template
+that computes meets its members: `v: {&: 1 + 1} & {a: 2}` was a
+`scalar_kind` error and is now `{"a": 2}`. Where the data refuses what
+such a template computes, the finding names the computed value, which
+has no site, as any computed value: `url: "https://" + .name` against
+`"http://web.example"` is `scalar_value`, with `"https://web.example"`,
+where it was `scalar_kind`, with `"https://"+.name` at the template.
+
 ### The oracle builds one module per area
 
 `spec/Oracle.lean` keeps only `main`. Its cases moved to one module per
