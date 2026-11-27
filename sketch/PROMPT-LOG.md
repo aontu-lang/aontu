@@ -2405,3 +2405,34 @@ You are one of several sessions working in parallel to complete aontu's Lean def
 
 **Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
 ```
+
+## 2026-11-27 16:33:34 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+# Track B: links and relations (phase P11)
+
+Finish phase P11 of aontu's Lean definition: links and relations. Its row in the plan, `sketch/DEFINITION.0.md` §5, lists what's left:
+
+1. **Not yet read:** a link in the template of a generator whose data another link's template makes, which both engines read; and a `refer` or a `rel` inside a disjunction or a selection, which both engines read in the arm taken.
+2. **Not yet proved:** a relation in a spread's template, which the definition's reading answers too slowly to prove its graph atoms' judgement (`spec/Aontu/Graph.lean`). Make that reading fast enough, or restate it so the proof goes through.
+3. **#1029**, ruled on 27 November as recommended (decision 94): `view`, `reaches` and the library's `graph` read the edges a default and generation write. That is an engine change in both TypeScript and Go, with shared rows; the definition already states the edges.
+4. **#1007**: a path nested in a relation's template, to a subtype of the type that declares the relation, generates or is `unify_cycle` by the order written, in both engines. Find the order-independent answer, which the definition gives or should, and bring both engines to it.
+
+The cases for links are in `spec/Oracle/PathsLinks.lean` and the graph's in the modules that print the `g`-tagged path rows. Update `spec/README.md`, the P11 row of the plan when its status changes, `docs/tutorial-definition.md` and `CHANGELOG.md` as you go.
+
+## How to work (all tracks)
+
+You are one of several sessions working in parallel to complete aontu's Lean definition (`spec/`) as fast as possible. The maintainer's standing instructions: work in small steps and commit often; open each pull request ready for review (never a draft) and merge it yourself with a merge commit once your local checks pass; do not wait for CI; test locally with the repository's fast checks; post the problems you find as GitHub issues on aontu-lang/aontu; keep `docs/tutorial-definition.md` current as the definition changes. Read `CLAUDE.md`, `DEV-PROCESS.md` and `spec/README.md` before you start, and follow them: every prompt you receive is logged in `sketch/PROMPT-LOG.md` before work starts (this brief included, on a branch and pull request of its own); an expected value in a shared row comes from running both engines and the definition and requiring them to agree, never from one of them; comments only for surprising code; the prose gate stays at its recorded counts.
+
+**Set-up.** Lean is not installed in a new session. Install it with `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none`, then `export PATH=$HOME/.elan/bin:$PATH` in every shell, and run `cd spec && lake build` (the definition and the oracle; core Lean only, no packages). The TypeScript engine is `node ts/bin/aontu.js`; the Go engine builds with `cd go && go build -o /tmp/aontu-go ./cmd/aontu`.
+
+**The oracle** (`lake exe oracle <file>`) writes the generated files of `test/spec/def-*.tsv` and `spec/forms.tsv`. Its cases live in one module per area under `spec/Oracle/`, sharing `spec/Oracle/Base.lean`; `spec/Oracle.lean` holds only `main`. Add your cases to your area's module, or to a new module of your own that `spec/Oracle.lean` imports, so that sessions don't edit the same file. Mind the memory: the four largest modules (`Gen`, `PathsRefs`, `PathsLinks`, `PathsSources`) need 6 to 12 GB each, so they import one another for order only and build one at a time. A full oracle build takes about 10 minutes, so never run two `lake` builds at once, and keep any new module small. For a quick look at the definition's answer on a few documents, write a probe file that imports the modules you need and `#eval`s them with `lake env lean`, rather than rebuilding the oracle. Never edit a generated file by hand: regenerate every file `main` writes, check that the rows you didn't mean to change stay byte for byte, and run both engines over the files you changed (`cd ts && AONTU_SPEC_SHARES=1 node --test --test-name-pattern='FILE.tsv' dist-test/spec.test.js`; `cd go && go test -run 'TestSpec/FILE' -count=1 .`).
+
+**Before each push:** `make quick`; the tests of what changed; for documentation changes, `cd ts && node --test dist-test/docs.test.js dist-test/docs-shard-2.test.js dist-test/docs-shard-3.test.js dist-test/docs-style.test.js`; `node ts/scripts/vale-counts.cjs` must report "as recorded". `make test`, `make cov` and the use cases belong to the daily run; don't run them.
+
+**Sharing the repository.** Other sessions merge into `main` while you work. Merge `main` into your branch before you merge, never rebase or force-push. In a conflict on a generated file, take main's version and regenerate; in `CHANGELOG.md`, keep both entries. Stay inside your track's files where you can.
+
+**Rulings.** Don't decide a language question yourself. Where the engines and the definition disagree and no ruling settles it, file an issue that states the question, the documents and each side's answer, give your recommendation, and tell the coordinating session (below); carry on with the rest of your track meanwhile. Rulings 1 to 90 are recorded in §7 of `sketch/DEFINITION.0.md`, and the rulings given on 27 November follow them there.
+
+**Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
+```
