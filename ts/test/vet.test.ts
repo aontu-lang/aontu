@@ -855,3 +855,17 @@ describe('vet-a-default-written-twice', () => {
     })
   }
 })
+
+
+describe('vet-a-star-over-a-call-or-a-path', () => {
+  for (const schema of ['x: *pref(1) | *2', 'd: *1, x: *$.d | *2']) {
+    test(schema, () => {
+      Assert.equal(vet(schema, '{"x": 3}').verdict, 'invalid')
+      Assert.equal(vet(schema, '{"x": 1}').verdict, 'valid')
+    })
+  }
+
+  test('a-clash-at-the-rank-it-reads-as', () => {
+    Assert.equal(vet('x: *pref(1) | **2', '{}').verdict, 'error')
+  })
+})

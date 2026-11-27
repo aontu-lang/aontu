@@ -18,6 +18,37 @@ all three members, as both engines do since #1083 (#963). Rows fq0 to
 fq11 of `test/spec/def-path.tsv` and fr0 to fr3 of
 `test/spec/def-gen.tsv` hold the definition and both engines to it.
 
+### A `filter` reads a member that is a default alone as its parent type too
+
+Decision 51, in both engines. A member that is a default alone, `*1`,
+stands for its value and its parent type, as `vet` reads it, so a
+`filter` keeps it only where the condition admits every integer:
+`filter({g: *1}, *1 | 2)` is `{}`, where it was `{"g": 1}`, and
+`filter({g: *1}, integer)` still keeps `g`.
+
+### A star over a `pref()` call or a path ranks as what it reads as
+
+#970, in both engines. A star written over a term that is itself a
+default adds to that default's rank, so `*pref(1)` and `*$.d`, with
+`d: *1`, rank as `**1`, as `*(*1)` already did. Before, each engine
+ranked such an arm before reading it, so it counted one rank too low.
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `x: *pref(1) \| *2` | `{"x": 3}` | `error` (`pref_rank_clash`) | `invalid` |
+| `d: *1`, `x: *$.d \| *2` | `{"x": 3}` | `error` (`pref_rank_clash`) | `invalid` |
+| `x: *pref(1) \| **2` | `{}` | Go read `**1\|**2`, TypeScript `error` | `error` in both |
+
+The canon of the first two is `**1|*2`, and each generates `2`.
+
+### The definition writes a left-out root as `null`
+
+#1075, in the definition. A document whose root carries `hide()` or
+`type()` writes `null`, as the reference says and both engines do for a
+map or a list root. The definition wrote the root's value. Rows gr0 on
+in the new `test/spec/def-gaps.tsv`, which `ts/scripts/defcheck.cjs`'s
+gaps fill. Both ports answer every one as the definition does.
+
 ### A `match` reads the value its scrutinee generates, and a `filter` each value of a member
 
 **Breaking.** #963, #964 and #965, in both engines.
