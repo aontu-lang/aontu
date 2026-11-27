@@ -206,6 +206,7 @@ def Fn.name : Fn → String
   | .plus => "+"
   | .join => "join"
   | .pick => "pick"
+  | .at => "at"
   | .sort => "sort"
   | .upper => "upper"
   | .lower => "lower"

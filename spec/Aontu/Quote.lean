@@ -69,7 +69,7 @@ def Rider.quote : Rider → Data
 /-- Every function, so that one is read back by its name. -/
 def Fn.all : List Fn :=
   [.add, .sub, .mul, .div, .mod, .rem, .neg, .sum, .least, .greatest, .plus, .join, .pick, .sort,
-    .upper, .lower, .translate, .esc, .usc, .encode, .decode, .split, .rep, .nom, .super, .pref,
+    .upper, .lower, .translate, .esc, .usc, .encode, .decode, .at, .split, .rep, .nom, .super, .pref,
     .move, .copy, .relate, .path, .abnf, .parse, .load,
     .cmp .project, .cmp .folder, .cmp .file, .cmp .content, .cmp .line, .cmp .fragment, .cmp .slot,
     .cmp .inject, .cmp .copyfiles, .cmp .listitems,

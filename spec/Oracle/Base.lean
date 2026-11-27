@@ -821,7 +821,14 @@ theorem readR_call_checkableA {t : Val}
   have hx : ∀ k, (expandF [] k t).landed = expandF [] k t ∧ (expandF [] k t).holdsDir = false := by
     intro k
     rcases ht with ⟨f, args, rfl, hla⟩ | ⟨s, c, rfl⟩
-    · cases k <;> exact ⟨by simp [expandF, Val.landed, hla], rfl⟩
+    · cases k with
+      | zero => exact ⟨by simp [expandF, Val.landed, hla], rfl⟩
+      | succ k =>
+        cases hat : Val.isAtRef f args
+        · rw [expandF_call_of_not_at k hat]
+          exact ⟨by simp [Val.landed, hla], rfl⟩
+        · obtain ⟨n, ks, rfl, rfl⟩ := Val.isAtRef_true hat
+          exact ⟨by simp [expandF, Val.landed, hla], rfl⟩
     · cases k <;> exact ⟨rfl, rfl⟩
   have hd : ∀ n, (expandF [] n (.map [("v", false, t)] none false)).directed =
       expandF [] n (.map [("v", false, t)] none false) := by

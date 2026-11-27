@@ -52,18 +52,6 @@ def Val.at : Val → List Seg → Option Val
   | _, .lands _ :: _ => none
 termination_by structural _ p => p
 
-/-- The index digits spell in canonical decimal: `0`, or digits that
-don't begin with `0`. -/
-def digitsOf? : List Char → Option ℕ
-  | ['0'] => some 0
-  | '0' :: _ => none
-  | [] => none
-  | cs => cs.foldl (fun acc c => acc.bind fun n =>
-      if c.isDigit then some (10 * n + (c.toNat - '0'.toNat)) else none) (some 0)
-
-/-- The index a step's text spells in canonical decimal. -/
-def indexOf? (k : String) : Option ℕ := digitsOf? k.toList
-
 /-- The step a written step takes in the container it meets, the riders
 around it read through: in a map, the key its text spells, and in a
 list, the index its text spells in canonical decimal. A variable names
@@ -375,11 +363,11 @@ def refUse (p pos : List Seg) : Option Val → Val
   | none => .alias (useName (Use.place p).key pos)
 
 /-- Whether a call's first argument is data the call reads: a
-generator's source, the bag a fold or `sort` reads, and the list `pick`
-and `join` read. A path there reads its target where the target stands,
-and nothing is placed (ruling 93). -/
+generator's source, the bag a fold or `sort` reads, the list `pick`
+and `join` read, and the term `at` steps in. A path there reads its
+target where the target stands, and nothing is placed (ruling 93). -/
 def Fn.readsData : Fn → Bool
-  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
+  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join | .at => true
   | _ => false
 
 mutual

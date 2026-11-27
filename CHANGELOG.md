@@ -21,7 +21,9 @@ nothing is `no_path`, and absence under `maybe`; a key that is neither
 a string nor an integer is `func_arg`. A member marked with `hide()` or
 `type()` is read as a path reads it. `test/spec/at.tsv` holds both
 engines to 105 rows, and `test/spec/comprehension.tsv` gains the `at`
-spelling beside each of the eight routes it replaces.
+spelling beside each of the eight routes it replaces. The definition
+states `at` as `atOf` (`spec/Aontu/Verdict.lean`), and rows at0 to
+at287 of `test/spec/def-path.tsv` hold both engines to it.
 
 ### A star over a `pref()` call or a path ranks as what it reads as
 
