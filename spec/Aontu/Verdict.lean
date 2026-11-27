@@ -2337,13 +2337,15 @@ def Decls.armMoves (ds : Decls) (a : Val) : List String :=
 mutual
 /-- Whether a term holds a call that waits, a `+`, a `join` or a `pref`
 the reading left as written: at its top, in a member, an element, an
-arm or a meet, through riders and links. A spread's template and a
-term under `*` are left out, as neither port waits on a call there. -/
+arm or a meet, through riders, links and a preference, so that a
+starred branch waits with its call (ruling 91). A spread's template is
+left out, read at each member instead. -/
 def Val.stalls : Val → Bool
   | .call .plus _ | .call .join _ | .call .pref _ => true
   | .map fs _ _ => stallsFields fs
   | .list items _ _ => stallsItems items
   | .or arms => stallsArms arms
+  | .pref _ x => x.stalls
   | .meet a b => a.stalls || b.stalls
   | .ride _ v _ => v.stalls
   | .link v _ => v.stalls
@@ -2586,7 +2588,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         ((resolveItems ds b here args).flatMap Val.moves)
   | .len c =>
     if ds.clashes (resolveD ds b here c) then .nil
-    else if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c)
+    else waitOr here [resolveD ds b here c]
+      (if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c))
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
@@ -2612,8 +2615,11 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         ((resolveSpread ds b here e).map (ds.tried here)))
   | .contains c n =>
     if ds.clashes (resolveD ds b here n) then .nil
-    else .contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n)
-  | .rest t cs => .rest (resolveD ds b here t) (resolveCovers ds b here cs)
+    else waitOr here [ds.tried here (resolveD ds b here c), resolveD ds b here n]
+      (.contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n))
+  | .rest t cs =>
+    waitOr here (resolveD ds b here t :: (resolveCovers ds b here cs).flatMap fun c => [c.1, c.2.1, c.2.2].filterMap id)
+      (.rest (resolveD ds b here t) (resolveCovers ds b here cs))
   | .ride k v r => .ride k (resolveD ds b here v) r
   | .link v lt => .link (resolveD ds b here v) lt
   | .keyUp n =>
@@ -4357,6 +4363,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace ih := @And.left _ _ ih
     simp only [resolveD]; split
     · exact .nil
+    refine waitOr_checkableA ?_
     split
     · exact .nothing
     · exact .len (ih hb)
@@ -4446,7 +4453,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace ihn := @And.left _ _ ihn
     simp only [resolveD]; split
     · exact .nil
-    · exact .contains (Decls.tried_checkableA (ihc hb)) (ihn hb)
+    · exact waitOr_checkableA (.contains (Decls.tried_checkableA (ihc hb)) (ihn hb))
   | rest _ _ _ _ iht ih1 ih2 ih3 =>
     refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     replace iht := @And.left _ _ iht
@@ -4454,7 +4461,7 @@ theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Che
     replace ih2 := fun c hc w hw => @And.left _ _ (ih2 c hc w hw)
     replace ih3 := fun c hc w hw => @And.left _ _ (ih3 c hc w hw)
     simp only [resolveD]
-    refine .rest (iht hb) (fun c hc v hv => ?_) (fun c hc v hv => ?_) (fun c hc v hv => ?_)
+    refine waitOr_checkableA (.rest (iht hb) (fun c hc v hv => ?_) (fun c hc v hv => ?_) (fun c hc v hv => ?_))
     · obtain ⟨c₀, hc₀, h1, -, -⟩ := mem_resolveCovers hc
       rw [h1] at hv
       obtain ⟨w, hw, rfl⟩ := resolveSpread_some hv
