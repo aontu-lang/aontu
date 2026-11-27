@@ -13,7 +13,7 @@ import {
 import { makeNilErr } from '../err'
 import { top } from './top'
 import { prefInnerPeg } from './PrefVal'
-import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
+import { FuncBaseVal, feeding, trialUnify, sameMembers } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import { readsPlace } from './ConstraintVal'
 import { subsumeNode, newPairs } from '../subsume'
@@ -125,7 +125,7 @@ class MatchFuncVal extends FuncBaseVal {
     for (let i = 1; i < last; i += 2) {
       const arg: Val = this.peg[i]
       if (!arg.done) {
-        this.peg[i] = arg.unify(top(), readsPlace(arg, this.path) ? held : ctx)
+        this.peg[i] = arg.unify(top(), feeding(readsPlace(arg, this.path) ? held : ctx, this.path))
       }
       ready = ready && true === this.peg[i].done
     }

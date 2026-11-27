@@ -17,11 +17,14 @@ const RecurseVal_1 = require("./RecurseVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const MAKERS = new Set(['pack', 'each', 'apply', 'match']);
 const making = (v) => true === v?.isFunc && !v.done && MAKERS.has(v.funcname());
-// A member a generator is still making is not yet where a path reads it.
+// A member a generator is still making is not yet where a path reads it; its input is.
 function unmade(ctx, path) {
+    const feeds = ctx.feeds ?? [];
     for (let i = 0; i < path.length; i++) {
-        const node = (0, RecurseVal_1.unmarked)((0, RecurseVal_1.walkTarget)(ctx.root, path.slice(0, i)));
-        if (making(node) || (true === node?.isConjunct && node.peg.some(making))) {
+        const at = path.slice(0, i);
+        const node = (0, RecurseVal_1.unmarked)((0, RecurseVal_1.walkTarget)(ctx.root, at));
+        if (!feeds.includes(at.join('\u0000')) &&
+            (making(node) || (true === node?.isConjunct && node.peg.some(making)))) {
             return true;
         }
     }

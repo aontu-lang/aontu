@@ -246,9 +246,12 @@ func making(v Val) bool {
 	return ok && DONE != f.dc && makers[f.name]
 }
 
-// A member a generator is still making is not yet where a path reads it.
+// A member a generator is still making is not yet where a path reads it; its input is.
 func unmade(ctx *Ctx, path []string) bool {
 	for i := range path {
+		if slices.Contains(ctx.feeds, strings.Join(path[:i], "\x00")) {
+			continue
+		}
 		node := unmarked(walkPlace(ctx.root, path[:i]))
 		if cj, ok := node.(*ConjunctVal); making(node) || (ok && slices.ContainsFunc(cj.peg, making)) {
 			return true
@@ -565,9 +568,10 @@ func generates(v Val) bool {
 
 func stagedDriveAt(ctx *Ctx, f *FuncVal, base []string, idx []int) bool {
 	ready := true
-	saved := ctx.argsnap
+	saved, fed := ctx.argsnap, ctx.feeds
 	ctx.argsnap = true
-	defer func() { ctx.argsnap = saved }()
+	ctx.feeds = append(cp(fed), strings.Join(base, "\x00"))
+	defer func() { ctx.argsnap, ctx.feeds = saved, fed }()
 	// Every index stagedArgIdx answers is derived from len(f.peg), and
 	// arity is checked at parse, so there is no bound to test here.
 	for _, i := range idx {
