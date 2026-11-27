@@ -24,6 +24,7 @@ import Oracle.Gaps
 import Oracle.DataArgs
 import Oracle.Waits
 import Oracle.At
+import Oracle.PackKey
 
 /-!
 # The oracle
@@ -373,6 +374,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# down; a match's result and a plain path reference stay copies."
     pathRows "dx" dataArgCases
     atRows
+    packKeyRows
     IO.println "# A bare close() and a bare open() beside path references follow in rows"
     IO.println "# dirp0 on: a sealed place's copy sealed, close() beside a reference sealing"
     IO.println "# the terms read there, open() beside one lifting the target's seal, and"
