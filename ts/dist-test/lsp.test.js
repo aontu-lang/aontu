@@ -325,7 +325,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         const c = (0, lsp_1.computeCompletions)('');
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.detail, 'upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string');
-        Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any) : map');
+        Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any, template k?: string) : map');
         Assert.equal(byLabel.get('path')?.detail, 'path(capture p?: path) : path');
     });
     // Twin: go/lsp/lsp_test.go TestCompletionOffersTheNamesInScope.
@@ -414,12 +414,16 @@ const lsp_server_1 = require("../dist/lsp-server");
         // Inside the call: the declared signature, first parameter active.
         open('x: pack($.names, {a:1})');
         let r = help(0, 8);
-        Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any) : map');
-        Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 2);
+        Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any, template k?: string) : map');
+        Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 3);
         Assert.equal(r.activeParameter, 0);
         // After the comma: the second parameter is active.
         r = help(0, 18);
         Assert.equal(r.activeParameter, 1);
+        // After the second comma: the key template is active.
+        open('x: pack($.names, {a:1}, key(0))');
+        r = help(0, 26);
+        Assert.equal(r.activeParameter, 2);
         // A comma or paren inside a string does not miscount.
         open('x: join(["a,b"], ",")');
         r = help(0, 20);

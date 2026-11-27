@@ -55,7 +55,7 @@ gen(spec: string|map) : annotation
 acyclic() : constraint
 inverse(projector k: string) : constraint
 relate(template t?: any) : constraint
-pack(d: map|list, template t: any) : map
+pack(d: map|list, template t: any, template k?: string) : map
 each(d: map|list, template t: any) : list
 apply(v: any, template f: any) : any
 filter(d: map|list, trial c: any) : map|list

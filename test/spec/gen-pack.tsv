@@ -1,6 +1,7 @@
 # GENERATION: pack(data, tmpl) (G8 phase 1,
 # sketch/capability-review/g8-generation.md). One child of the result map
-# per child of `data`, each of them `tmpl` cloned at the destination.
+# per child of `data`, each of them `tmpl` cloned at the destination;
+# the third argument, the key of each child, is gen-pack-key.tsv's.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #
 # KEYS ARE DATA, NOT POSITION: for a list the strings themselves are
@@ -47,7 +48,7 @@ pack-key-mixed	errc	d:pack([a,1],{x:1})\n	pack_key
 pack-key-map	errc	d:pack([a,{b:1}],{x:1})\n	pack_key
 pack-arity-one	errc	d:pack($.n)\n	func_arity
 pack-arity-none	errc	d:pack()\n	func_arity
-pack-arity-three	errc	d:pack([a],{x:1},{y:2})\n	func_arity
+pack-arity-four	errc	d: pack([a], {x: 1}, "k", "j")	func_arity
 
 # TEMPLATE-CLONE ISOLATION (2026-08-26; use-cases/BUGS.md §9):
 # a rank-2 default computed from key() shared its one inner key()

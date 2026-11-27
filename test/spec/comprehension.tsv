@@ -33,20 +33,32 @@ routes-k7	gen	svcs: [{name: web, ports: [80, 443]}, {name: db, ports: [5432]}]\n
 routes-k8	gen	as: [a, b]\nbs: [x, y]\ntmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))\nout: emit($.tmp, {match: any, body: [.row]})	{"as":["a","b"],"bs":["x","y"],"out":["a-x","a-y","b-x","b-y"]}
 # k9: the members named in another list
 routes-k9	gen	allowed: [web, cache]\nxs: [{name: web}, {name: db}, {name: cache}]\ntmp: hide(pack($.allowed, filter($.xs, {name: key(2)})))\nout: pick(emit($.tmp, {match: any, body: [_]}), name)	{"allowed":["web","cache"],"out":["cache","web"],"xs":[{"name":"web"},{"name":"db"},{"name":"cache"}]}
+# the same, with at and pack's key (C1, C2)
+routes-k9-pack	gen	allowed: [web, cache]\nxs: [{name: web}, {name: db}, {name: cache}]\nout: pick(pack($.allowed, at(pack($.xs, _, at(_, name)), key(0))), name)	{"allowed":["web","cache"],"out":["cache","web"],"xs":[{"name":"web"},{"name":"db"},{"name":"cache"}]}
 # k10: a map keyed by a field of each member
 routes-k10	gen	xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]\nout: pack(pick($.xs, name), sum(pick(filter($.xs, {name: key(2)}), port)))	{"out":{"db":5432,"web":80},"xs":[{"host":"h1","name":"web","port":80},{"host":"h2","name":"db","port":5432}]}
+# the same, with pack's key (C2)
+routes-k10-pack	gen	xs: [{name: web, host: h1, port: 80}, {name: db, host: h2, port: 5432}]\nout: pack($.xs, at(_, port), at(_, name))	{"out":{"db":5432,"web":80},"xs":[{"host":"h1","name":"web","port":80},{"host":"h2","name":"db","port":5432}]}
 # k11: the same, holding each whole record
 routes-k11	gen	xs: [{name: web, port: 80}, {name: db, port: 5432}]\nout: pack(pick($.xs, name), {})\nlinks: hide(emit($.xs, {match: any, body: [relate(_) & path("$.out." + .name)]}))	{"out":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}},"xs":[{"name":"web","port":80},{"name":"db","port":5432}]}
+# the same, with pack's key (C2)
+routes-k11-pack	gen	xs: [{name: web, port: 80}, {name: db, port: 5432}]\nout: pack($.xs, _, at(_, name))	{"out":{"db":{"name":"db","port":5432},"web":{"name":"web","port":80}},"xs":[{"name":"web","port":80},{"name":"db","port":5432}]}
 # k12: group by a field
 routes-k12	gen	xs: [{name: a, team: core}, {name: b, team: web}, {name: c, team: core}]\nout: pack(pick($.xs, team), pick(filter($.xs, {team: key(2)}), name))	{"out":{"core":["a","c"],"web":["b"]},"xs":[{"name":"a","team":"core"},{"name":"b","team":"web"},{"name":"c","team":"core"}]}
 # k13: the same, with the key level miscounted
 routes-k13	gen	xs: [{name: a, team: core}, {name: b, team: web}, {name: c, team: core}]\nout: pack(pick($.xs, team), pick(filter($.xs, {team: key(3)}), name))	{"out":{"core":[],"web":[]},"xs":[{"name":"a","team":"core"},{"name":"b","team":"web"},{"name":"c","team":"core"}]}
 # k14: invert a map
 routes-k14	gen	m: {a: x, b: y}\nst: hide(pack($.m, {k: key(), v: _}))\nout: pack(pick($.st, v), join(pick(filter($.st, {v: key(2)}), k)))	{"m":{"a":"x","b":"y"},"out":{"x":"a","y":"b"}}
+# the same, with pack's key (C2)
+routes-k14-pack	gen	m: {a: x, b: y}\nst: hide(pack($.m, {k: key(), v: _}))\nout: pack($.st, at(_, k), at(_, v))	{"m":{"a":"x","b":"y"},"out":{"x":"a","y":"b"}}
 # k15: a prefix on every key
 routes-k15	gen	m: {a: 1, b: 2}\nst: hide(pack($.m, {k: "svc-" + key(), v: _}))\nout: pack(pick($.st, k), sum(pick(filter($.st, {k: key(2)}), v)))	{"m":{"a":1,"b":2},"out":{"svc-a":1,"svc-b":2}}
+# the same, with pack's key (C2)
+routes-k15-pack	gen	m: {a: 1, b: 2}\nout: pack($.m, _, "svc-" + key(0))	{"m":{"a":1,"b":2},"out":{"svc-a":1,"svc-b":2}}
 # k16: a key built from two fields
 routes-k16	gen	xs: [{ns: a, name: web, port: 80}, {ns: b, name: web, port: 81}]\nst: hide(each($.xs, _ & {id: .ns + "/" + .name}))\nout: pack(pick($.st, id), sum(pick(filter($.st, {id: key(2)}), port)))	{"out":{"a/web":80,"b/web":81},"xs":[{"name":"web","ns":"a","port":80},{"name":"web","ns":"b","port":81}]}
+# the same, with pack's key (C2)
+routes-k16-pack	gen	xs: [{ns: a, name: web, port: 80}, {ns: b, name: web, port: 81}]\nout: pack($.xs, at(_, port), at(_, ns) + "/" + at(_, name))	{"out":{"a/web":80,"b/web":81},"xs":[{"name":"web","ns":"a","port":80},{"name":"web","ns":"b","port":81}]}
 # k17: every pair from two lists, keyed by both
 routes-k17	gen	as: [a, b]\nbs: [x, y]\ntmp: hide(each($.as, {a: _, row: each($.bs, ..a + "-" + _)}))\nkeys: hide(emit($.tmp, {match: any, body: [.row]}))\nout: pack($.keys, {parts: hide(split(key(), "-")), left: .parts.0, right: .parts.1})	{"as":["a","b"],"bs":["x","y"],"out":{"a-x":{"left":"a","right":"x"},"a-y":{"left":"a","right":"y"},"b-x":{"left":"b","right":"x"},"b-y":{"left":"b","right":"y"}}}
 # k18: one field of each member, keys kept, any kind
