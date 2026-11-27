@@ -2257,6 +2257,60 @@ How much of the aontu language does the lean spec now cover?
 How much of the aontu language does the lean spec now cover?
 ```
 
+## 2026-11-26 00:15:00 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+Merge prs
+```
+
+## 2026-11-26 08:32:40 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+File the aontu issue
+```
+
+## 2026-11-26 08:33:30 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+What is fulcio? What is sigstore?
+```
+
+## 2026-11-26 09:03:10 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+Is fulcio a live service?
+```
+
+## 2026-11-26 15:18:44 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+but that means we have a dep on a third party service?
+```
+
+## 2026-11-26 18:40:14 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+status
+```
+
+## 2026-11-26 18:44:05 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+explain the comment-rule paragraphs?
+```
+
+## 2026-11-26 18:46:15 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+are there other rules about comments?
+```
+
+## 2026-11-26 18:52:50 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+when need consistent instructions in all places: comments are only for surprising code, and must be kept as short as possible - update dev-process template too
+```
+
 ## 2026-11-26 18:38:49 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
 
 ```text
@@ -2273,6 +2327,18 @@ Continue
 
 ```text
 Continue
+```
+
+## 2026-11-27 00:54:05 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+Status?
+```
+
+## 2026-11-27 14:54:55 UTC · Claude Code · session_01U3n7wTuupT8S9CjEkAbrpe
+
+```text
+merge all
 ```
 
 ## 2026-11-27 07:47:43 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
@@ -2297,4 +2363,10 @@ Start
 
 ```text
 What is the fastest way to get this completed
+```
+
+## 2026-11-27 15:26:56 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+merge, and write a handover doc
 ```
