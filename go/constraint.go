@@ -640,7 +640,7 @@ func makeConstraint(atom string, args []Val, sp int) *ConstraintVal {
 	}
 
 	for _, a := range args {
-		if DONE != a.Dc() {
+		if DONE != a.Dc() || (trialAtoms[atom] && starWaits(a)) {
 			c.pending = &constraintPending{atom: atom, args: args}
 			c.notdone()
 			return c
@@ -943,7 +943,7 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 				next = arg.Unify(top(), ctx)
 			}
 		}
-		settled = settled && DONE == next.Dc()
+		settled = settled && DONE == next.Dc() && !starWaits(next)
 		moved = moved || next.Canon() != arg.Canon()
 		args = append(args, next)
 	}
@@ -2070,7 +2070,7 @@ func coverArg(ctx *Ctx, arg Val, path []string) Val {
 // trialArg settles a trial schema apart from the document: one that
 // conflicts admits nothing, while any other failure is the document's.
 func trialArg(ctx *Ctx, arg Val) Val {
-	if DONE == arg.Dc() {
+	if DONE == arg.Dc() && !starWaits(arg) {
 		return arg
 	}
 	tctx := trialCtx(ctx)
@@ -2173,6 +2173,19 @@ func conflictNil(v Val) bool { n, ok := v.(*NilVal); return !ok || "literal_nil"
 func writtenNilsOnly(args []Val) bool {
 	return slices.ContainsFunc(args, func(a Val) bool { return holdsNil(a, nil) }) &&
 		!slices.ContainsFunc(args, func(a Val) bool { return holdsNil(a, conflictNil) })
+}
+
+// starWaits: a default is done while the value it marks still waits, as on a call (ruling 91).
+func starWaits(v Val) bool {
+	inner := v
+	for {
+		p, ok := inner.(*PrefVal)
+		if !ok {
+			break
+		}
+		inner = p.peg
+	}
+	return inner != v && DONE != inner.Dc()
 }
 
 func holdsMove(v Val) bool {

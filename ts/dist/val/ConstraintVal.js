@@ -414,7 +414,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             if (TRIAL_ATOMS.includes(spec.atom) && args.some((a) => holdsMove(a))) {
                 this.invalid = 'invalid-arg';
             }
-            else if (args.some((a) => true !== a?.done)) {
+            else if (args.some((a) => true !== a?.done) ||
+                (TRIAL_ATOMS.includes(spec.atom) && args.some(starWaits))) {
                 this.pending = { atom: spec.atom, args };
             }
             else {
@@ -663,7 +664,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 const a = held ? arg.clone(ctx, { dup: true }) : arg;
                 next = own && !held ? arg : (0, unify_1.withDepth)(ctx, a, TOP, () => a.unify(TOP, held ? ctx.holdArm(this.path, peer, undefined, true) : ctx));
             }
-            settled = settled && true === next?.done;
+            settled = settled && true === next?.done && !starWaits(next);
             moved = moved || next?.canon !== arg?.canon;
             args.push(next);
         }
@@ -1364,7 +1365,7 @@ function nofCanon(n) {
 // A trial schema settles apart from the document: one that conflicts
 // admits nothing, while any other failure is the document's own.
 function trialArg(ctx, arg, path) {
-    if (true === arg?.done) {
+    if (true === arg?.done && !starWaits(arg)) {
         return arg;
     }
     const at = arg.clone(ctx);
@@ -1417,6 +1418,14 @@ function conflictNil(n) {
 function writtenNilsOnly(args) {
     return args.some((a) => holdsNil(a)) &&
         !args.some((a) => holdsNil(a, conflictNil));
+}
+// A default is done while the value it marks still waits, as on a call (ruling 91).
+function starWaits(v) {
+    let inner = v;
+    while (true === inner?.isPref) {
+        inner = inner.peg;
+    }
+    return inner !== v && true !== inner?.done;
 }
 function holdsMove(v) {
     return (true === v.isFunc && 'move' === v.funcname?.()) ||

@@ -87,8 +87,10 @@ None of these has a rule here, so the definition says nothing about
 it. Each waits on a later phase of the plan, on a ruling of its §7
 not yet built, or, where neither owns it, on the issue that tracks it:
 
-- each read mode's reading of a number, and the exactness budget of a
-  big decimal (P1);
+- a lone default whose own value is a conflict, `v: *(1 & 2)`, which the
+  definition reads as its parent type, since the meet drops the failed
+  arm before staging can see it, where both ports read the conflict
+  where the default stands (#1042);
 - a preference under a call: a written `*1 | integer` reads as the lone
   `*1` it has the shape of, and `(*1 | string) & integer`, a preferred
   arm the meet leaves alone, reads as a choice, each the other way

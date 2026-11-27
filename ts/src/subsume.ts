@@ -682,6 +682,37 @@ function identical(g: any, s: any): boolean {
 }
 
 
+function named(root: any, v: any): any {
+  return true === v?.isRef && undefined !== v.aliasKey ?
+    (walkTarget(root, [v.aliasKey]) ?? v) : v
+}
+
+
+// A name in a template is followed to its definition as written.
+function placeBound(root: any, v: any, seen: Set<string> = new Set()): boolean {
+  if (true !== v?.isVal || true !== v.isPathDependent) {
+    return false
+  }
+  if (true === v.isRef && undefined !== v.aliasKey) {
+    if (seen.has(v.aliasKey)) {
+      return false
+    }
+    seen.add(v.aliasKey)
+    const d = v.expansion ?? walkTarget(root, [v.aliasKey])
+    return undefined === d || placeBound(root, d, seen)
+  }
+  if (true === v.isRef || true === v.isKeyFunc || true === v.isPathFunc ||
+    true === v.isMoveFunc || true === v.isSuperFunc) {
+    return true
+  }
+  const peg: any = v.peg
+  const kids: any[] = Array.isArray(peg) ? peg :
+    null != peg && 'object' === typeof peg ? Object.values(peg) : []
+  return kids.some((c: any) => placeBound(root, c, seen)) ||
+    placeBound(root, v.spread?.cj, seen)
+}
+
+
 // A recursion's definition in its own document, or the value itself.
 function unfold(root: any, v: any): any {
   return true === v?.isRecurse ? walkTarget(root, v.target) : v
@@ -778,9 +809,10 @@ function subsumeBag(
       // An open specific side admits a value at the key, its template's
       // or any, which the general side's optional key must admit.
       if (optional && true !== s.closed) {
-        worse(true === s.spread?.cj?.isPathDependent ?
+        const st = named(state.sroot, s.spread?.cj)
+        worse(placeBound(state.sroot, s.spread?.cj) ?
           unsettledSpread(state, [...path, k], gChild, s.spread.cj) :
-          subsumeNode(state, [...path, k], gChild, s.spread?.cj ?? topLike()))
+          subsumeNode(state, [...path, k], gChild, st ?? topLike()))
       }
       if (optional) {
         continue
@@ -822,13 +854,15 @@ function subsumeBag(
     }
   }
 
-  const gcj = g.spread?.cj
-  const scj = s.spread?.cj
+  const gw = g.spread?.cj
+  const sw = s.spread?.cj
+  const gcj = named(state.groot, gw)
+  const scj = named(state.sroot, sw)
   if (null != gcj || null != scj) {
-    const sameTemplate = null != gcj && null != scj && hcanon(gcj, true) === hcanon(scj, true)
+    const sameTemplate = null != gw && null != sw && hcanon(gw, true) === hcanon(sw, true)
     if (!sameTemplate &&
-      (true === gcj?.isPathDependent || true === scj?.isPathDependent)) {
-      record(state, 'sub_path_dependent_spread', path, gcj ?? g, scj ?? s,
+      (placeBound(state.groot, gw) || placeBound(state.sroot, sw))) {
+      record(state, 'sub_path_dependent_spread', path, gw ?? g, sw ?? s,
         'a path-dependent spread template cannot be compared structurally')
       worse('undecided')
     }
