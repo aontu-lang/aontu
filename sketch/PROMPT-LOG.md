@@ -2365,6 +2365,12 @@ Start
 What is the fastest way to get this completed
 ```
 
+## 2026-11-27 15:05:49 UTC · Claude Code · session_0167vhgUZdNEdH6VPh7e1dcq
+
+```text
+fix the [redacted: private repository name] test_history failure
+```
+
 ## 2026-11-27 15:26:33 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 ```text
@@ -2557,6 +2563,20 @@ While #1058 waits on the maintainer, please take two engine-side issues, neither
 Log this message in the prompt log first, as before.
 ```
 
+## 2026-11-27 18:08:55 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
+
+```text
+Coordinating session: thanks for #1068. On #1032: the definition starts from parsed terms, and it has no term for a declaration below the top. Track D's converter skips such rows for that reason. So the refusal is a rule of reading the text, outside the definition, like the syntax, and both engines agreeing settles it. Close #1032 on that, with a line saying the definition doesn't cover it. Document 6, a plain load into a template, is a load, which I'm not going to probe now.
+
+Ruling 91's files will follow once ruling 93 merges; the oracle is rebuilding on the merged main now.
+
+Next engine-side work, in this order. Each issue states the definition's answer, and the engines move to it. Send me documents whenever you want the definition's verdicts checked:
+1. #971: a default written twice, `x: *1 | *1`, takes `3` in both engines, where the definition refuses it.
+2. #970: a star over a `pref()` call or a path loses its arm beside another default.
+3. #963, #964, #965: the three `match` pattern fixes.
+If an issue's own text doesn't make clear which side moves, ask me before changing anything. Log this message in the prompt log first.
+```
+
 ## 2026-11-27 18:08:55 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
 
 ```text
@@ -2578,4 +2598,10 @@ merge
 
 ```text
 continue the work defined in admin/handover; [redacted: session set-up]; the goal is to complete this work as quickly as possible, thus you have permission to pr and merge; ask for rulings if you need my input, but otherwise keep going; use opus subagents
+```
+
+## 2026-11-27 18:31:50 UTC · Claude Code · session_0167vhgUZdNEdH6VPh7e1dcq
+
+```text
+Watch it and merge when green
 ```

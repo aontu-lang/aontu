@@ -5268,6 +5268,12 @@ A mark a key's second declaration carries rides the meet the same way,
 so `{a: integer} & {a: hide(integer)}` against `{}` is `valid`: the
 output leaves `a` out, and the data needn't give it.
 
+Nothing holds the root of a document, so a root a mark leaves out
+writes `null`: `hide({a: 1})` and `type([1])` write `null`, as both
+engines do for a map or a list, in rows gr0 on of
+[`test/spec/def-gaps.tsv`](../test/spec/def-gaps.tsv). Both engines
+still write a marked scalar root, `hide(1)` as `1`, which #1078 tracks.
+
 A spread's template meets each member without the marks written around
 it, which the reading drops before the template meets anything, since
 a mark belongs to the place it's written at: `{&: hide({n: 1})} & {a: {}}`
@@ -7127,11 +7133,13 @@ def Decls.clashes (ds : Decls) (v : Val) : Bool := ((normaliseD ds v).staged ds)
         ((resolveSpread ds b here e).map (ds.tried here)))
   | .contains c n =>
     if ds.clashes (resolveD ds b here n) then .nil
-    else .contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n)
+    else waitOr here [ds.tried here (resolveD ds b here c), resolveD ds b here n]
+      (.contains (ds.tried here (resolveD ds b here c)) (resolveD ds b here n))
 ```
 
-`waitOr` holds a `nof`, a `must` or a `when` whose argument still waits
-for an operand, which the section on `+` below covers.
+`waitOr` holds a `nof`, a `must`, a `when` or a `contains` whose argument
+still waits for an operand, and a `rest` and a `len` the same way, which
+the section on `+` below covers.
 
 Below the top of `must`'s condition a written `nil` stands as it does
 anywhere, so `must({b?: nil}, "m")` admits `{"x": 1}` and refuses
@@ -8436,8 +8444,18 @@ reading couldn't make keeps the `match` as written, so
 answer. Rows `wt0` on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to these readings, and the two rows that held the old one have left the
-ledger. `contains`, `rest` and `len` over such a call read another way
-in both engines, which #977 tracks.
+ledger. `contains`, `rest` and `len` over such a call wait the same
+way, through `waitOr`, and so does a starred branch, since `Val.stalls`
+reads through a preference:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .or arms => stallsArms arms
+  | .pref _ x => x.stalls
+```
+
+Rows `wx0` on hold the definition and both engines to these, beside
+the same forms over a value that doesn't wait, which still answer.
 
 `join` folds a bag into one string with the texts `+` writes, the
 separator between them, `""` where there's none, so

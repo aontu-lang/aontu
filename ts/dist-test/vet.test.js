@@ -691,4 +691,12 @@ const SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal((0, vet_1.vet)('v: {&: 1 + 1}', 'v: {a: 3}').verdict, 'invalid');
     });
 });
+(0, node_test_1.describe)('vet-a-default-written-twice', () => {
+    for (const schema of ['x: *1 | *1', 'x: *1 | *1 | "a"', 'd: *1, x: $.d | *1']) {
+        (0, node_test_1.test)(schema, () => {
+            Assert.equal((0, vet_1.vet)(schema, '{"x": 3}').verdict, 'invalid');
+            Assert.equal((0, vet_1.vet)(schema, '{"x": 1}').verdict, 'valid');
+        });
+    }
+});
 //# sourceMappingURL=vet.test.js.map
