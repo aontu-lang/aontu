@@ -416,4 +416,6 @@ export {
   PrefVal,
   prefInnerPeg,
   strayIn,
+  strayRef,
+  namesNothing,
 }

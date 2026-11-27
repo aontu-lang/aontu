@@ -12,7 +12,7 @@ import {
 
 import { makeNilErr } from '../err'
 import { top } from './top'
-import { prefInnerPeg } from './PrefVal'
+import { prefInnerPeg, strayRef, namesNothing } from './PrefVal'
 import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import { readsPlace } from './ConstraintVal'
@@ -154,6 +154,34 @@ class MatchFuncVal extends FuncBaseVal {
   }
 
 
+  // A result not taken that holds a path into the match's place naming nothing there is still the schema's error.
+  private taking(ctx: AontuContext, args: Val[], taken: number): Val {
+    const at = ctx.path
+    const out = placed(args[taken], ctx)
+    const last = args.length - (this.hasDefault() ? 1 : 0)
+    const results = []
+    for (let i = 2; i <= last; i += 2) {
+      results.push(i)
+    }
+    if (this.hasDefault()) {
+      results.push(args.length - 1)
+    }
+    for (const ri of results.filter((ri) => ri !== taken)) {
+      const r = placed(args[ri], ctx)
+      const stray = strayRef(r, (ref: any) => {
+        const to: any[] = ([] as any[]).concat(ref.plainRefPath() ?? [])
+        const rest = to.slice(at.length)
+        return 0 < rest.length && at.every((p: any, k: number) => String(p) === String(to[k])) &&
+          namesNothing(r, rest) && namesNothing(out, rest)
+      })
+      if (undefined !== stray) {
+        return makeNilErr(ctx, 'no_path', stray)
+      }
+    }
+    return out
+  }
+
+
   resolve(ctx: AontuContext, args: Val[]) {
     const scrutinee: Val = effectiveScrutinee(args[0])
     const dflt: Val | undefined = this.hasDefault() ?
@@ -173,7 +201,7 @@ class MatchFuncVal extends FuncBaseVal {
         !sealedMiss(pattern, own) && admitsSettled(ctx, pattern, output, own, this.path)
       if (undefined !== admits) {
         if (admits) {
-          return placed(args[i + 1], ctx)
+          return this.taking(ctx, args, i + 1)
         }
         continue
       }
@@ -183,12 +211,12 @@ class MatchFuncVal extends FuncBaseVal {
       // untouched for the next document that reads its canon.
       const met = trialUnify(ctx, scrutinee.clone(ctx), pattern.clone(ctx))
       if (undefined !== met && (sameMembers(scrutinee, met, ctx, true) || (open && below(args[0], pattern)))) {
-        return placed(args[i + 1], ctx)
+        return this.taking(ctx, args, i + 1)
       }
     }
 
     if (undefined !== dflt) {
-      return placed(dflt, ctx)
+      return this.taking(ctx, args, args.length - 1)
     }
 
     return makeNilErr(ctx, 'match_none', this, undefined, 'resolve', {

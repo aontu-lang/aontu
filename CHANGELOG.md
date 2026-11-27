@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### A path that names nothing under `when`, `nof` or a `match` result is the schema's error
+
+**Breaking.** #984, in both engines. Some places held a map whose path
+names nothing where the check or the `match` stands:
+- an argument of `when` or `nof`, which waited (`incomplete`, and
+  `valid` under `--partial`);
+- a `match` result not taken, which passed.
+
+Each is now `no_path`, an `error` in every mode, as a lone default
+around the same map already was (#981). The schema's error counts
+wherever the schema writes it, reached or not.
+
+| Schema | Before | Now |
+|---|---|---|
+| `x: when(true, {a: 1, b: .d}, 2)` | `incomplete` | `error` |
+| `x: nof(1, {a: 1, b: .d})` | `incomplete` | `error` |
+| `x: match(1, 2, {a: 1, b: .d}, 3)` | `valid` | `error` |
+
 ### The definition's `filter` reads a preferred disjunction arm by arm
 
 In the definition, a `filter` now takes a child that is a disjunction

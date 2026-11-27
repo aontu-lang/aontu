@@ -27,6 +27,7 @@ import { empty, repathInstance } from './Val'
 import { cmpCodePoint } from '../keyorder'
 
 import { ConjunctVal } from './ConjunctVal'
+import { strayIn } from './PrefVal'
 import { sizingResidue } from './BagVal'
 import { NilVal } from './NilVal'
 import { admitsSettled, ownJson } from './admission'
@@ -903,6 +904,16 @@ class ConstraintVal extends FeatureVal {
         return built
       }
       return built.unify(peer, ctx)
+    }
+
+    // Settled, a path into the check's own place that names nothing there is the schema's error.
+    if (true === ctx.settle && ('when' === pend.atom || 'nof' === pend.atom) && (null == peer || peer.isTop)) {
+      for (const a of args) {
+        const stray = strayIn(a, this.path)
+        if (undefined !== stray) {
+          return makeNilErr(ctx, 'no_path', stray)
+        }
+      }
     }
 
     this.notdone()

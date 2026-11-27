@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrefVal = void 0;
 exports.prefInnerPeg = prefInnerPeg;
 exports.strayIn = strayIn;
+exports.strayRef = strayRef;
+exports.namesNothing = namesNothing;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
 const err_1 = require("../err");
