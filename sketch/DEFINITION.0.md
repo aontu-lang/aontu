@@ -3610,6 +3610,11 @@ until the phase that encodes it lands.
    document `aontu` writes, one rule for every verb, and a disjunction
    with a default reads as the arm generation takes. Both ports move;
    the definition states the edges already (`Val.edges`).
+   **Built**: both ports read so, rows `edge-a-default-writes` on in
+   `test/spec/graph.tsv`, `reaches-through-a-preferred-arm` and
+   `unreachable-through-the-arm-not-taken` in `test/spec/reach.tsv`,
+   and `graph-draws-a-default-edge` and
+   `graph-draws-the-preferred-arm-only` in `test/spec/view.tsv`.
 95. **Arms where none is preferred, and two points of the graph.**
    Raised 2026-11-26 when rulings 72 and 73 were built in the
    definition. Where no arm of a disjunction is preferred, the relation

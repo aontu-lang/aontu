@@ -29,9 +29,9 @@ function walk(root, written) {
     const decls = new Map();
     const sites = new Map();
     // ONE WALK, with `undecided` saying which side of the disjunction it is on:
-    // below an unresolved disjunction every link is a position the
-    // document has not decided, and nothing there is an edge. Read as
-    // `written`, the arms generation picks are decided and no other is read.
+    // a default and the arm generation picks are decided (ruling 94); below
+    // a disjunction with no preferred arm every link is undecided unless
+    // read as `written`, which takes every arm (ruling 95).
     const visit = (node, path, ancestors, hidden, undecided, under) => {
         if (null == node || true !== node.isVal || ancestors.has(node)) {
             return;
@@ -72,12 +72,14 @@ function walk(root, written) {
         }
         if (true === node.isDisjunct && Array.isArray(node.peg)) {
             ancestors.add(node);
-            for (const arm of written ? picked(node.peg) : node.peg) {
-                visit(arm, path, ancestors, hidden, undecided || !written, under);
+            const arms = picked(node.peg);
+            const open = !written && arms === node.peg;
+            for (const arm of arms) {
+                visit(arm, path, ancestors, hidden, undecided || open, under);
             }
             ancestors.delete(node);
         }
-        if (written && true === node.isPref) {
+        if (true === node.isPref) {
             ancestors.add(node);
             visit(node.peg, path, ancestors, hidden, undecided, under);
             ancestors.delete(node);

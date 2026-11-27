@@ -668,4 +668,27 @@ const SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(r.coverage?.vacuous, true);
     });
 });
+(0, node_test_1.describe)('vet-a-call-that-waits', () => {
+    const CASES = [
+        ['v: contains(integer + 1)', 'v: []'],
+        ['v: contains(integer + 1)', 'v: [5]'],
+        ['v: contains(integer + 1, 2)', 'v: [5]'],
+        ['v: rest(1, {members: integer + 1})', 'v: [5]'],
+        ['v: rest(integer + 1)', 'v: [5]'],
+        ['v: len(integer + 1)', 'v: "ab"'],
+        ['v: len(integer + 1)', 'v: [1, 2]'],
+        ['v: nof(0, *(integer + 1))', 'v: 5'],
+        ['v: {&: integer + 1}', 'v: {a: 5}'],
+    ];
+    for (const [schema, data] of CASES) {
+        (0, node_test_1.test)(schema + ' against ' + data, () => {
+            Assert.equal((0, vet_1.vet)(schema, data).verdict, 'incomplete');
+            Assert.equal((0, vet_1.vet)(schema, data, { partial: true }).verdict, 'valid');
+        });
+    }
+    (0, node_test_1.test)('a-template-that-computes-meets-its-member', () => {
+        Assert.equal((0, vet_1.vet)('v: {&: 1 + 1}', 'v: {a: 2}').verdict, 'valid');
+        Assert.equal((0, vet_1.vet)('v: {&: 1 + 1}', 'v: {a: 3}').verdict, 'invalid');
+    });
+});
 //# sourceMappingURL=vet.test.js.map
