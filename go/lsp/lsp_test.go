@@ -858,3 +858,92 @@ func TestAConflictCopiedToAnotherPathIsReportedOnce(t *testing.T) {
 		t.Fatalf("got %+v", ds)
 	}
 }
+
+// Twin: ts/test/lsp.test.ts completion-offers-the-keys-and-members-at-the-cursor.
+func TestCompletionOffersTheKeysAndMembersAtTheCursor(t *testing.T) {
+	const s = "S: type({ port: integer, \"a b\": string, tier?: string })\n"
+	got := CompletionsAt(s+"api: $.S & { port: 1,  }\n", 1, 22, "", nil)
+	want := []CompletionItem{
+		{Label: "a b", Kind: CompletionField, Detail: "string", InsertText: `"a b"`},
+		{Label: "tier", Kind: CompletionField, Detail: "string (optional)"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("keys: %+v", got)
+	}
+	if got := CompletionsAt("xs: [10]\ny: $.xs.\n", 1, 8, ".", nil); !reflect.DeepEqual(got,
+		[]CompletionItem{{Label: "0", Kind: CompletionField, Detail: "10"}}) {
+		t.Errorf("members: %+v", got)
+	}
+	// A path that holds nothing offers nothing, not the general list.
+	if got := CompletionsAt("y: $.zz.\n", 0, 8, "", nil); 0 != len(got) {
+		t.Errorf("nothing: %+v", got)
+	}
+	// Where nothing is declared, the general list stands.
+	const plain = "a: { b: 1,  }\n"
+	if got := CompletionsAt(plain, 0, 11, "", nil); !reflect.DeepEqual(got, Completions(plain)) {
+		t.Errorf("general: %d items", len(got))
+	}
+	// A dot that begins no path offers nothing.
+	if got := CompletionsAt("x: 1.\n", 0, 5, ".", nil); nil == got || 0 != len(got) {
+		t.Errorf("dot: %+v", got)
+	}
+}
+
+func TestCompletionWritesAKeyAsItReadsWhereItGoes(t *testing.T) {
+	inserts := func(src string, line, character int) map[string]string {
+		out := map[string]string{}
+		for _, i := range CompletionsAt(src, line, character, "", nil) {
+			out[i.Label] = i.InsertText
+		}
+		return out
+	}
+	const keys = `a: { "true": 1, _: 2, nil: 3, ok: 4, "x\ny": 5, "q\"r": 6 }` + "\n"
+	// After a dot, a segment the lexer reads as a value takes quotes too.
+	if got := inserts(keys+"x: $.a.\n", 1, 7); !reflect.DeepEqual(got, map[string]string{
+		"_": `"_"`, "nil": `"nil"`, "ok": "", `q"r`: `"q\"r"`, "true": `"true"`, "x\ny": `"x\ny"`,
+	}) {
+		t.Errorf("path: %q", got)
+	}
+	const typ = `T: type({ true: integer, _: string, "x\ny": string })` + "\n"
+	if got := inserts(typ+"v: $.T & {  }\n", 1, 11); !reflect.DeepEqual(got, map[string]string{
+		"_": "", "true": "", "x\ny": `"x\ny"`,
+	}) {
+		t.Errorf("key: %q", got)
+	}
+}
+
+func TestCompletionThroughTheHandler(t *testing.T) {
+	h := NewHandler()
+	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize"})[0])
+	if !strings.Contains(string(init), `"completionProvider":{"triggerCharacters":["."]}`) {
+		t.Errorf("initialize: %s", init)
+	}
+	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{
+		"uri": "file:///c.aontu", "text": "a: { b: 1 }\nx: $.a.\n"}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
+	ask := func(extra map[string]any) []CompletionItem {
+		params := map[string]any{"textDocument": map[string]any{"uri": "file:///c.aontu"}}
+		for k, v := range extra {
+			params[k] = v
+		}
+		raw, _ := json.Marshal(params)
+		out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("2"),
+			Method: "textDocument/completion", Params: raw})[0])
+		var res struct {
+			Result []CompletionItem `json:"result"`
+		}
+		json.Unmarshal(out, &res)
+		return res.Result
+	}
+	dot := map[string]any{"triggerKind": 2, "triggerCharacter": "."}
+	if got := ask(map[string]any{"position": map[string]any{"line": 1, "character": 7},
+		"context": dot}); 1 != len(got) || "b" != got[0].Label {
+		t.Errorf("members: %+v", got)
+	}
+	if got := ask(nil); len(got) != len(Completions("")) {
+		t.Errorf("general: %d items", len(got))
+	}
+	if got := ask(map[string]any{"context": dot}); nil == got || 0 != len(got) {
+		t.Errorf("dot: %+v", got)
+	}
+}

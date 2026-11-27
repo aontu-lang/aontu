@@ -3556,6 +3556,74 @@ until the phase that encodes it lands.
    reads its member's key is no clash where it is written, in all
    three. With data, both ports still leave such a default unresolved,
    which is #465.
+91. **A call that waits, inside `contains`, `rest`, `len`, a starred
+   branch or a spread's template.** Raised 2026-11-25 by #977, while
+   building #432. A call that waits, such as `integer + 1`, neither
+   admits nor refuses, and the four forms of #432 wait with it. Five
+   more forms answered three ways: `v: contains(integer + 1)` against
+   `[]` and `[5]`, and `rest(integer + 1)` against `[5]`, were `invalid`
+   in the definition and `valid` in both ports; `len(integer + 1)`
+   against `"ab"` was `invalid` in the definition and `incomplete` in
+   both ports; `nof(0, *(integer + 1))` against `5` was `invalid` in the
+   definition and `valid` in both ports; and `v: {&: integer + 1}`
+   against `{a: 5}` was `incomplete` in the definition and `invalid` in
+   both ports. **Ruled 2026-11-27 (the project's owner): all five
+   wait**, as the four forms of #432 do, so the trial or the size that
+   tries the call can't answer yet and `vet` says `incomplete`. The
+   definition and both ports move for `contains`, `rest`, `len` and the
+   starred branch, and both ports move for the spread's template.
+92. **A path that climbs past a link's template.** Raised 2026-11-25 by
+   #1001, the case ruling 50 left. In `k: 7`,
+   `x: {k: 3, n: relate({v: ..k}) & path($.out)}`, `out: {}`, the path
+   `..k` leaves the template. The definition read it from the target,
+   so the data `{"out": {"v": 7}}` was `valid` there, and both ports
+   read it where the link is written, so they took `{"v": 3}`; row
+   `routes-k20` of `test/spec/comprehension.tsv` relies on the ports'
+   reading. **Ruled 2026-11-27 (the project's owner): where the link is
+   written**, as both ports read it: a path that leaves the template has
+   left what lands. The definition moves.
+93. **A call's data argument that is a path.** Raised 2026-11-26 by
+   #1012. In `src: {w: 1, a: {v: ..w}}`, `c: {w: 2, d: each($.src.a, _)}`,
+   both ports read `$.src.a` where `src.a` stands, so `d` is `[1]`, and
+   the definition read it as a copy placed at the call (ruling 26), so
+   `d` was `[2]`. `match`, `apply`, `pack`, `filter` and `sum` split the
+   same way, and with `src: {&: {n: key()}}`,
+   `match($.src.a, {n: "a"}, "yes", "no")` is `"yes"` in both ports and
+   was `"no"` in the definition. **Ruled 2026-11-27 (the project's
+   owner): the ports' reading.** A call's data argument is read where
+   its target stands, and nothing is placed: `each($.src.a, _)` lists
+   the members of what `src.a` generates. The definition moves, and the
+   ports, which differ on such a path used as a pattern, come to agree.
+94. **The edges a default writes, in `view`, `reaches` and the library's
+   `graph`.** Raised 2026-11-26 by #1029. With
+   `a: {dependsOn: relate() & *[path($.b)]}`, generation writes the edge
+   from `a` to `b`, but `reaches '$.a' '$.b'` said `unreachable`,
+   `view graph` left the edge out, and the loss report was empty.
+   **Ruled 2026-11-27 (the project's owner): they read the edges
+   generation writes**, so that the figure and the closure describe the
+   document `aontu` writes, one rule for every verb, and a disjunction
+   with a default reads as the arm generation takes. Both ports move;
+   the definition states the edges already (`Val.edges`).
+95. **Arms where none is preferred, and two points of the graph.**
+   Raised 2026-11-26 when rulings 72 and 73 were built in the
+   definition. Where no arm of a disjunction is preferred, the relation
+   checks read every arm, so `x: {n: acyclic()} | 1` beside a cycle
+   under `n` is an error, where the narrower reading, a default alone,
+   would leave arms written alike unjudged. And two points follow the
+   ports: a hidden edge counts as an edge, and a relation whose field
+   has no name for a key, a list's element, takes its relation from the
+   nearest field above its address, so `deps: [relate() & path($.b)]`
+   writes an edge of `deps`. **Ruled 2026-11-27 (the project's owner):
+   the fuller reading, and both points as the ports have them.**
+   **Built**: the definition and both ports already answer so.
+96. **A stray path in a declaration's body, before rulings 59 to 61.**
+   Raised 2026-11-25 by #986. `%T = *{a: 1, b: .d}` is `no_path` whether
+   it is used or not, as `%T = {a: 1, b: .d}` always was, so
+   `x: %T & {d: 2}` no longer evaluates, where rulings 59 to 61, not yet
+   built, read a body at each use. **Ruled 2026-11-27 (the project's
+   owner): no exemption.** A declaration keeps the check until rulings
+   59 to 61 are built. **Built**: the definition and both ports answer
+   `no_path`.
 
 ## 8. Risks
 

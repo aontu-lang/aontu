@@ -240,3 +240,105 @@ describe-member-include-directive	describe	a: 1\n@"__FIXTURES__/cursor_base.aont
 describe-parenthesised-include-key	describe	p: (@"__FIXTURES__/cursor_num.aontu")\nq: $.p\n	0:0	null
 define-parenthesised-include-reference	define	p: (@"__FIXTURES__/cursor_num.aontu")\nq: $.p\n	1:4	[{"file":"__FIXTURES__/cursor_num.aontu","range":{"end":{"character":1,"line":0},"start":{"character":0,"line":0}}}]
 describe-parenthesised-include-reference	describe	p: (@"__FIXTURES__/cursor_num.aontu")\nq: $.p\n	1:4	{"canon":"5","descriptions":[],"kind":"integer","path":["p"],"range":{"end":{"character":6,"line":1},"start":{"character":3,"line":1}},"titles":[]}
+# What may be WRITTEN at a cursor. At a key, the keys the map there takes once unified
+# and has not written: what a type or a spread's template declares. After
+# a dot in a reference, the members of the path it has reached. Both are
+# read from the document with the word being typed taken out, the
+# reference being typed standing as `any`, and every bracket left open
+# closed. Columns as for `at`; null where the cursor is at neither. Each
+# expectation is what both engines answer.
+# At a key: the fields of a type, less those the map has written.
+members-key-type-fields	members	S: type({ port: integer, name: string, tier?: string })\napi: $.S & {  }\n	1:13	{"members":[{"canon":"string","key":"name","optional":false},{"canon":"integer","key":"port","optional":false},{"canon":"string","key":"tier","optional":true}],"on":"key","path":["api"]}
+members-key-written-left-out	members	S: type({ port: integer, name: string, tier?: string })\napi: $.S & { name: "api",  }\n	1:26	{"members":[{"canon":"integer","key":"port","optional":false},{"canon":"string","key":"tier","optional":true}],"on":"key","path":["api"]}
+members-key-after-a-value	members	S: type({ port: integer, name: string, tier?: string })\napi: $.S & { name: "api"  }\n	1:25	{"members":[{"canon":"integer","key":"port","optional":false},{"canon":"string","key":"tier","optional":true}],"on":"key","path":["api"]}
+members-key-word-being-typed	members	S: type({ port: integer, name: string, tier?: string })\napi: $.S & { po }\n	1:15	{"members":[{"canon":"string","key":"name","optional":false},{"canon":"integer","key":"port","optional":false},{"canon":"string","key":"tier","optional":true}],"on":"key","path":["api"]}
+members-key-own-line	members	S: type({ port: integer, name: string, tier?: string })\napi: $.S & {\n  \n}\n	2:2	{"members":[{"canon":"string","key":"name","optional":false},{"canon":"integer","key":"port","optional":false},{"canon":"string","key":"tier","optional":true}],"on":"key","path":["api"]}
+members-key-unclosed	members	S: type({ port: integer, name: string, tier?: string })\napi: $.S & { po	1:15	{"members":[{"canon":"string","key":"name","optional":false},{"canon":"integer","key":"port","optional":false},{"canon":"string","key":"tier","optional":true}],"on":"key","path":["api"]}
+members-key-nested-type	members	T: type({ k: { a: integer, b?: string } })\nv: $.T & { k: {  } }\n	1:16	{"members":[{"canon":"integer","key":"a","optional":false},{"canon":"string","key":"b","optional":true}],"on":"key","path":["v","k"]}
+members-key-deep	members	A: type({ b: { c: { d: integer, e: string } } })\nv: $.A & { b: { c: {  } } }\n	1:21	{"members":[{"canon":"integer","key":"d","optional":false},{"canon":"string","key":"e","optional":false}],"on":"key","path":["v","b","c"]}
+members-key-in-a-list-element	members	T: type({ a: integer })\nxs: [$.T & {  }]\n	1:13	{"members":[{"canon":"integer","key":"a","optional":false}],"on":"key","path":["xs","0"]}
+members-key-comment-with-a-brace	members	T: type({\n  # a { comment\n  a: integer\n})\nv: $.T & {\n  \n}\n	5:2	{"members":[{"canon":"integer","key":"a","optional":false}],"on":"key","path":["v"]}
+members-key-crlf	members	T: type({ p: integer })\nv: $.T & {  }\n	1:11	{"members":[{"canon":"integer","key":"p","optional":false}],"on":"key","path":["v"]}
+members-key-start-of-document	members	a: 1\n	0:0	{"members":[],"on":"key","path":[]}
+members-key-alias-map	members	%P: { q: 1,  }\nx: %P\n	0:12	{"members":[],"on":"key","path":["P"]}
+members-key-sized-map	members	S: type({ p: integer })\nv: $.S & {  } & len(1)\n	1:11	{"members":[{"canon":"integer","key":"p","optional":false}],"on":"key","path":["v"]}
+members-key-in-a-group	members	S: type({ p: integer })\nv: $.S & ({  })\n	1:12	{"members":[{"canon":"integer","key":"p","optional":false}],"on":"key","path":["v"]}
+members-key-in-nested-groups	members	S: type({ p: integer })\nv: $.S & ( ( {  } ) )\n	1:15	{"members":[{"canon":"integer","key":"p","optional":false}],"on":"key","path":["v"]}
+# At a key under a spread's template: what the template declares.
+members-key-template	members	services: {\n  &: { replicas: *1 | integer, image: string }\n  db: {  }\n}\n	2:8	{"members":[{"canon":"string","key":"image","optional":false},{"canon":"*1|integer","key":"replicas","optional":false}],"on":"key","path":["services","db"]}
+members-key-template-written	members	services: {\n  &: { replicas: *1 | integer, image: string }\n  auth: { image: "a",  }\n}\n	2:22	{"members":[{"canon":"*1|integer","key":"replicas","optional":false}],"on":"key","path":["services","auth"]}
+# At a key where nothing is declared: no members, and the servers offer
+# their general list instead.
+members-key-top-level	members	a: 1\n\n	1:0	{"members":[],"on":"key","path":[]}
+members-key-plain-map	members	a: { b: 1,  }\n	0:11	{"members":[],"on":"key","path":["a"]}
+# After a dot: the members of the path, a map's keys or a list's positions.
+members-path-root	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.\n	3:5	{"members":[{"canon":"{\\"host\\":\\"h1\\",\\"port\\":8080,\\"tls\\":{\\"cert\\":\\"c\\"}}","key":"base","optional":false},{"canon":"[10,20]","key":"xs","optional":false},{"canon":"[[1,2],[3]]","key":"ys","optional":false},{"canon":"any","key":"z","optional":false}],"on":"path","path":[]}
+members-path-map	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.base.\n	3:10	{"members":[{"canon":"\\"h1\\"","key":"host","optional":false},{"canon":"8080","key":"port","optional":false},{"canon":"{\\"cert\\":\\"c\\"}","key":"tls","optional":false}],"on":"path","path":["base"]}
+members-path-nested	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.base.tls.\n	3:14	{"members":[{"canon":"\\"c\\"","key":"cert","optional":false}],"on":"path","path":["base","tls"]}
+members-path-segment-being-typed	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.base.po\n	3:12	{"members":[{"canon":"\\"h1\\"","key":"host","optional":false},{"canon":"8080","key":"port","optional":false},{"canon":"{\\"cert\\":\\"c\\"}","key":"tls","optional":false}],"on":"path","path":["base"]}
+members-path-list	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.xs.\n	3:8	{"members":[{"canon":"10","key":"0","optional":false},{"canon":"20","key":"1","optional":false}],"on":"path","path":["xs"]}
+members-path-list-element	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.ys.1.\n	3:10	{"members":[{"canon":"3","key":"0","optional":false}],"on":"path","path":["ys","1"]}
+members-path-scalar	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.base.port.\n	3:15	{"members":[],"on":"path","path":["base","port"]}
+members-path-nothing	members	base: { port: 8080, host: "h1", tls: { cert: "c" } }\nxs: [10, 20]\nys: [[1, 2], [3]]\nz: $.zz.\n	3:8	{"members":[],"on":"path","path":["zz"]}
+members-path-through-a-type	members	S: type({ port: integer, name: string, tier?: string })\nt: $.S.\n	1:7	{"members":[{"canon":"string","key":"name","optional":false},{"canon":"integer","key":"port","optional":false},{"canon":"string","key":"tier","optional":true}],"on":"path","path":["S"]}
+members-path-quoted	members	"a b": { "c.d": { f: 3 }, "e f": 2 }\nx: $."a b".\n	1:11	{"members":[{"canon":"{\\"f\\":3}","key":"c.d","optional":false},{"canon":"2","key":"e f","optional":false}],"on":"path","path":["a b"]}
+members-path-quoted-nested	members	"a b": { "c.d": { f: 3 }, "e f": 2 }\nx: $."a b"."c.d".\n	1:17	{"members":[{"canon":"3","key":"f","optional":false}],"on":"path","path":["a b","c.d"]}
+members-path-letters-beyond-ascii	members	é: { ü: 1, x: 2 }\nx: $.é.\n	1:7	{"members":[{"canon":"2","key":"x","optional":false},{"canon":"1","key":"ü","optional":false}],"on":"path","path":["é"]}
+members-path-in-a-call	members	a: { b: 1 }\ny: upper($.a.)\n	1:13	{"members":[{"canon":"1","key":"b","optional":false}],"on":"path","path":["a"]}
+members-path-in-a-list	members	a: { b: 1 }\nxs: [$.a.]\n	1:9	{"members":[{"canon":"1","key":"b","optional":false}],"on":"path","path":["a"]}
+members-path-in-a-conjunction	members	a: { b: 1 }\np: $.a.b & $.a.\n	1:15	{"members":[{"canon":"1","key":"b","optional":false}],"on":"path","path":["a"]}
+members-path-across-an-include	members	base: @"__FIXTURES__/cursor_base.aontu"\nx: $.base.\n	1:10	{"members":[{"canon":"\\"h1\\"","key":"host","optional":false},{"canon":"8080","key":"port","optional":false},{"canon":"{\\"cert\\":\\"c1\\"}","key":"tls","optional":false}],"on":"path","path":["base"]}
+members-path-quoted-escape	members	"a\\\\b": { c: 1 }\nx: $."a\\\\b".\n	1:12	{"members":[{"canon":"1","key":"c","optional":false}],"on":"path","path":["a\\\\b"]}
+members-path-comment-ends-the-text	members	a: { b: 1 }\nx: $.a. # note	1:7	{"members":[{"canon":"1","key":"b","optional":false}],"on":"path","path":["a"]}
+members-path-sized-map	members	S: type({ p: integer })\nv: $.S & { p: 1 } & len(1)\nx: $.v.\n	2:7	{"members":[{"canon":"1","key":"p","optional":false}],"on":"path","path":["v"]}
+members-path-single-quoted	members	'a b': { k: 1 }\nx: $.'a b'.\n	1:11	{"members":[{"canon":"1","key":"k","optional":false}],"on":"path","path":["a b"]}
+members-path-backquoted	members	'a b': { k: 1 }\nx: $.`a b`.\n	1:11	{"members":[{"canon":"1","key":"k","optional":false}],"on":"path","path":["a b"]}
+members-path-escaped-quote	members	"a\\"b": { k: 1 }\nx: $."a\\"b".\n	1:12	{"members":[{"canon":"1","key":"k","optional":false}],"on":"path","path":["a\\"b"]}
+members-path-escaped-newline	members	"x\\ny": { k: 1 }\nz: $."x\\ny".\n	1:12	{"members":[{"canon":"1","key":"k","optional":false}],"on":"path","path":["x\\ny"]}
+members-path-in-a-constraint	members	a: { b: 1 }\nc: min($.a.)\n	1:11	{"members":[{"canon":"1","key":"b","optional":false}],"on":"path","path":["a"]}
+members-path-in-a-group	members	a: { b: 1 }\nc: ($.a.)\n	1:8	{"members":[{"canon":"1","key":"b","optional":false}],"on":"path","path":["a"]}
+members-path-value-words	members	a: { "true": 1, "_": 2, nil: 3, ok: 4 }\nx: $.a.\n	1:7	{"members":[{"canon":"2","key":"_","optional":false},{"canon":"3","key":"nil","optional":false},{"canon":"4","key":"ok","optional":false},{"canon":"1","key":"true","optional":false}],"on":"path","path":["a"]}
+# A relative reference reads from the map the cursor is in: one dot is
+# that map, each more one level up.
+members-relative-sibling	members	a: { b: 1, c: . }\n	0:15	{"members":[{"canon":"1","key":"b","optional":false},{"canon":"any","key":"c","optional":false}],"on":"path","path":["a"]}
+members-relative-parent	members	a: { b: 1, d: { e: .. } }\n	0:21	{"members":[{"canon":"1","key":"b","optional":false},{"canon":"{\\"e\\":any}","key":"d","optional":false}],"on":"path","path":["a"]}
+members-relative-root	members	a: { b: 1, d: { e: ... } }\n	0:22	{"members":[{"canon":"{\\"b\\":1,\\"d\\":{\\"e\\":any}}","key":"a","optional":false}],"on":"path","path":[]}
+members-relative-member	members	a: { b: { x: 1 }, c: .b. }\n	0:24	{"members":[{"canon":"1","key":"x","optional":false}],"on":"path","path":["a","b"]}
+members-relative-in-a-call	members	a: { b: 1, c: min(.) }\n	0:19	{"members":[{"canon":"1","key":"b","optional":false},{"canon":"constraint()","key":"c","optional":false}],"on":"path","path":["a"]}
+members-relative-at-the-start	members	.	0:1	{"members":[],"on":"path","path":[]}
+members-relative-after-a-sum	members	a: { b: 1, c: 1+. }\n	0:17	{"members":[{"canon":"1","key":"b","optional":false},{"canon":"1+any","key":"c","optional":false}],"on":"path","path":["a"]}
+members-relative-after-a-preference	members	a: { b: 1, c: *. }\n	0:16	{"members":[{"canon":"1","key":"b","optional":false},{"canon":"*any","key":"c","optional":false}],"on":"path","path":["a"]}
+members-relative-in-a-function	members	a: { b: "x", c: upper(.) }\n	0:23	{"members":[{"canon":"\\"x\\"","key":"b","optional":false},{"canon":"nil","key":"c","optional":false}],"on":"path","path":["a"]}
+members-relative-in-a-group	members	a: { b: 1, c: (.) }\n	0:16	{"members":[{"canon":"1","key":"b","optional":false},{"canon":"any","key":"c","optional":false}],"on":"path","path":["a"]}
+members-relative-in-a-grouped-map	members	a: ({ b: 1, c: . })\n	0:16	{"members":[{"canon":"1","key":"b","optional":false},{"canon":"any","key":"c","optional":false}],"on":"path","path":["a"]}
+# A key chain writes maps of its own: a relative reference in its value
+# reads from the last of them, as the engine resolves it.
+members-relative-key-chain	members	a: { target: { k: 1 }, b: c: ..target. }\n	0:38	{"members":[{"canon":"1","key":"k","optional":false}],"on":"path","path":["a","target"]}
+members-relative-key-chain-up	members	a: { target: { k: 1 }, b: c: .. }\n	0:31	{"members":[{"canon":"{\\"c\\":any}","key":"b","optional":false},{"canon":"{\\"k\\":1}","key":"target","optional":false}],"on":"path","path":["a"]}
+members-relative-key-chain-sibling	members	a: { b: c: ., x: 1 }\n	0:12	{"members":[{"canon":"any","key":"c","optional":false}],"on":"path","path":["a","b"]}
+members-relative-key-chain-at-the-top	members	b: c: .\nx: 1\n	0:7	{"members":[{"canon":"any","key":"c","optional":false}],"on":"path","path":["b"]}
+# In a list, a relative reference reads from the list.
+members-relative-in-a-list	members	xs: [{ a: 1 }, .]\n	0:16	{"members":[{"canon":"{\\"a\\":1}","key":"0","optional":false},{"canon":"any","key":"1","optional":false}],"on":"path","path":["xs"]}
+members-relative-list-member	members	xs: [{ a: 1 }, .0.]\n	0:18	{"members":[{"canon":"1","key":"a","optional":false}],"on":"path","path":["xs","0"]}
+# Nothing elsewhere: a value, quoted text, a comment, a list, a call's
+# arguments, a number, a variable, a malformed reference, a dot after a
+# group, a reference where a key goes, past the end, a document that does
+# not parse, and one the parser throws on.
+members-none-value	members	port: \n	0:6	null
+members-none-string	members	a: { b: 1 }\nx: "$.a."\n	1:8	null
+members-none-comment	members	a: { b: 1 }\nx: 1 # $.a.\n	1:11	null
+members-none-list	members	xs: [1, ]\n	0:8	null
+members-none-call	members	a: { b: 1 }\nx: upper()\n	1:9	null
+members-none-number	members	x: 1.\n	0:5	null
+members-none-variable	members	x: $v.\n	0:6	null
+members-none-double-dot	members	a: { b: 1 }\nx: $.a..\n	1:8	null
+members-none-relative-too-far	members	a: { b: 1, c: ... }\n	0:17	null
+members-none-absolute-double-dot	members	a: { b: 1 }\nx: $..\n	1:6	null
+members-none-after-a-group	members	a: { b: 1 }\nx: (1).\n	1:7	null
+members-none-quoted-then-a-name	members	"a": { b: 1 }\nx: $."a"b.\n	1:10	null
+members-none-reference-as-a-key	members	a: { b: 1, .: 2 }\n	0:12	null
+members-none-unparsed	members	a: { b: 1 }\nx: $.a.\ny: )\n	1:7	null
+members-none-parser-throws	members	a: @"__FIXTURES__/cursor_num.aontu"\nx: 1\n	1:1	null
+members-none-past-the-end	members	a: 1\n	5:0	null
+# A document the parser throws on, rather than refusing, answers nothing.
+describe-parser-throws	describe	a: @"__FIXTURES__/cursor_num.aontu"\n: 1\n	0:0	null

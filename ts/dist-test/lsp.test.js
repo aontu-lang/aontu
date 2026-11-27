@@ -351,6 +351,52 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.equal((0, lsp_1.computeCompletions)('a: %undeclared\n')
             .filter(i => i.label.startsWith('%')).length, 0);
     });
+    // Twin: go/lsp/lsp_test.go TestCompletionOffersTheKeysAndMembersAtTheCursor.
+    (0, node_test_1.test)('completion-offers-the-keys-and-members-at-the-cursor', () => {
+        const S = 'S: type({ port: integer, "a b": string, tier?: string })\n';
+        Assert.deepStrictEqual((0, lsp_1.computeCompletions)(S + 'api: $.S & { port: 1,  }\n', { line: 1, character: 22 }), [
+            { label: 'a b', kind: lsp_1.COMPLETION_FIELD, detail: 'string', insertText: '"a b"' },
+            { label: 'tier', kind: lsp_1.COMPLETION_FIELD, detail: 'string (optional)' },
+        ]);
+        Assert.deepStrictEqual((0, lsp_1.computeCompletions)('xs: [10]\ny: $.xs.\n', { line: 1, character: 8 }, { trigger: '.' }), [{ label: '0', kind: lsp_1.COMPLETION_FIELD, detail: '10' }]);
+        // A path that holds nothing offers nothing, not the general list.
+        Assert.deepStrictEqual((0, lsp_1.computeCompletions)('y: $.zz.\n', { line: 0, character: 8 }), []);
+        // Where nothing is declared, the general list stands.
+        const plain = 'a: { b: 1,  }\n';
+        Assert.deepStrictEqual((0, lsp_1.computeCompletions)(plain, { line: 0, character: 11 }), (0, lsp_1.computeCompletions)(plain));
+        // A dot that begins no path offers nothing.
+        Assert.deepStrictEqual((0, lsp_1.computeCompletions)('x: 1.\n', { line: 0, character: 5 }, { trigger: '.' }), []);
+    });
+    (0, node_test_1.test)('completion-writes-a-key-as-it-reads-where-it-goes', () => {
+        const inserts = (src, at) => Object.fromEntries((0, lsp_1.computeCompletions)(src, at).map((i) => [i.label, i.insertText]));
+        const keys = 'a: { "true": 1, _: 2, nil: 3, ok: 4, "x\\ny": 5, "q\\"r": 6 }\n';
+        // After a dot, a segment the lexer reads as a value takes quotes too.
+        Assert.deepStrictEqual(inserts(keys + 'x: $.a.\n', { line: 1, character: 7 }), {
+            _: '"_"', nil: '"nil"', ok: undefined, 'q"r': '"q\\"r"', true: '"true"', 'x\ny': '"x\\ny"',
+        });
+        const T = 'T: type({ true: integer, _: string, "x\\ny": string })\n';
+        Assert.deepStrictEqual(inserts(T + 'v: $.T & {  }\n', { line: 1, character: 11 }), {
+            _: undefined, true: undefined, 'x\ny': '"x\\ny"',
+        });
+    });
+    (0, node_test_1.test)('completion-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        const init = h.handle({ id: 1, method: 'initialize', params: {} });
+        Assert.deepStrictEqual(init[0].result.capabilities.completionProvider, { triggerCharacters: ['.'] });
+        h.handle({
+            method: 'textDocument/didOpen',
+            params: { textDocument: { uri: 'file:///c.aontu', text: 'a: { b: 1 }\nx: $.a.\n' } },
+        });
+        const ask = (params) => h.handle({
+            id: 2, method: 'textDocument/completion',
+            params: { textDocument: { uri: 'file:///c.aontu' }, ...params },
+        })[0].result;
+        Assert.deepStrictEqual(ask({
+            position: { line: 1, character: 7 }, context: { triggerKind: 2, triggerCharacter: '.' },
+        }).map((i) => i.label), ['b']);
+        Assert.equal(ask({}).length, (0, lsp_1.computeCompletions)('').length);
+        Assert.deepStrictEqual(ask({ context: { triggerKind: 2, triggerCharacter: '.' } }), []);
+    });
     (0, node_test_1.test)('signature-help', () => {
         const h = new lsp_1.LspHandler();
         h.handle({ id: 1, method: 'initialize', params: {} });
@@ -743,6 +789,11 @@ const lsp_server_1 = require("../dist/lsp-server");
         };
         const { values } = (0, cursor_1.hitsOf)('1', both);
         Assert.deepStrictEqual(values.map((h) => [h.on, h.start, h.end]), [['value', 0, 1]]);
+    });
+    (0, node_test_1.test)('the-map-search-visits-a-shared-value-once-and-finds-nothing-else', () => {
+        const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } };
+        const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site };
+        Assert.strictEqual((0, cursor_1.mapAt)('1', both, 0), undefined);
     });
     (0, node_test_1.test)('the-server-layer-answers-as-the-library', () => {
         const src = 'a: { b: 1 }\nc: $.a.b\n';

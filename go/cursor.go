@@ -52,6 +52,37 @@ type PathPlace struct {
 	Range CursorRange `json:"range"`
 }
 
+type Member struct {
+	Key      string `json:"key"`
+	Canon    string `json:"canon"`
+	Optional bool   `json:"optional"`
+}
+
+// CursorMembers is what may be written at a cursor: the keys a map there
+// may take, or the members of the path a reference there has reached.
+type CursorMembers struct {
+	On      string   `json:"on"`
+	Path    []string `json:"path"`
+	Members []Member `json:"members"`
+}
+
+type openBracket struct {
+	c  byte
+	at int
+}
+
+// What a relative reference may follow, and what a key may not.
+const refAfter = " \t\r\n:{[(,&|+*"
+
+const valueAfter = ":([&|=.$@%"
+
+var closers = map[byte]string{'{': "}", '[': "]", '(': ")"}
+
+func wordByte(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
+		'_' == c || '-' == c || 0x80 <= c
+}
+
 type cursorHit struct {
 	on         string
 	path       []string
@@ -450,6 +481,236 @@ func (a *Aontu) DefinitionAt(src string, pos CursorPosition) []PathPlace {
 		out = append(out, PathPlace{File: s.File, Range: s.Range})
 	}
 	return out
+}
+
+// openBrackets is the brackets open before off, the innermost last, and
+// where the run of names, dots and quoted text that ends at off starts;
+// false where off is inside quoted text or a comment.
+func openBrackets(src string, off int) ([]openBracket, int, bool) {
+	open := []openBracket{}
+	run := 0
+	for k := 0; k < off; k++ {
+		quoted := strings.IndexByte("\"'`", src[k]) >= 0
+		if quoted {
+			k = quoteEnd(src, k)
+		} else if '#' == src[k] {
+			if nl := strings.IndexByte(src[k:], '\n'); 0 <= nl {
+				k += nl
+			} else {
+				k = -1
+			}
+		}
+		if off <= k || 0 > k {
+			return nil, 0, false
+		} else if strings.IndexByte("{[(", src[k]) >= 0 {
+			open = append(open, openBracket{src[k], k})
+		} else if strings.IndexByte("}])", src[k]) >= 0 && 0 < len(open) {
+			open = open[:len(open)-1]
+		}
+		if !quoted && '.' != src[k] && !wordByte(src[k]) {
+			run = k + 1
+		}
+	}
+	return open, run, true
+}
+
+func closersOf(open []openBracket) string {
+	out := ""
+	for i := len(open) - 1; 0 <= i; i-- {
+		out += closers[open[i].c]
+	}
+	return out
+}
+
+type refText struct {
+	start int
+	abs   bool
+}
+
+// refAt is a reference written from s up to the dot before w: dots, then
+// segments, each a name or quoted text and a dot. Where it starts.
+func refAt(src string, s, w int) (refText, bool) {
+	i := s
+	for i < w && '.' == src[i] {
+		i++
+	}
+	up := i - s
+	for i < w {
+		j := i
+		if strings.IndexByte("\"'`", src[i]) >= 0 {
+			j = quoteEnd(src, i) + 1
+		} else {
+			for j < w && wordByte(src[j]) {
+				j++
+			}
+		}
+		if i == j || w <= j || '.' != src[j] {
+			return refText{}, false
+		}
+		i = j + 1
+	}
+	abs := 0 < s && '$' == src[s-1]
+	before := byte(' ')
+	if 0 < s {
+		before = src[s-1]
+	}
+	if 0 == up || '.' != src[w-1] || (abs && 1 < up) || (!abs && strings.IndexByte(refAfter, before) < 0) {
+		return refText{}, false
+	}
+	if abs {
+		s--
+	}
+	return refText{start: s, abs: abs}, true
+}
+
+// findVal is the first value a walk from root meets that take accepts,
+// with its path, a constraint's written arguments included. A value from
+// an included file is sited in that file, so never here.
+func findVal(root Val, take func(Val) bool) (Val, []string, bool) {
+	seen := map[Val]bool{}
+	stack := []cursorKid{{root, []string{}}}
+	for 0 < len(stack) {
+		k := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if nil == k.v || seen[k.v] {
+			continue
+		}
+		seen[k.v] = true
+		if "" == k.v.srcurl() && take(k.v) {
+			return k.v, k.path, true
+		}
+		stack = append(stack, cursorKids(k.v, k.path)...)
+		if c, ok := k.v.(*ConstraintVal); ok {
+			for _, arg := range c.asWritten {
+				stack = append(stack, cursorKid{arg, k.path})
+			}
+		}
+	}
+	return nil, nil, false
+}
+
+// groupStarts is where a value written at off is sited: there, or, where
+// it is all a group holds, at the group's first `(`.
+func groupStarts(src string, off int) []int {
+	offs := []int{off}
+	for p := skipTrivia(src, off-1); 0 <= p && '(' == src[p]; p = skipTrivia(src, p-1) {
+		offs = append(offs, p)
+	}
+	return offs
+}
+
+// mapAt is the map literal whose brace is at off, with its path.
+func mapAt(src string, root Val, off int) (*MapVal, []string, bool) {
+	offs := groupStarts(src, off)
+	v, path, ok := findVal(root, func(v Val) bool {
+		_, isMap := v.(*MapVal)
+		return isMap && slices.Contains(offs, v.pos())
+	})
+	m, _ := v.(*MapVal)
+	return m, path, ok
+}
+
+// refReads is the path that the reference at start reads, as the engine
+// reads it, in a text that ends the reference with one more name: from
+// where the reference stands, less that name.
+func (a *Aontu) refReads(text string, start int) ([]string, bool) {
+	root, err := a.parseEntry(text)
+	if nil != err {
+		root = nil
+	}
+	offs := groupStarts(text, start)
+	v, _, _ := findVal(root, func(v Val) bool {
+		_, isRef := v.(*RefVal)
+		return isRef && slices.Contains(offs, v.pos())
+	})
+	var p []string
+	if ref, isRef := v.(*RefVal); isRef {
+		p = ref.plainRefPath()
+	}
+	if 0 == len(p) {
+		return nil, false
+	}
+	return p[:len(p)-1], true
+}
+
+func membersOf(node Val, written []string) []Member {
+	out := []Member{}
+	switch n := node.(type) {
+	case *MapVal:
+		keys := append([]string{}, n.keys...)
+		sort.Strings(keys)
+		for _, k := range keys {
+			if !slices.Contains(n.aliasKeys, k) && !slices.Contains(written, k) {
+				out = append(out, Member{Key: k, Canon: n.peg[k].Canon(), Optional: n.isOptional(k)})
+			}
+		}
+	case *ListVal:
+		for i, e := range n.peg {
+			out = append(out, Member{Key: itoa(i), Canon: e.Canon()})
+		}
+	}
+	return out
+}
+
+// MembersAt is what may be written at a cursor, read from the document
+// with the word being typed taken out and every bracket left open closed:
+// at a key, the keys the map there takes once unified and has not
+// written; after a dot in a reference, the members of the path it has
+// reached.
+func (a *Aontu) MembersAt(src string, pos CursorPosition) *CursorMembers {
+	lines := newSrcLines(src)
+	if 0 > pos.Line || len(lines.starts) <= pos.Line {
+		return nil
+	}
+	cur := lines.offsetAt(pos)
+	w := cur
+	for 0 < w && wordByte(src[w-1]) {
+		w--
+	}
+	open, run, ok := openBrackets(src, w)
+	if !ok {
+		return nil
+	}
+	ref, isRef := refAt(src, run, w)
+	// The reference being written stands as `any`, so that it reads nothing.
+	text := src[:w] + src[cur:]
+	if isRef {
+		text = src[:ref.start] + "any" + src[cur:]
+	}
+	tail, _, _ := openBrackets(text, len(text))
+	text += closersOf(tail)
+	root, err := a.parseEntry(text)
+	if nil != err || nil == root {
+		return nil
+	}
+	reads, readsOK := []string(nil), false
+	if isRef {
+		reads, readsOK = a.refReads(src[:w]+"x"+closersOf(open), ref.start)
+	}
+	brace := -1
+	for i, o := range open {
+		if '{' == o.c {
+			brace = i
+		}
+	}
+	var lit Val = root
+	path, found := []string{}, true
+	if 0 <= brace {
+		lit, path, found = mapAt(text, root, open[brace].at)
+	}
+	prev := skipTrivia(src, w-1)
+	litMap, isMap := lit.(*MapVal)
+	atKey := found && isMap && brace == len(open)-1 &&
+		(0 > prev || strings.IndexByte(valueAfter, src[prev]) < 0)
+	if !readsOK && !atKey {
+		return nil
+	}
+	on, at, written := "path", reads, []string{}
+	if !readsOK {
+		on, at, written = "key", path, append(written, litMap.keys...)
+	}
+	res, _, _ := a.unifyCtx(root, nil, text)
+	return &CursorMembers{On: on, Path: at, Members: membersOf(throughResidue(anchorParts(res, at)), written)}
 }
 
 // SitesOf is every site that writes a path, as `model why` reads them;

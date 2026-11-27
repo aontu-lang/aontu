@@ -1119,6 +1119,27 @@ One limit is documented, not fixed: the servers evaluate an open
 document's text, so a relative include is read from the server's
 working directory, not from the document's folder.
 
+Progress on 2026-11-27, later. LS3 is built in both servers. At a key,
+completion offers the keys the map takes once unified and has not
+written, from a type or a spread's template; after a dot in a
+reference, the members of the path, across includes. The library
+answer is `membersAt` (`MembersAt` in Go), held by a new row mode,
+`members`, in 79 rows of `test/spec/cursor.tsv`; a probe of both
+servers at every character of 22 documents, 1,430 requests, found no
+difference. Completion reads the document with the word being typed
+taken out, the reference being typed standing as `any` and open
+brackets closed, so a half-written document still answers; a second
+unfinished edit elsewhere leaves the general list. The probe found a
+parser throw on an include written as a key, which took the TypeScript
+server down once the cursor module read such a text; the module now
+answers nothing there, and the throw itself is not filed. Review then
+found seven cases the first build missed: a segment such as `true`
+inserted bare, a control character left unescaped, a relative reference
+after `+` or `*` or under a key chain, a quoted segment with an escape
+or single quotes, a map with a size constraint, and a map or a
+reference in a group. Both servers now read the reference with the
+parser, as the engine reads it, and 25 rows hold the cases.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same
