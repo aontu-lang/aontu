@@ -3909,8 +3909,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .link v t => .link (rec a v) t
   | .or arms, b => meetNodes rec (.or arms) b
   | a, .or arms => meetNodes rec a (.or arms)
-  | .pref r x, b => meetNodes rec (.pref r x) b
-  | a, .pref r y => meetNodes rec a (.pref r y)
+  | .pref r x, b => if (rec .any x).dead then rec x.super.failedOf b else meetNodes rec (.pref r x) b
+  | a, .pref r y => if (rec .any y).dead then rec a y.super.failedOf else meetNodes rec a (.pref r y)
   | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
   | .any, .map fs s c => meetMap rec [] none false fs s c
   | .map fs s c, .any => meetMap rec fs s c [] none false
@@ -4913,8 +4913,8 @@ type, under a mark of its own:
 abbrev Val.failedOf (t : Val) : Val := .ride .failed t []
 ```
 
-The mark admits what the preference admits, so the meet's theorem is
-unchanged, and the verdict reads it as a conflict: an arm that holds
+The mark admits what the preference admits, so the meet's theorem holds
+as it did, and the verdict reads it as a conflict: an arm that holds
 one drops, and a document that keeps one is an `error`. Write
 `failed-schema.aontu`:
 
@@ -5726,6 +5726,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
   | .ride .void _ _ => false
+  | .ride .failed _ _ => true
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args

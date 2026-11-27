@@ -34,11 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// The subsume differential: test/spec/def-subsume-rows.tsv holds the
-// answers the definition's contract allows for the rows of
-// test/spec/subsume.tsv it reads, under the row's name with `def-` in
-// front. Each golden verdict must be one of them, and each document the
-// definition read must unify as the row's own does.
+// Each golden of subsume.tsv is an answer def-subsume-rows.tsv allows.
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
@@ -56,14 +52,11 @@ function rows(file) {
 function canon(src) {
     return (0, hcanon_1.hcanon)(new aontu_1.Aontu().unify(src));
 }
-// One reading spelled two ways, as a sealed list in an arm is `[1]` or
-// `close([1])`, is equal both ways round.
 function same(a, b) {
     return canon(a) === canon(b) || ('subsumes' === (0, subsume_1.subsume)(a, b, { profile: 'values' }).verdict &&
         'subsumes' === (0, subsume_1.subsume)(b, a, { profile: 'values' }).verdict);
 }
-// Rows whose documents both ports' `subsume` read otherwise than their
-// `vet` does, by the issue that tracks each.
+// Rows both ports' subsume read otherwise than their vet.
 const AWAITS = { 'list-witness': 1071 };
 (0, node_test_1.describe)('subsume-contract', () => {
     const golden = new Map(rows('subsume.tsv')
