@@ -26,3 +26,11 @@ func TestCursorWalkVisitsASharedValueOnceAndStepsOverNothing(t *testing.T) {
 		t.Fatalf("got %v %v", keys, values)
 	}
 }
+
+func TestCursorOutlineVisitsASharedValueOnceAndStepsOverNothing(t *testing.T) {
+	one := &TopVal{}
+	both := &ConjunctVal{peg: []Val{one, one, nil}}
+	if got := symbolTree("x", both); 0 != len(got) {
+		t.Fatalf("got %v", got)
+	}
+}

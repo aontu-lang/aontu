@@ -294,6 +294,13 @@ func SitesOf(src string, path []string, trust *aontu.TrustOptions) []aontu.PathS
 	return a.SitesOf(src, path)
 }
 
+// Symbols is the outline of the keys a document writes.
+func Symbols(src string, trust *aontu.TrustOptions) []aontu.DocSymbol {
+	a := aontu.New()
+	a.Trust = trust
+	return a.SymbolsOf(src)
+}
+
 // --- Aliases ----------------------------------------------------------
 
 // Location is the LSP textDocument/definition response.
@@ -463,10 +470,8 @@ func CompletionsAt(
 func Completions(src string) []CompletionItem {
 	out := []CompletionItem{}
 	for _, f := range aontu.BuiltinFuncNames() {
-		// The detail is the rendered SIGNATURE
-		// (sketch/SIGNATURES.0.md) -- the same renderer the hints
-		// use, so the completion list cannot drift from the
-		// declaration.
+		// The detail is the rendered SIGNATURE (sketch/SIGNATURES.0.md),
+		// from the renderer the hints use, so it cannot drift.
 		out = append(out, CompletionItem{Label: f, Kind: CompletionFunction, Detail: aontu.FuncSignature(f)})
 	}
 	for _, k := range []string{"string", "number", "integer", "float",

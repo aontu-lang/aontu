@@ -47,6 +47,13 @@ type CursorMembers = {
 type CursorOptions = {
     trust?: TrustOptions;
 };
+type DocSymbol = {
+    name: string;
+    kind: number;
+    range: Range;
+    selectionRange: Range;
+    children: DocSymbol[];
+};
 type Hit = {
     on: CursorOn;
     path: string[];
@@ -68,6 +75,8 @@ declare function mapAt(src: string, root: any, off: number): {
     path: string[];
 } | undefined;
 declare function membersAt(src: string, pos: Position, opts?: CursorOptions): CursorMembers | undefined;
+declare function symbolsOf(src: string, opts?: CursorOptions): DocSymbol[] | undefined;
+declare function symbolTree(src: string, root: any): DocSymbol[];
 declare function sitesOf(src: string, path: string[], opts?: CursorOptions): PathSite[] | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, };
-export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorValue, Member, PathPlace, PathSite, PathValue, Position, Range, };
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, };
+export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorValue, DocSymbol, Member, PathPlace, PathSite, PathValue, Position, Range, };
