@@ -917,7 +917,7 @@ theorem admits_unparent : ∀ (v : Val) (j : Data), Admits env root v.unparent j
     exact judge_ride_iff.symm
   | .ride .metadata _ _, _ | .ride .deprecate _ _, _ | .ride .ident _ _, _ | .ride .type _ _, _
   | .ride .hide _ _, _ | .ride .opened _ _, _ | .ride .lifts _ _, _ | .ride .seals _ _, _
-  | .ride (.move _) _ _, _ | .ride .void _ _, _ | .ride .acyclic _ _, _ | .ride (.inverse _) _ _, _
+  | .ride (.move _) _ _, _ | .ride .void _ _, _ | .ride .acyclic _ _, _ | .ride (.inverse _) _ _, _ | .ride .failed _ _, _
   | .ride .gen _ _, _ => Iff.rfl
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _ | .anyString, _
   | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .lit _, _ | .min _, _ | .max _, _
@@ -2810,7 +2810,8 @@ whatever it meets, a conflict too (ruling 54), absence is the unit, but
 met with `any` it stays absence, an atom over an argument outside its
 domain is `nil` against all but `any` and a written `nil`, a meet on
 either side is met one side at a time, a disjunction distributes over
-its arms, a preference alone is `x | super(x)`, two maps and two lists
+its arms, a preference alone is `x | super(x)`, or its parent type
+marked failed where `x` admits nothing alone, two maps and two lists
 merge, `any` is the unit of each container, and what remains is
 `meetBase`. -/
 def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
@@ -2829,8 +2830,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .link v t => .link (rec a v) t
   | .or arms, b => meetNodes rec (.or arms) b
   | a, .or arms => meetNodes rec a (.or arms)
-  | .pref r x, b => meetNodes rec (.pref r x) b
-  | a, .pref r y => meetNodes rec a (.pref r y)
+  | .pref r x, b => if (rec .any x).dead then rec x.super.failedOf b else meetNodes rec (.pref r x) b
+  | a, .pref r y => if (rec .any y).dead then rec a y.super.failedOf else meetNodes rec a (.pref r y)
   | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
   | .any, .map fs s c => meetMap rec [] none false fs s c
   | .map fs s c, .any => meetMap rec fs s c [] none false
@@ -2864,6 +2865,32 @@ theorem admits_meetRight {rec : Val → Val → Val}
       · intro ⟨ha, h₁, h₂⟩; exact ⟨h₁, ha, h₂⟩
   · simp only [hr, admits_meet_iff, and_assoc]
 
+theorem admits_prefFailed {rec : Val → Val → Val}
+    (hr : ∀ a b j, Admits env root (rec a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    {x : Val} (hd : (rec .any x).dead = true) (r : ℕ) (j : Data) :
+    Admits env root x.super.failedOf j ↔ Admits env root (.pref r x) j := by
+  have hx : ¬ Admits env root x j := fun h => dead_sound _ hd j ((hr _ _ _).mpr ⟨.any, h⟩)
+  rw [admits_pref_iff]
+  exact ⟨fun h => .inr (judge_ride_iff.mp h), fun h => h.elim (fun h => absurd h hx) .ride⟩
+
+theorem admits_prefLeft {rec : Val → Val → Val}
+    (hr : ∀ a b j, Admits env root (rec a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (r : ℕ) (x b : Val) (j : Data) :
+    Admits env root (if (rec .any x).dead then rec x.super.failedOf b else meetNodes rec (.pref r x) b) j ↔
+      Admits env root (.pref r x) j ∧ Admits env root b j := by
+  split
+  · rename_i hd; rw [hr, admits_prefFailed hr hd r]
+  · exact admits_meetNodes hr ..
+
+theorem admits_prefRight {rec : Val → Val → Val}
+    (hr : ∀ a b j, Admits env root (rec a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a : Val) (r : ℕ) (y : Val) (j : Data) :
+    Admits env root (if (rec .any y).dead then rec a y.super.failedOf else meetNodes rec a (.pref r y)) j ↔
+      Admits env root a j ∧ Admits env root (.pref r y) j := by
+  split
+  · rename_i hd; rw [hr, admits_prefFailed hr hd r]
+  · exact admits_meetNodes hr ..
+
 set_option maxHeartbeats 4000000 in
 /-- A step of the meet admits what both of its sides admit, given that
 the meets it is built from do. -/
@@ -2887,6 +2914,8 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_any_list hr ..
     | exact admits_list_any hr ..
     | exact admits_meetNodes hr ..
+    | exact admits_prefLeft hr ..
+    | exact admits_prefRight hr ..
     | exact admits_meetRight hr ..
     | exact admits_rideLeft hr ..
     | exact admits_rideRight hr ..

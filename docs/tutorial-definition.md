@@ -4902,6 +4902,47 @@ $ echo $?
 1
 ```
 
+A default whose own value fails is no default its type stands in for.
+`*(1 & 2)` would admit what `integer` admits if `super` alone answered,
+but both engines report the conflict where the default stands, as they
+report any conflict. The meet reads such a preference as its parent
+type, under a mark of its own:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+abbrev Val.failedOf (t : Val) : Val := .ride .failed t []
+```
+
+The mark admits what the preference admits, so the meet's theorem is
+unchanged, and the verdict reads it as a conflict: an arm that holds
+one drops, and a document that keeps one is an `error`. Write
+`failed-schema.aontu`:
+
+<!-- test: file failed-schema.aontu -->
+```aontu
+v: *(1 & 2)
+```
+
+and `failed-data.aontu`:
+
+<!-- test: file failed-data.aontu -->
+```aontu
+v: 1
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet failed-schema.aontu failed-data.aontu
+verdict: error
+
+$.v: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.v
+  schema: failed-schema.aontu:1:10 (2)
+  schema: failed-schema.aontu:1:6 (1)
+$ echo $?
+4
+```
+
 ### The question the engines ask
 
 Two maps in two arms admit a map that one of them admits, by the rule
