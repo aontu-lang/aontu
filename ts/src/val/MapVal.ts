@@ -35,7 +35,7 @@ import { pendingMarkWrapper, dropPendingMarkWrappers } from './RefVal'
 
 import { ConjunctVal, unmarkedTemplate } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal, keyTable, templateKey, undecided } from './BagVal'
+import { BagVal, keyTable, templateDeclares, templateKey, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
 import { bare } from '../rider'
@@ -147,7 +147,7 @@ class MapVal extends BagVal {
   }
 
   unify(peer: Val, ctx: AontuContext): Val {
-    const arooted = this.aliasDeclarationsAreRooted(ctx)
+    const arooted = this.aliasDeclarationsAreRooted(ctx) ?? templateDeclares(this)
     if (undefined !== arooted) {
       return arooted
     }

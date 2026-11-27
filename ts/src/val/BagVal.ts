@@ -24,6 +24,7 @@ import { NilVal } from './NilVal'
 import { FeatureVal } from './FeatureVal'
 import { ExpectVal } from './ExpectVal'
 import { cmpCodePoint } from '../keyorder'
+import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
 import { genWriteBag, genWrites } from './genwrite'
 
 
@@ -138,7 +139,7 @@ abstract class BagVal extends FeatureVal {
       let child = item[1]
 
       const at = [...this.path, String(p)]
-      if (true === child.isBag && child.path.join('\u0000') !== at.join('\u0000')) {
+      if (true !== child.isScalar && true !== child.isExpect && true !== child.isNil && child.path.join('\u0000') !== at.join('\u0000')) {
         child = child.clone(ctx, { path: at })
         repathInstance(child, at)
       }
@@ -302,6 +303,24 @@ export function putKey(out: any, key: string, val: any): void {
   else {
     out[key] = val
   }
+}
+
+
+// A template stands below the root, so a declaration in it is refused there.
+export function templateDeclares(bag: any): Val | undefined {
+  const t = bag.spread?.cj
+  if (true !== t?.isMap) {
+    return undefined
+  }
+  const named = 0 < t.aliasKeys.length ? aliasBareName(t.aliasKeys[0]) :
+    0 < (t.exportKeys ?? []).length ? EXPORT_DECL_NAME : undefined
+  if (undefined === named) {
+    return undefined
+  }
+  const nv: any = new NilVal({ why: 'alias_not_toplevel' })
+  nv.site = t.site
+  nv.path = [...bag.path, named]
+  return nv
 }
 
 

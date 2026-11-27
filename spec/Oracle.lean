@@ -18,6 +18,7 @@ import Oracle.Calls
 import Oracle.CallsTemplates
 import Oracle.SubsumeRows
 import Oracle.FailedDefault
+import Oracle.LinkClimb
 
 /-!
 # The oracle
@@ -378,6 +379,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# over such a path, a member the target doesn't declare, and two links into"
     IO.println "# one target."
     pathRows "lr" linkReadCases
+    IO.println "# A path in a link's template that climbs past the template reads where the"
+    IO.println "# link is written (ruling 92), in rows lc0 on: past the template by one step"
+    IO.println "# and by two, from deeper in it, beside a path that stays inside, under a"
+    IO.println "# call, past the top and in a declaration's body."
+    pathRows "lc" linkClimbCases
     IO.println "# A recursive name whose body links back to it follows in rows rx0 on: a use"
     IO.println "# of it alone stays residual, and one met with a map unfolds."
     pathRows "rx" recursiveLinkCases

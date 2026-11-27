@@ -30,6 +30,39 @@ them, and where a document reads otherwise than the definition read it.
 They found #1071: both ports' `subsume` read a list literal in an arm as
 open, where their `vet` reads it as its own length.
 
+### An error under a spread's template names the member
+
+#1018, in both engines. An error inside a member that a `&:` template
+constrains names the member, where it named the list or map that holds
+it: Go always, and TypeScript where two list spreads met.
+
+| Document | Was | Now |
+|---|---|---|
+| `x: { h: [&: { s: "a" \| "b" }] } & { h: [ {} ] }` | `$.x.h.s` in Go | `$.x.h.0.s` |
+| `x: { h: [&: { at: string }] } & { h: [&: { s: "a" \| "b" }] } & { h: [ { at: "z" } ] }` | `$.x.h.s` | `$.x.h.0.s` |
+| `x: { h: { &: { s: "a" \| "b" } } } & { h: { k: {} } }` | `$.x.h.s` in Go | `$.x.h.k.s` |
+
+### A declaration in a spread's template is refused
+
+**Breaking.** #1032, in both engines. A declaration sits at the root of
+the document, so one in a spread's template, `m: { &: { %n = 1, v: %n } }`,
+or in a source loaded as one, `m: { &: @"./s.aontu" }`, is refused with
+`alias_not_toplevel` at the map or list that holds the template, as
+`x: { %n = 1 }` already was. Before, TypeScript's `vet` passed such a
+document, Go's answered `error`, and generation failed with `no_path`
+at a path each engine spelled differently.
+
+### The definition reads a path that leaves a link's template where the link is written
+
+A path in a link's template that climbs past the template, as `..k`
+does in `relate({v: ..k})`, now reads in the definition where the
+document writes the link, as both engines already read it, and no longer
+from the link's target. With `k: 7`, `x: {k: 3, n: relate({v: ..k}) &
+path($.out)}` and `out: {}`, the link sends `v: 3`. A path that stays
+inside the template still reads at the target. Rows lc0 to lc50 of
+`test/spec/def-path.tsv` hold the definition and both engines to it.
+Neither engine changes.
+
 ### `subsume` compares a spread template that is a name
 
 Both ports. A spread's template that is a name, `kids?: [&: %R]`, is

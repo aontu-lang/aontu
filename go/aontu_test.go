@@ -170,3 +170,33 @@ func TestAliasScopeFromThePackage(t *testing.T) {
 		}
 	}
 }
+
+func TestTemplateErrorPath(t *testing.T) {
+	cases := [][2]string{
+		{`x: { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }`, `$.x.h.0.s`},
+		{`x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ { at: "z" } ] }`, `$.x.h.0.s`},
+		{`x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }`, `$.x.h.0.at`},
+		{`x: { h: { &: { s: "a" | "b" } } } & { h: { k: {} } }`, `$.x.h.k.s`},
+	}
+	for _, c := range cases {
+		_, err := New().Generate(c[0])
+		want := regexp.MustCompile(`at path ` + regexp.QuoteMeta(c[1]) + `\b`)
+		if nil == err || !want.MatchString(err.Error()) {
+			t.Errorf("%s: want %s, got %v", c[0], c[1], err)
+		}
+	}
+}
+
+func TestDeclarationInTemplate(t *testing.T) {
+	want := regexp.MustCompile(`aontu/alias_not_toplevel\]: Cannot resolve value at path \$\.m\b`)
+	for _, src := range []string{
+		`m: { &: { %n = 1, v: %n }, a: {} }`,
+		`m: { &: { %n = 1, v: %n } }`,
+		`m: { &: { %n = 1 } }`,
+		`m: [&: { %n = 1, v: %n }]`,
+	} {
+		if _, err := New().Generate(src); nil == err || !want.MatchString(err.Error()) {
+			t.Errorf("%s: got %v", src, err)
+		}
+	}
+}
