@@ -9,8 +9,9 @@ order: 90
 Both implementations serve the Language Server Protocol from the
 command itself, `aontu lsp`: unification problems as diagnostics
 while you type, with hover, completion, go to definition, find
-references, highlights, rename and an outline of the document's keys
-beside them. Completion offers the keys a type declares and the members
+references, highlights, rename, a quick fix and an outline of the
+document's keys beside them. The quick fix removes an entry that
+`aontu trim --check` reports, one whose removal changes nothing. Completion offers the keys a type declares and the members
 of a path after a dot; hover, definition, references and rename work on
 a key and on a reference, across the files a document includes. A
 rename edits only files under the workspace root your client names, the

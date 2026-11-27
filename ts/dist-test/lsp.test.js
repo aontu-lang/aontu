@@ -43,6 +43,7 @@ const lsp_1 = require("../dist/lsp");
 const srcpath_1 = require("./srcpath");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const cursor_1 = require("../dist/cursor");
+const trim_1 = require("../dist/trim");
 const alias_1 = require("../dist/alias");
 const lsp_server_1 = require("../dist/lsp-server");
 (0, node_test_1.describe)('lsp-diagnostics', () => {
@@ -816,6 +817,12 @@ const lsp_server_1 = require("../dist/lsp-server");
             Assert.strictEqual((0, cursor_1.fileRefusal)(file, root, readable), why, file);
         }
     });
+    (0, node_test_1.test)('a-file-is-read-as-the-parse-read-it', () => {
+        Assert.strictEqual((0, cursor_1.fileText)('aontu:lang/text'), undefined);
+        Assert.strictEqual((0, cursor_1.fileText)('m.aontu', { 'm.aontu': 'a: 1\n' }), undefined);
+        Assert.strictEqual((0, cursor_1.fileText)(Path.join(Os.tmpdir(), 'aontu-none', 'x.aontu')), undefined);
+        Assert.strictEqual((0, cursor_1.fileText)(Path.join(__dirname, '..', '..', 'test', 'spec', 'files', 'cursor_num.aontu'))?.trim(), '5');
+    });
     (0, node_test_1.test)('the-server-layer-answers-as-the-library', () => {
         const src = 'a: { b: 1 }\nc: $.a.b\n';
         const at = (0, lsp_1.computePathAt)(src, { line: 1, character: 5 });
@@ -1089,7 +1096,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         const trust = { include: { mem: { 'm.aontu': 'k: { n: key() }\n' } } };
         const src = 'a: @"m.aontu"\ny: $.a.k\n';
         Assert.deepStrictEqual((0, lsp_1.computeRename)(src, { line: 1, character: 7 }, U, 'j', '/', trust), { error: 'cannot rename a.k: key() reads the key at m.aontu' });
-        Assert.deepStrictEqual((0, lsp_1.computeRename)('a: @"n.aontu"\ny: $.a.k\n', { line: 1, character: 7 }, U, 'j', '/', { include: { mem: { 'n.aontu': 'k: 1\n' } } }), { error: 'cannot rename a.k: the text of n.aontu cannot be read' });
+        Assert.deepStrictEqual((0, lsp_1.computeRename)('a: @"n.aontu"\ny: $.a.k\n', { line: 1, character: 7 }, U, 'j', '/', { include: { mem: { 'n.aontu': 'k: 1\nr: $.a.k\n' } } }), { error: 'cannot rename a.k: the text of n.aontu cannot be read' });
     });
     (0, node_test_1.test)('rename-through-the-handler', () => {
         const h = new lsp_1.LspHandler();
@@ -1108,6 +1115,57 @@ const lsp_server_1 = require("../dist/lsp-server");
         });
         Assert.strictEqual(ask('textDocument/rename', {}).result, null);
         Assert.strictEqual(h.handle({ id: 3, method: 'textDocument/prepareRename', params: {} })[0].result, null);
+    });
+});
+(0, node_test_1.describe)('lsp-code-actions', () => {
+    const SRC = 'cfg: {\n  &: { port: 80, tls: false }\n  a: { port: 80, tls: false }\n  b: { x: 1 }\n}\n';
+    const range = (l0, c0, l1, c1) => ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } });
+    const U = 'file:///w/c.aontu';
+    (0, node_test_1.test)('an-action-removes-what-trim-reports', () => {
+        Assert.deepStrictEqual((0, lsp_1.computeCodeActions)(SRC, range(2, 7, 2, 7), U), [{
+                title: 'Remove $.cfg.a.port, which changes nothing',
+                kind: 'quickfix',
+                edit: { changes: { [U]: [{ range: range(2, 7, 2, 17), newText: '' }] } },
+            }]);
+        Assert.deepStrictEqual((0, lsp_1.computeCodeActions)(SRC, range(3, 0, 3, 3), U), []);
+        Assert.deepStrictEqual((0, lsp_1.computeCodeActions)(SRC, range(2, 7, 2, 7), U, ['refactor']), []);
+        Assert.strictEqual((0, lsp_1.computeCodeActions)(SRC, range(2, 7, 2, 7), U, ['quickfix'])?.length, 1);
+        Assert.strictEqual((0, lsp_1.computeCodeActions)('a: ]\n', range(0, 0, 0, 0), U), null);
+    });
+    (0, node_test_1.test)('the-text-without-the-entry-is-what-trim-no-longer-reports', () => {
+        for (const src of [
+            SRC,
+            'm: { &: { k: 1 }, a: { k: 1, k: 1 } }\n',
+            'm: {\n  &: { k: 1 }\n  a: {\n    k: 1 # same\n    j: 2\n  }\n}\n',
+            'm: { &: { k: 1 }, a: { j: 2 k: 1 } }\n',
+            'ys: [&: { k: 1 }, { k: 1 }]\n',
+        ]) {
+            const lines = src.split('\n');
+            const acts = (0, cursor_1.actionsAt)(src, range(0, 0, lines.length - 1, 0)) ?? [];
+            Assert.ok(0 < acts.length, src);
+            for (const act of acts) {
+                const off = (p) => lines.slice(0, p.line).join('\n').length + (0 < p.line ? 1 : 0) + p.character;
+                const text = [...act.edits].reverse().reduce((t, e) => t.slice(0, off(e.range.start)) + e.newText + t.slice(off(e.range.end)), src);
+                const report = (0, trim_1.trimCheck)(text);
+                Assert.notStrictEqual(report.verdict, 'error', text);
+                Assert.ok(!report.redundant.includes('$.' + act.path.join('.')), text);
+            }
+        }
+    });
+    (0, node_test_1.test)('code-actions-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        const caps = h.handle({ id: 1, method: 'initialize', params: {} })[0].result.capabilities;
+        Assert.deepStrictEqual(caps.codeActionProvider, { codeActionKinds: ['quickfix'] });
+        h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } });
+        const ask = (params) => h.handle({
+            id: 2, method: 'textDocument/codeAction', params: { textDocument: { uri: U }, ...params },
+        })[0].result;
+        Assert.strictEqual(ask({ range: range(1, 0, 3, 0), context: { diagnostics: [] } }).length, 2);
+        Assert.deepStrictEqual(ask({ range: range(1, 0, 3, 0), context: { only: ['source'] } }), []);
+        Assert.strictEqual(ask({ range: range(1, 0, 3, 0), context: { only: 'x' } }).length, 2);
+        Assert.strictEqual(ask({}), null);
+        Assert.strictEqual(ask({ range: { start: range(0, 0, 0, 0).start } }), null);
+        Assert.strictEqual(h.handle({ id: 3, method: 'textDocument/codeAction', params: {} })[0].result, null);
     });
 });
 //# sourceMappingURL=lsp.test.js.map

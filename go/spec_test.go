@@ -80,7 +80,7 @@ func TestSpec(t *testing.T) {
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode ||
 				"at" == mode || "describe" == mode || "define" == mode ||
-				"members" == mode || "refs" == mode || "rename" == mode
+				"members" == mode || "refs" == mode || "rename" == mode || "actions" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -678,6 +678,30 @@ func TestSpec(t *testing.T) {
 					if !jsonEqual(got, expect) {
 						gj, _ := json.Marshal(got)
 						t.Fatalf("rename mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "actions":
+					at := func(text string) CursorPosition {
+						ls, cs, _ := strings.Cut(text, ":")
+						line, lerr := strconv.Atoi(ls)
+						character, cerr := strconv.Atoi(cs)
+						if nil != lerr || nil != cerr {
+							t.Fatalf("bad actions range %q", data)
+						}
+						return CursorPosition{line, character}
+					}
+					first, last, ranged := strings.Cut(data, "-")
+					rng := CursorRange{Start: at(first), End: at(first)}
+					if ranged {
+						rng.End = at(last)
+					}
+					var got any
+					if acts := New().ActionsAt(src, rng); nil != acts {
+						got = acts
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("actions mismatch\n want: %s\n got:  %s", expect, gj)
 					}
 
 				case "symbols":

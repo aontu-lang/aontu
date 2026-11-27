@@ -65,3 +65,12 @@ func TestCursorRenameNamesAFileWhoseTextItCannotRead(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestCursorAFileIsReadAsTheParseReadIt(t *testing.T) {
+	texts := &renameTexts{src: "a: 1\n", inc: map[string]string{"/w/x.aontu": "b: 2\n", "aontu:lang/text": "c: 3\n"}}
+	for file, want := range map[string]bool{"": true, "/w/x.aontu": true, "aontu:lang/text": false, "/w/y.aontu": false} {
+		if _, ok := texts.text(file); want != ok {
+			t.Errorf("%q: %v", file, ok)
+		}
+	}
+}

@@ -111,6 +111,18 @@ type Entry = {
 };
 declare function renameEntries(root: any): Entry[];
 declare function fileRefusal(file: string, root: string | undefined, readable: boolean): string | undefined;
+declare function fileText(file: string, mem?: Record<string, string>): string | undefined;
 declare function renameAt(src: string, pos: Position, name: string, opts?: RenameOptions): CursorRename | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, renameAt, renameEntries, fileRefusal, };
-export type { CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename, CursorValue, DocSymbol, FileEdit, Member, RenameOptions, PathPlace, PathSite, PathValue, Position, Range, };
+type DocEdit = {
+    range: Range;
+    newText: string;
+};
+type CursorAction = {
+    title: string;
+    path: string[];
+    edits: DocEdit[];
+};
+declare function entryDeletion(src: string, s: number, e: number): [number, number];
+declare function actionsAt(src: string, range: Range, opts?: CursorOptions): CursorAction[] | undefined;
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, renameAt, renameEntries, fileRefusal, actionsAt, entryDeletion, fileText, };
+export type { CursorAction, CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename, CursorValue, DocEdit, DocSymbol, FileEdit, Member, RenameOptions, PathPlace, PathSite, PathValue, Position, Range, };

@@ -16,12 +16,16 @@ exports.referencesAt = referencesAt;
 exports.renameAt = renameAt;
 exports.renameEntries = renameEntries;
 exports.fileRefusal = fileRefusal;
+exports.actionsAt = actionsAt;
+exports.entryDeletion = entryDeletion;
+exports.fileText = fileText;
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const aontu_1 = require("./aontu");
 const query_1 = require("./query");
 const vet_1 = require("./vet");
 const keyorder_1 = require("./keyorder");
+const trim_1 = require("./trim");
 const KEY_DELIMS = ' \t\r\n{}[](),:;"\'';
 const TOKEN_END = KEY_DELIMS + '&|';
 const WORD = /[A-Za-z0-9_\-\u0080-\uffff]/;
@@ -761,6 +765,19 @@ function fileRefusal(file, root, readable) {
     }
     return readable ? undefined : 'the text of ' + file + ' cannot be read';
 }
+// The text of a file the parse read, as it reads it: an include from
+// memory, or a bundled model, is not read again.
+function fileText(file, mem) {
+    if (file.startsWith('aontu:') || 'string' === typeof mem?.[file]) {
+        return undefined;
+    }
+    try {
+        return (0, node_fs_1.readFileSync)(file, 'utf8');
+    }
+    catch {
+        return undefined;
+    }
+}
 function byPlace(a, b) {
     return (0, keyorder_1.cmpCodePoint)(a.file, b.file) || a.off - b.off;
 }
@@ -782,26 +799,14 @@ function renameAt(src, pos, name, opts) {
     const texts = new Map([['', src]]);
     const text = (file) => {
         if (!texts.has(file)) {
-            let t;
-            try {
-                // An included file's text is the one the parse read, which an
-                // include from memory does not keep.
-                t = file.startsWith('aontu:') || 'string' === typeof mem?.[file] ? undefined :
-                    (0, node_fs_1.readFileSync)(file, 'utf8');
-            }
-            // A file the parse has just read can be gone by now.
-            /* node:coverage ignore next 3 */
-            catch {
-                t = undefined;
-            }
-            texts.set(file, t);
+            texts.set(file, fileText(file, mem));
         }
         return texts.get(file);
     };
     const starts = new Map();
     const linesOf = (file) => {
         if (!starts.has(file)) {
-            starts.set(file, lineStarts(text(file) ?? ''));
+            starts.set(file, lineStarts(text(file)));
         }
         return starts.get(file);
     };
@@ -897,7 +902,7 @@ function renameAt(src, pos, name, opts) {
         firstWhy([
             ...steps.filter((e) => !keys.some((k) => k.kid === e.kid)).map((e) => keyFile.get(e))
                 .map((p) => ({ ...p, why: 'cannot locate the key written at ' + where(p) })),
-            ...reads.filter((r) => undefined === segmentOf(r, P, text(r.file)))
+            ...reads.filter((r) => !segmentOf(r, P, text(r.file))[1])
                 .map((r) => ({ ...r, why: 'cannot locate the reference at ' + where(r) })),
         ]) ??
         aliasRefusal(P, keys, refs, where) ??
@@ -926,7 +931,7 @@ function renameAt(src, pos, name, opts) {
         edits.set(k.file + ':' + k.off, { ...k, newText: writtenName(name, quoteAt(t, k.off), false) });
     }
     for (const r of reads) {
-        const seg = segmentOf(r, P, text(r.file));
+        const [seg] = segmentOf(r, P, text(r.file));
         if (null != seg) {
             const t = text(r.file);
             edits.set(r.file + ':' + seg[0], { file: r.file, off: seg[0], end: seg[1], newText: writtenName(name, quoteAt(t, seg[0]), true) });
@@ -942,20 +947,20 @@ function renameAt(src, pos, name, opts) {
     };
 }
 // The span of the segment of a reference that names the last segment of
-// path, null where the reference does not spell it, or nothing where the
-// reference cannot be found as written.
+// path, null where the reference does not spell it, and whether the
+// reference is found as written.
 function segmentOf(r, path, text) {
     if (undefined === r.ref) {
-        return undefined;
+        return [null, false];
     }
     const segs = r.ref.segs.filter(([s, e]) => s < e);
     const i = path.length - 1 - (r.reads.length - segs.length);
     if (0 > i) {
-        return null;
+        return [null, true];
     }
     const [s, e] = segs[i];
     const spelt = '' === quoteAt(text, s) ? text.slice(s, e) : text.slice(s + 1, e - 1);
-    return spelt === path[path.length - 1] ? segs[i] : undefined;
+    return [segs[i], spelt === path[path.length - 1]];
 }
 // Where the path is also written, or read, through a reference: a path a
 // reference copies from it, or one it copies from, which the rename
@@ -996,5 +1001,108 @@ function aliasRefusal(P, keys, refs, where) {
         }
     }
     return firstWhy(cs);
-} /* node:coverage ignore next 12 */
+}
+// What deleting the entry written from s to e takes: its whole line
+// where it stands alone on a line that ends, else the comma beside it,
+// else the blanks that part it from what follows or, before a closing
+// bracket, from what comes before.
+function entryDeletion(src, s, e) {
+    const ls = src.lastIndexOf('\n', s - 1) + 1;
+    let right = e;
+    while (right < src.length && ' \t'.includes(src[right]))
+        right++;
+    const comma = ',' === src[right];
+    if (comma) {
+        right++;
+        while (right < src.length && ' \t'.includes(src[right]))
+            right++;
+    }
+    const eol = right >= src.length || '\r\n#'.includes(src[right]);
+    const le = src.indexOf('\n', right);
+    if (/^[ \t]*$/.test(src.slice(ls, s)) && eol && 0 <= le) {
+        return [ls, le + 1];
+    }
+    if (comma) {
+        return [s, right];
+    }
+    let left = s;
+    while (left > ls && ' \t'.includes(src[left - 1]))
+        left--;
+    return ',' === src[left - 1] ? [left - 1, e] :
+        eol || '}])'.includes(src[right]) ? [left, e] : [s, right];
+}
+// The symbols an outline has at a path, a key written twice there being
+// two.
+function symbolsAt(syms, path) {
+    return path.reduce((at, seg) => at.flatMap((s) => s.children).filter((s) => s.name === seg), [{ children: syms }]);
+}
+// The repairs whose edit is decided at a range: removing an entry that
+// `trim --check` reports, where the range meets it, every place the
+// document writes it is found, and the text without it unifies to the
+// same. Nothing where the document does not parse.
+function actionsAt(src, range, opts) {
+    const doc = parsed(src, opts);
+    const starts = lineStarts(src);
+    if (undefined === doc || 0 > range.start.line || starts.length <= range.start.line) {
+        return undefined;
+    }
+    const report = (0, trim_1.trimCheck)(src, { trust: opts?.trust });
+    const from = offsetAt(src, starts, range.start);
+    const to = offsetAt(src, starts, starts.length <= range.end.line ?
+        positionOf(starts, src.length) : range.end);
+    const paths = [];
+    (0, trim_1.candidates)(doc.root, [], paths);
+    const syms = symbolTree(src, doc.root);
+    const entries = renameEntries(doc.root);
+    const out = [];
+    for (const text of report.redundant) {
+        const named = paths.filter((p) => '$.' + p.join('.') === text);
+        if (1 !== named.length) {
+            continue;
+        }
+        const P = named[0];
+        const steps = entries.filter((e) => e.step && same(e.path, P));
+        const keyAt = (e) => {
+            const load = e.v.site?.load;
+            const url = e.v.site?.url ?? '';
+            const off = '' === url ? siteOffset(starts, e.v) :
+                null != load && '' === (load.url ?? '') ? siteOffset(starts, { site: load }) : -1;
+            return 0 > off ? -1 : keySpan(src, off, P[P.length - 1])?.[0] ?? -1;
+        };
+        const keys = new Set(entries.filter((e) => same(e.path, P)).map(keyAt).filter((k) => 0 <= k));
+        const found = symbolsAt(syms, P);
+        const written = found.map((sym) => offsetAt(src, starts, sym.selectionRange.start));
+        if (0 === found.length || steps.some((e) => !entries.some((k) => k.kid === e.kid && 0 <= keyAt(k))) ||
+            keys.size !== written.length || written.some((w) => !keys.has(w))) {
+            continue;
+        }
+        const spans = found.map((sym) => [
+            offsetAt(src, starts, sym.range.start), offsetAt(src, starts, sym.range.end)
+        ]);
+        if (!spans.some(([s, e]) => s <= to && from <= e)) {
+            continue;
+        }
+        const cuts = spans.map(([s, e]) => entryDeletion(src, s, e)).sort((a, b) => a[0] - b[0])
+            .reduce((m, c) => {
+            const last = m[m.length - 1];
+            if (undefined !== last && c[0] <= last[1])
+                last[1] = Math.max(last[1], c[1]);
+            else
+                m.push([...c]);
+            return m;
+        }, []);
+        const edited = cuts.reduceRight((t, [s, e]) => t.slice(0, s) + t.slice(e), src);
+        if ((0, trim_1.evalCanon)(src, { trust: opts?.trust }) !== (0, trim_1.evalCanon)(edited, { trust: opts?.trust })) {
+            continue;
+        }
+        out.push({
+            title: 'Remove ' + text + ', which changes nothing',
+            path: P,
+            edits: cuts.map(([s, e]) => ({
+                range: { start: positionOf(starts, s), end: positionOf(starts, e) }, newText: '',
+            })),
+        });
+    }
+    return out;
+} /* node:coverage ignore next 13 */
 //# sourceMappingURL=cursor.js.map

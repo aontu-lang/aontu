@@ -277,6 +277,31 @@ func (h *Handler) Handle(m Message) []Out {
 		}
 		return []Out{newResponse(m.ID, result)}
 
+	case "textDocument/codeAction":
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+			Range *struct {
+				Start *Position `json:"start"`
+				End   *Position `json:"end"`
+			} `json:"range"`
+			Context struct {
+				Only json.RawMessage `json:"only"`
+			} `json:"context"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		text, ok := h.docs[p.TextDocument.URI]
+		if !ok || nil == p.Range || nil == p.Range.Start || nil == p.Range.End {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		var kinds []any
+		_ = json.Unmarshal(p.Context.Only, &kinds)
+		return []Out{newResponse(m.ID, CodeActions(text, Range{Start: *p.Range.Start, End: *p.Range.End},
+			p.TextDocument.URI, kinds, h.trust))}
+
 	case "textDocument/documentSymbol":
 		var p struct {
 			TextDocument struct {
@@ -533,6 +558,7 @@ func initializeResult() map[string]any {
 			"referencesProvider":         true,
 			"documentHighlightProvider":  true,
 			"renameProvider":             map[string]any{"prepareProvider": true},
+			"codeActionProvider":         map[string]any{"codeActionKinds": []string{"quickfix"}},
 		},
 		"serverInfo": map[string]any{
 			"name":    "aontu-lsp",

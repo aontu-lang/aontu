@@ -578,3 +578,49 @@ rename-escaped-segment	rename	a: { "b\\"c": 1 }\nx: $.a."b\\"c"\ny: $.a\n	2:5:q	
 rename-bundled	rename	t: @"aontu:lang/text"\nx: $.t.aontu.Lang.lang\n	1:20:kk	{"refused":"cannot rename t.aontu.Lang.lang: aontu:lang/text is a bundled model"}
 rename-bundled-twice	rename	t: @"aontu:lang/text"\nt: @"aontu:lang/markdown"\nx: $.t.aontu.Lang.lang\n	2:20:kk	{"refused":"cannot rename t.aontu.Lang.lang: aontu:lang/markdown is a bundled model"}
 rename-bundled-holder	rename	t: @"aontu:lang/text"\nx: $.t.aontu.Lang.lang\n	0:0:u	{"edits":[{"file":"","newText":"u","range":{"end":{"character":1,"line":0},"start":{"character":0,"line":0}}},{"file":"","newText":"u","range":{"end":{"character":6,"line":1},"start":{"character":5,"line":1}}}],"path":["t"],"placeholder":"t","range":{"end":{"character":1,"line":0},"start":{"character":0,"line":0}}}
+# LS8: the repairs whose edit is decided at a range, as both language
+# servers answer textDocument/codeAction: removing an entry that
+# `trim --check` reports. Columns as for `at`, the position a range,
+# `line:character-line:character`, or one position for an empty range.
+# expect is each action's `title`, the entry's `path` and its `edits`,
+# each a `range` of the document and the `newText`; `[]` where the range
+# meets no such entry; null where the document does not parse or the
+# range starts past its end. Each expectation is what both engines
+# answer.
+# An entry is offered where the range meets it, and only there.
+actions-spread-implied	actions	a:{&:{deep:1}, b:{deep:1}, c:{other:2}}	0:0-0:40	[{"edits":[{"newText":"","range":{"end":{"character":24,"line":0},"start":{"character":18,"line":0}}}],"path":["a","b","deep"],"title":"Remove $.a.b.deep, which changes nothing"}]
+actions-spread-implied-at-the-entry	actions	a:{&:{deep:1}, b:{deep:1}, c:{other:2}}	0:20	[{"edits":[{"newText":"","range":{"end":{"character":24,"line":0},"start":{"character":18,"line":0}}}],"path":["a","b","deep"],"title":"Remove $.a.b.deep, which changes nothing"}]
+actions-spread-implied-elsewhere	actions	a:{&:{deep:1}, b:{deep:1}, c:{other:2}}	0:30	[]
+# A range meets every entry it touches, each its own action.
+actions-every-entry-in-range	actions	a: {\n  &: { p: 1, q: 2 }\n  b: { p: 1, q: 2 }\n  c: { p: 1 } # c\n}\n	0:0-5:0	[{"edits":[{"newText":"","range":{"end":{"character":13,"line":2},"start":{"character":7,"line":2}}}],"path":["a","b","p"],"title":"Remove $.a.b.p, which changes nothing"},{"edits":[{"newText":"","range":{"end":{"character":17,"line":2},"start":{"character":11,"line":2}}}],"path":["a","b","q"],"title":"Remove $.a.b.q, which changes nothing"},{"edits":[{"newText":"","range":{"end":{"character":11,"line":3},"start":{"character":6,"line":3}}}],"path":["a","c","p"],"title":"Remove $.a.c.p, which changes nothing"}]
+actions-one-line	actions	a: {\n  &: { p: 1, q: 2 }\n  b: { p: 1, q: 2 }\n  c: { p: 1 } # c\n}\n	3:0-3:16	[{"edits":[{"newText":"","range":{"end":{"character":11,"line":3},"start":{"character":6,"line":3}}}],"path":["a","c","p"],"title":"Remove $.a.c.p, which changes nothing"}]
+# The edit takes the comma beside the entry, else its line where it stands
+# alone, its comment with it, else the blanks beside it.
+actions-comma-after	actions	a: {\n  &: { p: 1, q: 2 }\n  b: { p: 1, q: 2 }\n  c: { p: 1 } # c\n}\n	2:8	[{"edits":[{"newText":"","range":{"end":{"character":13,"line":2},"start":{"character":7,"line":2}}}],"path":["a","b","p"],"title":"Remove $.a.b.p, which changes nothing"}]
+actions-comma-before	actions	a: {\n  &: { p: 1, q: 2 }\n  b: { p: 1, q: 2 }\n  c: { p: 1 } # c\n}\n	2:14	[{"edits":[{"newText":"","range":{"end":{"character":17,"line":2},"start":{"character":11,"line":2}}}],"path":["a","b","q"],"title":"Remove $.a.b.q, which changes nothing"}]
+actions-whole-line	actions	m: {\n  &: { k: 1 }\n  a: {\n    k: 1\n  }\n}\n	3:4	[{"edits":[{"newText":"","range":{"end":{"character":0,"line":4},"start":{"character":0,"line":3}}}],"path":["m","a","k"],"title":"Remove $.m.a.k, which changes nothing"}]
+actions-whole-line-with-a-comment	actions	m: {\n  &: { k: 1 }\n  a: {\n    k: 1 # same\n    j: 2\n  }\n}\n	3:4	[{"edits":[{"newText":"","range":{"end":{"character":0,"line":4},"start":{"character":0,"line":3}}}],"path":["m","a","k"],"title":"Remove $.m.a.k, which changes nothing"}]
+# Nothing where the text without the entry would mean something else.
+actions-chain	actions	&: { k: 1 }\na: k: 1\n	1:3	[]
+actions-before-a-bracket	actions	m: { &: { k: 1 }, a: { j: 2 k: 1 } }\n	0:30	[{"edits":[{"newText":"","range":{"end":{"character":32,"line":0},"start":{"character":27,"line":0}}}],"path":["m","a","k"],"title":"Remove $.m.a.k, which changes nothing"}]
+actions-between-blanks	actions	m: { &: { k: 1 }, a: { k: 1 j: 2 } }\n	0:24	[{"edits":[{"newText":"","range":{"end":{"character":28,"line":0},"start":{"character":23,"line":0}}}],"path":["m","a","k"],"title":"Remove $.m.a.k, which changes nothing"}]
+# A key written twice in one map is removed at both.
+actions-written-twice	actions	m: { &: { k: 1 }, a: { k: 1, k: 1 } }\n	0:25	[{"edits":[{"newText":"","range":{"end":{"character":33,"line":0},"start":{"character":23,"line":0}}}],"path":["m","a","k"],"title":"Remove $.m.a.k, which changes nothing"}]
+actions-crlf	actions	m: {\n  &: { k: 1 }\n  a: {\n    k: 1\n  }\n}\n	3:4	[{"edits":[{"newText":"","range":{"end":{"character":0,"line":4},"start":{"character":0,"line":3}}}],"path":["m","a","k"],"title":"Remove $.m.a.k, which changes nothing"}]
+# In a list, and in a list's spread; a covered entry's own entries are not reported.
+actions-list-inner-map	actions	a:[{x:1}] b:{&:{k:2},m:{k:2}}	0:24	[{"edits":[{"newText":"","range":{"end":{"character":27,"line":0},"start":{"character":24,"line":0}}}],"path":["b","m","k"],"title":"Remove $.b.m.k, which changes nothing"}]
+actions-list-spread	actions	ys: [&: { k: 1 }, { k: 1 }]\n	0:22	[{"edits":[{"newText":"","range":{"end":{"character":24,"line":0},"start":{"character":19,"line":0}}}],"path":["ys","0","k"],"title":"Remove $.ys.0.k, which changes nothing"}]
+actions-nested-covered-once	actions	a:{&:{b:{c:1}}, m:{b:{c:1}}, n:{other:2}}	0:0-0:42	[{"edits":[{"newText":"","range":{"end":{"character":26,"line":0},"start":{"character":19,"line":0}}}],"path":["a","m","b"],"title":"Remove $.a.m.b, which changes nothing"}]
+# Nothing to offer where trim reports nothing, or the document fails.
+actions-clean	actions	x: { y: 1 }\n	0:0-1:0	[]
+actions-broken	actions	a: 1\na: 2\n	0:0-1:0	[]
+actions-unparsed	actions	a: ]\n	0:0	null
+actions-past-the-end	actions	a:{&:{deep:1}, b:{deep:1}}	0:0-9:0	[{"edits":[{"newText":"","range":{"end":{"character":24,"line":0},"start":{"character":18,"line":0}}}],"path":["a","b","deep"],"title":"Remove $.a.b.deep, which changes nothing"}]
+actions-start-past-the-end	actions	a:{&:{deep:1}, b:{deep:1}}	9:0	null
+# Nothing where a write of the entry is not found as written, is in an
+# included file, or shares its path's spelling with another; a key that
+# holds an include is written in the document.
+actions-escaped-key	actions	a: { &: { "k\\"q": 1 }, m: { "k\\"q": 1 } }\n	0:0-1:0	[]
+actions-in-an-include	actions	a: { &: { port: 8080 }, m: @"__FIXTURES__/cursor_base.aontu" }\n	0:0-1:0	[]
+actions-two-paths-one-text	actions	s: { &: { k: 1 }, "a.b": { k: 1 }, a: { b: { k: 1 } } }\n	0:0-1:0	[]
+actions-an-include-it-loads	actions	a: {\n  &: { n: 5 }\n  b: {\n    n: @"__FIXTURES__/cursor_num.aontu"\n  }\n}\n	3:4	[{"edits":[{"newText":"","range":{"end":{"character":0,"line":4},"start":{"character":0,"line":3}}}],"path":["a","b","n"],"title":"Remove $.a.b.n, which changes nothing"}]

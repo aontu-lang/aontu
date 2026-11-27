@@ -377,6 +377,39 @@ func Rename(
 	return out, ""
 }
 
+type CodeAction struct {
+	Title string        `json:"title"`
+	Kind  string        `json:"kind"`
+	Edit  WorkspaceEdit `json:"edit"`
+}
+
+// CodeActions is the quick fixes at a range, none where the client asks
+// only for kinds a quick fix is not.
+func CodeActions(src string, rng Range, uri string, only []any, trust *aontu.TrustOptions) []CodeAction {
+	if nil != only && !slices.Contains(only, any("quickfix")) && !slices.Contains(only, any("")) {
+		return []CodeAction{}
+	}
+	a := aontu.New()
+	a.Trust = trust
+	acts := a.ActionsAt(src, aontu.CursorRange{
+		Start: aontu.CursorPosition{Line: rng.Start.Line, Character: rng.Start.Character},
+		End:   aontu.CursorPosition{Line: rng.End.Line, Character: rng.End.Character},
+	})
+	if nil == acts {
+		return nil
+	}
+	out := []CodeAction{}
+	for _, act := range acts {
+		edits := []TextEdit{}
+		for _, e := range act.Edits {
+			edits = append(edits, TextEdit{Range: toRange(e.Range), NewText: e.NewText})
+		}
+		out = append(out, CodeAction{Title: act.Title, Kind: "quickfix",
+			Edit: WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}})
+	}
+	return out
+}
+
 // LSP DocumentHighlightKind subset.
 const (
 	HighlightRead  = 2

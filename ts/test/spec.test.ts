@@ -25,7 +25,7 @@ import { canonRiders } from '../dist/utility'
 import { tlogRunGroup } from './tlog-vectors'
 import { computePathAt, computeSitesOf } from '../dist/lsp'
 import {
-  describeAt, definitionAt, membersAt, referencesAt, renameAt, symbolsOf,
+  actionsAt, describeAt, definitionAt, membersAt, referencesAt, renameAt, symbolsOf,
 } from '../dist/cursor'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
@@ -144,7 +144,7 @@ function loadRows(): Row[] {
         'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
         'jsonschema-output' === parts[1] || 'at' === parts[1] ||
         'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1] ||
-        'refs' === parts[1] || 'rename' === parts[1]
+        'refs' === parts[1] || 'rename' === parts[1] || 'actions' === parts[1]
       const want = vetRow ? 5 : 4
       if (parts.length < want) {
         throw new Error(
@@ -540,6 +540,16 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(JSON.parse(row.expect)),
       `rename mismatch: ${row.name}`)
+  }
+  else if ('actions' === row.mode) {
+    const [start, end] = (row.data as string).split('-').map((at) => {
+      const [line, character] = at.split(':').map(Number)
+      return { line, character }
+    })
+    Assert.strictEqual(
+      exactJSON(actionsAt(row.src, { start, end: end ?? start }) ?? null),
+      exactJSON(JSON.parse(row.expect)),
+      `actions mismatch: ${row.name}`)
   }
   else if ('symbols' === row.mode) {
     Assert.strictEqual(

@@ -8,6 +8,7 @@ import { Aontu } from './aontu'
 import { whyParts } from './query'
 import { anchorParts, throughResidue } from './vet'
 import { cmpCodePoint } from './keyorder'
+import { candidates, evalCanon, trimCheck } from './trim'
 import type { TrustOptions } from './type'
 
 
@@ -936,6 +937,21 @@ function fileRefusal(file: string, root: string | undefined, readable: boolean):
 }
 
 
+// The text of a file the parse read, as it reads it: an include from
+// memory, or a bundled model, is not read again.
+function fileText(file: string, mem?: Record<string, string>): string | undefined {
+  if (file.startsWith('aontu:') || 'string' === typeof mem?.[file]) {
+    return undefined
+  }
+  try {
+    return readFileSync(file, 'utf8')
+  }
+  catch {
+    return undefined
+  }
+}
+
+
 function byPlace(a: Place, b: Place): number {
   return cmpCodePoint(a.file, b.file) || a.off - b.off
 }
@@ -962,26 +978,14 @@ function renameAt(
   const texts = new Map<string, string | undefined>([['', src]])
   const text = (file: string): string | undefined => {
     if (!texts.has(file)) {
-      let t: string | undefined
-      try {
-        // An included file's text is the one the parse read, which an
-        // include from memory does not keep.
-        t = file.startsWith('aontu:') || 'string' === typeof mem?.[file] ? undefined :
-          readFileSync(file, 'utf8')
-      }
-      // A file the parse has just read can be gone by now.
-      /* node:coverage ignore next 3 */
-      catch {
-        t = undefined
-      }
-      texts.set(file, t)
+      texts.set(file, fileText(file, mem))
     }
     return texts.get(file)
   }
   const starts = new Map<string, number[]>()
   const linesOf = (file: string): number[] => {
     if (!starts.has(file)) {
-      starts.set(file, lineStarts(text(file) ?? ''))
+      starts.set(file, lineStarts(text(file) as string))
     }
     return starts.get(file) as number[]
   }
@@ -1082,7 +1086,7 @@ function renameAt(
     firstWhy([
       ...steps.filter((e) => !keys.some((k) => k.kid === e.kid)).map((e) => keyFile.get(e) as Place)
         .map((p) => ({ ...p, why: 'cannot locate the key written at ' + where(p) })),
-      ...reads.filter((r) => undefined === segmentOf(r, P, text(r.file) as string))
+      ...reads.filter((r) => !segmentOf(r, P, text(r.file) as string)[1])
         .map((r) => ({ ...r, why: 'cannot locate the reference at ' + where(r) })),
     ]) ??
     aliasRefusal(P, keys, refs, where) ??
@@ -1114,7 +1118,7 @@ function renameAt(
     edits.set(k.file + ':' + k.off, { ...k, newText: writtenName(name, quoteAt(t, k.off), false) })
   }
   for (const r of reads) {
-    const seg = segmentOf(r, P, text(r.file) as string)
+    const [seg] = segmentOf(r, P, text(r.file) as string)
     if (null != seg) {
       const t = text(r.file) as string
       edits.set(r.file + ':' + seg[0],
@@ -1133,20 +1137,20 @@ function renameAt(
 
 
 // The span of the segment of a reference that names the last segment of
-// path, null where the reference does not spell it, or nothing where the
-// reference cannot be found as written.
-function segmentOf(r: RefAt, path: string[], text: string): [number, number] | null | undefined {
+// path, null where the reference does not spell it, and whether the
+// reference is found as written.
+function segmentOf(r: RefAt, path: string[], text: string): [[number, number] | null, boolean] {
   if (undefined === r.ref) {
-    return undefined
+    return [null, false]
   }
   const segs = r.ref.segs.filter(([s, e]) => s < e)
   const i = path.length - 1 - (r.reads.length - segs.length)
   if (0 > i) {
-    return null
+    return [null, true]
   }
   const [s, e] = segs[i]
   const spelt = '' === quoteAt(text, s) ? text.slice(s, e) : text.slice(s + 1, e - 1)
-  return spelt === path[path.length - 1] ? segs[i] : undefined
+  return [segs[i], spelt === path[path.length - 1]]
 }
 
 
@@ -1190,16 +1194,127 @@ function aliasRefusal(
     }
   }
   return firstWhy(cs)
-} /* node:coverage ignore next 12 */
+}
+
+
+type DocEdit = { range: Range, newText: string }
+
+// A repair whose edit is decided, offered at a range.
+type CursorAction = { title: string, path: string[], edits: DocEdit[] }
+
+
+// What deleting the entry written from s to e takes: its whole line
+// where it stands alone on a line that ends, else the comma beside it,
+// else the blanks that part it from what follows or, before a closing
+// bracket, from what comes before.
+function entryDeletion(src: string, s: number, e: number): [number, number] {
+  const ls = src.lastIndexOf('\n', s - 1) + 1
+  let right = e
+  while (right < src.length && ' \t'.includes(src[right])) right++
+  const comma = ',' === src[right]
+  if (comma) {
+    right++
+    while (right < src.length && ' \t'.includes(src[right])) right++
+  }
+  const eol = right >= src.length || '\r\n#'.includes(src[right])
+  const le = src.indexOf('\n', right)
+  if (/^[ \t]*$/.test(src.slice(ls, s)) && eol && 0 <= le) {
+    return [ls, le + 1]
+  }
+  if (comma) {
+    return [s, right]
+  }
+  let left = s
+  while (left > ls && ' \t'.includes(src[left - 1])) left--
+  return ',' === src[left - 1] ? [left - 1, e] :
+    eol || '}])'.includes(src[right]) ? [left, e] : [s, right]
+}
+
+
+// The symbols an outline has at a path, a key written twice there being
+// two.
+function symbolsAt(syms: DocSymbol[], path: string[]): DocSymbol[] {
+  return path.reduce((at, seg) =>
+    at.flatMap((s) => s.children).filter((s) => s.name === seg), [{ children: syms } as DocSymbol])
+}
+
+
+// The repairs whose edit is decided at a range: removing an entry that
+// `trim --check` reports, where the range meets it, every place the
+// document writes it is found, and the text without it unifies to the
+// same. Nothing where the document does not parse.
+function actionsAt(src: string, range: Range, opts?: CursorOptions): CursorAction[] | undefined {
+  const doc = parsed(src, opts)
+  const starts = lineStarts(src)
+  if (undefined === doc || 0 > range.start.line || starts.length <= range.start.line) {
+    return undefined
+  }
+  const report = trimCheck(src, { trust: opts?.trust })
+  const from = offsetAt(src, starts, range.start)
+  const to = offsetAt(src, starts, starts.length <= range.end.line ?
+    positionOf(starts, src.length) : range.end)
+  const paths: string[][] = []
+  candidates(doc.root, [], paths)
+  const syms = symbolTree(src, doc.root)
+  const entries = renameEntries(doc.root)
+  const out: CursorAction[] = []
+  for (const text of report.redundant) {
+    const named = paths.filter((p) => '$.' + p.join('.') === text)
+    if (1 !== named.length) {
+      continue
+    }
+    const P = named[0]
+    const steps = entries.filter((e) => e.step && same(e.path, P))
+    const keyAt = (e: Entry): number => {
+      const load = e.v.site?.load
+      const url: string = e.v.site?.url ?? ''
+      const off = '' === url ? siteOffset(starts, e.v) :
+        null != load && '' === (load.url ?? '') ? siteOffset(starts, { site: load }) : -1
+      return 0 > off ? -1 : keySpan(src, off, P[P.length - 1])?.[0] ?? -1
+    }
+    const keys = new Set(entries.filter((e) => same(e.path, P)).map(keyAt).filter((k) => 0 <= k))
+    const found = symbolsAt(syms, P)
+    const written = found.map((sym) => offsetAt(src, starts, sym.selectionRange.start))
+    if (0 === found.length || steps.some((e) => !entries.some((k) => k.kid === e.kid && 0 <= keyAt(k))) ||
+      keys.size !== written.length || written.some((w) => !keys.has(w))) {
+      continue
+    }
+    const spans = found.map((sym) => [
+      offsetAt(src, starts, sym.range.start), offsetAt(src, starts, sym.range.end)])
+    if (!spans.some(([s, e]) => s <= to && from <= e)) {
+      continue
+    }
+    const cuts = spans.map(([s, e]) => entryDeletion(src, s, e)).sort((a, b) => a[0] - b[0])
+      .reduce((m: [number, number][], c) => {
+        const last = m[m.length - 1]
+        if (undefined !== last && c[0] <= last[1]) last[1] = Math.max(last[1], c[1])
+        else m.push([...c])
+        return m
+      }, [])
+    const edited = cuts.reduceRight((t, [s, e]) => t.slice(0, s) + t.slice(e), src)
+    if (evalCanon(src, { trust: opts?.trust }) !== evalCanon(edited, { trust: opts?.trust })) {
+      continue
+    }
+    out.push({
+      title: 'Remove ' + text + ', which changes nothing',
+      path: P,
+      edits: cuts.map(([s, e]) => ({
+        range: { start: positionOf(starts, s), end: positionOf(starts, e) }, newText: '',
+      })),
+    })
+  }
+  return out
+} /* node:coverage ignore next 13 */
 
 
 export {
   pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal,
   membersAt, mapAt, symbolsOf, symbolTree, referencesAt, renameAt, renameEntries, fileRefusal,
+  actionsAt, entryDeletion, fileText,
 }
 
 export type {
-  CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename, CursorValue,
-  DocSymbol, FileEdit, Member, RenameOptions,
+  CursorAction, CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename,
+  CursorValue, DocEdit, DocSymbol, FileEdit, Member, RenameOptions,
   PathPlace, PathSite, PathValue, Position, Range,
 }

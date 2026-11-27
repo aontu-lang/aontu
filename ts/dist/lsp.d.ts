@@ -87,6 +87,12 @@ declare function computePrepareRename(src: string, position: Position, uri: stri
     placeholder: string;
 }>;
 declare function computeRename(src: string, position: Position, uri: string, newName: string, root?: string, trust?: any): Renamed<WorkspaceEdit>;
+type CodeAction = {
+    title: string;
+    kind: string;
+    edit: WorkspaceEdit;
+};
+declare function computeCodeActions(src: string, range: Range, uri: string, only?: unknown, trust?: any): CodeAction[] | null;
 declare function computeDefinition(src: string, position: Position, uri: string): Location | null;
 declare function computePathDefinition(src: string, position: Position, uri: string, trust?: any): Location[] | null;
 declare function computeHover(src: string, position: Position, provenance?: boolean, trust?: any): Hover | null;
@@ -120,5 +126,5 @@ declare class LspHandler {
     handle(msg: Message): OutMessage[];
     private publish;
 }
-export { computeDiagnostics, computeHover, computeDefinition, computePathDefinition, computeCompletions, computeFormatting, computePathAt, computeSitesOf, computeSymbols, computeReferences, computeHighlights, computePrepareRename, computeRename, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_FIELD, COMPLETION_VARIABLE, COMPLETION_KEYWORD, HIGHLIGHT_READ, HIGHLIGHT_WRITE, REQUEST_FAILED, };
-export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, CursorPath, DocSymbol, DocumentHighlight, PathSite, WorkspaceEdit, };
+export { computeDiagnostics, computeHover, computeDefinition, computePathDefinition, computeCompletions, computeFormatting, computePathAt, computeSitesOf, computeSymbols, computeReferences, computeHighlights, computePrepareRename, computeRename, computeCodeActions, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_FIELD, COMPLETION_VARIABLE, COMPLETION_KEYWORD, HIGHLIGHT_READ, HIGHLIGHT_WRITE, REQUEST_FAILED, };
+export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, CursorPath, DocSymbol, DocumentHighlight, PathSite, WorkspaceEdit, CodeAction, };

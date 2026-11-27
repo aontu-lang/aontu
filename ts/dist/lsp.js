@@ -18,6 +18,7 @@ exports.computeReferences = computeReferences;
 exports.computeHighlights = computeHighlights;
 exports.computePrepareRename = computePrepareRename;
 exports.computeRename = computeRename;
+exports.computeCodeActions = computeCodeActions;
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const walk_1 = require("./walk");
@@ -204,6 +205,7 @@ function initializeResult() {
             referencesProvider: true,
             documentHighlightProvider: true,
             renameProvider: { prepareProvider: true },
+            codeActionProvider: { codeActionKinds: ['quickfix'] },
         },
         serverInfo: {
             name: 'aontu-lsp',
@@ -419,6 +421,16 @@ function computeRename(src, position, uri, newName, root, trust) {
         }
         return { changes };
     });
+}
+// The quick fixes at a range, none where the client asks only for kinds
+// a quick fix is not.
+function computeCodeActions(src, range, uri, only, trust) {
+    const kinds = Array.isArray(only) ? only : ['quickfix'];
+    const acts = kinds.some((k) => 'quickfix' === k || '' === k) ?
+        (0, cursor_1.actionsAt)(src, range, { trust }) : [];
+    return acts?.map((a) => ({
+        title: a.title, kind: 'quickfix', edit: { changes: { [uri]: a.edits } },
+    })) ?? null;
 }
 // Go to where the name is BOUND: its declaration, or the destructure
 // that brought it in, which is where this file gets the name.
@@ -825,6 +837,16 @@ class LspHandler {
                             { result: answer.result }),
                     }];
             }
+            case 'textDocument/codeAction': {
+                const uri = msg.params?.textDocument?.uri;
+                const range = msg.params?.range;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                return [{
+                        jsonrpc: '2.0', id: msg.id,
+                        result: null == text || null == range?.start || null == range?.end ? null :
+                            computeCodeActions(text, range, uri, msg.params?.context?.only, this.trust),
+                    }];
+            }
             case 'textDocument/definition': {
                 const uri = msg.params?.textDocument?.uri;
                 const pos = msg.params?.position;
@@ -858,6 +880,6 @@ class LspHandler {
     publish(uri) {
         return publishDiagnosticsMsg(uri, computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }));
     }
-} /* node:coverage ignore next 49 */
+} /* node:coverage ignore next 51 */
 exports.LspHandler = LspHandler;
 //# sourceMappingURL=lsp.js.map

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1203,7 +1204,7 @@ func TestRenameNamesAFileWhoseTextItCannotRead(t *testing.T) {
 	if _, refused := Rename("a: @\"m.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust); "cannot rename a.k: key() reads the key at m.aontu" != refused {
 		t.Errorf("key(): %q", refused)
 	}
-	trust = &aontu.TrustOptions{IncludeMem: map[string]string{"n.aontu": "k: 1\n"}}
+	trust = &aontu.TrustOptions{IncludeMem: map[string]string{"n.aontu": "k: 1\nr: $.a.k\n"}}
 	if _, refused := Rename("a: @\"n.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust); "cannot rename a.k: the text of n.aontu cannot be read" != refused {
 		t.Errorf("unread: %q", refused)
 	}
@@ -1247,6 +1248,105 @@ func TestRenameThroughTheHandler(t *testing.T) {
 		t.Errorf("no document: %s", out)
 	}
 	if out := h.Handle(Message{ID: json.RawMessage("4"), Method: "textDocument/rename",
+		Params: json.RawMessage(`[`)}); 1 != len(out) {
+		t.Errorf("malformed: %+v", out)
+	}
+}
+
+const actionsSrc = "cfg: {\n  &: { port: 80, tls: false }\n  a: { port: 80, tls: false }\n  b: { x: 1 }\n}\n"
+
+func TestAnActionRemovesWhatTrimReports(t *testing.T) {
+	const u = "file:///w/c.aontu"
+	at := func(l0, c0, l1, c1 int) Range { return rangeOf(l0, c0, l1, c1) }
+	want := []CodeAction{{Title: "Remove $.cfg.a.port, which changes nothing", Kind: "quickfix",
+		Edit: WorkspaceEdit{Changes: map[string][]TextEdit{u: {{Range: rangeOf(2, 7, 2, 17)}}}}}}
+	if got := CodeActions(actionsSrc, at(2, 7, 2, 7), u, nil, nil); !reflect.DeepEqual(got, want) {
+		t.Errorf("at the entry: %+v", got)
+	}
+	if got := CodeActions(actionsSrc, at(3, 0, 3, 3), u, nil, nil); nil == got || 0 != len(got) {
+		t.Errorf("elsewhere: %+v", got)
+	}
+	if got := CodeActions(actionsSrc, at(2, 7, 2, 7), u, []any{"refactor"}, nil); nil == got || 0 != len(got) {
+		t.Errorf("refactor only: %+v", got)
+	}
+	if got := CodeActions(actionsSrc, at(2, 7, 2, 7), u, []any{"quickfix"}, nil); 1 != len(got) {
+		t.Errorf("quickfix only: %+v", got)
+	}
+	if got := CodeActions("a: ]\n", at(0, 0, 0, 0), u, nil, nil); nil != got {
+		t.Errorf("unparsed: %+v", got)
+	}
+}
+
+func TestTheTextWithoutTheEntryIsWhatTrimNoLongerReports(t *testing.T) {
+	for _, src := range []string{
+		actionsSrc,
+		"m: { &: { k: 1 }, a: { k: 1, k: 1 } }\n",
+		"m: {\n  &: { k: 1 }\n  a: {\n    k: 1 # same\n    j: 2\n  }\n}\n",
+		"m: { &: { k: 1 }, a: { j: 2 k: 1 } }\n",
+		"ys: [&: { k: 1 }, { k: 1 }]\n",
+	} {
+		lines := strings.Split(src, "\n")
+		acts := aontu.New().ActionsAt(src, aontu.CursorRange{End: aontu.CursorPosition{Line: len(lines) - 1}})
+		if 0 == len(acts) {
+			t.Errorf("no action: %q", src)
+		}
+		off := func(p aontu.CursorPosition) int {
+			n := 0
+			for _, l := range lines[:p.Line] {
+				n += len(l) + 1
+			}
+			return n + p.Character
+		}
+		for _, act := range acts {
+			text := src
+			for i := len(act.Edits) - 1; 0 <= i; i-- {
+				e := act.Edits[i]
+				text = text[:off(e.Range.Start)] + e.NewText + text[off(e.Range.End):]
+			}
+			report := aontu.New().TrimCheck(text)
+			if aontu.TrimError == report.Verdict || slices.Contains(report.Redundant, "$."+strings.Join(act.Path, ".")) {
+				t.Errorf("%q: %+v", text, report)
+			}
+		}
+	}
+}
+
+func TestCodeActionsThroughTheHandler(t *testing.T) {
+	const u = "file:///w/c.aontu"
+	h := NewHandler()
+	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize"})[0])
+	if !strings.Contains(string(init), `"codeActionProvider":{"codeActionKinds":["quickfix"]}`) {
+		t.Errorf("initialize: %s", init)
+	}
+	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": u, "text": actionsSrc}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
+	ask := func(extra string) string {
+		raw := `{"textDocument":{"uri":"` + u + `"}` + extra + `}`
+		out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("2"), Method: "textDocument/codeAction",
+			Params: json.RawMessage(raw)})[0])
+		return string(out)
+	}
+	rng := `,"range":{"start":{"line":1,"character":0},"end":{"line":3,"character":0}}`
+	if got := ask(rng + `,"context":{"diagnostics":[]}`); 2 != strings.Count(got, `"kind":"quickfix"`) {
+		t.Errorf("range: %s", got)
+	}
+	if got := ask(rng + `,"context":{"only":["source"]}`); !strings.Contains(got, `"result":[]`) {
+		t.Errorf("source only: %s", got)
+	}
+	if got := ask(rng + `,"context":{"only":"x"}`); 2 != strings.Count(got, `"kind":"quickfix"`) {
+		t.Errorf("only not a list: %s", got)
+	}
+	if got := ask(""); !strings.Contains(got, `"result":null`) {
+		t.Errorf("no range: %s", got)
+	}
+	if got := ask(`,"range":{"start":{"line":0,"character":0}}`); !strings.Contains(got, `"result":null`) {
+		t.Errorf("no end: %s", got)
+	}
+	if out, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/codeAction",
+		Params: json.RawMessage(`{}`)})[0]); !strings.Contains(string(out), `"result":null`) {
+		t.Errorf("no document: %s", out)
+	}
+	if out := h.Handle(Message{ID: json.RawMessage("4"), Method: "textDocument/codeAction",
 		Params: json.RawMessage(`[`)}); 1 != len(out) {
 		t.Errorf("malformed: %+v", out)
 	}

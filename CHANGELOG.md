@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### The language servers offer a quick fix that removes a redundant entry
+
+Task LS8, in both servers. `textDocument/codeAction` answers, for every
+entry `aontu trim --check` reports that the requested range meets, a
+quick fix that deletes every place the document writes the entry, with
+its line where it stands alone, else the comma or the blanks beside it;
+`codeActionProvider` is advertised with `codeActionKinds: ["quickfix"]`.
+It is the one action offered, and it is offered by range alone, since
+the servers publish no diagnostic for what trim finds. An entry written
+where it cannot be found, or in an included file, or whose text the
+document would unify differently without, is not offered. The library
+answers are `actionsAt` and `ActionsAt`; a new shared-row mode,
+`actions`, holds both ports to one answer in 26 rows of
+`test/spec/cursor.tsv`.
+
 ### The language servers rename a key and every reference to it
 
 Task LS7, in both servers. `textDocument/rename` renames the key at the

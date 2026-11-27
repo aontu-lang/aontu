@@ -50,6 +50,8 @@ The server provides these features:
 - **Rename**: a key and every reference that reads it, as one edit
   across the document and the files it includes under the workspace
   root, or a refusal that names the site no edit of text can keep true.
+- **Code actions**: a quick fix that removes an entry `aontu trim
+  --check` reports, one whose removal changes nothing.
 - **Signature help**: the parameters of the function being called.
 - **Formatting**: the document as `aontu fmt` writes it.
 
@@ -221,6 +223,22 @@ the key is also written as api.port at 2:16, through the reference at
 2:6`. The line and the character are counted from 1, and a site in
 another file is preceded by the file's path.
 
+**Code actions** offer one repair, the one whose edit is already
+decided: removing an entry that `aontu trim --check` reports, an entry
+whose removal leaves what the document unifies to unchanged. Others
+follow as findings gain repairs. The action is a quick fix titled
+`Remove $.a.b, which changes nothing`, offered where the requested
+range meets the entry, an empty range at a position inside it
+included, and its edit deletes every place the document writes the
+entry: the key and its value, with its line where it stands alone on a
+line, a comment after it on that line included, else with the comma
+beside it, else with the blanks that part it from its neighbour. The
+action is offered by range alone: the servers publish no diagnostic for
+what trim finds, so there is none to attach it to. It is not offered
+where a place that writes the entry is not found as written, is in an
+included file, or shares its spelling with another path, nor where the
+text without the entry would unify to something else.
+
 
 ## Architecture: library vs. server
 
@@ -280,7 +298,8 @@ In both, `computeDiagnostics`/`Diagnostics`, `computeHover`/`Hover`,
 `computePathDefinition`/`PathDefinition`,
 `computeCompletions`/`Completions`, `computeReferences`/`References`,
 `computeHighlights`/`Highlights`, `computeSymbols`/`Symbols`,
-`computePrepareRename`/`PrepareRename` and `computeRename`/`Rename` take the document's text and are
+`computePrepareRename`/`PrepareRename`, `computeRename`/`Rename` and
+`computeCodeActions`/`CodeActions` take the document's text and are
 usable standalone, with no JSON-RPC at all.
 
 
@@ -490,6 +509,14 @@ computeRename(src, { line: 0, character: 9 }, 'file:///w/d.aontu', 'listen')
 //     newText: 'listen' }] } } }
 ```
 
+#### `computeCodeActions(src, range, uri, only?, trust?) => CodeAction[] | null`
+
+The quick fixes at a range, each `{ title, kind: 'quickfix', edit }`,
+the edit a `WorkspaceEdit` of the document at `uri`; `[]` where there
+are none, or where `only`, the client's list of kinds, holds neither
+`quickfix` nor `""`; and `null` where the document does not parse. It
+is built on `actionsAt` of `ts/src/cursor.ts`.
+
 #### `computeSymbols(src, trust?) => DocSymbol[] | null`
 
 The outline of the keys `src` writes, each an LSP `DocumentSymbol`:
@@ -671,6 +698,14 @@ The edits of a rename, as `computeRename` answers them: `WorkspaceEdit`
 is `{ Changes map[string][]TextEdit }`, with the refusal as the second
 value.
 
+#### `func CodeActions(src string, rng Range, uri string, only []any, trust *aontu.TrustOptions) []CodeAction`
+
+The quick fixes at a range, as `computeCodeActions` answers them:
+`CodeAction` is `{ Title, Kind string; Edit WorkspaceEdit }`, and a nil
+`only` asks for every kind. Built on the core
+`(*aontu.Aontu).ActionsAt`, whose `CursorAction` is `{ Title string;
+Path []string; Edits []DocEdit }`.
+
 #### `func Symbols(src string, trust *aontu.TrustOptions) []aontu.DocSymbol`
 
 The outline of the keys `src` writes, as `computeSymbols` answers it:
@@ -726,8 +761,9 @@ each change). Advertised capabilities: `textDocumentSync: 1`,
 `signatureHelpProvider` with the trigger
 characters `(` and `,`, `documentFormattingProvider: true`, and
 `documentSymbolProvider: true`, `referencesProvider: true`,
-`documentHighlightProvider: true`, and `renameProvider: {
-prepareProvider: true }`.
+`documentHighlightProvider: true`, `renameProvider: {
+prepareProvider: true }`, and `codeActionProvider: { codeActionKinds:
+["quickfix"] }`.
 
 | Method | Kind | Behaviour |
 |--------|------|-----------|
@@ -743,6 +779,7 @@ prepareProvider: true }`.
 | `textDocument/documentHighlight` | request | Replies with the same places within the document, a site that writes the path with the kind Write (3) and a reference that reads it with the kind Read (2); else `null`. |
 | `textDocument/prepareRename` | request | Replies with the `range` and `placeholder` of the key or the segment of a reference at the position, `null` where it names no key, and a `-32803` error where the rename is refused. |
 | `textDocument/rename` | request | Replies with a `WorkspaceEdit` whose `changes` rename the key at the position, or the path up to the segment of a reference there, and every reference that reads it, in the document and the files it includes under the workspace root; `null` where the position names no key; and a `-32803` error naming the site where the rename is refused. |
+| `textDocument/codeAction` | request | Replies with a quick fix for each entry `aontu trim --check` reports that the range meets, `[]` where there is none or `context.only` asks for other kinds, and `null` where the document doesn't parse or isn't open. |
 | `textDocument/documentSymbol` | request | Replies with the outline of the keys the document writes, as `DocumentSymbol`s, `[]` where it writes none, and `null` where it doesn't parse or isn't open. |
 | `textDocument/signatureHelp` | request | Replies with the signature of the call the position is inside, or `null`. |
 | `textDocument/formatting` | request | Replies with one edit that replaces the document with the text `aontu fmt` writes, no edit where it already is that text, and `null` where it doesn't parse, which its diagnostics report. |
@@ -823,8 +860,8 @@ Both libraries are unit-tested (`ts/test/lsp.test.ts`,
 ## Limitations and extension points
 
 Current scope is diagnostics, hover, completion, go to definition,
-find references and highlights, document symbols, rename, signature
-help and formatting. The layered design
+find references and highlights, document symbols, rename, code
+actions, signature help and formatting. The layered design
 makes additions localised: most new features are implemented once in the
 analysis layer (layer 1) and advertised in `initialize` (layer 2):
 
@@ -861,6 +898,10 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   a type that its instances write is refused. A name that is not a
   plain name is quoted, letters beyond ASCII among them, though the
   key may have been written bare.
+- **Code actions** offer the one repair whose edit is decided. Each
+  request runs `trim --check`, which evaluates the document once for
+  every entry it could remove, so a request on a large document takes
+  that long.
 - **Includes are read from the folder the server runs in.** The server
   evaluates the text of an open document, not its file, so an include
   with a relative path is resolved against the server's working

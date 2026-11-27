@@ -1643,3 +1643,178 @@ func aliasRefusal(t *renameTexts, P []string, keys []keyAt, refs []refAtPlace) s
 	}
 	return firstWhy(cs)
 }
+
+// DocEdit is one edit of the open document.
+type DocEdit struct {
+	Range   CursorRange `json:"range"`
+	NewText string      `json:"newText"`
+}
+
+// CursorAction is a repair whose edit is decided, offered at a range.
+type CursorAction struct {
+	Title string    `json:"title"`
+	Path  []string  `json:"path"`
+	Edits []DocEdit `json:"edits"`
+}
+
+// entryDeletion is what deleting the entry written from s to e takes:
+// its whole line where it stands alone on a line that ends, else the
+// comma beside it, else the blanks that part it from what follows or,
+// before a closing bracket, from what comes before.
+func entryDeletion(src string, s, e int) (int, int) {
+	ls := strings.LastIndexByte(src[:s], '\n') + 1
+	right := e
+	blank := func(i int) bool { return i < len(src) && (' ' == src[i] || '\t' == src[i]) }
+	for blank(right) {
+		right++
+	}
+	comma := right < len(src) && ',' == src[right]
+	if comma {
+		right++
+		for blank(right) {
+			right++
+		}
+	}
+	eol := right >= len(src) || strings.IndexByte("\r\n#", src[right]) >= 0
+	if le := strings.IndexByte(src[right:], '\n'); "" == strings.Trim(src[ls:s], " \t") && eol && 0 <= le {
+		return ls, right + le + 1
+	}
+	if comma {
+		return s, right
+	}
+	left := s
+	for left > ls && (' ' == src[left-1] || '\t' == src[left-1]) {
+		left--
+	}
+	if 0 < left && ',' == src[left-1] {
+		return left - 1, e
+	}
+	if eol || strings.IndexByte("}])", src[right]) >= 0 {
+		return left, e
+	}
+	return s, right
+}
+
+// symbolsAt is the symbols an outline has at a path, a key written twice
+// there being two.
+func symbolsAt(syms []DocSymbol, path []string) []DocSymbol {
+	at := []DocSymbol{{Children: syms}}
+	for _, seg := range path {
+		next := []DocSymbol{}
+		for _, s := range at {
+			for _, c := range s.Children {
+				if c.Name == seg {
+					next = append(next, c)
+				}
+			}
+		}
+		at = next
+	}
+	return at
+}
+
+// ActionsAt is the repairs whose edit is decided at a range: removing an
+// entry that `trim --check` reports, where the range meets it, every
+// place the document writes it is found, and the text without it unifies
+// to the same; nil where the document does not parse.
+func (a *Aontu) ActionsAt(src string, rng CursorRange) []CursorAction {
+	root, err := a.parseEntry(src)
+	lines := newSrcLines(src)
+	if nil != err || nil == root || 0 > rng.Start.Line || len(lines.starts) <= rng.Start.Line {
+		return nil
+	}
+	report := a.TrimCheck(src)
+	from := lines.offsetAt(rng.Start)
+	end := rng.End
+	if len(lines.starts) <= end.Line {
+		end = lines.positionOf(len(src))
+	}
+	to := lines.offsetAt(end)
+	paths := [][]string{}
+	trimCandidates(root, nil, &paths)
+	syms := symbolTree(src, root)
+	entries := renameEntries(root)
+	out := []CursorAction{}
+	for _, text := range report.Redundant {
+		named := [][]string{}
+		for _, p := range paths {
+			if "$."+strings.Join(p, ".") == text {
+				named = append(named, p)
+			}
+		}
+		if 1 != len(named) {
+			continue
+		}
+		P := named[0]
+		keyAt := func(e *renameEntry) int {
+			off := -1
+			if "" == e.v.srcurl() {
+				off = e.v.pos()
+			} else if sp, url, ok := e.v.load(); ok && "" == url {
+				off = sp
+			}
+			if 0 > off || len(src) < off {
+				return -1
+			}
+			if s, _, ok := keySpan(src, off, P[len(P)-1]); ok {
+				return s
+			}
+			return -1
+		}
+		keys := map[int]bool{}
+		located := map[int]bool{}
+		for _, e := range entries {
+			if slices.Equal(e.path, P) {
+				if k := keyAt(e); 0 <= k {
+					keys[k] = true
+					located[e.kid] = true
+				}
+			}
+		}
+		found := symbolsAt(syms, P)
+		ok := 0 < len(found) && len(keys) == len(found)
+		for _, e := range entries {
+			if e.step && slices.Equal(e.path, P) && !located[e.kid] {
+				ok = false
+			}
+		}
+		meets := false
+		cuts := [][2]int{}
+		for _, sym := range found {
+			ok = ok && keys[lines.offsetAt(sym.SelectionRange.Start)]
+			s, e := lines.offsetAt(sym.Range.Start), lines.offsetAt(sym.Range.End)
+			meets = meets || (s <= to && from <= e)
+			ds, de := entryDeletion(src, s, e)
+			cuts = append(cuts, [2]int{ds, de})
+		}
+		if !ok || !meets {
+			continue
+		}
+		slices.SortStableFunc(cuts, func(x, y [2]int) int { return x[0] - y[0] })
+		merged := [][2]int{}
+		for _, c := range cuts {
+			if n := len(merged); 0 < n && c[0] <= merged[n-1][1] {
+				merged[n-1][1] = max(merged[n-1][1], c[1])
+			} else {
+				merged = append(merged, c)
+			}
+		}
+		edited := src
+		for i := len(merged) - 1; 0 <= i; i-- {
+			edited = edited[:merged[i][0]] + edited[merged[i][1]:]
+		}
+		if was, _, _ := a.trimEvalCanon(src, nil); func() bool {
+			now, ok, _ := a.trimEvalCanon(edited, nil)
+			return !ok || now != was
+		}() {
+			continue
+		}
+		act := CursorAction{Title: "Remove " + text + ", which changes nothing", Path: P, Edits: []DocEdit{}}
+		for _, c := range merged {
+			act.Edits = append(act.Edits, DocEdit{Range: CursorRange{Start: lines.positionOf(c[0]),
+				End: lines.positionOf(c[1])}})
+		}
+		out = append(out, act)
+	}
+	return out
+}

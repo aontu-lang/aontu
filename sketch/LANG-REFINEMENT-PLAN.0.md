@@ -1221,6 +1221,32 @@ in the servers, held by a new row mode, `rename`, in 79 rows of
 servers, prepare rename and rename to two names at every character of
 96 documents, 12,271 requests, found no difference.
 
+Progress on 2026-11-27, LS8. Code actions are built in both servers,
+which advertise `codeActionProvider` with the one kind `quickfix`. The
+one action is the one whose edit was decided: removing an entry that
+`trim --check` reports. It is offered where the requested range meets
+the entry, and its edit deletes every place the document writes it, as
+the outline ranges them: the key and its value, with the line where it
+stands alone on a line that ends, a comment after it included, else
+the comma beside it, else the blanks that part it from its neighbour,
+overlapping deletions joined. The servers publish no diagnostic for
+what trim finds, so the action is offered by range alone and is
+attached to none. It is not offered where a place that writes the
+entry is not found as written or is in an included file, where two
+paths share the spelling trim reports, or where the text without it
+does not unify to what the document unifies to, which a key chain's
+last key is. The library answer is `actionsAt` (`ActionsAt` in Go), with
+`computeCodeActions` and `CodeActions` in the servers, held by a new row
+mode, `actions`, in 26 rows of `test/spec/cursor.tsv`, which both
+engines wrote alike; twinned tests apply each edit and find that trim
+no longer reports the entry. A probe of both servers, code actions over
+every line range of up to three lines and at every character of 126
+documents, 6,159 requests, found no difference, and rename, whose
+module changed with it, probed again over the same documents, 15,988
+requests, found none. Each request runs
+`trim --check`, which evaluates the document once for each entry it
+could remove.
+
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
 [wire-your-editor.md](../docs/how-to/wire-your-editor.md) in the same
