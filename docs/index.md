@@ -40,10 +40,11 @@ package; computing source files from a model; and reading the
 language's formal definition, one rule at a time. The
 [index](tutorial.md) says what each one assumes.
 
-The how-to guides are one page per task, grouped six ways: run, embed
-and integrate; templates, defaults and composition; schemas and
-constraints; query, explain and change; validate and evolve; modules
-and multi-file.
+The how-to guides are one page per task, grouped seven ways: coming
+from another language; run, embed and integrate; templates, defaults
+and composition; schemas and constraints; query, explain and change;
+validate and evolve; modules and multi-file. If you already know CUE,
+start with [Move from CUE to aontu](how-to/aontu-for-cue-users.md).
 
 Three capabilities have doorways of their own:
 
