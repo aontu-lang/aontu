@@ -34,6 +34,7 @@ export type AgentsMdOptions = {
   trust?: TrustOptions
 
   textExt?: string[]
+  readByExtension?: boolean
 }
 
 

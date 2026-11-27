@@ -51,6 +51,8 @@ type AontuOptions = {
 
   exactNumbers?: boolean
 
+  readByExtension?: boolean
+
   // Host bindings for `$name`: --var's source, or with `text` --var-text's.
   hostVars?: HostVars
 

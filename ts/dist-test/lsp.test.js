@@ -790,6 +790,11 @@ const lsp_server_1 = require("../dist/lsp-server");
         const { values } = (0, cursor_1.hitsOf)('1', both);
         Assert.deepStrictEqual(values.map((h) => [h.on, h.start, h.end]), [['value', 0, 1]]);
     });
+    (0, node_test_1.test)('the-outline-visits-a-shared-value-once-and-steps-over-nothing', () => {
+        const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } };
+        const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site };
+        Assert.deepStrictEqual((0, cursor_1.symbolTree)('1', both), []);
+    });
     (0, node_test_1.test)('the-map-search-visits-a-shared-value-once-and-finds-nothing-else', () => {
         const one = { isVal: true, site: { row: 1, col: 1, src: '1', url: '' } };
         const both = { isVal: true, isConjunct: true, peg: [one, one, null], site: one.site };
@@ -900,6 +905,54 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('a-conflict-copied-to-another-path-is-reported-once', () => {
         const ds = (0, lsp_1.computeDiagnostics)('a:{b:1&"s"} c:$.a d:$.a');
         Assert.deepStrictEqual(ds.map((d) => [d.range.start.character, d.code]), [[7, 'scalar_kind']]);
+    });
+});
+// Twin: go/lsp/lsp_test.go, the tests from TestSymbolsOutlineWhatTheDocumentWrites on.
+(0, node_test_1.describe)('lsp-symbols', () => {
+    const range = (l0, c0, l1, c1) => ({ start: { line: l0, character: c0 }, end: { line: l1, character: c1 } });
+    (0, node_test_1.test)('symbols-outline-what-the-document-writes', () => {
+        Assert.deepStrictEqual((0, lsp_1.computeSymbols)('a: { b: 1 }\nl: [$.a]\n'), [
+            {
+                name: 'a', kind: 19, range: range(0, 0, 0, 11), selectionRange: range(0, 0, 0, 1),
+                children: [{
+                        name: 'b', kind: 16, range: range(0, 5, 0, 9), selectionRange: range(0, 5, 0, 6),
+                        children: [],
+                    }],
+            },
+            {
+                name: 'l', kind: 18, range: range(1, 0, 1, 8), selectionRange: range(1, 0, 1, 1),
+                children: [{
+                        name: '0', kind: 13, range: range(1, 4, 1, 7), selectionRange: range(1, 4, 1, 7),
+                        children: [],
+                    }],
+            },
+        ]);
+        Assert.deepStrictEqual((0, lsp_1.computeSymbols)('1\n'), []);
+        Assert.strictEqual((0, lsp_1.computeSymbols)('a: )\n'), null);
+    });
+    (0, node_test_1.test)('symbols-outline-a-large-list', () => {
+        const got = (0, lsp_1.computeSymbols)('items: [' + '0,'.repeat(130000) + ']\n');
+        Assert.strictEqual(got.length, 1);
+        Assert.strictEqual(got[0].name, 'items');
+        Assert.strictEqual(got[0].kind, 18);
+        Assert.deepStrictEqual(got[0].range, range(0, 0, 0, 260009));
+        Assert.strictEqual(got[0].children.length, 130000);
+        Assert.deepStrictEqual(got[0].children[0].range, range(0, 8, 0, 9));
+        Assert.strictEqual(got[0].children[129999].name, '129999');
+    });
+    (0, node_test_1.test)('symbols-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        const init = h.handle({ id: 1, method: 'initialize', params: {} });
+        Assert.strictEqual(init[0].result.capabilities.documentSymbolProvider, true);
+        h.handle({
+            method: 'textDocument/didOpen',
+            params: { textDocument: { uri: 'file:///s.aontu', text: 'a: b: 1\na: 2\n' } },
+        });
+        const ask = (uri) => h.handle({
+            id: 2, method: 'textDocument/documentSymbol', params: { textDocument: { uri } },
+        })[0].result;
+        Assert.deepStrictEqual(ask('file:///s.aontu').map((s) => [s.name, s.range, s.children.map((c) => c.name)]), [['a', range(0, 0, 0, 7), ['b']], ['a', range(1, 0, 1, 4), []]]);
+        Assert.strictEqual(ask('file:///none.aontu'), null);
     });
 });
 //# sourceMappingURL=lsp.test.js.map

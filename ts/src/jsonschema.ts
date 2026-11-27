@@ -22,6 +22,7 @@ import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 import { anchorAt } from './vet'
+import { isDefinedFormat } from './formatgrammar'
 
 
 export type SchemaLoss = {
@@ -57,6 +58,7 @@ export type SchemaOptions = {
   trust?: TrustOptions
 
   textExt?: string[]
+  readByExtension?: boolean
 }
 
 
@@ -295,12 +297,13 @@ function countEndpoint(b: any, isLo: boolean): bigint | undefined {
 const NOT_YET = 'this is not a value yet, so there is nothing to constrain a ' +
   'consumer to; the schema admits anything here'
 
-const FORMAT_ANNOTATES = (name: string) => 'the format "' + name + '" asserts here, and ' +
+const FORMAT_ANNOTATES = (f: any) => 'the format "' + f.name + '" asserts here, and ' +
   'JSON Schema 2020-12 asserts a format only where a validator is asked to, so the ' +
   'schema may admit a string it refuses'
-const FORMAT_UNREAD = (name: string) => 'JSON Schema has no keyword for a grammar, so the ' +
-  'format "' + name + '" is written as x-aontu-format, which only aontu reads; the schema ' +
-  'admits any string here'
+const FORMAT_UNREAD = (f: any) => (f.src === f.name ?
+  'JSON Schema defines no format "' + f.name + '", so it' :
+  'JSON Schema has no keyword for a grammar, so the format "' + f.name + '"') +
+  ' is written as x-aontu-format, which only aontu reads; the schema admits any string here'
 
 
 function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'): any {
@@ -361,12 +364,13 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     extra.push(...c.res.map((r: any) => ({ pattern: r.norm })))
   }
 
-  // ADR-105: a committed format by its name, a grammar under
+  // ADR-105: a JSON Schema format by its name, a grammar or an encoding under
   // x-aontu-format, which only aontu reads.
+  const named = (f: any): boolean => f.src === f.name && isDefinedFormat(f.name)
   for (const [key, fs, reason] of [
-    ['format', c.fmts.filter((f: any) => f.src === f.name), FORMAT_ANNOTATES],
-    ['x-aontu-format', c.fmts.filter((f: any) => f.src !== f.name), FORMAT_UNREAD],
-  ] as [string, any[], (name: string) => string][]) {
+    ['format', c.fmts.filter(named), FORMAT_ANNOTATES],
+    ['x-aontu-format', c.fmts.filter((f: any) => !named(f)), FORMAT_UNREAD],
+  ] as [string, any[], (f: any) => string][]) {
     if (1 === fs.length) {
       out[key] = fs[0].src
     }
@@ -374,7 +378,7 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
       extra.push(...fs.map((f: any) => ({ [key]: f.src })))
     }
     for (const f of fs) {
-      lose(ctx, path, 'format', reason(f.name))
+      lose(ctx, path, 'format', reason(f))
     }
   }
 

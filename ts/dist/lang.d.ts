@@ -2,6 +2,7 @@ import { Jsonic } from '@tabnas/jsonic';
 import type { Val, AontuOptions } from './type';
 import { Site } from './site';
 export declare function includeFormat(ext: string, textExt?: string[]): string | undefined;
+export declare function operandFormat(path: string | undefined): string | undefined;
 declare class Lang {
     jsonic: Jsonic;
     opts: AontuOptions;

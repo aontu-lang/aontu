@@ -668,7 +668,7 @@ func parseFrame(msg string, row, col int, file, src string) string {
 	// A column past the line's end is its newline, which the canonical
 	// renderer draws below the NEXT line.
 	caret := row
-	if col > len(line(row)) {
+	if col > len(line(row)) && row < len(lines) {
 		caret = row + 1
 	}
 	for r := row - 2; r <= caret; r++ {

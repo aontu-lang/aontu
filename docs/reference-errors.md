@@ -270,7 +270,7 @@ twenty rows have no such section and carry no link.
 | `empty_domain` | 0.77.0 | `empty()` met a value that is not a string. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `exact_float_mix` | 0.51.0 | An exact number combined with a binary float. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `float_overflow` | 0.53.0 | A result that is not a finite binary64 number. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
-| `format_unknown` | 0.77.0 | `format()` names a format that is neither one of the nineteen JSON Schema formats nor a grammar. ([Formats: `format`](reference-language.md#formats-format)) |
+| `format_unknown` | 0.77.0 | `format()` names a format that is neither one of the nineteen JSON Schema formats, nor an encoding, nor a grammar. ([Formats: `format`](reference-language.md#formats-format)) |
 | `func` | 0.51.0 | A function operation failed; the named function carries the detail. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `func:` | 0.51.0 | Dynamic-prefix family: a named function's own failure, the name appended (`func:upper`). |
 | `func_arg` | 0.55.0 | An argument does not fit the function's signature. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |

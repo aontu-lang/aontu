@@ -339,6 +339,18 @@ let P = lang.parse.bind(lang);
             (0, expect_1.expect)(P(src).canon).equal(canon);
         }
     });
+    (0, node_test_1.it)('read-by-extension', () => {
+        const read = (path, src) => new aontu_1.Aontu({ path, readByExtension: true }).unify(src).canon;
+        (0, expect_1.expect)(read('c.toml', 'port = 8080')).equal('{"port":8080}');
+        (0, expect_1.expect)(read('c.yaml', 'port:\n  - 1')).equal('{"port":[1]}');
+        (0, expect_1.expect)(read('c.json', 'port: - 1')).equal('{"port":-1}');
+        (0, expect_1.expect)(read(undefined, 'port: - 1')).equal('{"port":-1}');
+        (0, expect_1.expect)(new aontu_1.Aontu({ path: 'c.yaml' }).unify('port: - 1').canon).equal('{"port":-1}');
+        const deep = new aontu_1.Aontu({ path: 'x.yaml', readByExtension: true, trust: { budget: { depth: 2 } } });
+        const ctx = deep.ctx({ collect: true });
+        deep.unify('a:\n b:\n  c:\n   d:\n    e:\n     f:\n      g:\n       h: 1\n', undefined, ctx);
+        (0, expect_1.expect)(ctx.err.map((e) => e.why)).equal(['max_depth']);
+    });
 });
 function makeCtx(opts) {
     return new ctx_1.AontuContext(opts || { root: new MapVal_1.MapVal({ peg: {} }) });

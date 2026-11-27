@@ -941,6 +941,27 @@ probes beyond k1 to k38 are the rows of `test/spec/cue.tsv`, byte-exact
 `ts/test/cuecorpus.test.ts` holds each file to its row. CG3, the CUE
 half in the daily workflow, is not started.
 
+Progress on 2026-11-27. CG4 is written, as
+`docs/how-to/aontu-for-cue-users.md`, in the four sections above. The
+first gives four pairs of examples and three tables, 43 rows from a CUE
+form to its aontu spelling, with KP2's row for `keyed` beside the
+guarded spread and a pair of its own. The second gives two examples
+and the 22 rows of the comparison's table, each with both answers, and
+a table of the three that move with the CUE release, n2, x8 and g12.
+The third takes the five forms aontu has none of, with k30 and x3 as
+examples, and the fourth puts each `cue` command beside its verb. The
+comprehension idioms are linked to the reference's sections on `pack`,
+`each`, `filter`, `match` and `emit`, since C8's page is not written.
+Every CUE fence quotes a file of `test/cue/` under `test: quote`, and
+every aontu fence quotes one too, but for the `keyed` pair, whose source
+is a new row of `test/spec/keyed.tsv` that both engines answer alike.
+A test in `ts/test/cuecorpus.test.ts` holds the page to that, and holds
+each code span of a table row to the files and the `index.tsv` line of
+the probes a comment above the table names for it. No `cue` binary is
+here, so the CUE answers are the corpus's, which the comparison
+recorded. The how-to index gains a group, "Coming from another
+language", and `docs/index.md` points a CUE user to the page.
+
 C7 and CG2 are one mechanism: whichever starts first writes the rows
 of the other. CG3 edits `.github/workflows/`, so its push needs an
 account with the `workflow` scope. H3 also asks for a guide for JSON
@@ -1142,6 +1163,27 @@ after `+` or `*` or under a key chain, a quoted segment with an escape
 or single quotes, a map with a size constraint, and a map or a
 reference in a group. Both servers now read the reference with the
 parser, as the engine reads it, and 25 rows hold the cases.
+
+Progress on 2026-11-27, LS5. Document symbols are built in both
+servers, which advertise `documentSymbolProvider`. The outline is of
+what the document writes, read from the parse: each key where it is
+written, so a key written twice is two symbols and a key chain nests,
+a list's elements named by position, a spread's template named `&`,
+and the keys of a map a call takes as an argument, a generator's
+template among them. A key that holds an include is a symbol, and the
+keys of the file are not. A declaration writes no key and is no
+symbol. The range runs from the key to the end of the value, over
+brackets, quoted text and comments, and the selection range is the
+key; the kind is the LSP `SymbolKind` of the value the key is written
+with, Variable for anything that is not a map, list or scalar. The
+library answer is `symbolsOf` (`SymbolsOf` in Go), with `computeSymbols`
+and `Symbols` in the servers, held by a new row mode, `symbols`, in 33
+rows of `test/spec/cursor.tsv`, which both engines wrote alike. A
+range on a line that names a fixture depends on where the fixtures
+are, so both runners count a place after the fixture's name as the row
+writes it. A probe of both servers over 50 documents found no
+difference. A key the cursor cannot find, spelled with an escape or an
+include in parentheses, has no symbol, as it has no hover.
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and
@@ -1744,6 +1786,40 @@ aren't UTF-8. The rows are `test/spec/encode.tsv`, the definition is
 `Encoding.encode` and `Encoding.decode` in `spec/Aontu/Text.lean`, and
 its generated rows are ec0 on of `test/spec/def-call.tsv`. The law that
 `decode(encode(s, n), n)` is `s` is held by rows, and isn't proved.
+
+Progress on 2026-11-27. BT2 is built in both engines. `base64`,
+`base64url` and `hex` are names `format()` reads, each a grammar of
+RFC 4648 in `grammar/format/`: `base64.abnf`, `base64url.abnf` and
+`hex.abnf`. Both engines read the directory, so the grammars are their
+whole registration. Four things were settled in the building, and each
+is the maintainer's to change:
+
+- Each format admits the empty string, which `encode` writes for `""`.
+- The grammars hold the bits that pad the last character to zero, as
+  `decode` does. One character of lookahead can hold them: the second
+  character of a group is split by its low four bits and the third by
+  its low two, so `aG==` and `aGVsbG9=` are refused. Over 1.5 million
+  texts, generated and mutated, each grammar admits exactly the texts
+  whose bytes `decode` reads. What remains is the one difference a
+  grammar can't close: a format reads no bytes, so it admits text whose
+  bytes are not UTF-8, `/w==` among them, which `decode` refuses.
+- The three are not JSON Schema formats. `isDefinedFormat` and
+  `IsDefinedFormat` leave them out, so the import asserts a `format` of
+  those names only with `--format-grammar`, and refuses one under the
+  format-assertion vocabulary, as before. `--format-grammar` can still
+  name them. The export writes one as `x-aontu-format`, which the
+  import reads back as the same format, with a loss reason of its own.
+- The step bound of the recognizer, 1,000,000 steps, admits a base64
+  text of about 210,000 characters, a base64url text of about 170,000
+  and a hex text of about 500,000. A longer text is refused with
+  `parse_failed`, as for any format.
+
+The plan named ADR-059 as the record BT2 changes. The record has since
+been rewritten, ADR-059 is gone, and ADR-105 covers formats now. It
+says aontu reads and runs format grammars itself and names no list of
+formats, so it needs no change for BT2. The rows are 60 more in
+`test/spec/format.tsv`, two in `test/spec/jsonschema.tsv` and three in
+`test/spec/jsonschema-import.tsv`, each answer agreed by both engines.
 
 ### Questions for the ruling on part 7
 

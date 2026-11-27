@@ -26,6 +26,8 @@ keyed-hash-of-its-match	hash	a: { &: match(key(0), re("^env_"), string, any) }	a
 # A key the pattern admits is held to the schema; any other is held to
 # the last argument, and left alone where there is none.
 keyed-holds-an-admitted-key	gens	a: { &: keyed(re("^env_"), string), env_name: prod, other: 1 }	{"a":{"env_name":"prod","other":1}}
+# The aontu half of the CUE corpus's m10, as the guide for CUE users prints it.
+keyed-as-cue-writes-a-pattern	gens	m: { &: keyed(re("^x"), integer) xa:1 b:"s" }	{"m":{"b":"s","xa":1}}
 keyed-default-holds-the-rest	gens	a: { &: keyed(re("^env_"), string, integer), env_name: prod, other: 1 }	{"a":{"env_name":"prod","other":1}}
 keyed-refuses-a-mismatch	errc	a: { &: keyed(re("^env_"), integer), env_name: prod }	no_scalar_unify
 keyed-default-refuses-a-mismatch	errc	a: { &: keyed(re("^env_"), string, integer), other: x }	no_scalar_unify

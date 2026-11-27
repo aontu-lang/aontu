@@ -13,9 +13,11 @@ import { why } from './query'
 import { format } from './format'
 import { utf8Bytes } from './escape'
 import {
-  pathAt, sitesOf, describeAt, definitionAt, describeVal, membersAt,
+  pathAt, sitesOf, describeAt, definitionAt, describeVal, membersAt, symbolsOf,
 } from './cursor'
-import type { CursorMembers, CursorPath, Member, PathSite, PathValue } from './cursor'
+import type {
+  CursorMembers, CursorPath, DocSymbol, Member, PathSite, PathValue,
+} from './cursor'
 import type { WhyConjunct } from './provenance'
 
 
@@ -237,6 +239,7 @@ function initializeResult() {
       completionProvider: { triggerCharacters: ['.'] },
       signatureHelpProvider: { triggerCharacters: ['(', ','] },
       documentFormattingProvider: true,
+      documentSymbolProvider: true,
     },
     serverInfo: {
       name: 'aontu-lsp',
@@ -420,6 +423,13 @@ function computePathAt(text: string, pos: Position, trust?: any): CursorPath | n
 
 function computeSitesOf(text: string, path: string[], trust?: any): PathSite[] | null {
   return sitesOf(text, path, { trust }) ?? null
+}
+
+
+// The outline of the keys the document writes, or nothing where it
+// doesn't parse.
+function computeSymbols(text: string, trust?: any): DocSymbol[] | null {
+  return symbolsOf(text, { trust }) ?? null
 }
 
 
@@ -842,6 +852,15 @@ class LspHandler {
         }]
       }
 
+      case 'textDocument/documentSymbol': {
+        const uri = msg.params?.textDocument?.uri
+        const text = null != uri ? this.docs.get(uri) : undefined
+        return [{
+          jsonrpc: '2.0', id: msg.id,
+          result: null == text ? null : computeSymbols(text, this.trust),
+        }]
+      }
+
       case 'textDocument/definition': {
         const uri = msg.params?.textDocument?.uri
         const pos = msg.params?.position
@@ -879,7 +898,7 @@ class LspHandler {
     return publishDiagnosticsMsg(uri,
       computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }))
   }
-} /* node:coverage ignore next 38 */
+} /* node:coverage ignore next 40 */
 
 
 export {
@@ -891,6 +910,7 @@ export {
   computeFormatting,
   computePathAt,
   computeSitesOf,
+  computeSymbols,
   LspHandler,
   LSP_VERSION,
   BUILTIN_FUNCS,
@@ -916,5 +936,6 @@ export type {
   Location,
   TextEdit,
   CursorPath,
+  DocSymbol,
   PathSite,
 }

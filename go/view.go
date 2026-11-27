@@ -1792,7 +1792,8 @@ func (a *Aontu) compareBySubsume(at, profile string) viewCompare {
 	return func(general, specific viewPosetDoc) (string, string) {
 		r := Subsume(general.src, specific.src, &SubsumeOptions{
 			Trust: a.Trust, HostVars: a.HostVars, Profile: profile, At: at,
-			GeneralPath: general.path, SpecificPath: specific.path,
+			ReadByExtension: a.ReadByExtension,
+			GeneralPath:     general.path, SpecificPath: specific.path,
 		})
 		code := "undecided"
 		if 0 < len(r.Findings) {
@@ -2015,7 +2016,7 @@ func (a *Aontu) drawPoset(docs []viewPosetDoc, at, profile, as, style string, ma
 // viewDocFailure is why a poset could not be drawn: the documents that
 // do not stand up on their own, or the anchor a document lacks.
 func (a *Aontu) viewDocFailure(d viewPosetDoc, at string) []VetFinding {
-	b := aontuForPathTrust(d.path, a.Trust, a.TextExt, a.HostVars)
+	b := aontuForPathTrust(d.path, a.Trust, a.TextExt, a.HostVars, a.ReadByExtension)
 	b.File = d.path
 	root, _, errs := b.viewLoad(d.src, nil)
 	if nil != errs {
