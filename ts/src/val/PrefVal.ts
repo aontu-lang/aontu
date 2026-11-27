@@ -248,6 +248,7 @@ class PrefVal extends FeatureVal {
         return out
       }
       this.peg = unite(rctx, this.peg, top(), 'pref/resolve')
+      this.rank = this.peg instanceof PrefVal ? 1 + this.peg.rank : 0
       this.resuper(ctx)
     }
 
