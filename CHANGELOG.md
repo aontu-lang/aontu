@@ -8,6 +8,13 @@ each change affects.
 
 ## Unreleased
 
+### A how-to on carrying binary data
+
+`docs/how-to/carry-binary-data.md` carries bytes through a JSON
+document as base64, base64url or hex text with `encode` and `decode`,
+keeps bytes that are not UTF-8 in their encoded form, and bounds the
+numbers of a binary record with the sized names of `aontu:num`.
+
 ### The sized numbers, as the bundled model `aontu:num`
 
 In both engines. `@"aontu:num"` names the integer types CUE builds in

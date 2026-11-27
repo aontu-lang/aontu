@@ -47,6 +47,7 @@ Saying what data must look like, from optional keys to recursive shapes.
 - [Model a file system](model-a-file-system.md). Model folders and files as one table of nodes, with a base type, two subtypes of it, and a parent relation whose target must be a folder.
 - [Model a microservices architecture](model-a-microservices-architecture.md). Model services and the stores they own as two tables, with a dependency relation that must name a service that can be called and may not loop, and one owner for each store.
 - [Carry exact money over JSON](carry-exact-money-over-json.md). Keep money exact inside aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
+- [Carry binary data](carry-binary-data.md). Carry bytes through a JSON document as base64, base64url or hex text with `encode` and `decode`, and bound the numbers of a binary record with the sized names of `aontu:num`.
 - [Export JSON Schema](export-json-schema.md). Export a model as JSON Schema 2020-12 with `aontu jsonschema`, and read the loss report it owes you.
 - [Import JSON Schema](import-json-schema.md). Import a JSON Schema 2020-12 document as aontu with `aontu jsonschema import`, and check data against it the way JSON Schema does.
 - [Generate code from a model](generate-code.md). Generate target-language source from a model: a rule set over the records, a component tree of files and lines, and `aontu render` to write the bytes and hold them against their goldens.

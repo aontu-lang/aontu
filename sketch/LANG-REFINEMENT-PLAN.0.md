@@ -1771,6 +1771,14 @@ canon and hash, and the bare word. The model is listed in
 `docs/reference-language.md`, and `name-a-reusable-constraint.md`
 points at it.
 
+BT5 is written: `docs/how-to/carry-binary-data.md` carries a string's
+bytes through `encode` and `decode` in the three encodings, keeps raw
+bytes in their encoded form, and bounds a binary record's numbers with
+`aontu:num`, pointing to `name-a-reusable-constraint.md` for names
+built on the bundled ones. It names no `format()`, which waits on BT2.
+Every example on it runs in the documentation tests, and both engines
+print each answer it shows.
+
 ### Questions for the ruling on part 7
 
 25. **Bytes: a kind, or text.** Ruled 2026-11-21: text in a named
