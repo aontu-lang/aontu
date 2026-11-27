@@ -211,3 +211,17 @@ func TestDeprecateResolveArms(t *testing.T) {
 		t.Fatalf("expected the nil back, got %v", got)
 	}
 }
+
+func TestSubsumeAListArmIsItsOwnLength(t *testing.T) {
+	cases := [][3]string{
+		{`a:[1]|[2]`, `a:[1,5]`, "does_not_subsume"},
+		{`a:[1]|[2]`, `a:close([1])|close([2])`, "subsumes"},
+		{`a:close([1])|close([2])`, `a:[1]|[2]`, "subsumes"},
+		{`a: *[1]`, `a:[1,5]`, "does_not_subsume"},
+	}
+	for _, c := range cases {
+		if r := Subsume(c[0], c[1], &SubsumeOptions{Profile: "values"}); c[2] != r.Verdict {
+			t.Errorf("%s over %s: want %s, got %s", c[0], c[1], c[2], r.Verdict)
+		}
+	}
+}

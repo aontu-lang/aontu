@@ -57,7 +57,7 @@ function same(a, b) {
         'subsumes' === (0, subsume_1.subsume)(b, a, { profile: 'values' }).verdict);
 }
 // Rows both ports' subsume read otherwise than their vet.
-const AWAITS = { 'list-witness': 1071 };
+const AWAITS = {};
 (0, node_test_1.describe)('subsume-contract', () => {
     const golden = new Map(rows('subsume.tsv')
         .filter((r) => 'subsume' === r[1])
