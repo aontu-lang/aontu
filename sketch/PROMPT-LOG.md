@@ -2576,3 +2576,19 @@ D leaves both to you.
 
 On speed: if an oracle run of your cases passes 30 minutes, cut them to the smallest documents that still show each answer. Don't stop between items. Report to me at each merge.
 ```
+
+## 2026-11-27 22:17:24 UTC · Claude Code · session_01D35vdc7ygzcgtWxtPLX3iR
+
+```text
+Wrap up now: the maintainer is closing every session. Start nothing new.
+
+Within about 15 minutes:
+1. If a change of yours already passes its checks, merge it as usual. Otherwise commit your work in progress to your branch and push it, and leave any PR open. The commit message says what is done and what is left.
+2. Send me one message with:
+   - your branch, and its PR if any;
+   - what is done;
+   - what is left, in order;
+   - anything the next person needs to know, such as the definition's slowness on your cases, or a ruling you think a case needs.
+
+Then stop. This session will be archived after your report.
+```
