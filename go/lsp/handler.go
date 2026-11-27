@@ -180,11 +180,26 @@ func (h *Handler) Handle(m Message) []Out {
 			TextDocument struct {
 				URI string `json:"uri"`
 			} `json:"textDocument"`
+			Position *struct {
+				Line      int `json:"line"`
+				Character int `json:"character"`
+			} `json:"position"`
+			Context struct {
+				TriggerCharacter string `json:"triggerCharacter"`
+			} `json:"context"`
 		}
 		if err := json.Unmarshal(m.Params, &p); err != nil {
 			return []Out{newResponse(m.ID, Completions(""))}
 		}
-		return []Out{newResponse(m.ID, Completions(h.docs[p.TextDocument.URI]))}
+		text := h.docs[p.TextDocument.URI]
+		if nil != p.Position {
+			return []Out{newResponse(m.ID, CompletionsAt(text, p.Position.Line,
+				p.Position.Character, p.Context.TriggerCharacter, h.trust))}
+		}
+		if "." == p.Context.TriggerCharacter {
+			return []Out{newResponse(m.ID, []CompletionItem{})}
+		}
+		return []Out{newResponse(m.ID, Completions(text))}
 
 	case "textDocument/formatting":
 		var p struct {
@@ -420,7 +435,9 @@ func initializeResult() map[string]any {
 			"textDocumentSync":   1,
 			"hoverProvider":      true,
 			"definitionProvider": true,
-			"completionProvider": map[string]any{},
+			"completionProvider": map[string]any{
+				"triggerCharacters": []string{"."},
+			},
 			"signatureHelpProvider": map[string]any{
 				"triggerCharacters": []string{"(", ","},
 			},

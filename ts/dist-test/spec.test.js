@@ -140,7 +140,7 @@ function loadRows() {
                 'diff' === parts[1] || 'agentsmd' === parts[1] ||
                 'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
                 'jsonschema-output' === parts[1] || 'at' === parts[1] ||
-                'describe' === parts[1] || 'define' === parts[1];
+                'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1];
             const want = vetRow ? 5 : 4;
             if (parts.length < want) {
                 throw new Error(`malformed spec row: ${file} line ${lineno}: ${want} columns` +
@@ -388,6 +388,10 @@ function runRow(row) {
         const [line, character] = row.data.split(':').map(Number);
         const at = (0, lsp_1.computePathAt)(row.src, { line, character });
         Assert.strictEqual((0, aontu_1.exactJSON)(null == at ? null : { ...at, sites: (0, lsp_1.computeSitesOf)(row.src, at.path) }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `at mismatch: ${row.name}`);
+    }
+    else if ('members' === row.mode) {
+        const [line, character] = row.data.split(':').map(Number);
+        Assert.strictEqual((0, aontu_1.exactJSON)((0, cursor_1.membersAt)(row.src, { line, character }) ?? null), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `members mismatch: ${row.name}`);
     }
     else if ('describe' === row.mode || 'define' === row.mode) {
         const [line, character] = row.data.split(':').map(Number);

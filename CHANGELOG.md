@@ -8,6 +8,40 @@ each change affects.
 
 ## Unreleased
 
+### The language servers complete keys and the members of a path
+
+Task LS3, in both servers.
+
+- **At a key**, completion offers the keys the map there takes once the
+  document has unified and that it has not written: the fields of a
+  type it meets, and what a spread's template declares. Each comes
+  with its value's canon, and an optional key says so.
+- **After a dot in a reference**, it offers the members of the path the
+  reference has reached, as the engine resolves it: a map's keys or a
+  list's positions, across includes. One dot reads the map or list that
+  holds the value being written, the maps a key chain such as `b: c:`
+  writes included, each more dot one level up. A dot is now a trigger
+  character, and one that begins no path offers nothing.
+
+| `S: type({ port: integer, tier?: string })` then, the cursor at `¦` | completion offers |
+|---|---|
+| `api: $.S & { ¦ }` | `port`, *integer*; `tier`, *string (optional)* |
+| `x: $.S.¦` | `port`, `tier` |
+
+Both read the document with the word being typed taken out, the
+reference being typed standing as `any`, and every bracket left open
+closed, and read the reference itself with the parser. Elsewhere
+completion offers the general list as before. A key that `aontu fmt`
+would not write bare is inserted as the canon writes a string, and so
+is a path's segment that would read as a value: `_`, `true`, `false`,
+`null`, or `nil`. A new shared-row mode, `members`, holds both ports to
+one answer, in 79 rows of `test/spec/cursor.tsv`.
+
+A document the TypeScript parser throws on, rather than refusing,
+such as an include written as a key (`@"./b.aontu" : 1`), no longer
+takes the server down when the cursor reads it: hover, definition and
+completion answer nothing there, as Go's do.
+
 ### The language servers answer hover and go to definition on a key and on a reference
 
 Task LS2, in both servers.
