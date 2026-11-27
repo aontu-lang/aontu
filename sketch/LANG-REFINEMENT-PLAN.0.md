@@ -753,6 +753,24 @@ argument of a call was pathed as an element of the argument list, so a
 relative reference in it read from the wrong place. #754 is not
 started.
 
+Progress on 2026-11-27. #754 is fixed in both engines. The cause: a
+member a generator makes is unified in the pass that makes it, while
+the tree a path reads still holds the call, so a `filter` in it tried
+its condition before the member was there, every path in the condition
+found nothing, and each candidate was refused. Now a `filter` whose
+condition holds a path waits while any place above it is a `pack`,
+`each`, `apply` or `match` still to fire, and is tried once the
+member is in the tree (`unmade` in `ts/src/val/FilterFuncVal.ts` and
+`go/generate.go`). A condition with no path fires as before, so no
+document without one takes more passes. The 16 rows `filter-in-*` of
+`test/spec/gen-filter.tsv` pin it, each expectation from the parity
+probe. No C7 row pinned the empty answer: k4 reads a path inside the
+member it tries, which names nothing by the reference, and stays `[]`,
+and k36 avoids the climb. An `emit`'s body is left as it is: the same
+wait there moves rows eh7 and eh9 to eh11 of `test/spec/def-path.tsv`,
+which the definition answers, so that route waits on a ruling. #850
+and #868 still wait on the parser release.
+
 ## C7: pin today's routes
 
 The comparison's probes k1 to k38 are aontu documents that both

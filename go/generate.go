@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -180,6 +181,24 @@ func sameMembers(a, b Val, ctx *Ctx, admit bool) bool {
 		return true
 	}
 	return sameKids(a, b, ctx, admit)
+}
+
+var makers = map[string]bool{"pack": true, "each": true, "apply": true, "match": true}
+
+func making(v Val) bool {
+	f, ok := v.(*FuncVal)
+	return ok && DONE != f.dc && makers[f.name]
+}
+
+// A member a generator is still making is not yet where a path reads it.
+func unmade(ctx *Ctx, path []string) bool {
+	for i := range path {
+		node := unmarked(walkPlace(ctx.root, path[:i]))
+		if cj, ok := node.(*ConjunctVal); making(node) || (ok && slices.ContainsFunc(cj.peg, making)) {
+			return true
+		}
+	}
+	return false
 }
 
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
