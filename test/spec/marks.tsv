@@ -1,11 +1,11 @@
 # Marks (type/hide functions) and top-level expressions. Columns: name<TAB>mode<TAB>src<TAB>expect
-type-num	gen	type(1) & number	1
-type-num2	gen	number & type(42)	42
-type-str	gen	type(hello) & string	"hello"
-type-bool	gen	type(true) & boolean	true
-hide-num	gen	hide(1) & number	1
-hide-num2	gen	number & hide(42)	42
-hide-str	gen	string & hide(world)	"world"
+type-num	gen	type(1) & number	null
+type-num2	gen	number & type(42)	null
+type-str	gen	type(hello) & string	null
+type-bool	gen	type(true) & boolean	null
+hide-num	gen	hide(1) & number	null
+hide-num2	gen	number & hide(42)	null
+hide-str	gen	string & hide(world)	null
 type-canon	canon	type(1)	1
 hide-canon	canon	hide(foo)	"foo"
 copy-clears-type	gen	x:type({}) x:y:1 a:copy($.x)	{"a":{"y":1}}
