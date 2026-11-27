@@ -6171,7 +6171,11 @@ def rideWrites (cw : Val → Data → Option (Option Data)) (r : Record) (place 
 `Data.writeBy` writes a number rounded or as text, a boolean as a
 number or as its name, a string in a case, an address in a form, and a
 map's keys in a style. Under `empty: "omit"` a value written empty
-drops out of the map or list that holds it. An address resolves from
+drops out of the map or list that holds it, and an optional member
+whose value then writes an empty map or list drops out too, since what
+a value writes decides whether it's empty: `m: {a?: [null & gen({empty:
+"omit"})]}` writes `{"m": {}}`, as both engines do, in rows go0 on of
+[`test/spec/def-gaps.tsv`](../test/spec/def-gaps.tsv). An address resolves from
 the place the document writes it at, with the keys the document
 writes, before any style. Write `written.aontu`:
 

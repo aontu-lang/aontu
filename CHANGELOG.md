@@ -8,6 +8,16 @@ each change affects.
 
 ## Unreleased
 
+### The definition leaves out an optional member that writes empty
+
+#1075, in the definition. The definition leaves out an optional member
+whose value writes an empty map or list, as where it generates one:
+what a value writes decides whether it's empty, as the reference says.
+So `m: {a?: [null &
+gen({empty: "omit"})]}` writes `{"m": {}}`, where the definition wrote
+`{"m": {"a": []}}`. Rows go0 on of `test/spec/def-gaps.tsv`. Both ports
+answer every one as the definition does, and neither changes.
+
 ### A guide for CUE users
 
 Task CG4 of the lang refinement plan. A new how-to,
