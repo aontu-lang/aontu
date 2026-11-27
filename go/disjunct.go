@@ -331,6 +331,26 @@ func (d *DisjunctVal) forGen(ctx *Ctx) (Val, bool) {
 }
 
 func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
+	// A star over a call or a path adds to the rank of what it reads as (ruling 89).
+	for vI, v := range d.peg {
+		p, ok := v.(*PrefVal)
+		if !ok || DONE == p.peg.Dc() {
+			continue
+		}
+		if f, isFunc := p.peg.(*FuncVal); !isRef(p.peg) && !(isFunc && "pref" == f.name) {
+			continue
+		}
+		rctx := trialCtx(ctx)
+		read := unite(rctx, clonePath(p, p.vpath()), top())
+		if 0 < len(rctx.err) || read.Nil() {
+			continue
+		}
+		rp, ok := read.(*PrefVal)
+		if !ok || DONE != rp.peg.Dc() {
+			return nil
+		}
+		d.peg[vI] = rp
+	}
 	prefs := []int{}
 	lead := -1
 	for vI := 0; vI < len(d.peg); vI++ {
