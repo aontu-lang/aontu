@@ -21,6 +21,41 @@ stands in the definition (#1064). Rows dx0 to dx89 of
 `test/spec/def-path.tsv` hold the definition and both engines to it.
 Neither engine changes.
 
+### The definition writes the output option `custom`
+
+`gen(spec)` writes every output option in the definition now, `custom`
+among them. The reader holds the expression quoted in the record
+(`spec/Aontu/Quote.lean`), so the record rides, unifies and is held to
+its type as any other, and two records meet only where their
+expressions are one. `spec/Aontu/Writing.lean` evaluates it after the
+record's other options, as `apply()` evaluates one, in the document
+`out: apply(d, e)`, its hole bound to what the value writes read as
+data. Rows cw0 on in the new `test/spec/def-custom.tsv`, and rows anc0
+on in `test/spec/def-path.tsv` for `vet`, which reads the expression as
+any option; both ports answer every one as the definition does.
+
+### An error under a spread's template names the member
+
+#1018, in both engines. An error inside a member that a `&:` template
+constrains names the member, where it named the list or map that holds
+it: Go always, and TypeScript where two list spreads met.
+
+| Document | Was | Now |
+|---|---|---|
+| `x: { h: [&: { s: "a" \| "b" }] } & { h: [ {} ] }` | `$.x.h.s` in Go | `$.x.h.0.s` |
+| `x: { h: [&: { at: string }] } & { h: [&: { s: "a" \| "b" }] } & { h: [ { at: "z" } ] }` | `$.x.h.s` | `$.x.h.0.s` |
+| `x: { h: { &: { s: "a" \| "b" } } } & { h: { k: {} } }` | `$.x.h.s` in Go | `$.x.h.k.s` |
+
+### A declaration in a spread's template is refused
+
+**Breaking.** #1032, in both engines. A declaration sits at the root of
+the document, so one in a spread's template, `m: { &: { %n = 1, v: %n } }`,
+or in a source loaded as one, `m: { &: @"./s.aontu" }`, is refused with
+`alias_not_toplevel` at the map or list that holds the template, as
+`x: { %n = 1 }` already was. Before, TypeScript's `vet` passed such a
+document, Go's answered `error`, and generation failed with `no_path`
+at a path each engine spelled differently.
+
 ### The definition reads a path that leaves a link's template where the link is written
 
 A path in a link's template that climbs past the template, as `..k`

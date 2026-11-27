@@ -541,4 +541,33 @@ def: garage: {
 function makeCtx(r) {
     return new aontu_1.AontuContext({ root: r || new MapVal_1.MapVal({ peg: {} }) });
 }
+(0, node_test_1.describe)('aontu-template-error-path', () => {
+    const CASES = [
+        ['x: { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }', '$.x.h.0.s'],
+        ['x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ { at: "z" } ] }',
+            '$.x.h.0.s'],
+        ['x: { h: [&: { at: string }] } & { h: [&: { s: "a" | "b" }] } & { h: [ {} ] }',
+            '$.x.h.0.at'],
+        ['x: { h: { &: { s: "a" | "b" } } } & { h: { k: {} } }', '$.x.h.k.s'],
+    ];
+    for (const [src, path] of CASES) {
+        (0, node_test_1.test)(src, () => {
+            const at = path.replace(/[.$]/g, (c) => '\\' + c);
+            (0, expect_1.expect)(() => new aontu_1.Aontu().generate(src)).throws(new RegExp('at path ' + at + '\\b'));
+        });
+    }
+});
+(0, node_test_1.describe)('aontu-declaration-in-template', () => {
+    for (const src of [
+        'm: { &: { %n = 1, v: %n }, a: {} }',
+        'm: { &: { %n = 1, v: %n } }',
+        'm: { &: { %n = 1 } }',
+        'm: [&: { %n = 1, v: %n }]',
+    ]) {
+        (0, node_test_1.test)(src, () => {
+            (0, expect_1.expect)(() => new aontu_1.Aontu().generate(src))
+                .throws(/aontu\/alias_not_toplevel\]: Cannot resolve value at path \$\.m\b/);
+        });
+    }
+});
 //# sourceMappingURL=aontu.test.js.map
