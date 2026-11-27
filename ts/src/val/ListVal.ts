@@ -34,7 +34,7 @@ import {
 
 import { ConjunctVal, unmarkedTemplate } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal, templateKey, undecided } from './BagVal'
+import { BagVal, templateDeclares, templateKey, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
 import { joinRelates, relateText } from './PathVal'
@@ -113,6 +113,10 @@ class ListVal extends BagVal {
   // NOTE: order of keys is not preserved!
   // not possible in any case - consider {a,b} unify {b,a}
   unify(peer: Val, ctx: AontuContext): Val {
+    const declared = templateDeclares(this)
+    if (undefined !== declared) {
+      return declared
+    }
     // A relate() peer drives: the relation constraint rewrites this list
     // leaf by leaf (RELATIONS.0.md §3.2); see the twin arm in MapVal.
     if (true === (peer as any)?.isRelate) {
