@@ -6273,6 +6273,8 @@ lu53	verdict	%m = @"__FIXTURES__/foo.aontu"\n"w": %m	{}	{"verdict":"valid","opts
 # leaves the type open. Two records unify as maps, and a disagreement is the
 # schema's error, an arm's its arm's alone, and a lone default's own value's
 # the place's. The argument is one map of concrete data, or one string.
+# An annotation that conflicts inside any call's argument is the schema's
+# error, and a written `nil` passes through `gen` as it is.
 an0	verdict	"v": gen({"significant": 2})	{}	{"verdict":"incomplete"}
 an1	verdict	"v": gen({"significant": 2})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 an2	verdict	"v": gen({"significant": 2})	{}	{"verdict":"valid","opts":{"partial":true}}
@@ -6843,3 +6845,84 @@ an566	verdict	"v": (gen({"significant": 2})) & ("ada")	{}	{"verdict":"error","op
 an567	verdict	"s": type({"money": gen({"significant": 2})}), "p": ($.s.money) & ("ada")	{}	{"verdict":"error"}
 an568	verdict	"s": type({"money": gen({"significant": 2})}), "p": ($.s.money) & ("ada")	{}	{"verdict":"error","opts":{"noFill":true}}
 an569	verdict	"s": type({"money": gen({"significant": 2})}), "p": ($.s.money) & ("ada")	{}	{"verdict":"error","opts":{"partial":true}}
+an570	verdict	"v"?: gen(nil)	{}	{"verdict":"valid"}
+an571	verdict	"v"?: gen(nil)	{}	{"verdict":"valid","opts":{"noFill":true}}
+an572	verdict	"v"?: gen(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+an573	verdict	"v": gen(nil)	{}	{"verdict":"invalid"}
+an574	verdict	"v": gen(nil)	{}	{"verdict":"invalid","opts":{"noFill":true}}
+an575	verdict	"v": gen(nil)	{}	{"verdict":"invalid","opts":{"partial":true}}
+an576	verdict	"v"?: gen(nil)	{"v": 1}	{"verdict":"invalid"}
+an577	verdict	"v"?: gen(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+an578	verdict	"v"?: gen(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+an579	verdict	"v"?: (1) & (gen(nil))	{}	{"verdict":"valid"}
+an580	verdict	"v"?: (1) & (gen(nil))	{}	{"verdict":"valid","opts":{"noFill":true}}
+an581	verdict	"v"?: (1) & (gen(nil))	{}	{"verdict":"valid","opts":{"partial":true}}
+an582	verdict	"v"?: gen(({"places": 2}) & (nil))	{}	{"verdict":"valid"}
+an583	verdict	"v"?: gen(({"places": 2}) & (nil))	{}	{"verdict":"valid","opts":{"noFill":true}}
+an584	verdict	"v"?: gen(({"places": 2}) & (nil))	{}	{"verdict":"valid","opts":{"partial":true}}
+an585	verdict	"x"?: nil, "v"?: gen($.x)	{}	{"verdict":"valid"}
+an586	verdict	"x"?: nil, "v"?: gen($.x)	{}	{"verdict":"valid","opts":{"noFill":true}}
+an587	verdict	"x"?: nil, "v"?: gen($.x)	{}	{"verdict":"valid","opts":{"partial":true}}
+an588	verdict	"v"?: gen(meta(nil, {"a": 1}))	{}	{"verdict":"valid"}
+an589	verdict	"v"?: gen(meta(nil, {"a": 1}))	{}	{"verdict":"valid","opts":{"noFill":true}}
+an590	verdict	"v"?: gen(meta(nil, {"a": 1}))	{}	{"verdict":"valid","opts":{"partial":true}}
+an591	verdict	"v": (7) & (gen(({"places": 2}) & (gen({"significant": 2}))))	{}	{"verdict":"error"}
+an592	verdict	"v": (7) & (gen(({"places": 2}) & (gen({"significant": 2}))))	{}	{"verdict":"error","opts":{"noFill":true}}
+an593	verdict	"v": (7) & (gen(({"places": 2}) & (gen({"significant": 2}))))	{}	{"verdict":"error","opts":{"partial":true}}
+an594	verdict	"v": (7) & (gen(({"places": 2}) & (gen({"empty": "omit"}))))	{}	{"verdict":"valid"}
+an595	verdict	"v": (7) & (gen(({"places": 2}) & (gen({"empty": "omit"}))))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an596	verdict	"v": (7) & (gen(({"places": 2}) & (gen({"empty": "omit"}))))	{}	{"verdict":"valid","opts":{"partial":true}}
+an597	verdict	"v": (7) & (gen({"places": (2) & (gen({"significant": 2}))}))	{}	{"verdict":"valid"}
+an598	verdict	"v": (7) & (gen({"places": (2) & (gen({"significant": 2}))}))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an599	verdict	"v": (7) & (gen({"places": (2) & (gen({"significant": 2}))}))	{}	{"verdict":"valid","opts":{"partial":true}}
+an600	verdict	"v": (7) & (gen({"places": (2) & (gen({"keys": "camel"}))}))	{}	{"verdict":"error"}
+an601	verdict	"v": (7) & (gen({"places": (2) & (gen({"keys": "camel"}))}))	{}	{"verdict":"error","opts":{"noFill":true}}
+an602	verdict	"v": (7) & (gen({"places": (2) & (gen({"keys": "camel"}))}))	{}	{"verdict":"error","opts":{"partial":true}}
+an603	verdict	"v": upper(("a") & (gen({"keys": "camel"})))	{}	{"verdict":"error"}
+an604	verdict	"v": upper(("a") & (gen({"keys": "camel"})))	{}	{"verdict":"error","opts":{"noFill":true}}
+an605	verdict	"v": upper(("a") & (gen({"keys": "camel"})))	{}	{"verdict":"error","opts":{"partial":true}}
+an606	verdict	"v": upper(("a") & (gen({"case": "upper"})))	{}	{"verdict":"valid"}
+an607	verdict	"v": upper(("a") & (gen({"case": "upper"})))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an608	verdict	"v": upper(("a") & (gen({"case": "upper"})))	{}	{"verdict":"valid","opts":{"partial":true}}
+an609	verdict	"v": add((1) & (gen({"keys": "camel"})), 2)	{}	{"verdict":"error"}
+an610	verdict	"v": add((1) & (gen({"keys": "camel"})), 2)	{}	{"verdict":"error","opts":{"noFill":true}}
+an611	verdict	"v": add((1) & (gen({"keys": "camel"})), 2)	{}	{"verdict":"error","opts":{"partial":true}}
+an612	verdict	"v": join([("a") & (gen({"keys": "camel"})), "b"])	{}	{"verdict":"error"}
+an613	verdict	"v": join([("a") & (gen({"keys": "camel"})), "b"])	{}	{"verdict":"error","opts":{"noFill":true}}
+an614	verdict	"v": join([("a") & (gen({"keys": "camel"})), "b"])	{}	{"verdict":"error","opts":{"partial":true}}
+an615	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{}	{"verdict":"error"}
+an616	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{}	{"verdict":"error","opts":{"noFill":true}}
+an617	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{}	{"verdict":"error","opts":{"partial":true}}
+an618	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{"v": 7}	{"verdict":"error"}
+an619	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{"v": 7}	{"verdict":"error","opts":{"noFill":true}}
+an620	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{"v": 7}	{"verdict":"error","opts":{"partial":true}}
+an621	verdict	"v"?: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{}	{"verdict":"error"}
+an622	verdict	"v"?: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{}	{"verdict":"error","opts":{"noFill":true}}
+an623	verdict	"v"?: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))	{}	{"verdict":"error","opts":{"partial":true}}
+an624	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 1})))	{}	{"verdict":"valid"}
+an625	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 1})))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an626	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 1})))	{}	{"verdict":"valid","opts":{"partial":true}}
+an627	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (8)	{}	{"verdict":"valid"}
+an628	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (8)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an629	verdict	"v": *(((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (8)	{}	{"verdict":"valid","opts":{"partial":true}}
+an630	verdict	"v": *((((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (8))	{}	{"verdict":"valid"}
+an631	verdict	"v": *((((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (8))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an632	verdict	"v": *((((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (8))	{}	{"verdict":"valid","opts":{"partial":true}}
+an633	verdict	"v": *((((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (((8) & (gen({"places": 1}))) & (gen({"places": 2}))))	{}	{"verdict":"error"}
+an634	verdict	"v": *((((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (((8) & (gen({"places": 1}))) & (gen({"places": 2}))))	{}	{"verdict":"error","opts":{"noFill":true}}
+an635	verdict	"v": *((((7) & (gen({"places": 1}))) & (gen({"places": 2}))) | (((8) & (gen({"places": 1}))) & (gen({"places": 2}))))	{}	{"verdict":"error","opts":{"partial":true}}
+an636	verdict	"v": *(((7) & (gen({"keys": "camel"}))) | (8))	{}	{"verdict":"valid"}
+an637	verdict	"v": *(((7) & (gen({"keys": "camel"}))) | (8))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an638	verdict	"v": *(((7) & (gen({"keys": "camel"}))) | (8))	{}	{"verdict":"valid","opts":{"partial":true}}
+an639	verdict	"v": *(((7) & (gen({"keys": "camel"}))) | ((8) & (gen({"keys": "camel"}))))	{}	{"verdict":"error"}
+an640	verdict	"v": *(((7) & (gen({"keys": "camel"}))) | ((8) & (gen({"keys": "camel"}))))	{}	{"verdict":"error","opts":{"noFill":true}}
+an641	verdict	"v": *(((7) & (gen({"keys": "camel"}))) | ((8) & (gen({"keys": "camel"}))))	{}	{"verdict":"error","opts":{"partial":true}}
+an642	verdict	"v": (*(((7) & (gen({"keys": "camel"}))) | (8))) & (integer)	{}	{"verdict":"valid"}
+an643	verdict	"v": (*(((7) & (gen({"keys": "camel"}))) | (8))) & (integer)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an644	verdict	"v": (*(((7) & (gen({"keys": "camel"}))) | (8))) & (integer)	{}	{"verdict":"valid","opts":{"partial":true}}
+an645	verdict	"v": ({"a": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}) | (3)	{}	{"verdict":"valid"}
+an646	verdict	"v": ({"a": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}) | (3)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+an647	verdict	"v": ({"a": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}) | (3)	{}	{"verdict":"valid","opts":{"partial":true}}
+an648	verdict	"v": {&: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}	{"v": {"x": 7}}	{"verdict":"invalid"}
+an649	verdict	"v": {&: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}	{"v": {"x": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
+an650	verdict	"v": {&: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}	{"v": {"x": 7}}	{"verdict":"invalid","opts":{"partial":true}}

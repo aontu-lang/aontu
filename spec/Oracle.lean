@@ -5284,7 +5284,12 @@ stands outside it, and a lone default whose own value the record
 refuses; the argument, which is one map of concrete data or one string,
 read through a rider, a reference and a call; and the record riding a
 spread's template, a name, absence, and a map whose keys the data
-writes as the document does. -/
+writes as the document does. Then a written `nil` as the argument,
+which `gen` hands on; an annotation that conflicts, or not, in a call's
+argument, `gen`'s own among them; and a lone default whose own value's
+records disagree, or whose type doesn't take its record, in each arm it
+prefers or in one, alone, met, as an arm, inside one, and in a
+spread's template. -/
 def annotationCases : List (Decls × Val × Data) :=
   let g (fs : List (String × Val)) : Val := c .gen [m fs]
   let gs (t : String) : Val := c .gen [str t]
@@ -5465,7 +5470,36 @@ def annotationCases : List (Decls × Val × Data) :=
     ([], v (.meet (int 7) (g [("significant", str "all"), ("places", str "all"), ("as", str "number")])), E),
     ([], v (.meet (m [("aB", int 1), ("c", m [])]) (g [("keys", str "verbatim"), ("empty", str "keep")])), E),
     ([], v (.meet (sig (int 2)) (str "ada")), E),
-    ([], m [("s", type (m [("money", sig (int 2))])), ("p", .meet (p ["s", "money"]) (str "ada"))], E)]
+    ([], m [("s", type (m [("money", sig (int 2))])), ("p", .meet (p ["s", "money"]) (str "ada"))], E),
+    -- A written `nil` as the argument, which `gen` hands on as it is.
+    ([], mo [("v", true, c .gen [Val.void])], E), ([], v (c .gen [Val.void]), E),
+    ([], mo [("v", true, c .gen [Val.void])], dv (j 1)),
+    ([], mo [("v", true, .meet (int 1) (c .gen [Val.void]))], E),
+    ([], mo [("v", true, c .gen [.meet (m [("places", int 2)]) Val.void])], E),
+    ([], mo [("x", true, Val.void), ("v", true, c .gen [p ["x"]])], E),
+    ([], mo [("v", true, c .gen [.ride .metadata Val.void [("a", j 1)]])], E),
+    -- An annotation in a call's argument, `gen`'s own among them.
+    ([], v (.meet (int 7) (c .gen [.meet (m [("places", int 2)]) (sig (int 2))])), E),
+    ([], v (.meet (int 7) (c .gen [.meet (m [("places", int 2)]) omt])), E),
+    ([], v (.meet (int 7) (g [("places", .meet (int 2) (sig (int 2)))])), E),
+    ([], v (.meet (int 7) (g [("places", .meet (int 2) (ks "camel"))])), E),
+    ([], v (c .upper [.meet (str "a") (ks "camel")]), E), ([], v (c .upper [.meet (str "a") cs]), E),
+    ([], v (c .add [.meet (int 1) (ks "camel"), int 2]), E),
+    ([], v (c .join [lst [.meet (str "a") (ks "camel"), str "b"]]), E),
+    -- A lone default whose own value's records disagree, or that its type doesn't take.
+    ([], v (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2)))), E),
+    ([], v (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2)))), dv (j 7)),
+    ([], mo [("v", true, .pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))))], E),
+    ([], v (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 1)))), E),
+    ([], v (dflt (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))) (int 8)), E),
+    ([], v (.pref 1 (arms (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))) (int 8))), E),
+    ([], v (.pref 1 (arms (.meet (.meet (int 7) (pl (int 1))) (pl (int 2)))
+      (.meet (.meet (int 8) (pl (int 1))) (pl (int 2))))), E),
+    ([], v (.pref 1 (arms (.meet (int 7) (ks "camel")) (int 8))), E),
+    ([], v (.pref 1 (arms (.meet (int 7) (ks "camel")) (.meet (int 8) (ks "camel")))), E),
+    ([], v (.meet (.pref 1 (arms (.meet (int 7) (ks "camel")) (int 8))) .integer), E),
+    ([], v (arms (m [("a", .pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))))]) (int 3)), E),
+    ([], v (tmpl (.pref 1 (.meet (.meet (int 7) (pl (int 1))) (pl (int 2))))), dv (dm [("x", j 7)]))]
 
 set_option maxRecDepth 16384 in
 theorem annotationCases_checkable : ∀ c ∈ annotationCases,
@@ -10599,6 +10633,8 @@ def pathRowsAnnotation : IO Unit := do
   IO.println "# leaves the type open. Two records unify as maps, and a disagreement is the"
   IO.println "# schema's error, an arm's its arm's alone, and a lone default's own value's"
   IO.println "# the place's. The argument is one map of concrete data, or one string."
+  IO.println "# An annotation that conflicts inside any call's argument is the schema's"
+  IO.println "# error, and a written `nil` passes through `gen` as it is."
   pathRows "an" annotationCases (verdict := vetG)
 
 set_option maxRecDepth 2048 in
