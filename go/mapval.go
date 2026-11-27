@@ -48,6 +48,29 @@ func (m *MapVal) aliasDeclarationsAreRooted(ctx *Ctx) Val {
 	return nv
 }
 
+// templateDeclares: a template stands below the root, so a declaration in it is refused there.
+func templateDeclares(spread Val, path []string) Val {
+	if nil == spread {
+		return nil
+	}
+	t, ok := unmarkedTemplate(spread).(*MapVal)
+	if !ok {
+		return nil
+	}
+	named := ""
+	if 0 < len(t.aliasKeys) {
+		named = aliasBareName(t.aliasKeys[0])
+	} else if 0 < len(t.exportKeys) {
+		named = exportDeclName
+	} else {
+		return nil
+	}
+	nv := newNil("alias_not_toplevel")
+	nv.site.sp = t.site.sp
+	nv.path = append(append([]string{}, path...), named)
+	return nv
+}
+
 func (m *MapVal) isAliasKey(k string) bool {
 	for _, a := range m.aliasKeys {
 		if a == k {
@@ -183,79 +206,85 @@ func hasPathFunc(v Val) bool {
 }
 
 func computePathFunc(v Val) bool {
+	return pathFuncBy(v, hasPathFunc, func(*RefVal) bool { return true })
+}
+
+// pathFuncBy is computePathFunc with its parts read by rec and a
+// reference by ref.
+func pathFuncBy(v Val, rec func(Val) bool, ref func(*RefVal) bool) bool {
 	switch n := v.(type) {
 	case *RefVal:
-		return true
+		return ref(n)
 	case *FuncVal:
 		switch n.name {
 		case "key", "path", "move", "super":
 			return true
 		}
 		for _, a := range n.peg {
-			if hasPathFunc(a) {
+			if rec(a) {
 				return true
 			}
 		}
 	case *MapVal:
 		for _, k := range n.keys {
-			if hasPathFunc(n.peg[k]) {
+			if rec(n.peg[k]) {
 				return true
 			}
 		}
-		if n.spread != nil && hasPathFunc(n.spread) {
+		if n.spread != nil && rec(n.spread) {
 			return true
 		}
 	case *ConstraintVal:
 		if nil != n.pending {
 			for _, a := range n.pending.args {
-				if hasPathFunc(a) {
+				if rec(a) {
 					return true
 				}
 			}
 		}
 		for _, m := range n.musts {
-			if hasPathFunc(m.v) {
+			if rec(m.v) {
 				return true
 			}
 		}
 		for _, b := range n.settledTrials() {
-			if hasPathFunc(b) {
+			if rec(b) {
 				return true
 			}
 		}
-		if nil != n.count && hasPathFunc(n.count) {
+		if nil != n.count && rec(n.count) {
 			return true
 		}
 	case *ListVal:
 		for _, e := range n.peg {
-			if hasPathFunc(e) {
+			if rec(e) {
 				return true
 			}
 		}
-		if n.spread != nil && hasPathFunc(n.spread) {
+		if n.spread != nil && rec(n.spread) {
 			return true
 		}
 	case *PlusOpVal:
 		for _, t := range n.peg {
-			if hasPathFunc(t) {
+			if rec(t) {
 				return true
 			}
 		}
 	case *ConjunctVal:
 		for _, t := range n.peg {
-			if hasPathFunc(t) {
+			if rec(t) {
 				return true
 			}
 		}
 	case *DisjunctVal:
 		for _, t := range n.peg {
-			if hasPathFunc(t) {
+			if rec(t) {
 				return true
 			}
 		}
 	case *PrefVal:
 		if inner, ok := n.peg.(*PrefVal); ok {
-			return hasPathFunc(inner.peg)
+			return rec(inner.peg)
 		}
 		return false
 	}
@@ -522,6 +551,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		peer = top()
 	}
 	if nv := m.aliasDeclarationsAreRooted(ctx); nv != nil {
+		return nv
+	}
+	if nv := templateDeclares(m.spread, m.path); nv != nil {
 		return nv
 	}
 	if pc, ok := peer.(*ConstraintVal); ok {
@@ -808,10 +840,11 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 // what it reports names this path rather than the template's.
 func placeShared(child Val, at []string) Val {
 	switch child.(type) {
-	case *MapVal, *ListVal:
-		if !pathEq(child.vpath(), at) {
-			return instanceClone(child, at)
-		}
+	case *ScalarVal, *ExpectVal, *NilVal:
+		return child
+	}
+	if !pathEq(child.vpath(), at) {
+		return instanceClone(child, at)
 	}
 	return child
 }

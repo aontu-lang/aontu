@@ -2376,3 +2376,200 @@ let's do all of these - set this in motion - our goal is to get this done asap
 ```text
 merge, and write a handover doc
 ```
+
+## 2026-11-27 16:33:11 UTC · Claude Code · session_01D35vdc7ygzcgtWxtPLX3iR
+
+```text
+# Track A: the output option `custom`, and the last generation case (phase P9)
+
+Two pieces of aontu's Lean definition are left in phase P9 (holes, templates and generation). Build both in the definition, with generated rows that both engines answer as the definition does.
+
+1. **`custom`.** `gen(spec)` has a rule in the definition: `spec/Aontu/Annotation.lean` reads the annotation, the staging in `spec/Aontu/Verdict.lean` holds each value to its record, and `spec/Aontu/Writing.lean` writes what every output option says, except `custom`, an expression whose hole the `gen` call binds. Today `Data.writeBy` returns `none` for a record that holds `custom`, so such a value writes nothing in the definition, and `spec/README.md` lists it as a gap. A `Record` holds data, not terms, so the rider needs a way to carry the expression; writing evaluates it with the hole bound to the value, as `apply()` does. Both engines already agree with each other on `custom` in `test/spec/annotation-gen.tsv`; read those rows and `docs/reference-language.md` (output options) first, then probe both engines on new documents before you write rows. Generated rows go after wa161 in `def-gen.tsv` (the writing rows) or in a file of your own, and the `vet` reading of `custom` belongs with the annotation's rows (an0 to an650 in `def-path.tsv`).
+2. **A recursion through a named table over a selection the data alone supplies, deeper than the document's own turns reach.** See the P9 row of the plan in `sketch/DEFINITION.0.md` (§5, the phase table, "Not yet built") and the emit rows in `spec/Oracle/CallsTemplates.lean`.
+
+Update `spec/README.md` (remove each gap you close), the P9 row of the plan when its status changes, `docs/tutorial-definition.md` (the step on output annotations, 14, and the generation steps) and `CHANGELOG.md`.
+
+## How to work (all tracks)
+
+You are one of several sessions working in parallel to complete aontu's Lean definition (`spec/`) as fast as possible. The maintainer's standing instructions: work in small steps and commit often; open each pull request ready for review (never a draft) and merge it yourself with a merge commit once your local checks pass; do not wait for CI; test locally with the repository's fast checks; post the problems you find as GitHub issues on aontu-lang/aontu; keep `docs/tutorial-definition.md` current as the definition changes. Read `CLAUDE.md`, `DEV-PROCESS.md` and `spec/README.md` before you start, and follow them: every prompt you receive is logged in `sketch/PROMPT-LOG.md` before work starts (this brief included, on a branch and pull request of its own); an expected value in a shared row comes from running both engines and the definition and requiring them to agree, never from one of them; comments only for surprising code; the prose gate stays at its recorded counts.
+
+**Set-up.** Lean is not installed in a new session. Install it with `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none`, then `export PATH=$HOME/.elan/bin:$PATH` in every shell, and run `cd spec && lake build` (the definition and the oracle; core Lean only, no packages). The TypeScript engine is `node ts/bin/aontu.js`; the Go engine builds with `cd go && go build -o /tmp/aontu-go ./cmd/aontu`.
+
+**The oracle** (`lake exe oracle <file>`) writes the generated files of `test/spec/def-*.tsv` and `spec/forms.tsv`. Its cases live in one module per area under `spec/Oracle/`, sharing `spec/Oracle/Base.lean`; `spec/Oracle.lean` holds only `main`. Add your cases to your area's module, or to a new module of your own that `spec/Oracle.lean` imports, so that sessions don't edit the same file. Mind the memory: the four largest modules (`Gen`, `PathsRefs`, `PathsLinks`, `PathsSources`) need 6 to 12 GB each, so they import one another for order only and build one at a time. A full oracle build takes about 10 minutes, so never run two `lake` builds at once, and keep any new module small. For a quick look at the definition's answer on a few documents, write a probe file that imports the modules you need and `#eval`s them with `lake env lean`, rather than rebuilding the oracle. Never edit a generated file by hand: regenerate every file `main` writes, check that the rows you didn't mean to change stay byte for byte, and run both engines over the files you changed (`cd ts && AONTU_SPEC_SHARES=1 node --test --test-name-pattern='FILE.tsv' dist-test/spec.test.js`; `cd go && go test -run 'TestSpec/FILE' -count=1 .`).
+
+**Before each push:** `make quick`; the tests of what changed; for documentation changes, `cd ts && node --test dist-test/docs.test.js dist-test/docs-shard-2.test.js dist-test/docs-shard-3.test.js dist-test/docs-style.test.js`; `node ts/scripts/vale-counts.cjs` must report "as recorded". `make test`, `make cov` and the use cases belong to the daily run; don't run them.
+
+**Sharing the repository.** Other sessions merge into `main` while you work. Merge `main` into your branch before you merge, never rebase or force-push. In a conflict on a generated file, take main's version and regenerate; in `CHANGELOG.md`, keep both entries. Stay inside your track's files where you can.
+
+**Rulings.** Don't decide a language question yourself. Where the engines and the definition disagree and no ruling settles it, file an issue that states the question, the documents and each side's answer, give your recommendation, and tell the coordinating session (below); carry on with the rest of your track meanwhile. Rulings 1 to 90 are recorded in §7 of `sketch/DEFINITION.0.md`, and the rulings given on 27 November follow them there.
+
+**Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
+```
+
+## 2026-11-27 16:33:34 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+# Track B: links and relations (phase P11)
+
+Finish phase P11 of aontu's Lean definition: links and relations. Its row in the plan, `sketch/DEFINITION.0.md` §5, lists what's left:
+
+1. **Not yet read:** a link in the template of a generator whose data another link's template makes, which both engines read; and a `refer` or a `rel` inside a disjunction or a selection, which both engines read in the arm taken.
+2. **Not yet proved:** a relation in a spread's template, which the definition's reading answers too slowly to prove its graph atoms' judgement (`spec/Aontu/Graph.lean`). Make that reading fast enough, or restate it so the proof goes through.
+3. **#1029**, ruled on 27 November as recommended (decision 94): `view`, `reaches` and the library's `graph` read the edges a default and generation write. That is an engine change in both TypeScript and Go, with shared rows; the definition already states the edges.
+4. **#1007**: a path nested in a relation's template, to a subtype of the type that declares the relation, generates or is `unify_cycle` by the order written, in both engines. Find the order-independent answer, which the definition gives or should, and bring both engines to it.
+
+The cases for links are in `spec/Oracle/PathsLinks.lean` and the graph's in the modules that print the `g`-tagged path rows. Update `spec/README.md`, the P11 row of the plan when its status changes, `docs/tutorial-definition.md` and `CHANGELOG.md` as you go.
+
+## How to work (all tracks)
+
+You are one of several sessions working in parallel to complete aontu's Lean definition (`spec/`) as fast as possible. The maintainer's standing instructions: work in small steps and commit often; open each pull request ready for review (never a draft) and merge it yourself with a merge commit once your local checks pass; do not wait for CI; test locally with the repository's fast checks; post the problems you find as GitHub issues on aontu-lang/aontu; keep `docs/tutorial-definition.md` current as the definition changes. Read `CLAUDE.md`, `DEV-PROCESS.md` and `spec/README.md` before you start, and follow them: every prompt you receive is logged in `sketch/PROMPT-LOG.md` before work starts (this brief included, on a branch and pull request of its own); an expected value in a shared row comes from running both engines and the definition and requiring them to agree, never from one of them; comments only for surprising code; the prose gate stays at its recorded counts.
+
+**Set-up.** Lean is not installed in a new session. Install it with `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none`, then `export PATH=$HOME/.elan/bin:$PATH` in every shell, and run `cd spec && lake build` (the definition and the oracle; core Lean only, no packages). The TypeScript engine is `node ts/bin/aontu.js`; the Go engine builds with `cd go && go build -o /tmp/aontu-go ./cmd/aontu`.
+
+**The oracle** (`lake exe oracle <file>`) writes the generated files of `test/spec/def-*.tsv` and `spec/forms.tsv`. Its cases live in one module per area under `spec/Oracle/`, sharing `spec/Oracle/Base.lean`; `spec/Oracle.lean` holds only `main`. Add your cases to your area's module, or to a new module of your own that `spec/Oracle.lean` imports, so that sessions don't edit the same file. Mind the memory: the four largest modules (`Gen`, `PathsRefs`, `PathsLinks`, `PathsSources`) need 6 to 12 GB each, so they import one another for order only and build one at a time. A full oracle build takes about 10 minutes, so never run two `lake` builds at once, and keep any new module small. For a quick look at the definition's answer on a few documents, write a probe file that imports the modules you need and `#eval`s them with `lake env lean`, rather than rebuilding the oracle. Never edit a generated file by hand: regenerate every file `main` writes, check that the rows you didn't mean to change stay byte for byte, and run both engines over the files you changed (`cd ts && AONTU_SPEC_SHARES=1 node --test --test-name-pattern='FILE.tsv' dist-test/spec.test.js`; `cd go && go test -run 'TestSpec/FILE' -count=1 .`).
+
+**Before each push:** `make quick`; the tests of what changed; for documentation changes, `cd ts && node --test dist-test/docs.test.js dist-test/docs-shard-2.test.js dist-test/docs-shard-3.test.js dist-test/docs-style.test.js`; `node ts/scripts/vale-counts.cjs` must report "as recorded". `make test`, `make cov` and the use cases belong to the daily run; don't run them.
+
+**Sharing the repository.** Other sessions merge into `main` while you work. Merge `main` into your branch before you merge, never rebase or force-push. In a conflict on a generated file, take main's version and regenerate; in `CHANGELOG.md`, keep both entries. Stay inside your track's files where you can.
+
+**Rulings.** Don't decide a language question yourself. Where the engines and the definition disagree and no ruling settles it, file an issue that states the question, the documents and each side's answer, give your recommendation, and tell the coordinating session (below); carry on with the rest of your track meanwhile. Rulings 1 to 90 are recorded in §7 of `sketch/DEFINITION.0.md`, and the rulings given on 27 November follow them there.
+
+**Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
+```
+
+## 2026-11-27 16:33:58 UTC · Claude Code · session_01D35vdZaS5uN2Wb4n2156JH
+
+```text
+# Track C: verdicts and the order (phase P5), then grammars (phase P12)
+
+1. **#1042.** Both engines read a conflict inside a lone default's own value as a conflict at the place the default stands (`v: *(1 & 2)` is `error`; an arm holding it drops; a spread's template holding it refuses each member). The definition reads the default as its parent type, because the meet (`nodeRight`, `mkOr`, `unparentArms` in `spec/Aontu/Meet.lean`) drops the dead preferred arm before staging can see it. Fixing it changes what a lone preference admits (`Admits` for `.pref`) and the meet's soundness theorem. The issue has the full table of documents; the staging-level case (`loneFails` in `spec/Aontu/Verdict.lean`) is already done.
+2. **The rest of P5** (see its row in `sketch/DEFINITION.0.md` §5): every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable, and a verdict-class disagreement fails the differential. Include **#1017**: `subsume` answers `undecided` for two recursions of one shape under different names where the recursion runs through a spread. The proof that a verdict doesn't depend on the order a document is written in is **not** in this track's scope: the maintainer accepted the evaluation check on rows `od0` and `mp0` for now.
+3. **P12, grammars.** The definition reads `abnf` and `parse` over a host that parses; what's left is the shaping of the parse tree by a grammar's annotations, stated over a raw parse the host supplies, with rows for the shaping on which both engines agree. See P12's row in the plan, and find where `parseOf` lives in `spec/Aontu/`.
+
+Update `spec/README.md`, the P5 and P12 rows of the plan when their status changes, `docs/tutorial-definition.md` and `CHANGELOG.md` as you go.
+
+## How to work (all tracks)
+
+You are one of several sessions working in parallel to complete aontu's Lean definition (`spec/`) as fast as possible. The maintainer's standing instructions: work in small steps and commit often; open each pull request ready for review (never a draft) and merge it yourself with a merge commit once your local checks pass; do not wait for CI; test locally with the repository's fast checks; post the problems you find as GitHub issues on aontu-lang/aontu; keep `docs/tutorial-definition.md` current as the definition changes. Read `CLAUDE.md`, `DEV-PROCESS.md` and `spec/README.md` before you start, and follow them: every prompt you receive is logged in `sketch/PROMPT-LOG.md` before work starts (this brief included, on a branch and pull request of its own); an expected value in a shared row comes from running both engines and the definition and requiring them to agree, never from one of them; comments only for surprising code; the prose gate stays at its recorded counts.
+
+**Set-up.** Lean is not installed in a new session. Install it with `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none`, then `export PATH=$HOME/.elan/bin:$PATH` in every shell, and run `cd spec && lake build` (the definition and the oracle; core Lean only, no packages). The TypeScript engine is `node ts/bin/aontu.js`; the Go engine builds with `cd go && go build -o /tmp/aontu-go ./cmd/aontu`.
+
+**The oracle** (`lake exe oracle <file>`) writes the generated files of `test/spec/def-*.tsv` and `spec/forms.tsv`. Its cases live in one module per area under `spec/Oracle/`, sharing `spec/Oracle/Base.lean`; `spec/Oracle.lean` holds only `main`. Add your cases to your area's module, or to a new module of your own that `spec/Oracle.lean` imports, so that sessions don't edit the same file. Mind the memory: the four largest modules (`Gen`, `PathsRefs`, `PathsLinks`, `PathsSources`) need 6 to 12 GB each, so they import one another for order only and build one at a time. A full oracle build takes about 10 minutes, so never run two `lake` builds at once, and keep any new module small. For a quick look at the definition's answer on a few documents, write a probe file that imports the modules you need and `#eval`s them with `lake env lean`, rather than rebuilding the oracle. Never edit a generated file by hand: regenerate every file `main` writes, check that the rows you didn't mean to change stay byte for byte, and run both engines over the files you changed (`cd ts && AONTU_SPEC_SHARES=1 node --test --test-name-pattern='FILE.tsv' dist-test/spec.test.js`; `cd go && go test -run 'TestSpec/FILE' -count=1 .`).
+
+**Before each push:** `make quick`; the tests of what changed; for documentation changes, `cd ts && node --test dist-test/docs.test.js dist-test/docs-shard-2.test.js dist-test/docs-shard-3.test.js dist-test/docs-style.test.js`; `node ts/scripts/vale-counts.cjs` must report "as recorded". `make test`, `make cov` and the use cases belong to the daily run; don't run them.
+
+**Sharing the repository.** Other sessions merge into `main` while you work. Merge `main` into your branch before you merge, never rebase or force-push. In a conflict on a generated file, take main's version and regenerate; in `CHANGELOG.md`, keep both entries. Stay inside your track's files where you can.
+
+**Rulings.** Don't decide a language question yourself. Where the engines and the definition disagree and no ruling settles it, file an issue that states the question, the documents and each side's answer, give your recommendation, and tell the coordinating session (below); carry on with the rest of your track meanwhile. Rulings 1 to 90 are recorded in §7 of `sketch/DEFINITION.0.md`, and the rulings given on 27 November follow them there.
+
+**Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
+```
+
+## 2026-11-27 16:34:00 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
+
+```text
+# Track D: check the hand-written rows against the definition in bulk
+
+78.5% of the shared test rows (39,418 of 50,235, not counting `signature.tsv`) are generated from aontu's Lean definition by the oracle. The other 10,817 are hand-written. Most cover tools around the language (`vet`'s reports, `view`, `fmt`, the JSON Schema importer), but many are language rows that the definition has never been run against. Today every case for the definition is written by hand as Lean terms. Build the tooling to run the definition over the hand-written language rows in bulk, and turn the result into a worklist.
+
+1. **A converter from aontu text to the definition's terms.** The definition (`spec/Aontu/Syntax.lean`, `Val`) starts from parsed terms, and `Val.src` prints a term back as aontu source. Write the other direction: a script in `ts/scripts/` that reads a document with the TypeScript engine's parser and prints it as a Lean `Val` expression (and data as `Data`), following the reader's conventions the definition states (for example, `*x` as an arm reads as the arm `x` of rank one, a list literal in a disjunction's arm is sealed, a written `nil` is `Val.void`). Where a construct has no term in the definition, say so and skip the row. Round-trip check: `Val.src` of the term should print a document the engines read the same way as the original.
+2. **A runner.** For each hand-written row whose kind the definition answers (the `verdict` rows `vet` reads in its three modes, and the `gens` rows of generation), build the Lean terms, evaluate them with the definition (`vetG`/`vetP` for verdicts, the output functions for generation; see how `spec/Oracle.lean`'s `main` and the modules under `spec/Oracle/` print rows), and compare with the row's expected value. Batch the evaluation: one Lean file per few hundred rows, run with `lake env lean`, as the agents probing the definition so far have done.
+3. **The worklist.** Report agreement per file. For each disagreement, check both engines on the document: where both engines and the definition agree on something other than the row, the row is wrong; where the definition differs from both engines, it's a gap in the definition. Post the gaps as GitHub issues, grouped by cause rather than one per row, and send the coordinating session the totals and the issue numbers. Rows the definition agrees with can later move into generated files, but don't move them in this track.
+
+The script and runner are tools, so put them under `ts/scripts/` or `admin/scripts/` with a short README, and keep `make quick` passing. Don't change the definition in this track; its gaps go to the issues.
+
+## How to work (all tracks)
+
+You are one of several sessions working in parallel to complete aontu's Lean definition (`spec/`) as fast as possible. The maintainer's standing instructions: work in small steps and commit often; open each pull request ready for review (never a draft) and merge it yourself with a merge commit once your local checks pass; do not wait for CI; test locally with the repository's fast checks; post the problems you find as GitHub issues on aontu-lang/aontu; keep `docs/tutorial-definition.md` current as the definition changes. Read `CLAUDE.md`, `DEV-PROCESS.md` and `spec/README.md` before you start, and follow them: every prompt you receive is logged in `sketch/PROMPT-LOG.md` before work starts (this brief included, on a branch and pull request of its own); an expected value in a shared row comes from running both engines and the definition and requiring them to agree, never from one of them; comments only for surprising code; the prose gate stays at its recorded counts.
+
+**Set-up.** Lean is not installed in a new session. Install it with `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none`, then `export PATH=$HOME/.elan/bin:$PATH` in every shell, and run `cd spec && lake build` (the definition and the oracle; core Lean only, no packages). The TypeScript engine is `node ts/bin/aontu.js`; the Go engine builds with `cd go && go build -o /tmp/aontu-go ./cmd/aontu`.
+
+**The oracle** (`lake exe oracle <file>`) writes the generated files of `test/spec/def-*.tsv` and `spec/forms.tsv`. Its cases live in one module per area under `spec/Oracle/`, sharing `spec/Oracle/Base.lean`; `spec/Oracle.lean` holds only `main`. Add your cases to your area's module, or to a new module of your own that `spec/Oracle.lean` imports, so that sessions don't edit the same file. Mind the memory: the four largest modules (`Gen`, `PathsRefs`, `PathsLinks`, `PathsSources`) need 6 to 12 GB each, so they import one another for order only and build one at a time. A full oracle build takes about 10 minutes, so never run two `lake` builds at once, and keep any new module small. For a quick look at the definition's answer on a few documents, write a probe file that imports the modules you need and `#eval`s them with `lake env lean`, rather than rebuilding the oracle. Never edit a generated file by hand: regenerate every file `main` writes, check that the rows you didn't mean to change stay byte for byte, and run both engines over the files you changed (`cd ts && AONTU_SPEC_SHARES=1 node --test --test-name-pattern='FILE.tsv' dist-test/spec.test.js`; `cd go && go test -run 'TestSpec/FILE' -count=1 .`).
+
+**Before each push:** `make quick`; the tests of what changed; for documentation changes, `cd ts && node --test dist-test/docs.test.js dist-test/docs-shard-2.test.js dist-test/docs-shard-3.test.js dist-test/docs-style.test.js`; `node ts/scripts/vale-counts.cjs` must report "as recorded". `make test`, `make cov` and the use cases belong to the daily run; don't run them.
+
+**Sharing the repository.** Other sessions merge into `main` while you work. Merge `main` into your branch before you merge, never rebase or force-push. In a conflict on a generated file, take main's version and regenerate; in `CHANGELOG.md`, keep both entries. Stay inside your track's files where you can.
+
+**Rulings.** Don't decide a language question yourself. Where the engines and the definition disagree and no ruling settles it, file an issue that states the question, the documents and each side's answer, give your recommendation, and tell the coordinating session (below); carry on with the rest of your track meanwhile. Rulings 1 to 90 are recorded in §7 of `sketch/DEFINITION.0.md`, and the rulings given on 27 November follow them there.
+
+**Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
+```
+
+## 2026-11-27 16:34:00 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
+
+```text
+# Track E: build the rulings of 27 November
+
+The maintainer ruled six questions on 27 November; read them as decisions 91 to 96 in §7 of `sketch/DEFINITION.0.md`. Rulings 95 and 96 are built already, and 94 (#1029) belongs to another session's track. Build the other three, each in the definition and in both engines as the ruling says, with generated rows that both engines answer as the definition does, and close each issue when its ruling is built:
+
+1. **Ruling 91 (#977):** a call that waits, inside `contains`, `rest`, `len`, a starred branch or a spread's template, waits, as the four forms of #432 do. The definition and both engines move for `contains`, `rest`, `len` and the starred branch; both engines move for the spread's template. Start from the issue's table of documents and from how #432 was built (the definition's `waitOr`, `Val.waiting`, `Val.stalls` in `spec/Aontu/Verdict.lean`).
+2. **Ruling 92 (#1001):** a path that climbs past a link's template reads where the link is written, as both engines read it. The definition moves (`climb` in `spec/Aontu/Paths.lean`).
+3. **Ruling 93 (#1012):** a call's data argument that is a path reads where its target stands, and nothing is placed, as both engines read it, for `each`, `match`, `apply`, `pack`, `filter` and `sum`. The definition moves from ruling 26's placed copy for these arguments. The engines differ on such a path used as a pattern, `match({n: "a"}, $.src.a, …)`, and must come to agree.
+
+Four more questions wait on the maintainer: #997, #998's broader question, #1026 and old rule 052. The coordinating session will send you each ruling as it's given; build it the same way, after recording it in §7 as decision 97 on.
+
+Update `spec/README.md` (remove each gap you close), the plan's phase rows when a status changes, `docs/tutorial-definition.md`, `docs/reference-language.md` where a rule's statement changes, and `CHANGELOG.md` (a ruling that changes what a document means is a breaking change there).
+
+## How to work (all tracks)
+
+You are one of several sessions working in parallel to complete aontu's Lean definition (`spec/`) as fast as possible. The maintainer's standing instructions: work in small steps and commit often; open each pull request ready for review (never a draft) and merge it yourself with a merge commit once your local checks pass; do not wait for CI; test locally with the repository's fast checks; post the problems you find as GitHub issues on aontu-lang/aontu; keep `docs/tutorial-definition.md` current as the definition changes. Read `CLAUDE.md`, `DEV-PROCESS.md` and `spec/README.md` before you start, and follow them: every prompt you receive is logged in `sketch/PROMPT-LOG.md` before work starts (this brief included, on a branch and pull request of its own); an expected value in a shared row comes from running both engines and the definition and requiring them to agree, never from one of them; comments only for surprising code; the prose gate stays at its recorded counts.
+
+**Set-up.** Lean is not installed in a new session. Install it with `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none`, then `export PATH=$HOME/.elan/bin:$PATH` in every shell, and run `cd spec && lake build` (the definition and the oracle; core Lean only, no packages). The TypeScript engine is `node ts/bin/aontu.js`; the Go engine builds with `cd go && go build -o /tmp/aontu-go ./cmd/aontu`.
+
+**The oracle** (`lake exe oracle <file>`) writes the generated files of `test/spec/def-*.tsv` and `spec/forms.tsv`. Its cases live in one module per area under `spec/Oracle/`, sharing `spec/Oracle/Base.lean`; `spec/Oracle.lean` holds only `main`. Add your cases to your area's module, or to a new module of your own that `spec/Oracle.lean` imports, so that sessions don't edit the same file. Mind the memory: the four largest modules (`Gen`, `PathsRefs`, `PathsLinks`, `PathsSources`) need 6 to 12 GB each, so they import one another for order only and build one at a time. A full oracle build takes about 10 minutes, so never run two `lake` builds at once, and keep any new module small. For a quick look at the definition's answer on a few documents, write a probe file that imports the modules you need and `#eval`s them with `lake env lean`, rather than rebuilding the oracle. Never edit a generated file by hand: regenerate every file `main` writes, check that the rows you didn't mean to change stay byte for byte, and run both engines over the files you changed (`cd ts && AONTU_SPEC_SHARES=1 node --test --test-name-pattern='FILE.tsv' dist-test/spec.test.js`; `cd go && go test -run 'TestSpec/FILE' -count=1 .`).
+
+**Before each push:** `make quick`; the tests of what changed; for documentation changes, `cd ts && node --test dist-test/docs.test.js dist-test/docs-shard-2.test.js dist-test/docs-shard-3.test.js dist-test/docs-style.test.js`; `node ts/scripts/vale-counts.cjs` must report "as recorded". `make test`, `make cov` and the use cases belong to the daily run; don't run them.
+
+**Sharing the repository.** Other sessions merge into `main` while you work. Merge `main` into your branch before you merge, never rebase or force-push. In a conflict on a generated file, take main's version and regenerate; in `CHANGELOG.md`, keep both entries. Stay inside your track's files where you can.
+
+**Rulings.** Don't decide a language question yourself. Where the engines and the definition disagree and no ruling settles it, file an issue that states the question, the documents and each side's answer, give your recommendation, and tell the coordinating session (below); carry on with the rest of your track meanwhile. Rulings 1 to 90 are recorded in §7 of `sketch/DEFINITION.0.md`, and the rulings given on 27 November follow them there.
+
+**Reporting.** A transient task prints a status line at least every 30 seconds. When a pull request merges, and when you finish or are blocked, send a short message to the coordinating session, `session_01XG9G5jizDciS8aeZfUZPs2`, with the `send_message` tool: what merged (PR number), what's left, and anything that needs a ruling. Work only in aontu-lang/aontu.
+```
+
+## 2026-11-27 16:44:02 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
+
+```text
+Coordinating session: thanks for stopping. Don't try the install any other way; it waits on the maintainer. So that nothing waits on it, Track E splits in two. This session, which has Lean, takes the definition side of rulings 91, 92 and 93 and generates their rows from the oracle. You take the engine side, which needs no Lean:
+
+1. Ruling 91 (#977) in both engines, for all five forms: a call that waits inside `contains`, `rest`, `len`, a starred branch or a spread's template waits, as the four forms of #432 do.
+2. Ruling 93's pattern case (#1012), `match({n: "a"}, $.src.a, …)`: the engines read it differently. Bring both to read the path where its target stands, as they already do for a data argument. If the ruling doesn't settle which reading is right, file the question with each side's answer and tell me.
+
+Test with the engines' own unit tests. Don't add shared rows: when the definition moves, I'll generate them and tell you which files to run both engines over. Log this message with your brief in the prompt log before you start, and report each merge here as the brief says.
+```
+
+## 2026-11-27 16:44:02 UTC · Claude Code · session_01D35vdYvVnyiDrmNuGsebud
+
+```text
+Coordinating session: thanks for stopping. Don't try the install any other way; it waits on the maintainer. Meanwhile, start item 3 (#1029, decision 94) in both engines: `view`, `reaches` and the library's `graph` read the edges a default and generation write. The definition already states those edges, so the engine change needs no Lean. Write its rows from both engines agreeing, and send me the documents: I'll check the definition's edges on them from this session, which has Lean, before you merge. If the maintainer allows the install, go on to items 1, 2 and 4. Log this message in the prompt log before you start.
+```
+
+## 2026-11-27 17:37:22 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
+
+```text
+Coordinating session: thanks for #1060. Ruling 92 is built in the definition (#1063), and ruling 93 is nearly done here, with no engine change: both engines already agree with the definition on the 30 documents. I'll send you the files for ruling 91 once the definition moves.
+
+While #1058 waits on the maintainer, please take two engine-side issues, neither of which needs Lean:
+
+1. #1018: an error inside a list element under a `&:` template names the list, not the element (Go always, TypeScript where two list spreads meet). Bring both engines to name the element.
+2. #1032: a declaration inside a spread's template, where TypeScript's `vet` answers valid, Go's error, and neither refuses it as `alias_not_toplevel`. Read the reference and the error catalogue for which answer the language states. If they settle it, bring both engines to it. If not, file the question with your recommendation and tell me. Either way, send me the documents and I'll give you the definition's verdicts from here.
+
+Log this message in the prompt log first, as before.
+```
+
+## 2026-11-27 18:08:55 UTC · Claude Code · session_01D35vdYutapCZfN1UXpxggh
+
+```text
+Coordinating session: thanks, that's a clear worklist. Since you have Lean and the tools, please take the definition gaps you found, in this order, each in the definition with generated rows that both engines answer as the definition does:
+1. #1069: generators and folds read `hide()` members.
+2. #1073: generation reading the members a spread, a generator or a link supplies writes nothing.
+3. #1075: the four single rows.
+4. The `key()` cluster, which belongs together: #1072 (`key()` through `pack`, `type` or a spread's template), #1064 (`key()` in a call's data argument reads where the call stands, where both engines read it at the target; the rest of ruling 93), and #1065 (a `move` of a member whose template holds `key()` leaves the member in its source).
+Leave #1074 to Track A, since it touches its emit recursion, and #1070 waits on the maintainer. The brief's rules hold as before: your own oracle module, a small one, never two `lake` builds at once, and the prompt log first. I'm merging ruling 93 (`Fn.readsData` in `Val.atUses`) within the hour, so start #1064 from main after that.
+```
+
+## 2026-11-27 18:13:32 UTC · Claude Code · session_01D35vdc3BTa3pbHYSmsa7Fr
+
+```text
+merge
+```

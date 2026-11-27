@@ -3783,7 +3783,7 @@ The breach is `invalid` at `$.doc.up.k` here too. For this document in
 three orders, `D` first, `N` first and the use first, the definition
 proves the verdicts alike:
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/PathsRefs.lean -->
 ```lean
 theorem order_verdicts_agree : ∀ i, i < 3 → ∀ k, k < 3 → orderVerdict i k = orderVerdict 0 k
 ```
@@ -5143,7 +5143,7 @@ The last example is `output_admits` at work: `8080` is what
 with no mark is its own visible part.
 
 The fourth generated fragment, `test/spec/def-gen.tsv`, holds `gens`
-rows for the values of `genVals` in `spec/Oracle.lean`: each value
+rows for the values of `genVals` in `spec/Oracle/Gen.lean`: each value
 under the key `v` that singles out something, with the JSON both
 engines must write for it, which `output` gives and `gen_iff` makes
 the definition's own. A value that singles out nothing has no row
@@ -5909,7 +5909,7 @@ example : Instance (Decls.envE [])
 ```
 
 The fifth generated fragment, `test/spec/def-verdict.tsv`, runs the
-cases of `vetCases` in `spec/Oracle.lean` in all three modes, each
+cases of `vetCases` in `spec/Oracle/Base.lean` in all three modes, each
 with the one class `vet` gives, which `vet_iff` makes the definition's
 own. Both engines agree with the definition on every row but three,
 which the ledger names. The rows keep away from two corners. The next
@@ -6075,8 +6075,10 @@ carries a record, it writes the value by the record:
 
 <!-- test: quote spec/Aontu/Writing.lean -->
 ```lean
-def rideWrites (r : Record) (place : List String) : Option (Option Data) → Option (Option Data)
-  | some (some d) => (d.writeBy r place).map fun d' => if r.omits && d'.emptyWritten then none else some d'
+def rideWrites (cw : Val → Data → Option (Option Data)) (r : Record) (place : List String) :
+    Option (Option Data) → Option (Option Data)
+  | some (some d) => (d.writeBy r place).bind fun d' =>
+    (customWrites cw r d').map fun w => w.bind fun d'' => if r.omits && d''.emptyWritten then none else some d''
   | w => w
 ```
 
@@ -6117,10 +6119,58 @@ what it generates, so writing changes nothing where no record asks it
 to. Rows from wa0 on of
 [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
 it, 162 rows, and both answer every one as the definition does.
-`custom`, an expression, waits: a record that holds it writes nothing
-here, and
-[`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
-both engines to each other on it.
+
+`custom` holds an expression, and a record holds data, so the reader
+holds the expression quoted: `Val.quote` in
+[`spec/Aontu/Quote.lean`](../spec/Aontu/Quote.lean) writes data as
+itself and every other term as a node that names its constructor. The
+record rides and unifies as any other, its value's type takes it, and
+two records meet only where their expressions are one. Writing reads the
+term back, `Data.unquote`, and evaluates it after the record's other
+options, on its own, as `apply` evaluates one:
+
+<!-- test: quote spec/Aontu/Writing.lean -->
+```lean
+def customDoc (e : Val) (d : Data) : Val := .map [("out", false, .call .apply [d.term, e])] none false
+```
+
+The hole stands for what the value writes, read as data: an address
+as its text, and a float written as a whole number as an integer. The
+expression reads nothing else of the document, and what `out` writes,
+its own annotations written in turn, is the value's writing. Write
+`custom.aontu`:
+
+<!-- test: scenario custom -->
+<!-- test: file custom.aontu -->
+```aontu
+fs: etc: {}
+up: path($.fs.etc) & gen({ form:"key" custom:"urn:node:" + _ })
+price: 24 & gen({ places:2 as:"string" custom:"EUR " + _ })
+tags: ["a" "b"] & gen({ custom:join(_, ",") })
+note: "" & gen({ empty:"omit" custom:upper(_) })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu custom.aontu
+{
+  "fs": {
+    "etc": {}
+  },
+  "price": "EUR 24.00",
+  "tags": "a,b",
+  "up": "urn:node:etc"
+}
+```
+
+`note` writes `""`, and `empty:"omit"` reads what the expression
+writes, so it's left out. Rows cw0 on of
+[`test/spec/def-custom.tsv`](../test/spec/def-custom.tsv) hold both
+engines to the definition on what `custom` writes, and rows anc0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) on how `vet`
+reads it: as any option, without evaluating it.
 
 ## 15. Where the definition and the engines differ
 
@@ -7312,7 +7362,7 @@ example : check (.map [("x", false, .integer)] none false) (.map []) = false := 
 builds every term of the fragment up to one `&`, and two sets of values
 to try each against:
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/Base.lean -->
 ```lean
 def bases : List Val :=
   [.any, Val.void, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
@@ -7350,7 +7400,7 @@ it renamed no row. The file proves that every term it builds is
 checkable, and every instance is a value, so each answer is the
 definition's:
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/Base.lean -->
 ```lean
 /-- Every row's verdict is the definition's: `v` admits `j`, taken
 whole, under no alias declaration. -/
@@ -7391,7 +7441,7 @@ bounds of step 4: each alone, each under a key, and eight of them met
 pairwise, 115 terms against 30 values, as the 3,450 rows of
 [`test/spec/def-bounds.tsv`](../test/spec/def-bounds.tsv):
 
-<!-- test: quote spec/Oracle.lean -->
+<!-- test: quote spec/Oracle/Bounds.lean -->
 ```lean
 def boundBases : List Val :=
   [.above (.num one), .beneath (.num (.integer (.of 3))),
@@ -10420,11 +10470,24 @@ engines. Rows ll0 to ll20 and lr0 to lr41 hold the definition to the
 ruling, and both engines answer each as the definition does, as #661
 asked: a path that stays inside the template waits where the document
 writes the link, and each engine reads it at the target once the
-template has landed there. One reading isn't settled. A path that
-climbs past the template, as `..k` does in `relate({v: ..k})`, names a
-place that many steps up from the target here, by `climb`, and both
-engines read it where the document writes the link. The two agree wherever the target is the
-link's sibling, as in every row, and #1001 asks which holds elsewhere.
+template has landed there. A path that climbs past the template, as
+`..k` does in `relate({v: ..k})`, has left what lands, so it reads
+where the document writes the link. `climb` counts the steps it takes
+past the template, and `Val.atTarget` takes them from the link's own
+place, where a path that stays inside reads from the target:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+  | .path (.lands 0 :: p) => .path (T ++ p)
+  | .path (.lands c :: p) => if c ≤ L.length then .path (L.take (L.length - c) ++ p) else .nil
+```
+
+So with `k: 7`, `x: {k: 3, n: relate({v: ..k}) & path($.out)}` and
+`out: {}`, the link sends `v: 3` into `out`, as both engines read it,
+where the target alone would give `v: 7`. Rows lc0 to lc50 hold the
+definition to this, one step past the template and two, from deeper in
+it, under a call, past the top, and in a declaration's body, and both
+engines answer each as the definition does.
 
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
@@ -10550,7 +10613,7 @@ def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
 ```lean
 def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
     (a : Addr) : Val :=
-  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget p) with
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget pos p) with
   | some u => .meet acc u
   | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
 ```
@@ -11292,10 +11355,10 @@ and vet it:
 $ aontu vet spread.aontu spread-data.aontu
 verdict: invalid
 
-$.hosts.web.url: scalar_kind [conflict]
-  [aontu/scalar_kind]: Cannot unify values at path $.hosts.web.url
+$.hosts.web.url: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.hosts.web.url
   data: spread-data.aontu:1:38 ("http://web.example")
-  schema: spread.aontu:1:31 ("https://"+.name)
+  schema: :-1:-1 ("https://web.example")
 $ echo $?
 1
 ```
@@ -12055,9 +12118,6 @@ disjunction or a selection, a spread whose template reads its member's
 place keeps its template as written, so a relative path in it resolves
 nowhere, and so does a generator's template there, whether the
 document writes it there or in a name it uses there.
-
-Nor does it say what `custom` writes, the one output option that's an
-expression. Step 14 shows what the others write.
 
 Nor does it seal a path's copy of a place that a bare `close()` beside
 a path seals. The directive seals the place itself, as step 9 shows,
