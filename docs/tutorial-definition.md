@@ -6075,8 +6075,10 @@ carries a record, it writes the value by the record:
 
 <!-- test: quote spec/Aontu/Writing.lean -->
 ```lean
-def rideWrites (r : Record) (place : List String) : Option (Option Data) → Option (Option Data)
-  | some (some d) => (d.writeBy r place).map fun d' => if r.omits && d'.emptyWritten then none else some d'
+def rideWrites (cw : Val → Data → Option (Option Data)) (r : Record) (place : List String) :
+    Option (Option Data) → Option (Option Data)
+  | some (some d) => (d.writeBy r place).bind fun d' =>
+    (customWrites cw r d').map fun w => w.bind fun d'' => if r.omits && d''.emptyWritten then none else some d''
   | w => w
 ```
 
@@ -6117,10 +6119,58 @@ what it generates, so writing changes nothing where no record asks it
 to. Rows from wa0 on of
 [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
 it, 162 rows, and both answer every one as the definition does.
-`custom`, an expression, waits: a record that holds it writes nothing
-here, and
-[`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
-both engines to each other on it.
+
+`custom` holds an expression, and a record holds data, so the reader
+holds the expression quoted: `Val.quote` in
+[`spec/Aontu/Quote.lean`](../spec/Aontu/Quote.lean) writes data as
+itself and every other term as a node that names its constructor. The
+record rides and unifies as any other, its value's type takes it, and
+two records meet only where their expressions are one. Writing reads the
+term back, `Data.unquote`, and evaluates it after the record's other
+options, on its own, as `apply` evaluates one:
+
+<!-- test: quote spec/Aontu/Writing.lean -->
+```lean
+def customDoc (e : Val) (d : Data) : Val := .map [("out", false, .call .apply [d.term, e])] none false
+```
+
+The hole stands for what the value writes, read as data: an address
+as its text, and a float written as a whole number as an integer. The
+expression reads nothing else of the document, and what `out` writes,
+its own annotations written in turn, is the value's writing. Write
+`custom.aontu`:
+
+<!-- test: scenario custom -->
+<!-- test: file custom.aontu -->
+```aontu
+fs: etc: {}
+up: path($.fs.etc) & gen({ form:"key" custom:"urn:node:" + _ })
+price: 24 & gen({ places:2 as:"string" custom:"EUR " + _ })
+tags: ["a" "b"] & gen({ custom:join(_, ",") })
+note: "" & gen({ empty:"omit" custom:upper(_) })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu custom.aontu
+{
+  "fs": {
+    "etc": {}
+  },
+  "price": "EUR 24.00",
+  "tags": "a,b",
+  "up": "urn:node:etc"
+}
+```
+
+`note` writes `""`, and `empty:"omit"` reads what the expression
+writes, so it's left out. Rows cw0 on of
+[`test/spec/def-custom.tsv`](../test/spec/def-custom.tsv) hold both
+engines to the definition on what `custom` writes, and rows anc0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) on how `vet`
+reads it: as any option, without evaluating it.
 
 ## 15. Where the definition and the engines differ
 
@@ -12068,9 +12118,6 @@ disjunction or a selection, a spread whose template reads its member's
 place keeps its template as written, so a relative path in it resolves
 nowhere, and so does a generator's template there, whether the
 document writes it there or in a name it uses there.
-
-Nor does it say what `custom` writes, the one output option that's an
-expression. Step 14 shows what the others write.
 
 Nor does it seal a path's copy of a place that a bare `close()` beside
 a path seals. The directive seals the place itself, as step 9 shows,

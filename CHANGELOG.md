@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### The definition writes the output option `custom`
+
+`gen(spec)` writes every output option in the definition now, `custom`
+among them. The reader holds the expression quoted in the record
+(`spec/Aontu/Quote.lean`), so the record rides, unifies and is held to
+its type as any other, and two records meet only where their
+expressions are one. `spec/Aontu/Writing.lean` evaluates it after the
+record's other options, as `apply()` evaluates one, in the document
+`out: apply(d, e)`, its hole bound to what the value writes read as
+data. Rows cw0 on in the new `test/spec/def-custom.tsv`, and rows anc0
+on in `test/spec/def-path.tsv` for `vet`, which reads the expression as
+any option; both ports answer every one as the definition does.
+
 ### An error under a spread's template names the member
 
 #1018, in both engines. An error inside a member that a `&:` template

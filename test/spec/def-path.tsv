@@ -6981,3 +6981,40 @@ an647	verdict	"v": ({"a": *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))
 an648	verdict	"v": {&: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}	{"v": {"x": 7}}	{"verdict":"invalid"}
 an649	verdict	"v": {&: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}	{"v": {"x": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
 an650	verdict	"v": {&: *(((7) & (gen({"places": 1}))) & (gen({"places": 2})))}	{"v": {"x": 7}}	{"verdict":"invalid","opts":{"partial":true}}
+# Records that hold a `custom` expression follow in rows anc0 on, each
+# document read as the reader reads it, the expression held quoted
+# (spec/Aontu/Quote.lean): `vet` reads no expression, and two records meet only
+# where their expressions are one.
+anc0	verdict	"v": gen({"custom": upper(_)})	{"v": "a"}	{"verdict":"valid"}
+anc1	verdict	"v": gen({"custom": upper(_)})	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+anc2	verdict	"v": gen({"custom": upper(_)})	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+anc3	verdict	"v": gen({"custom": upper(_)})	{"v": 1}	{"verdict":"valid"}
+anc4	verdict	"v": gen({"custom": upper(_)})	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+anc5	verdict	"v": gen({"custom": upper(_)})	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+anc6	verdict	"v": gen({"custom": upper(_)})	{}	{"verdict":"incomplete"}
+anc7	verdict	"v": gen({"custom": upper(_)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+anc8	verdict	"v": gen({"custom": upper(_)})	{}	{"verdict":"valid","opts":{"partial":true}}
+anc9	verdict	"v": ("a") & (gen({"custom": upper(_)}))	{"v": "a"}	{"verdict":"valid"}
+anc10	verdict	"v": ("a") & (gen({"custom": upper(_)}))	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+anc11	verdict	"v": ("a") & (gen({"custom": upper(_)}))	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}
+anc12	verdict	"v": ("a") & (gen({"custom": upper(_)}))	{"v": "A"}	{"verdict":"invalid"}
+anc13	verdict	"v": ("a") & (gen({"custom": upper(_)}))	{"v": "A"}	{"verdict":"invalid","opts":{"noFill":true}}
+anc14	verdict	"v": ("a") & (gen({"custom": upper(_)}))	{"v": "A"}	{"verdict":"invalid","opts":{"partial":true}}
+anc15	verdict	"v": (string) & (gen({"custom": ("<") + (_)}))	{"v": "x"}	{"verdict":"valid"}
+anc16	verdict	"v": (string) & (gen({"custom": ("<") + (_)}))	{"v": "x"}	{"verdict":"valid","opts":{"noFill":true}}
+anc17	verdict	"v": (string) & (gen({"custom": ("<") + (_)}))	{"v": "x"}	{"verdict":"valid","opts":{"partial":true}}
+anc18	verdict	"v": (string) & (gen({"custom": ("<") + (_)}))	{"v": 2}	{"verdict":"invalid"}
+anc19	verdict	"v": (string) & (gen({"custom": ("<") + (_)}))	{"v": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+anc20	verdict	"v": (string) & (gen({"custom": ("<") + (_)}))	{"v": 2}	{"verdict":"invalid","opts":{"partial":true}}
+anc21	verdict	"v": (("a") & (gen({"custom": upper(_)}))) & (gen({"custom": upper(_)}))	{}	{"verdict":"valid"}
+anc22	verdict	"v": (("a") & (gen({"custom": upper(_)}))) & (gen({"custom": upper(_)}))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+anc23	verdict	"v": (("a") & (gen({"custom": upper(_)}))) & (gen({"custom": upper(_)}))	{}	{"verdict":"valid","opts":{"partial":true}}
+anc24	verdict	"v": (("a") & (gen({"custom": upper(_)}))) & (gen({"custom": lower(_)}))	{}	{"verdict":"error"}
+anc25	verdict	"v": (("a") & (gen({"custom": upper(_)}))) & (gen({"custom": lower(_)}))	{}	{"verdict":"error","opts":{"noFill":true}}
+anc26	verdict	"v": (("a") & (gen({"custom": upper(_)}))) & (gen({"custom": lower(_)}))	{}	{"verdict":"error","opts":{"partial":true}}
+anc27	verdict	"v": (("a") & (gen({"custom": {"id": _}}))) & (gen({"custom": {"kind": "ref"}}))	{}	{"verdict":"error"}
+anc28	verdict	"v": (("a") & (gen({"custom": {"id": _}}))) & (gen({"custom": {"kind": "ref"}}))	{}	{"verdict":"error","opts":{"noFill":true}}
+anc29	verdict	"v": (("a") & (gen({"custom": {"id": _}}))) & (gen({"custom": {"kind": "ref"}}))	{}	{"verdict":"error","opts":{"partial":true}}
+anc30	verdict	"v": ("a") & (gen({"case": "upper", "custom": {"id": _}}))	{"v": "a"}	{"verdict":"valid"}
+anc31	verdict	"v": ("a") & (gen({"case": "upper", "custom": {"id": _}}))	{"v": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+anc32	verdict	"v": ("a") & (gen({"case": "upper", "custom": {"id": _}}))	{"v": "a"}	{"verdict":"valid","opts":{"partial":true}}

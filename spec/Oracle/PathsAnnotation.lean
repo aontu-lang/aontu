@@ -1,4 +1,5 @@
 import Oracle.Base
+import Oracle.Reader
 
 /-! The oracle's cases: PathsAnnotation, split out of `Oracle.lean` so that each area builds on its own. -/
 
@@ -243,6 +244,24 @@ theorem annotation_verdict_exact : ∀ c ∈ annotationCases, ∀ (m : Mode) (v 
     vetG m c.1 c.2.1 c.2.2 = v ↔ VetG m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetG_iff (annotationCases_checkable c hc).1 (annotationCases_checkable c hc).2 v
 
+/-- Documents whose annotation holds a `custom` expression, which `vet`
+reads as it reads any option: alone, it admits every value, which every
+type takes; beside a value it neither reads nor writes the expression,
+so the value is held as it is written; and two records meet only where
+their expressions are one. -/
+def customVetCases : List (Decls × Val × Data) :=
+  let cu (e : Val) : Val := c .gen [m [("custom", e)]]
+  let v (t : Val) : Val := m [("v", t)]
+  let dv (d : Data) : Data := dm [("v", d)]
+  [([], v (cu up), dv (js "a")), ([], v (cu up), dv (j 1)), ([], v (cu up), dm []),
+    ([], v (.meet (str "a") (cu up)), dv (js "a")), ([], v (.meet (str "a") (cu up)), dv (js "A")),
+    ([], v (.meet .string (cu (c .plus [str "<", .hole]))), dv (js "x")),
+    ([], v (.meet .string (cu (c .plus [str "<", .hole]))), dv (j 2)),
+    ([], v (.meet (.meet (str "a") (cu up)) (cu up)), dm []),
+    ([], v (.meet (.meet (str "a") (cu up)) (cu (c .lower [.hole]))), dm []),
+    ([], v (.meet (.meet (str "a") (cu (m [("id", .hole)]))) (cu (m [("kind", str "ref")]))), dm []),
+    ([], v (.meet (str "a") (c .gen [m [("case", str "upper"), ("custom", m [("id", .hole)])]])), dv (js "a"))]
+
 /-- The output annotation's rows, a function of their own so that the
 late rows' block stays within what the C compiler nests. -/
 def pathRowsAnnotation : IO Unit := do
@@ -259,3 +278,8 @@ def pathRowsAnnotation : IO Unit := do
   IO.println "# An annotation that conflicts inside any call's argument is the schema's"
   IO.println "# error, and a written `nil` passes through `gen` as it is."
   pathRows "an" annotationCases (verdict := vetG)
+  IO.println "# Records that hold a `custom` expression follow in rows anc0 on, each"
+  IO.println "# document read as the reader reads it, the expression held quoted"
+  IO.println "# (spec/Aontu/Quote.lean): `vet` reads no expression, and two records meet only"
+  IO.println "# where their expressions are one."
+  pathRows "anc" customVetCases (verdict := fun m ds S j => vetG m ds S.readCustom j)
