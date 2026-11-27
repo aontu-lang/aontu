@@ -133,6 +133,19 @@ export function armAdmits(arm: Val, ctx: AontuContext, own: any): boolean {
 }
 
 
+// A list literal in a pattern is sealed to its own length.
+export function sealedMiss(pattern: any, own: any): boolean {
+  if (true === pattern?.isList && null == pattern.spread?.cj && Array.isArray(own)) {
+    return own.length !== pattern.peg.length ||
+      pattern.peg.some((p: any, i: number) => sealedMiss(p, own[i]))
+  }
+  if (true === pattern?.isMap && isObject(own)) {
+    return Object.keys(pattern.peg).some((k) => hasOwn(own, k) && sealedMiss(pattern.peg[k], own[k]))
+  }
+  return false
+}
+
+
 export function ownJson(value: Val, ctx: AontuContext): any {
   const gctx = ctx.clone({ err: [], collect: true })
   const own = genPlain(value.clone(gctx), gctx)
