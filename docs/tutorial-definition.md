@@ -11295,7 +11295,7 @@ verdict: invalid
 $.hosts.web.url: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.hosts.web.url
   data: spread-data.aontu:1:38 ("http://web.example")
-  schema: spread.aontu:1:31 ("https://web.example")
+  schema: :-1:-1 ("https://web.example")
 $ echo $?
 1
 ```

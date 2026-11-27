@@ -113,11 +113,6 @@ class OpBaseVal extends FeatureVal {
         }
       }
       else {
-        if (true === (result as any).isScalar && result.site.row < 0) {
-          result.site.row = this.site.row
-          result.site.col = this.site.col
-          result.site.url = this.site.url
-        }
         out = result.done && peer.isTop ? result :
           unite(te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx, result, peer, 'op')
         out = rereadCall(ctx, out, newpeg, peer, () => {

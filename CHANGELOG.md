@@ -27,10 +27,10 @@ Under `--partial` each is `valid`. A scalar met with an operation still
 to decide now hands the meet to the operation, so a spread's template
 that computes meets its members: `v: {&: 1 + 1} & {a: 2}` was a
 `scalar_kind` error and is now `{"a": 2}`. Where the data refuses what
-such a template computes, the finding names the computed value at the
-template's site: `url: "https://" + .name` against `"http://web.example"`
-is `scalar_value`, with `"https://web.example"`, where it was
-`scalar_kind`, with `"https://"+.name`.
+such a template computes, the finding names the computed value, which
+has no site, as any computed value: `url: "https://" + .name` against
+`"http://web.example"` is `scalar_value`, with `"https://web.example"`,
+where it was `scalar_kind`, with `"https://"+.name` at the template.
 
 ### The oracle builds one module per area
 

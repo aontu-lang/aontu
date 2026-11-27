@@ -71,9 +71,6 @@ func (o *PlusOpVal) Unify(peer Val, ctx *Ctx) Val {
 				out = newConjunct([]Val{o, peer})
 			}
 		} else {
-			if sv, ok := result.(*ScalarVal); ok && unsited == sv.site.sp {
-				sv.site.sp, sv.site.spu, sv.site.url = o.site.sp, o.site.spu, o.site.url
-			}
 			out = rereadCall(unite(ctx, result, peer), newpeg, peer, func() Val {
 				np := newPlusOp(newpeg[0], newpeg[1])
 				np.path, np.site = cp(o.path), o.site
