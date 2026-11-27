@@ -21,9 +21,12 @@ admits its parent type.
 | `x: *1 \| *1` | `{"x": 3}` | `valid` | `invalid` |
 | `d: *1`, `x: $.d \| *1` | `{"x": 3}` | `valid` | `invalid` |
 
-The canon of such a disjunction changes with it: `x: *1 | *1` is
-`*1|1`, where it was `*1`, so its hash changes. What it generates
-doesn't.
+Defaults of one rank that meet fold the same way, keeping the arms as
+written: `*{x:1} | *{y:2}` is `*{"x":1,"y":2}|{"x":1}|{"y":2}`.
+
+The canon of such a disjunction follows the definition's normal form:
+`x: *1 | *1` is `*1|1`, where it was `*1`, so its hash changes. What it
+generates doesn't.
 
 ### The definition writes the output option `custom`
 
