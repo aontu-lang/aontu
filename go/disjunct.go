@@ -824,7 +824,8 @@ func armsVal(home Val, arms []rankedArm) Val {
 		pegs[i] = v
 	}
 	if pegs = dedup(pegs, true); 1 == len(pegs) {
-		one := clonePath(prefInnerPeg(pegs[0]), nil)
+		inner := prefInnerPeg(pegs[0])
+		one := clonePath(inner, inner.vpath())
 		ride(one, pegs[0], nil)
 		return one
 	}
