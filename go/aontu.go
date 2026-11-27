@@ -234,7 +234,12 @@ func (a *Aontu) GenerateVars(src string, vars map[string]Val) (any, error) {
 	case *TopVal, *PlaceVal:
 		return nil, residueErr(ctx, res, "no_gen")
 	}
-	out, gerr := res.Gen(ctx)
+	// A root left out of the output generates nothing, whatever its kind.
+	var out any
+	var gerr error
+	if !res.markedHide() && !res.markedType() {
+		out, gerr = res.Gen(ctx)
+	}
 	if gerr = genErr(ctx, gerr); gerr != nil {
 		return nil, gerr
 	}
