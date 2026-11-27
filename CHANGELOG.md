@@ -31,6 +31,19 @@ another way:
 A list literal in a pattern still reads as sealed to its own length,
 so `match([1, 2], [], …)` takes no arm, pending #1070.
 
+### The definition reads a call's data argument where its target stands
+
+Ruling 93 (#1012), in the definition. A path that is data a call
+reads, the source of `each`, `pack`, `apply` or `filter`, the bag of a
+fold or `sort`, the list `pick` and `join` read, or a `match`'s
+scrutinee, now reads its target where the target stands, as both
+engines already read it, and no longer as a copy placed at the call.
+With `src: {w: 1, a: {v: ..w}}` and `c: {w: 2, d: each($.src.a, _)}`,
+`c.d` is `[1]`. A `key()` in such a target still reads where the call
+stands in the definition (#1064). Rows dx0 to dx89 of
+`test/spec/def-path.tsv` hold the definition and both engines to it.
+Neither engine changes.
+
 ### The definition writes the output option `custom`
 
 `gen(spec)` writes every output option in the definition now, `custom`
