@@ -71,6 +71,7 @@ sum(d: map|list) : number
 least(d: map|list) : number
 greatest(d: map|list) : number
 pick(d: map|list, projector k: string|integer) : any
+at(d: map|list, ...k: string|integer) : any
 sort(d: map|list, projector k?: string|integer, dir?: string) : list
 join(d: map|list, sep?: string) : string
 esc(s: string, variant?: string) : string
