@@ -120,6 +120,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer == nil {
 		peer = top()
 	}
+	if nv := templateDeclares(l.spread, l.path); nv != nil {
+		return nv
+	}
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(l, ctx)
 	}

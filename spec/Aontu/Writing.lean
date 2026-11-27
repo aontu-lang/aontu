@@ -1,5 +1,6 @@
 import Aontu.Graph
 import Aontu.Written
+import Aontu.Quote
 
 /-!
 # What generation writes
@@ -30,8 +31,14 @@ before its keys are styled.
 - Two picked arms of a disjunction must write alike, as they must
   generate alike.
 
-`custom`, an expression, waits: a record that holds it writes nothing
-here.
+- Under `custom` the value is written by an expression, which the
+  record holds quoted (`Aontu/Quote.lean`): the record's other options
+  write the value first, and the expression is evaluated on its own,
+  as `apply` evaluates one, in the document `out: apply(d, e)` that
+  reads nothing else, with its hole bound to what the value writes,
+  read as data (`Data.given`). What `out` writes, its own annotations
+  written in turn, is the value's writing, and where `out` is left out
+  the value is too. `empty: "omit"` reads that writing.
 -/
 
 namespace Aontu
@@ -95,9 +102,8 @@ def styleKeys (st : NameStyle) (ms : List (String × Data)) : Option Data :=
 /-- Data as a record writes it at a place: a number rounded and
 perhaps as text, a boolean as a number or its name, a string in a case,
 an address in a form, and a map with its keys styled; none where the
-writing refuses, and where the record holds `custom`, which waits. -/
+writing refuses. `custom` is read after it (`rideWrites`). -/
 def Data.writeBy (r : Record) (place : List String) (d : Data) : Option Data :=
-  if (lookup "custom" r).isSome then none else
   match d with
   | .num x =>
     if r.text? "as" = some "string" then (x.written (r.count? "significant") (r.count? "places")).map .str
@@ -131,11 +137,48 @@ theorem Data.writeBy_nil (place : List String) : ∀ d : Data, d.writeBy [] plac
 
 /-! ## Writing a document -/
 
+mutual
+/-- Data as the hole of a `custom` expression is given it: what the
+value writes read back as data, so an address as its text and a float
+written as a whole number, digits alone, as the integer it is; none
+where the `integer` leaf doesn't hold that integer, as the reader
+refuses such digits. -/
+def Data.given : Data → Option Data
+  | .addr a => some (.str a.text)
+  | .num (.float x) =>
+    let n := x.shortest.1 * 10 ^ x.shortest.2.toNat
+    if 0 ≤ x.shortest.2 ∧ x.text.all (fun c => c.isDigit || c == '-') = true then
+      if h : IntegerLeaf n then some (.num (.integer ⟨n, h⟩)) else none
+    else some (.num (.float x))
+  | .map ms => (givenMembers ms).map .map
+  | .list xs => (givenElems xs).map .list
+  | d => some d
+
+def givenMembers : List (String × Data) → Option (List (String × Data))
+  | [] => some []
+  | (k, x) :: ms => do pure ((k, ← x.given) :: (← givenMembers ms))
+
+def givenElems : List Data → Option (List Data)
+  | [] => some []
+  | x :: xs => do pure ((← x.given) :: (← givenElems xs))
+end
+
+/-- A `custom` expression's writing of the data `d`, by the writer `cw`
+it is given (`customW`), or as the record's other options leave it
+where the record holds none. -/
+def customWrites (cw : Val → Data → Option (Option Data)) (r : Record) (d : Data) : Option (Option Data) :=
+  match lookup "custom" r with
+  | some q => q.unquote.bind fun e => d.given.bind (cw e)
+  | none => some (some d)
+
 /-- A value's writing under a record that rides it: the data written by
-the record, left out where the record omits it and it is written
-empty; a value left out, or one that writes nothing, stays so. -/
-def rideWrites (r : Record) (place : List String) : Option (Option Data) → Option (Option Data)
-  | some (some d) => (d.writeBy r place).map fun d' => if r.omits && d'.emptyWritten then none else some d'
+the record and then by its `custom` expression, left out where the
+record omits it and it is written empty; a value left out, or one that
+writes nothing, stays so. -/
+def rideWrites (cw : Val → Data → Option (Option Data)) (r : Record) (place : List String) :
+    Option (Option Data) → Option (Option Data)
+  | some (some d) => (d.writeBy r place).bind fun d' =>
+    (customWrites cw r d').map fun w => w.bind fun d'' => if r.omits && d''.emptyWritten then none else some d''
   | w => w
 
 /-- A disjunction's writing: what its picked arms all write, where it
@@ -178,18 +221,18 @@ mutual
 /-- What `v` writes at a place, mirroring `genWith`: `some (some d)`
 where it generates and writes `d`, `some none` where the value is left
 out, and `none` where it generates nothing or its writing refuses. -/
-def writeWith (chk : Val → Data → Bool) (place : List String) : Val → Option (Option Data)
+def writeWith (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) : Val → Option (Option Data)
   | .lit s => some (some s.data)
   | .addr a => some (some (.addr a))
   | .map fs spread _ =>
-    if keysDistinct fs then (writeFieldsWith chk place spread fs).map fun ms => some (.map (sortMembers ms))
+    if keysDistinct fs then (writeFieldsWith chk cw place spread fs).map fun ms => some (.map (sortMembers ms))
     else none
-  | .list items spread _ => (writeItemsWith chk place spread 0 items).map fun xs => some (.list xs)
-  | .or arms => orWrites (genWith chk (.or arms)) (writeArmsWith chk place arms arms none)
-  | .pref _ x => writeWith chk place x
-  | .ride k v r => if k = .gen then rideWrites r place (writeWith chk place v) else writeWith chk place v
-  | .link v _ => writeWith chk place v
-  | .meet a b => meetWrites chk a b (writeWith chk place a) (writeWith chk place b)
+  | .list items spread _ => (writeItemsWith chk cw place spread 0 items).map fun xs => some (.list xs)
+  | .or arms => orWrites (genWith chk (.or arms)) (writeArmsWith chk cw place arms arms none)
+  | .pref _ x => writeWith chk cw place x
+  | .ride k v r => if k = .gen then rideWrites cw r place (writeWith chk cw place v) else writeWith chk cw place v
+  | .link v _ => writeWith chk cw place v
+  | .meet a b => meetWrites chk a b (writeWith chk cw place a) (writeWith chk cw place b)
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .mapKind | .listKind | .pathKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
@@ -199,29 +242,29 @@ def writeWith (chk : Val → Data → Bool) (place : List String) : Val → Opti
 
 /-- The members a map's declarations write, as `genFieldsWith` generates
 them, a member left out where its value is. -/
-def writeFieldsWith (chk : Val → Data → Bool) (place : List String) (spread : Option Val) :
+def writeFieldsWith (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) (spread : Option Val) :
     List (String × Bool × Val) → Option (List (String × Data))
   | [] => some []
   | (k, o, v) :: fs =>
     match genWith chk v with
     | some x =>
       if spreadOk chk k spread x then
-        if o && x.emptyBag then writeFieldsWith chk place spread fs
-        else consWrites ((writeWith chk (place ++ [k]) v).map (·.map ((k, ·))))
-          (writeFieldsWith chk place spread fs)
-      else if o then writeFieldsWith chk place spread fs else none
-    | none => if o then writeFieldsWith chk place spread fs else none
+        if o && x.emptyBag then writeFieldsWith chk cw place spread fs
+        else consWrites ((writeWith chk cw (place ++ [k]) v).map (·.map ((k, ·))))
+          (writeFieldsWith chk cw place spread fs)
+      else if o then writeFieldsWith chk cw place spread fs else none
+    | none => if o then writeFieldsWith chk cw place spread fs else none
 
 /-- The elements a list's positions write, from the position `i` on, an
 element left out where its value is. -/
-def writeItemsWith (chk : Val → Data → Bool) (place : List String) (spread : Option Val) (i : ℕ) :
+def writeItemsWith (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) (spread : Option Val) (i : ℕ) :
     List Val → Option (List Data)
   | [] => some []
   | v :: vs =>
     match genWith chk v with
     | some x =>
       if spreadOk chk (toString i) spread x then
-        consWrites (writeWith chk (place ++ [toString i]) v) (writeItemsWith chk place spread (i + 1) vs)
+        consWrites (writeWith chk cw (place ++ [toString i]) v) (writeItemsWith chk cw place spread (i + 1) vs)
       else none
     | none => none
 
@@ -229,12 +272,12 @@ def writeItemsWith (chk : Val → Data → Bool) (place : List String) (spread :
 generate: `some (some w)` where every picked arm writes `w`, `some acc`
 where none is picked, and `none` where one writes nothing or two write
 apart. -/
-def writeArmsWith (chk : Val → Data → Bool) (place : List String) (arms₀ : List (ℕ × Val)) :
+def writeArmsWith (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) (arms₀ : List (ℕ × Val)) :
     List (ℕ × Val) → Option (Option Data) → Option (Option (Option Data))
   | [], acc => some acc
   | p :: arms, acc =>
-    if picked arms₀ p then armsStep (writeWith chk place p.2) acc (writeArmsWith chk place arms₀ arms)
-    else writeArmsWith chk place arms₀ arms acc
+    if picked arms₀ p then armsStep (writeWith chk cw place p.2) acc (writeArmsWith chk cw place arms₀ arms)
+    else writeArmsWith chk cw place arms₀ arms acc
 end
 
 /-- The declarations and the visible part of the staged normal form a
@@ -246,20 +289,40 @@ def Decls.writeForm (ds : Decls) (S : Val) : Decls × Val :=
   let F := P.1.withPathsS P.2
   (F.1, ((normaliseD F.1 (F.1.readR F.2)).staged F.1).visible)
 
-/-- What a document writes: its staged form written (`writeWith`),
-`null` where the document itself is left out, after the checks
-`OutputG` makes before it generates: the atoms' graph, a load the
-reading couldn't make, and a path that names nothing. Writing reads
-the staged form, as `vet` does, so that an arm of a type its record
-refuses drops before the arms are compared. -/
-def outputW (ds : Decls) (S : Val) : Option Data :=
+/-- What a document writes, a `custom` expression written by `cw`: its
+staged form written (`writeWith`), `null` where the document itself is
+left out, after the checks `OutputG` makes before it generates: the
+atoms' graph, a load the reading couldn't make, and a path that names
+nothing. Writing reads the staged form, as `vet` does, so that an arm
+of a type its record refuses drops before the arms are compared. -/
+def outputWBy (cw : Val → Data → Option (Option Data)) (ds : Decls) (S : Val) : Option Data :=
   let P := (ds.loaded S).1.preparedS (ds.loaded S).2
   if (ds.genFormS S).graphOk && !ds.unread S && P.1.resolvesB P.2 then
-    match writeWith (checkR (ds.writeForm S).1) [] (ds.writeForm S).2 with
+    match writeWith (checkR (ds.writeForm S).1) cw [] (ds.writeForm S).2 with
     | some (some d) => some d
     | some none => some .null
     | none => none
   else none
+
+/-- The document a `custom` expression `e` is evaluated in for the data
+`d`: `out: apply(d, e)`, which reads nothing else. -/
+def customDoc (e : Val) (d : Data) : Val := .map [("out", false, .call .apply [d.term, e])] none false
+
+/-- What a `custom` expression writes for the data its hole is given:
+what `out` writes in `customDoc`, written with `n` more levels of
+`custom` beneath it, and left out where `out` is. -/
+def customW : ℕ → Val → Data → Option (Option Data)
+  | 0, _, _ => none
+  | n + 1, e, d =>
+    match outputWBy (customW n) [] (customDoc e d) with
+    | some (.map ms) => some (lookup "out" ms)
+    | _ => none
+
+/-- What a document writes (`outputWBy`), each `custom` expression
+evaluated by `customW`, with as many levels as the document and its
+declarations have terms, more than the expressions they hold can
+nest, since the reader holds each in the term it writes. -/
+def outputW (ds : Decls) (S : Val) : Option Data := outputWBy (customW (S.size + ds.bodiesSize + 1)) ds S
 
 /-! ## Writing without an annotation is generating -/
 
@@ -292,44 +355,44 @@ mutual
 /-- **A term that carries no output annotation writes what it
 generates**, whatever place it is written at: writing is generation
 where no record says otherwise. -/
-theorem writeWith_plain (chk : Val → Data → Bool) (place : List String) :
-    ∀ v : Val, v.plain = true → writeWith chk place v = (genWith chk v).map some
+theorem writeWith_plain (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) :
+    ∀ v : Val, v.plain = true → writeWith chk cw place v = (genWith chk v).map some
   | .lit _, _ => by rw [writeWith, genWith]; rfl
   | .addr _, _ => by rw [writeWith, genWith]; rfl
   | .map fs spread _, h => by
     rw [Val.plain] at h
     rw [writeWith, genWith]
     split
-    · rw [writeFieldsWith_plain chk place spread fs h, Option.map_map]
+    · rw [writeFieldsWith_plain chk cw place spread fs h, Option.map_map]
       rfl
     · rfl
   | .list items spread _, h => by
     rw [Val.plain] at h
-    rw [writeWith, genWith, writeItemsWith_plain chk place spread 0 items h, Option.map_map]
+    rw [writeWith, genWith, writeItemsWith_plain chk cw place spread 0 items h, Option.map_map]
     rfl
   | .or arms, h => by
     rw [Val.plain] at h
-    have ha : writeArmsWith chk place arms arms none =
+    have ha : writeArmsWith chk cw place arms arms none =
         (genArmsWith chk arms arms none).map (Option.map some) :=
-      writeArmsWith_plain chk place arms arms none h
+      writeArmsWith_plain chk cw place arms arms none h
     rw [writeWith, ha, genWith]
     generalize genArmsWith chk arms arms none = g
     rcases g with _ | _ | j <;> rfl
   | .pref _ x, h => by
     rw [Val.plain] at h
     rw [writeWith, genWith]
-    exact writeWith_plain chk place x h
+    exact writeWith_plain chk cw place x h
   | .ride k v _, h => by
     rw [Val.plain, Bool.and_eq_true, bne_iff_ne] at h
     rw [writeWith, genWith, if_neg h.1]
-    exact writeWith_plain chk place v h.2
+    exact writeWith_plain chk cw place v h.2
   | .link v _, h => by
     rw [Val.plain] at h
     rw [writeWith, genWith]
-    exact writeWith_plain chk place v h
+    exact writeWith_plain chk cw place v h
   | .meet a b, h => by
     rw [Val.plain, Bool.and_eq_true] at h
-    rw [writeWith, genWith, writeWith_plain chk place a h.1, writeWith_plain chk place b h.2]
+    rw [writeWith, genWith, writeWith_plain chk cw place a h.1, writeWith_plain chk cw place b h.2]
     unfold meetWrites
     cases genWith chk a with
     | some x =>
@@ -350,14 +413,14 @@ theorem writeWith_plain (chk : Val → Data → Bool) (place : List String) :
   | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _ | .key, _ | .keyUp _, _
   | .call _ _, _ | .hole, _ => by rw [writeWith, genWith]; rfl
 
-theorem writeFieldsWith_plain (chk : Val → Data → Bool) (place : List String) (spread : Option Val) :
+theorem writeFieldsWith_plain (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) (spread : Option Val) :
     ∀ fs : List (String × Bool × Val), plainFields fs = true →
-      writeFieldsWith chk place spread fs = genFieldsWith chk spread fs
+      writeFieldsWith chk cw place spread fs = genFieldsWith chk spread fs
   | [], _ => by rw [writeFieldsWith, genFieldsWith]
   | (k, o, v) :: fs, h => by
     rw [plainFields, Bool.and_eq_true] at h
-    rw [writeFieldsWith, genFieldsWith, writeWith_plain chk (place ++ [k]) v h.1,
-      writeFieldsWith_plain chk place spread fs h.2]
+    rw [writeFieldsWith, genFieldsWith, writeWith_plain chk cw (place ++ [k]) v h.1,
+      writeFieldsWith_plain chk cw place spread fs h.2]
     cases genWith chk v with
     | none => rfl
     | some x =>
@@ -368,14 +431,14 @@ theorem writeFieldsWith_plain (chk : Val → Data → Bool) (place : List String
         · cases genFieldsWith chk spread fs <;> rfl
       · rfl
 
-theorem writeItemsWith_plain (chk : Val → Data → Bool) (place : List String) (spread : Option Val) :
+theorem writeItemsWith_plain (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) (spread : Option Val) :
     ∀ (i : ℕ) (items : List Val), plainItems items = true →
-      writeItemsWith chk place spread i items = genItemsWith chk spread i items
+      writeItemsWith chk cw place spread i items = genItemsWith chk spread i items
   | _, [], _ => by rw [writeItemsWith, genItemsWith]
   | i, v :: vs, h => by
     rw [plainItems, Bool.and_eq_true] at h
-    rw [writeItemsWith, genItemsWith, writeWith_plain chk (place ++ [toString i]) v h.1,
-      writeItemsWith_plain chk place spread (i + 1) vs h.2]
+    rw [writeItemsWith, genItemsWith, writeWith_plain chk cw (place ++ [toString i]) v h.1,
+      writeItemsWith_plain chk cw place spread (i + 1) vs h.2]
     cases genWith chk v with
     | none => rfl
     | some x =>
@@ -384,29 +447,29 @@ theorem writeItemsWith_plain (chk : Val → Data → Bool) (place : List String)
       · cases genItemsWith chk spread (i + 1) vs <;> rfl
       · rfl
 
-theorem writeArmsWith_plain (chk : Val → Data → Bool) (place : List String) (arms₀ : List (ℕ × Val)) :
+theorem writeArmsWith_plain (chk : Val → Data → Bool) (cw : Val → Data → Option (Option Data)) (place : List String) (arms₀ : List (ℕ × Val)) :
     ∀ (arms : List (ℕ × Val)) (acc : Option Data), plainArms arms = true →
-      writeArmsWith chk place arms₀ arms (acc.map some) = (genArmsWith chk arms₀ arms acc).map (Option.map some)
+      writeArmsWith chk cw place arms₀ arms (acc.map some) = (genArmsWith chk arms₀ arms acc).map (Option.map some)
   | [], _, _ => by rw [writeArmsWith, genArmsWith]; rfl
   | (r, a) :: arms, acc, h => by
     rw [plainArms, Bool.and_eq_true] at h
     rw [writeArmsWith, genArmsWith]
     split
-    · rw [writeWith_plain chk place a h.1]
+    · rw [writeWith_plain chk cw place a h.1]
       unfold armsStep
       cases genWith chk a with
       | none => rfl
       | some x =>
         cases acc with
-        | none => exact writeArmsWith_plain chk place arms₀ arms (some x) h.2
+        | none => exact writeArmsWith_plain chk cw place arms₀ arms (some x) h.2
         | some y =>
           dsimp only [Option.map]
           by_cases hxy : x = y
           · subst hxy
             rw [if_pos rfl, if_pos rfl]
-            exact writeArmsWith_plain chk place arms₀ arms (some x) h.2
+            exact writeArmsWith_plain chk cw place arms₀ arms (some x) h.2
           · rw [if_neg (fun he => hxy (Option.some.inj he)), if_neg hxy]
-    · exact writeArmsWith_plain chk place arms₀ arms acc h.2
+    · exact writeArmsWith_plain chk cw place arms₀ arms acc h.2
 end
 
 end Aontu

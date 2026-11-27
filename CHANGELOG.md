@@ -8,31 +8,138 @@ each change affects.
 
 ## Unreleased
 
-### A disjunction a spread leaves unresolved is named where it stands
+### The definition writes the output option `custom`
 
-A disjunction that a spread's template leaves unresolved raised
-`disjunct_no_gen` at the template's position rather than at the member
-it stands in. Go named the template in a map and in a list. Both
-engines did once another type built on the spread's owner calls
-`unique()`, which shares the template with its members: TypeScript
-named the member correctly until the template was filled once (#556).
-The error now takes the position the walk reached, as a map or list
-member left unmade already does (#557).
+`gen(spec)` writes every output option in the definition now, `custom`
+among them. The reader holds the expression quoted in the record
+(`spec/Aontu/Quote.lean`), so the record rides, unifies and is held to
+its type as any other, and two records meet only where their
+expressions are one. `spec/Aontu/Writing.lean` evaluates it after the
+record's other options, as `apply()` evaluates one, in the document
+`out: apply(d, e)`, its hole bound to what the value writes read as
+data. Rows cw0 on in the new `test/spec/def-custom.tsv`, and rows anc0
+on in `test/spec/def-path.tsv` for `vet`, which reads the expression as
+any option; both ports answer every one as the definition does.
 
-```aontu
-v: [&: {n: "a" | "b"}] & [{}]
-```
+### An error under a spread's template names the member
 
-| `aontu` | path of `disjunct_no_gen` |
+#1018, in both engines. An error inside a member that a `&:` template
+constrains names the member, where it named the list or map that holds
+it: Go always, and TypeScript where two list spreads met.
+
+| Document | Was | Now |
+|---|---|---|
+| `x: { h: [&: { s: "a" \| "b" }] } & { h: [ {} ] }` | `$.x.h.s` in Go | `$.x.h.0.s` |
+| `x: { h: [&: { at: string }] } & { h: [&: { s: "a" \| "b" }] } & { h: [ { at: "z" } ] }` | `$.x.h.s` | `$.x.h.0.s` |
+| `x: { h: { &: { s: "a" \| "b" } } } & { h: { k: {} } }` | `$.x.h.s` in Go | `$.x.h.k.s` |
+
+### A declaration in a spread's template is refused
+
+**Breaking.** #1032, in both engines. A declaration sits at the root of
+the document, so one in a spread's template, `m: { &: { %n = 1, v: %n } }`,
+or in a source loaded as one, `m: { &: @"./s.aontu" }`, is refused with
+`alias_not_toplevel` at the map or list that holds the template, as
+`x: { %n = 1 }` already was. Before, TypeScript's `vet` passed such a
+document, Go's answered `error`, and generation failed with `no_path`
+at a path each engine spelled differently.
+
+### The definition reads a path that leaves a link's template where the link is written
+
+A path in a link's template that climbs past the template, as `..k`
+does in `relate({v: ..k})`, now reads in the definition where the
+document writes the link, as both engines already read it, and no longer
+from the link's target. With `k: 7`, `x: {k: 3, n: relate({v: ..k}) &
+path($.out)}` and `out: {}`, the link sends `v: 3`. A path that stays
+inside the template still reads at the target. Rows lc0 to lc50 of
+`test/spec/def-path.tsv` hold the definition and both engines to it.
+Neither engine changes.
+
+### `subsume` compares a spread template that is a name
+
+Both ports. A spread's template that is a name, `kids?: [&: %R]`, is
+compared as the definition it names, so two recursions of one shape
+under different names answer `subsumes` where a spread stands between
+the recursion and its body, as they already did through a key (#1017).
+A template whose definition, as written, holds `key()` or a path still
+answers `undecided` with `sub_path_dependent_spread`.
+
+### `view`, `reaches` and `graph` read a default's edges
+
+Both ports, as ruled on 27 November (decision 94, #1029). The link
+graph that `aontu view`, `aontu reaches` and the library's `graph` read
+now holds the edges generation writes. A default's links are edges,
+alone (`*[path($.b)]`, `pref(...)`) or as the preferred arm of a
+disjunction, and the arms generation doesn't take are neither edges
+nor in `view`'s loss report. Before, a link under a preference was read
+by none of them and reported by nothing, though `aontu relations` and
+generation counted it. A disjunction with no preferred arm is
+unchanged: its links are undecided, and `view` reports them as
+`edges_in_disjunct`.
+
+### A call that waits, inside `contains`, `rest`, `len`, a starred branch or a spread's template, waits
+
+**Breaking.** Ruling 91 (#977), in both engines. A call still waiting
+for an operand, such as `integer + 1`, neither admits nor refuses, so a
+trial or a size that tries one waits with it, as `nof`, `must`, `when`
+and `match` already did (#432). Each of these was answered before:
+
+| Schema | Data | Before | Now |
+|---|---|---|---|
+| `v: contains(integer + 1)` | `v: [5]` | `valid` | `incomplete` |
+| `v: rest(integer + 1)` | `v: [5]` | `valid` | `incomplete` |
+| `v: len(integer + 1)` | `v: [1, 2]` | `valid` | `incomplete` |
+| `v: nof(0, *(integer + 1))` | `v: 5` | `valid` | `incomplete` |
+| `v: {&: integer + 1}` | `v: {a: 5}` | `invalid` | `incomplete` |
+
+Under `--partial` each is `valid`. A scalar met with an operation still
+to decide now hands the meet to the operation, so a spread's template
+that computes meets its members: `v: {&: 1 + 1} & {a: 2}` was a
+`scalar_kind` error and is now `{"a": 2}`. Where the data refuses what
+such a template computes, the finding names the computed value, which
+has no site, as any computed value: `url: "https://" + .name` against
+`"http://web.example"` is `scalar_value`, with `"https://web.example"`,
+where it was `scalar_kind`, with `"https://"+.name` at the template.
+
+### The oracle builds one module per area
+
+`spec/Oracle.lean` keeps only `main`. Its cases moved to one module per
+area under `spec/Oracle/`, with the helpers and printers they share in
+`spec/Oracle/Base.lean`, so that a change to one area rebuilds that
+module alone. Every generated file is unchanged.
+
+### The language servers complete keys and the members of a path
+
+Task LS3, in both servers.
+
+- **At a key**, completion offers the keys the map there takes once the
+  document has unified and that it has not written: the fields of a
+  type it meets, and what a spread's template declares. Each comes
+  with its value's canon, and an optional key says so.
+- **After a dot in a reference**, it offers the members of the path the
+  reference has reached, as the engine resolves it: a map's keys or a
+  list's positions, across includes. One dot reads the map or list that
+  holds the value being written, the maps a key chain such as `b: c:`
+  writes included, each more dot one level up. A dot is now a trigger
+  character, and one that begins no path offers nothing.
+
+| `S: type({ port: integer, tier?: string })` then, the cursor at `¦` | completion offers |
 |---|---|
-| TypeScript | `$.v.0.n` |
-| Go, before | `$.v.n` |
-| Go, now | `$.v.0.n` |
+| `api: $.S & { ¦ }` | `port`, *integer*; `tier`, *string (optional)* |
+| `x: $.S.¦` | `port`, `tier` |
 
-Three rows of `test/spec/place.tsv` hold both engines to it: a map's
-spread, a list's, and a list spread shared through a type that calls
-`unique()`, which both engines had named `$.v.t.t.h.s` for
-`$.v.t.t.h.0.s`. Both engines.
+Both read the document with the word being typed taken out, the
+reference being typed standing as `any`, and every bracket left open
+closed, and read the reference itself with the parser. Elsewhere
+completion offers the general list as before. A key that `aontu fmt`
+would not write bare is inserted as the canon writes a string, and so
+is a path's segment that would read as a value: `_`, `true`, `false`,
+`null`, or `nil`. A new shared-row mode, `members`, holds both ports to
+one answer, in 79 rows of `test/spec/cursor.tsv`.
+
+A document the TypeScript parser throws on, rather than refusing,
+such as an include written as a key (`@"./b.aontu" : 1`), no longer
+takes the server down when the cursor reads it: hover, definition and
+completion answer nothing there, as Go's do.
 
 ### The language servers answer hover and go to definition on a key and on a reference
 

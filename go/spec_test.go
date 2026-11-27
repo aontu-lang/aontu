@@ -77,7 +77,8 @@ func TestSpec(t *testing.T) {
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode ||
-				"at" == mode || "describe" == mode || "define" == mode
+				"at" == mode || "describe" == mode || "define" == mode ||
+				"members" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -600,6 +601,22 @@ func TestSpec(t *testing.T) {
 					if !jsonEqual(got, expect) {
 						gj, _ := json.Marshal(got)
 						t.Fatalf("at mismatch\n want: %s\n got:  %s", expect, gj)
+					}
+
+				case "members":
+					ls, cs, _ := strings.Cut(data, ":")
+					line, lerr := strconv.Atoi(ls)
+					character, cerr := strconv.Atoi(cs)
+					if nil != lerr || nil != cerr {
+						t.Fatalf("bad members position %q", data)
+					}
+					var got any
+					if at := New().MembersAt(src, CursorPosition{line, character}); nil != at {
+						got = at
+					}
+					if !jsonEqual(got, expect) {
+						gj, _ := json.Marshal(got)
+						t.Fatalf("members mismatch\n want: %s\n got:  %s", expect, gj)
 					}
 
 				case "describe", "define":

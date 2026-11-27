@@ -4540,17 +4540,17 @@ its own where the copy stands. So
 `v: 2`, and a link the template carries reads its relative address
 from where that template lands. A path that names no member of the
 target's is an error, as any path to nothing is. A path that climbs
-past the template, as `..k` does in `relate({v: ..k})`, both engines
-read where the document writes the link, and the definition from the
-target, which differ only where the target isn't the link's sibling.
-[#1001](https://github.com/aontu-lang/aontu/issues/1001) asks which
-holds.
+past the template, as `..k` does in `relate({v: ..k})`, has left what
+lands, so it reads where the document writes the link: with `k: 7`,
+`x: {k: 3, n: relate({v: ..k}) & path($.out)}` and `out: {}`, the link
+sends `v: 3` into `out`.
 
 In the definition, `relate(t)` reads as the relation kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets each link's template, its marks cleared, at the target its
-address names from where the link stands, each relative path in the
-template read from that target (`Val.atTarget`). It reads the targets in
+address names from where the link stands, each relative path that
+stays inside the template read from that target, and one that climbs
+past it from where the link stands (`Val.atTarget`). It reads the targets in
 passes, so one link's template can make another link's target,
 whichever the document writes first. Since the template rides the value
 the link meets, the definition reads each link where it lands: where
@@ -6994,9 +6994,12 @@ These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Su
   template has no member beyond the ones it declares, each of which
   the template already holds, so the walk compares nothing more. A specific-only template narrows the
   specific side and refuses nothing. A **path-dependent** template
-  (one whose meaning depends on where it lands: `key()`, a
-  reference) cannot be compared structurally:
-  `sub_path_dependent_spread`, undecided.
+  (one whose meaning depends on where it lands: `key()`, a path)
+  cannot be compared structurally:
+  `sub_path_dependent_spread`, undecided. A name's meaning doesn't
+  depend on where it lands, so a name as a template compares as
+  the definition it names, a recursion as at a key, unless that
+  definition as written holds `key()` or a path.
 - Under the `gen` profile, `type`/`hide` marks must agree on
   corresponding nodes (`compat_marks_changed`).
 
@@ -8220,7 +8223,7 @@ back.
 
 `when(c, t, e)` holds the datum to the branch its condition picks, an `else` not written reading as `any`: `judge_when_iff` and `when_nil_refuses` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
 
-An argument that holds a call still waiting for an operand, `integer + 1`, makes `must`, `nof` or `when` wait with it. The atom neither admits nor refuses, so `nof(0, integer + 1) & 5` stays incomplete, where a branch that refused `5` would admit it, and `--partial` lets it pass. The count of `nof` holds it the same way. A call in a spread's template inside the argument holds nothing, and an argument that doesn't stand admits nothing, as before. The definition reads such an atom as the term that waits, `Val.waiting` and `waitOr` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), where `Val.stalls` finds the call, and rows `wt0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. `contains`, `rest` and `len` over such a call read another way in both engines, which #977 tracks.
+An argument that holds a call still waiting for an operand, `integer + 1`, makes `must`, `nof` or `when` wait with it. The atom neither admits nor refuses, so `nof(0, integer + 1) & 5` stays incomplete, where a branch that refused `5` would admit it, and `--partial` lets it pass. The count of `nof` holds it the same way. A call in a spread's template inside the argument holds nothing, and an argument that doesn't stand admits nothing, as before. The definition reads such an atom as the term that waits, `Val.waiting` and `waitOr` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), where `Val.stalls` finds the call, and rows `wt0` on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. `contains`, `rest` and `len` over such a call wait the same way in both engines, as do a starred branch, `nof(0, *(integer + 1))`, and a spread's template that is the call, `{&: integer + 1}`: ruling 91, #977. The definition doesn't yet read the first four so.
 
 ### Band B: `contains`
 

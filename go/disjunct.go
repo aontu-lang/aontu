@@ -199,7 +199,7 @@ func (d *DisjunctVal) Gen(ctx *Ctx) (any, error) {
 		if out, same := d.genAlike(ctx); same {
 			return out, nil
 		}
-		return nil, residueErrAt(ctx, d, "disjunct_no_gen", nil, genPlaceOf(ctx, d))
+		return nil, residueErr(ctx, d, "disjunct_no_gen")
 	}
 	if val == nil {
 		// Registered code for an alternatives-exhausted disjunct. (TS

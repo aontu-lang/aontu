@@ -9,8 +9,9 @@ order: 90
 Both implementations serve the Language Server Protocol from the
 command itself, `aontu lsp`: unification problems as diagnostics
 while you type, with hover, completion, and go to definition beside
-them, on a key and on a reference across the files a document
-includes. Ready-made
+them. Completion offers the keys a type declares and the members of a
+path after a dot; hover and definition work on a key and on a
+reference, across the files a document includes. Ready-made
 clients for VS Code, Emacs, Vim/Neovim, and the JetBrains IDEs live in
 [`editors/`](../../editors/), each a thin client that launches the
 server, with install steps in its README. The recipes below are for

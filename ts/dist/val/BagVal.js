@@ -5,6 +5,7 @@ exports.BagVal = void 0;
 exports.templateKey = templateKey;
 exports.keyTable = keyTable;
 exports.putKey = putKey;
+exports.templateDeclares = templateDeclares;
 exports.sizingResidue = sizingResidue;
 exports.bagGenable = bagGenable;
 exports.undecided = undecided;
@@ -18,6 +19,7 @@ const NilVal_1 = require("./NilVal");
 const FeatureVal_1 = require("./FeatureVal");
 const ExpectVal_1 = require("./ExpectVal");
 const keyorder_1 = require("../keyorder");
+const aliasname_1 = require("../aliasname");
 const genwrite_1 = require("./genwrite");
 class BagVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -106,7 +108,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             const p = item[0];
             let child = item[1];
             const at = [...this.path, String(p)];
-            if (true === child.isBag && child.path.join('\u0000') !== at.join('\u0000')) {
+            if (true !== child.isScalar && true !== child.isExpect && true !== child.isNil && child.path.join('\u0000') !== at.join('\u0000')) {
                 child = child.clone(ctx, { path: at });
                 (0, Val_1.repathInstance)(child, at);
             }
@@ -232,6 +234,22 @@ function putKey(out, key, val) {
     else {
         out[key] = val;
     }
+}
+// A template stands below the root, so a declaration in it is refused there.
+function templateDeclares(bag) {
+    const t = bag.spread?.cj;
+    if (true !== t?.isMap) {
+        return undefined;
+    }
+    const named = 0 < t.aliasKeys.length ? (0, aliasname_1.aliasBareName)(t.aliasKeys[0]) :
+        0 < (t.exportKeys ?? []).length ? aliasname_1.EXPORT_DECL_NAME : undefined;
+    if (undefined === named) {
+        return undefined;
+    }
+    const nv = new NilVal_1.NilVal({ why: 'alias_not_toplevel' });
+    nv.site = t.site;
+    nv.path = [...bag.path, named];
+    return nv;
 }
 // A conjunct of exactly one sizing constraint and one container: the
 // shape ConstraintVal.admitContainer leaves when its reading is still
