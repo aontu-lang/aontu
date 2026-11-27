@@ -55,6 +55,53 @@ Two new shared-row modes, `describe` and `define`, hold both ports to
 one answer, in 99 new rows of `test/spec/cursor.tsv`, 26 of them across
 includes.
 
+### Three readings of the output annotation the definition missed
+
+The definition now reads three cases of `gen` as both engines do. An
+annotation inside a call's argument that its value doesn't take, or two
+that disagree, is the schema's error, as `upper("a" & gen({ keys:"camel" }))`
+is, and so is one in `gen`'s own argument. A lone default whose own
+value's records disagree is an error at its place. And `gen(nil)` is the
+written `nil` it's given, so `note?: gen(nil)` leaves `note` out:
+
+```aontu
+note?: gen(nil)
+name: "ada" & gen({ case:"upper" })
+```
+
+```json
+{"name":"ADA"}
+```
+
+81 rows of `test/spec/def-path.tsv`, an570 on, hold both engines to it.
+No engine changes.
+
+### The definition writes what the output options say
+
+What a document writes under its output annotations was stated for a
+number alone. The definition now writes every option but `custom`, as
+both engines do: a boolean as a number or its name, a string in a
+case, an address in a form, a map's keys in a style, and a value
+written empty left out under `empty: "omit"`.
+
+```aontu
+order: {
+  orderId: 7 & gen({ as:"string" })
+  note: "" & gen({ empty:"omit" })
+  status: "open" & gen({ case:"upper" })
+  self: path(.orderId) & gen("pointer")
+} & gen({ keys:"snake" })
+```
+
+```json
+{"order":{"order_id":"7","self":"/order/orderId","status":"OPEN"}}
+```
+
+`spec/Aontu/Writing.lean` states it, with the proof that a term with no
+annotation writes what it generates, and 162 rows of
+`test/spec/def-gen.tsv`, wa0 on, hold both engines to it. No engine
+changes. `custom`, an expression, waits.
+
 ### The definition reads the output annotation
 
 `gen(r)` was the one built-in function the definition held no rule for.
