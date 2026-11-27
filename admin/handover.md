@@ -1,29 +1,30 @@
 # Handover: the lang refinement plan
 
 Where the work on [the lang refinement plan](../sketch/LANG-REFINEMENT-PLAN.0.md)
-stands on 2026-11-27, after LS3 merged, and what whoever takes it on
-needs to know. The plan is the design: its parts, its rulings and its
-order. This note is the state of the work against it, what waits on
-whom, and what was learned building it. It is a snapshot: the plan's
-progress notes, [`CHANGELOG.md`](../CHANGELOG.md) and the merged pull
-requests stay current, and this note does not.
+stands late on 2026-11-27, after the language server's last feature and
+the definitions of `at` and of `pack`'s key argument merged, and what
+whoever takes it on needs to know. The plan is the design: its parts,
+its rulings and its order. This note is the state of the work against
+it, what waits on whom, and what was learned building it. It is a
+snapshot: the plan's progress notes, [`CHANGELOG.md`](../CHANGELOG.md)
+and the merged pull requests stay current, and this note does not.
 
 ## Where it stands
 
 The plan has 61 tasks. Part 5's six are deferred by ruling. Of the
-other 55, which count P0, the rulings on parts 2 to 7, 19 are done, 2
-are in progress and 34 have not started. Apart from the one that adds
-this note, no pull request from this work is open.
+other 55, which count P0, the rulings on parts 2 to 7, 30 are done, 2
+are in progress and 23 have not started. No pull request from this
+work is open.
 
 | Part | Done | In progress | Not started |
 |---|---|---|---|
-| 1, comprehensions | C0, C7 | C6 | C1 to C5, C8 |
-| 2, the guide for CUE users | CG1, CG2 | | CG3 to CG5 |
-| 3, the language server | LS1 to LS4, LS9 | | LS5 to LS8 |
+| 1, comprehensions | C0, C1, C2, C7, C8 | C6 | C3, C4, C5 |
+| 2, the guide for CUE users | CG1, CG2, CG4 | | CG3, CG5 |
+| 3, the language server | LS1 to LS9 | | |
 | 4, a short form for a key pattern | KP1, KP2 | | |
 | 5, OpenAPI | deferred by ruling | | |
 | 6, host values on the command line | HV1 to HV4 | | |
-| 7, binary types | BT1 | | BT2 to BT5 |
+| 7, binary types | BT1, BT2, BT4, BT5 | | BT3 |
 | 8, root path references | | | RP1 to RP5 |
 | 9, language versions | | | LV1 to LV5 |
 | 10, more scalar types | | | ST1 to ST7 |
@@ -31,46 +32,38 @@ this note, no pull request from this work is open.
 
 The two in progress:
 
-- **C6**, the five defects on the comprehension routes. #870 and #871
-  are fixed. #850, and the half of #868 still open, are the parser
-  defect that IS3 fixes, and close with it. #754, a `filter`'s
-  condition in a member a generator makes, reads nothing and answers
-  empty, and is not started.
-- **IS3**, the parse of negative arguments, `neq(-1, -2, -3)`. The
-  cause is in the expression parser, and the fix is merged there as
-  tabnas/expr#121. A release of `@tabnas/expr`, then the pins raised in
-  aontu with the shared row, close it.
+- **C6**, the five defects on the comprehension routes. #870, #871 and
+  #754 are fixed. #850, and the half of #868 still open, are the parser
+  defect that IS3 fixes, and close with it.
+- **IS3**, the parse of negative arguments, `neq(-1, -2, -3)`. The fix
+  is merged in the parser as tabnas/expr#121. A release of
+  `@tabnas/expr` past 0.6.4, then the pins raised in aontu with the
+  shared row, close it. The same family is behind two more findings
+  below.
 
-Beside the plan, the five input and output tasks ruled in
-[`IO-FORMATS.0.md`](../sketch/IO-FORMATS.0.md#the-rulings) have not
-started: raise the tabnas pins, after IS3; an output flag, after the
-pins; `encode` in a named format, after the flag; readers for CSV,
-JSONL, XML and grammar-defined input, after the pins and a defect in how
-an included file with a list at its root is read; and a data file
-operand read by its extension, which needs no new dependency.
+Beside the plan, of the five input and output tasks ruled in
+[`IO-FORMATS.0.md`](../sketch/IO-FORMATS.0.md#the-rulings), the data
+file operand read by its extension is done; the pins, the output flag,
+`encode` in a named format and the readers wait on IS3.
 
 ## What each remaining task waits on
 
-- **Nothing, or only work that is done:** LS5, LS6 and LS8 stand on
-  LS1. C1 and C4 stand on the rulings, though part 1 keeps its own
-  order, C1, then C2, then C5 and C3, and C4 last, since it alone
-  changes a trust number; C4 also settles first the diagnostic that
-  already uses the word `range` in one engine. C8 stands on C7, and
-  is revised as each built-in lands. CG4 stands on CG1 and CG2. BT2
-  stands on nothing. So does the data file operand.
-- **Another task of the plan:** C2 and C5 on C1. C3 and C5 on the
-  defects in how `key()` counts levels, which part 11 names. LS7 on LS6.
-  CG5 on CG4. BT3 on BT1 and ST5. BT5 on BT1 and BT4. RP2 to RP5 on
-  RP1. LV1 on RP1, and the rest of part 9 on LV1. ST1 on LV1, since by
-  ruling the bare word is the kind, so the types need a file's version.
-  The rest of part 10 on ST1.
-- **Something outside the plan:** RP1 on the issue plan's work on where
-  copies, bodies and templates read paths. BT4 on #658, where a refusal
-  sited in a built-in model frames the entry document's lines in
-  TypeScript. IS3, the rest of C6 and the pins on the `@tabnas/expr`
-  release. CG3 on a push from an account with the GitHub `workflow`
-  scope, since it changes `.github/workflows/daily.yml`. CG5 on access to
-  `aontu-lang/web`, where the site lives.
+- **Nothing, or only work that is done:** C4, `range(n)`. Part 1's
+  order puts it last, since it alone changes a trust number, but C3 and
+  C5 wait on work outside this plan, so C4 is the next built-in that
+  can start; it settles first the diagnostic that already uses the word
+  `range` in one engine (ruling 50's note on #313).
+- **Another task of the plan:** BT3 on ST5. RP2 to RP5 on RP1. LV1 on
+  RP1, and the rest of part 9 on LV1. ST1 on LV1, since by ruling the
+  bare word is the kind, so the types need a file's version. The rest
+  of part 10 on ST1.
+- **Something outside the plan:** C3 and C5 on the defects in how
+  `key()` counts levels, which part 11 names and the definition track
+  is working through (#1064, #1065, #1072). RP1 on the issue plan's
+  work on where copies, bodies and templates read paths. IS3, the rest
+  of C6 and the pins on the `@tabnas/expr` release. CG3 on a push from
+  an account with the GitHub `workflow` scope, since it changes
+  `.github/workflows/daily.yml`. CG5 on access to `aontu-lang/web`.
 
 ## What waits on the maintainer
 
@@ -83,7 +76,9 @@ operand read by its extension, which needs no new dependency.
 4. **The kind under a hover.** Since LS2 both servers call `null`
    *null* and a `path(...)` value *path*, where TypeScript said
    *scalar*. Whether those two words stay is open.
-5. **Whether to file the four gaps below.**
+5. **Whether to file the findings below**, and the questions in the
+   last section, each settled conservatively in the building and each
+   the maintainer's to change.
 
 ## Found and not filed
 
@@ -91,70 +86,94 @@ Each was found on the way to something else, and none is in an issue.
 
 1. **The TypeScript parser throws on an include written as a key**,
    `@"./b.aontu" : 1`, where Go refuses it with
-   `multisource_not_found`. The cursor module catches the throw, so the
-   language server stays up, but the two engines still answer
-   differently.
+   `multisource_not_found`. The cursor module catches the throw.
 2. **Go's diagnostics ignore a trust profile's budgets.** `CheckVars` in
    `go/check.go` builds its own context and never reads the budgets that
    `DiagnosticsTrust` sets. TypeScript's diagnostics apply them.
 3. **The language servers read an include with a relative path from
    their working directory**, not from the document's folder.
-   [`docs/lsp.md`](../docs/lsp.md#limitations-and-extension-points)
-   says so, and a client can set the directory.
 4. **`aontu model why` through a call's argument**: TypeScript lists the
    value the argument read, and Go does not.
+5. **The TypeScript parser overflows its stack** on a call whose first
+   argument is an absolute path, the second a relative one, with a
+   third after it, `pack($.xs, .q, "a")` or `match($.xs, .q, 1)`, and on
+   `at($.xs, -1, -1)`, where Go answers. The IS3 family; the release
+   should settle it.
+6. **A bound whose argument holds `_` reads nothing in a trial.**
+   `pick(filter($.xs, {a: above(at(_, b))}), a)` keeps nothing in both
+   engines, and so does `above(.b)`, which is why the comprehension
+   guide writes a condition over two fields with `match` and `sub`. In
+   TypeScript, `rebuild` in `ts/src/val/PlaceVal.ts` replaces `peg` but
+   not the constraint's `pending.args`; the Go cause is not traced. It
+   bears on C5.
+7. **A list that `pick` or `sort` answers, copied whole into a
+   template, is `no_path`** in both engines: `b: pick([$.a], y)` with
+   `out: each([1, 2], {v: $.b})`, where the path twin `b: [$.a.y]`
+   generates. The fold's list does not keep its members' relative reads.
+8. **A filter in an `emit` body still reads nothing** and answers `[]`,
+   the defect #754 fixed for the other generators; the definition's
+   rows eh6 to eh11 of `test/spec/def-path.tsv` hold today's reading,
+   so it is a question for a ruling before it is fixed.
+9. **Go's poset comparison does not pass `--text-ext` to `subsume`**,
+   where TypeScript does. Older than the operand work.
+10. **The hint for `unexpected` says the text is not valid aontu
+    syntax**, even where the operand is a YAML or TOML file read as
+    data; and a `--var` beside a `.toml` operand is not refused as
+    unread, since the commands' data-extension lists stop at the
+    include's older set.
+11. **The `format_unknown` hint still says "the nineteen"**, with the
+    three encodings named beside; and the recognizer's step limit caps
+    `format(base64)` at about 210,000 characters, `base64url` at about
+    170,000 and `hex` at about 500,000, refused as `parse_failed`.
 
-## The language server, for LS5 to LS8
+## The language server, for what follows
 
-Where things are:
+Every feature of part 3 is built. Where things are:
 
 - **The analysis layer**, in `ts/src/cursor.ts` and `go/cursor.go`:
-  `pathAt` and `PathAt` map a cursor to a path; `sitesOf` and `SitesOf`
-  map a path to the sites that write it, as `aontu model why` reads
-  them; `describeAt`, `definitionAt` and `membersAt`, and their Go
-  twins, answer hover, definition and completion.
+  `pathAt`, `sitesOf`, `describeAt`, `definitionAt`, `membersAt`,
+  `symbolsOf`, `referencesAt`, `renameAt` and `actionsAt`, with their Go
+  twins in PascalCase, and `cursorWalk`, which `findVal`, the outline and
+  the references share. Positions come from `positionOf`, which counts a
+  line's code units once and finds the line by binary search, so a long
+  line stays linear.
 - **The servers**, in `ts/src/lsp.ts` and `go/lsp/lsp.go`, with Go's
-  message handler in `go/lsp/handler.go`. Each feature's capability is
-  advertised in `initialize`.
+  message handler in `go/lsp/handler.go`. Each capability is advertised
+  in `initialize`; rename refuses with a `ResponseError` of code
+  `-32803` whose message names the site, the same text in both.
 - **The shared rows**, in `test/spec/cursor.tsv`, in the modes `at`,
-  `sites`, `describe`, `define` and `members`, which
-  [the shared spec](../docs/shared-spec.md) describes.
-- **The documentation**: each feature updates
-  [`docs/lsp.md`](../docs/lsp.md) and
-  [`wire-your-editor.md`](../docs/how-to/wire-your-editor.md) in the same
-  change, as part 3 of the plan asks.
+  `sites`, `describe`, `define`, `members`, `symbols`, `refs`, `rename`
+  and `actions`, which [the shared spec](../docs/shared-spec.md)
+  describes; a row that names a fixture file writes `__FIXTURES__` for
+  the fixture directory's path.
+- **The documentation**: [`docs/lsp.md`](../docs/lsp.md) and
+  [`wire-your-editor.md`](../docs/how-to/wire-your-editor.md).
 
-What the next features will meet:
+What the next change to a server will meet:
 
-- **A value an include loads is sited in its own file** (ruling 50),
-  with a record of where the include stands, `site.load`, so the cursor
-  still finds the key that holds it.
-- **A value that is all a group holds**, `({ … })` or `(.a)`, is sited
-  at the group's outermost `(`, not at its own first character.
-  `groupStarts` in both cursor modules allows for it.
-- **A relative reference resolves from the path the parser records for
-  it**: under a key chain, `b: c: .x` reads inside `b`, and in a list it
-  reads from the list. Completion reads the reference being typed by
-  parsing the document up to the cursor and asking the engine's own
-  `plainRefPath`. LS6 can find every reference that reads a path the
-  same way, with `findVal` over the parsed tree.
-- **The cursor's tree walk, `kids`, does not enter a constraint's
-  arguments**, so `min(.b)` holds a reference it never meets; `findVal`
-  adds them. Hover and definition still miss a reference there, the
-  same in both servers.
-- **The TypeScript parser throws on some text that Go refuses**, and
-  `parsed()` in `ts/src/cursor.ts` catches it.
-- **LS7 is ruled**: rename edits only files under the workspace root,
-  and refuses the whole rename, naming the site, where an edit of text
-  cannot keep the document true. **LS8** starts with the one action
-  whose edit is decided: remove an entry that `trim --check` reports.
+- **References' writes are the `model why` sites**, so a reference's
+  path lists the value it reads; rename finds the written key spans
+  itself, in the open document and in included files under the root,
+  whose text the TypeScript include record now keeps as Go's did.
+- **Rename refuses a path a reference copies** wherever the copy is
+  written or read, so a type's field that its instances write cannot be
+  renamed; a plain `&:` spread beside a key allows it. The root is
+  `workspaceFolders`, then `rootUri`, then `rootPath`, as the include
+  root already uses.
+- **Code actions run `trim --check` on each request**, one evaluation
+  per removable entry, and the servers publish no diagnostic for what
+  `trim` finds, so the action is offered by range only.
+- **The outline is of what the document writes**: a key by its text
+  without quotes, a key written twice as two symbols, list elements by
+  position, a spread's template as `&`, a type or a conjunction as kind
+  Variable, and no declarations.
 
-Parity for LS2 and LS3 was proved by a probe: both servers driven over
+Parity for each feature was proved by a probe: both servers driven over
 standard input with the same requests at every character of a set of
-documents, 1,430 for completion, and their answers compared. It found
-differences no row had pinned. The scripts were scratch files and are
-not in the repository; a feature that answers at a position deserves
-one.
+documents, 15,988 requests for rename and 8,929 for references at the
+last count, and their answers compared. The scripts were scratch files
+and are not in the repository; a feature that answers at a position
+deserves one.
 
 ## How the work is done here
 
@@ -166,44 +185,55 @@ say, learned on this work:
 - **The prompt log.** Each prompt goes into `sketch/PROMPT-LOG.md`
   before the work, and is committed with the first change after it.
   After merging `main` into a branch, read the log's tail: git's
-  automatic merge of two appended entries has twice dropped a closing
-  fence.
+  automatic merge of two appended entries has three times dropped a
+  closing fence.
 - **Rows from both engines.** Write the rows from the TypeScript engine,
   then run the Go runner over the same file. A row Go answers otherwise
   is a divergence to resolve, never a value to copy.
-- **Coverage stays at 100 % in both ports**, and the daily run checks it.
-  TypeScript counts lines, functions and branch arms: each arm of a
-  ternary counts, and an optional chain's short-circuit does not. Go
-  counts statements, so an unreachable `return` fails it. A focused run
-  with `node --test --experimental-test-coverage` and
-  `--test-coverage-include` on the changed module finds a gap before the
-  daily run does.
-- **An export list's coverage exclusion counts its lines**: the `N` of
-  `/* node:coverage ignore next N */` must reach the end of the list,
-  and `covcheck.test.ts` checks it. It changes with each export added.
+- **Parallel work in worktrees.** Independent tasks were built at once,
+  each in its own `git worktree` on its own branch, sharing one
+  `ts/node_modules` by symlink, and merged one at a time into the branch
+  that opens the pull request. Two changes to one file that each pass
+  the comment gate's density can fail it together; a resolved conflict
+  in `ts/dist` must be rebuilt before the push, or the happy path
+  refuses the tree; and two definition changes meet in
+  `spec/Oracle.lean`'s imports and the oracle's `main`, whose nesting
+  the compiler limits, so the `paths` rows are split into two lists.
+- **A base that moved.** `main` moved under each pull request several
+  times an hour. Merge it in before the pull request merges and run
+  again what the change touches; in `CHANGELOG.md` keep both entries.
+  Another track's engine change can leave a unit test stale that only
+  the sampled group runs: #971's canon and #1078's marked root both did,
+  and the fix was the test's expectation, said once on the pull request.
+- **The prose counts.** CI pins Vale 3.14.0, and a `master` build
+  reports some two thousand more alerts, so the counts must be measured
+  with the pinned version: `go install
+  github.com/errata-ai/vale/v3/cmd/vale@v3.14.0` with `-ldflags "-X
+  main.version=3.14.0"`, since the counts script reads the version. Then
+  `vale sync`, `make prose`, and `node ts/scripts/vale-counts.cjs
+  --write`.
+- **The definition.** `elan` installs with no toolchain; `elan
+  toolchain install leanprover/lean4:v4.24.1` fetches the pinned one, and
+  a full `lake build` of `spec/` takes half an hour on a loaded machine.
+  One build at a time.
+- **Coverage stays at 100 % in both ports**, and the daily run checks
+  it. An export list's coverage exclusion counts its lines, so `N` moves
+  with each export added, and `covcheck.test.ts` checks it.
 - **The comment gate**, `make comments`: a comment is only for
   surprising code and as short as it can be, and a file's comment lines
-  are at most 12 % of its code lines. 55 over 457 fails.
-- **`ts/dist` and `ts/dist-test` are committed**: `make build-ts` after
-  any change to `ts/src` or `ts/test`.
-- **The prose counts.** A change to a gated page moves them: run the
-  prose gate, then `node ts/scripts/vale-counts.cjs --write`.
-- **Before a push**, `make quick`, about four minutes, then the tests of
-  what changed. For the language server, those are the `lsp`,
-  `coverage`, `coverage2`, `coverage3`, `trust` and `parity` files of
-  `ts/dist-test`, `go test ./lsp`, and the cursor rows in each runner:
-  `node --test --test-name-pattern='^cursor' dist-test/spec.test.js`
-  with `AONTU_SPEC_SHARES=1` set, and
-  `go test -run 'TestSpec/^cursor\.tsv:' .` in `go/`.
+  are at most 12 % of its code lines. "UTF-16 units" reads as a count
+  claim.
+- **Before a push**, `make quick`, then the tests of what changed; for a
+  change to evaluation, every shared row in both engines, about twenty
+  minutes together on four shared processors.
 - **The automatic review.** A review posts findings when a pull request
-  opens. On LS2 and LS3 every finding reproduced, three and then seven:
-  check each in both engines, and fix it in both.
-- **A base that moved.** When `main` has moved, merge it into the
-  branch, and run again what the change touches, before the pull
-  request merges.
+  opens, three on each of this session's three. Every one reproduced;
+  check each in both engines, fix it in both, answer the thread and
+  resolve it. One found a quadratic step the twin test then exposed in
+  the other port.
 - **Each task's records** land with it: a progress note in the plan, an
-  entry under Unreleased in the changelog, and the documentation pages
-  it changes.
+  entry under Unreleased in the changelog, the register where the task
+  is a built-in or a model, and the documentation pages it changes.
 
 ## What has been built
 
@@ -222,16 +252,59 @@ say, learned on this work:
 | #1019 | BT1 |
 | #1039 | LS2 |
 | #1046 | LS3 |
+| #1049 | this note's first version |
+| #1087 | CG4, BT2, LS5, and the data file operand read by its extension |
+| #1093 | C1, C2, #658 with BT4 and BT5, #754, LS6, and the fold divergence found with C1 |
+| #1100 | C8, LS7, LS8, and the definitions of `at` and of `pack`'s key argument |
 
 Outside this repository, tabnas/expr#121 is the parser fix that IS3
 waits to release.
 
+## Questions for the maintainer
+
+Each was settled conservatively in the building, is stated in the
+plan's progress note of its task, and is the maintainer's to change.
+
+- **`at`:** a choice key, `*a | b`, is refused as `func_arg` rather than
+  read as its default; the string `"-1"` names no position in a list,
+  as a path segment does not; `maybe(at($.m, $.gone))`, a missing key
+  reference, stays `no_path` as `maybe(upper($.gone))` does.
+- **`pack`'s key:** absence from `maybe` in `k` refuses the call rather
+  than leaving the member out; `key(0)` in `t` reads the new key, not
+  the member's; three arguments were `func_arity` and are now read.
+- **The definition:** `at` under `maybe` other than as its whole
+  argument, `maybe(at($.m, b) & 2)`, is absence in both engines and an
+  error in the definition; `maybe(at(at($.m, true), b))` is absence in
+  both engines and `func_arg` in the definition; a hidden or `type()`
+  field that `k` reads with `at` is keyed by both engines and refused by
+  the definition since #1069; a relative path in a three-argument
+  `pack`'s `t` or `k` has no rows.
+- **`aontu:num`:** PascalCase members; the names up to 32 bits are
+  `integer` alone, so they refuse a `0d` value; `Float32` bounds the
+  magnitude only; `name-a-reusable-constraint.md` keeps its hand-written
+  block beside the pointer.
+- **The formats:** the three grammars refuse stray low bits, as `decode`
+  does; the names are not JSON Schema formats, so import is unchanged
+  and export writes `x-aontu-format`.
+- **The data operand:** `.json` and `.jsonld` stay aontu source, since
+  the strict JSON reader rounds a whole number no double holds and
+  ignores `--exact-numbers`; `fmt` on a data file is left as it was; a
+  value read from a data operand carries no positions.
+- **The language server:** references' writes are the `model why`
+  sites; rename refuses a path a reference copies; a new name beyond
+  ASCII is quoted; code actions run `trim --check` per request.
+- **The guides:** a seventh how-to group, for readers coming from
+  another language; the comprehension guide describes the silent `[]`
+  of finding 6 and advises `match`.
+- **#754:** whether a filter in an `emit` body reads its member, as the
+  other generators' now do.
+
 ## Next
 
-By the plan's order, the language server continues in its table's
-order: LS5, document symbols, which is small; then LS6, references;
-then LS7, rename, and LS8, code actions. C1, `at`, then C2 are the
-largest gain in the language itself: together they make ten of part
-1's fifteen comprehension idioms direct or shorter. BT2 waits on
-nothing. The 129 open issues each have their place in
+By the plan's order, C4, `range(n)`, is the next built-in that waits on
+nothing. The definition's four gaps above, and findings 6 and 7, are the
+engine and definition work most worth a ruling first. CG3 and CG5 go
+once the maintainer supplies the scope and the access; BT3 once ST5
+exists; the pins, and the input and output tasks after them, once the
+parser is released. The 129 open issues each have their place in
 [the issue plan](issue-plan.md).
