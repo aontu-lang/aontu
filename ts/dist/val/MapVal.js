@@ -106,7 +106,7 @@ class MapVal extends BagVal_1.BagVal {
         return nv;
     }
     unify(peer, ctx) {
-        const arooted = this.aliasDeclarationsAreRooted(ctx);
+        const arooted = this.aliasDeclarationsAreRooted(ctx) ?? (0, BagVal_1.templateDeclares)(this);
         if (undefined !== arooted) {
             return arooted;
         }
