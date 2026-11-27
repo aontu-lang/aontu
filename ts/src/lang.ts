@@ -141,6 +141,7 @@ import { TranslateFuncVal } from './val/TranslateFuncVal'
 import { EachFuncVal } from './val/EachFuncVal'
 import { ApplyFuncVal } from './val/ApplyFuncVal'
 import { FilterFuncVal } from './val/FilterFuncVal'
+import { AtFuncVal } from './val/AtFuncVal'
 import { MatchFuncVal, KeyedFuncVal } from './val/MatchFuncVal'
 import { EmitFuncVal } from './val/EmitFuncVal'
 import {
@@ -909,6 +910,7 @@ help isolate the syntax error.`,
     maybe: MaybeFuncVal,
 
     pick: PickFuncVal,
+    at: AtFuncVal,
     sort: SortFuncVal,
 
     join: JoinFuncVal,

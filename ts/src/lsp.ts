@@ -590,7 +590,7 @@ const COMPLETION_VARIABLE = 6
 const COMPLETION_KEYWORD = 14
 
 const BUILTIN_FUNCS = [
-  'abnf', 'above', 'acyclic', 'add', 'apply', 'below', 'close', 'contains', 'content', 'copy',
+  'abnf', 'above', 'acyclic', 'add', 'apply', 'at', 'below', 'close', 'contains', 'content', 'copy',
   'copyfiles', 'decode', 'deprecate',
   'div',
   'each', 'emit', 'empty', 'encode', 'esc',

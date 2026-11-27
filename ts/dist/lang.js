@@ -71,6 +71,7 @@ const TranslateFuncVal_1 = require("./val/TranslateFuncVal");
 const EachFuncVal_1 = require("./val/EachFuncVal");
 const ApplyFuncVal_1 = require("./val/ApplyFuncVal");
 const FilterFuncVal_1 = require("./val/FilterFuncVal");
+const AtFuncVal_1 = require("./val/AtFuncVal");
 const MatchFuncVal_1 = require("./val/MatchFuncVal");
 const EmitFuncVal_1 = require("./val/EmitFuncVal");
 const StrFuncVal_1 = require("./val/StrFuncVal");
@@ -673,6 +674,7 @@ help isolate the syntax error.`,
         greatest: AggFuncVal_1.GreatestFuncVal,
         maybe: MaybeFuncVal_1.MaybeFuncVal,
         pick: AggFuncVal_1.PickFuncVal,
+        at: AtFuncVal_1.AtFuncVal,
         sort: AggFuncVal_1.SortFuncVal,
         join: AggFuncVal_1.JoinFuncVal,
         emit: EmitFuncVal_1.EmitFuncVal,

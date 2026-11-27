@@ -145,6 +145,25 @@ function markedElement(list: any, e: any): boolean {
 }
 
 
+// A copy is an instance: its marks are cleared, and a type's copy is sealed.
+function liftCopy(v: Val, typed: boolean): Val {
+  let out = dropMarkedElements(v)
+  // The copy carries a held constraint without its type.
+  out = walkPrefs(out, (_key: string | number | undefined, val: Val) => {
+    val.mark.type = false
+    val.mark.hide = false
+    const held = (val as any).held
+    return true === (val as any).isConstraintKind && null != held ?
+      held : val
+  })
+  out = dropPendingMarkWrappers(out)
+  if (typed) {
+    sealTree(out, true)
+  }
+  return out
+}
+
+
 // A staged call's copy shares its arguments with the call it copies, and
 // a preference its value, so each takes its own before the copy changes.
 function ownArgs(ctx: AontuContext, v: Val): Val {
@@ -782,19 +801,7 @@ class RefVal extends FeatureVal {
             if (staged && !moved) {
               out = ownArgs(ctx, out)
             }
-            out = dropMarkedElements(out)
-            // The copy carries a held constraint without its type.
-            out = walkPrefs(out, (_key: string | number | undefined, val: Val) => {
-              val.mark.type = false
-              val.mark.hide = false
-              const held = (val as any).held
-              return true === (val as any).isConstraintKind && null != held ?
-                held : val
-            })
-            out = dropPendingMarkWrappers(out)
-            if (typed && !this.copyFound) {
-              sealTree(out, true)
-            }
+            out = liftCopy(out, typed && !this.copyFound)
           }
           if (this.copyFound) {
             unsealTree(out)
@@ -986,6 +993,7 @@ export {
   landPaths,
   landedAt,
   landsOnly,
+  liftCopy,
   member,
   pendingMarkWrapper,
   RefVal,
