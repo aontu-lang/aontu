@@ -291,13 +291,15 @@ def Decls.writeForm (ds : Decls) (S : Val) : Decls × Val :=
 
 /-- What a document writes, a `custom` expression written by `cw`: its
 staged form written (`writeWith`), `null` where the document itself is
-left out, after the checks `OutputG` makes before it generates: the
+left out, a root that carries a mark or is absence among them, since
+nothing holds the root to write it in, after the checks `OutputG` makes before it generates: the
 atoms' graph, a load the reading couldn't make, and a path that names
 nothing. Writing reads the staged form, as `vet` does, so that an arm
 of a type its record refuses drops before the arms are compared. -/
 def outputWBy (cw : Val → Data → Option (Option Data)) (ds : Decls) (S : Val) : Option Data :=
   let P := (ds.loaded S).1.preparedS (ds.loaded S).2
   if (ds.genFormS S).graphOk && !ds.unread S && P.1.resolvesB P.2 then
+    if (ds.writeForm S).2.leftOut then some .null else
     match writeWith (checkR (ds.writeForm S).1) cw [] (ds.writeForm S).2 with
     | some (some d) => some d
     | some none => some .null

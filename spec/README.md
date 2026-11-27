@@ -185,6 +185,7 @@ cd spec && lake exe oracle alias > ../test/spec/def-alias.tsv
 cd spec && lake exe oracle paths > ../test/spec/def-path.tsv
 cd spec && lake exe oracle trials > ../test/spec/def-trial.tsv
 cd spec && lake exe oracle custom > ../test/spec/def-custom.tsv
+cd spec && lake exe oracle gaps > ../test/spec/def-gaps.tsv
 python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli> <ts-cli-js>
 ```
 
