@@ -2556,3 +2556,23 @@ While #1058 waits on the maintainer, please take two engine-side issues, neither
 
 Log this message in the prompt log first, as before.
 ```
+
+## 2026-11-27 21:45:15 UTC · Claude Code · session_01D35vdc7ygzcgtWxtPLX3iR
+
+```text
+#1088 needs no new ruling: the definition moves to the engines' `valid`. Build it now, then resume P9 part 2.
+
+Why it's settled: decision 37 counts what the data supplies. Decision 26's build reads the declarations with the data met in, for every verdict class but `error`. So a generator in a spread's template reads the member's sibling as the data writes it, as it already does where the document writes the sibling. The definition's `invalid` is a gap, not a reading anything rules for.
+
+- Add rows for #1088's cases. Get each expected value from both engines and the definition, all three agreeing.
+- Then the recursion item, with your `Decls.readJ` change.
+- If you find the `invalid` does rest on a ruling (ruling 61's check of a template, or decision 17), stop and send me the rows.
+
+Two more P9 items are now yours, after part 2:
+- #1073's `null-guard-generates`: `Node: {v: integer, next: *null | $.Node}` with `t: $.Node &amp; {v: 1, next: {v: 2}}` writes nothing in the definition. It's a recursion guarded by a default arm.
+- #1074: a recursion through a path, a link or a named table generates without bound or doesn't finish in the definition, where both engines stop where the data stops.
+
+D leaves both to you.
+
+On speed: if an oracle run of your cases passes 30 minutes, cut them to the smallest documents that still show each answer. Don't stop between items. Report to me at each merge.
+```

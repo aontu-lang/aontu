@@ -241,8 +241,25 @@ def Val.number? (v : Val) : Option Number :=
   | .lit (.num n) => some n
   | _ => none
 
+/-- Whether a term is a list, `some true`, or a map, `some false`, the
+riders and links around it read through. -/
+def Val.bagKind? : Val → Option Bool
+  | .ride _ v _ => v.bagKind?
+  | .link v _ => v.bagKind?
+  | .list _ _ _ => some true
+  | .map _ _ _ => some false
+  | _ => none
+
+/-- Whether `k` is the kind of the bag `v` is: `list` beside a list, `map`
+beside a map. -/
+def Val.kindOfBag (k v : Val) : Bool :=
+  match k, v.bagKind? with
+  | .listKind, some true | .mapKind, some false => true
+  | _, _ => false
+
 /-- The members a fold reads in a bag's normal form, the riders around
-it read through: a list's elements in order, and a map's members in key
+it read through, and a bag met with its own kind, `list & [1]`, read as
+the bag: a list's elements in order, and a map's members in key
 order, but an optional one whose value generates nothing or an empty map
 or list, one that is absence, and a marked one, which is no part of the
 output, unless the bag carries a mark itself, which lifts its members'
@@ -254,6 +271,8 @@ def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
       if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
       else some m.2.2)
+  | .meet a b =>
+    if a.kindOfBag b then b.members ds lifted else if b.kindOfBag a then a.members ds lifted else none
   | _ => none
 
 /-- What a call that can wait makes of its arguments: the term it is, a
@@ -3315,6 +3334,13 @@ theorem Val.members_checkableA {ds : Decls} :
     · cases hxm
     · obtain rfl := Option.some.inj hxm
       exact hf x.1 x.2.1 x.2.2 (List.mem_mergeSort.mp hx)
+  | _, .meet _ _, _, .meet ha hb, hm => by
+    simp only [Val.members] at hm
+    split at hm
+    · exact Val.members_checkableA hb hm
+    · split at hm
+      · exact Val.members_checkableA ha hm
+      · cases hm
   | _, .integer, _, _, hm | _, .float, _, _, hm | _, .biginteger, _, _, hm
   | _, .bigdecimal, _, _, hm | _, .number, _, _, hm | _, .string, _, _, hm
   | _, .anyString, _, _, hm | _, .boolean, _, _, hm | _, .mapKind, _, _, hm
@@ -3324,7 +3350,7 @@ theorem Val.members_checkableA {ds : Decls} :
   | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
   | _, .format _, _, _, hm | _, .grammar _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm
   | _, .or _, _, _, hm
-  | _, .pref _ _, _, _, hm | _, .meet _ _, _, _, hm | _, .alias _, _, _, hm
+  | _, .pref _ _, _, _, hm | _, .alias _, _, _, hm
   | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
   | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
   | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
@@ -3617,7 +3643,7 @@ theorem Val.keyedMembers_checkableA {ds : Decls} :
   | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
   | _, .format _, _, _, hm | _, .grammar _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm
   | _, .or _, _, _, hm
-  | _, .pref _ _, _, _, hm | _, .meet _ _, _, _, hm | _, .alias _, _, _, hm
+  | _, .pref _ _, _, _, hm | _, .alias _, _, _, hm
   | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
   | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
   | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm

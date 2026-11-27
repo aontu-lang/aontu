@@ -46,3 +46,38 @@ def emitDataProbe : List (Decls × Val × Data) :=
     (w, m [("items", m [("x", m [("tree", lst [m [("name", str "n0"), ("kids", lst [])]]), ("out", c .emit [rel 1 ["tree"], .alias "W"])])])], doc [js "n0"]),
     (w, m [("items", m [("x", m [("tree", .listKind), ("out", c .emit [rel 1 ["tree"], .alias "W"])])])], doc [js "n0"]),
     ([], m [("items", m [("x", m [("tree", .listKind), ("out", c .emit [rel 1 ["tree"], rule [nd "name"]])])])], doc [js "n0"])]
+
+/-- Each step of `vetA` on one case, while the definition's answer is read. -/
+def emitDataTrace (c : Decls × Val × Data) : IO Unit := do
+  let (ds0, S0, j) := c
+  let L := ds0.loaded S0
+  let PS := L.1.preparedS L.2
+  let PD := L.1.preparedD L.2 j
+  let m : Mode := {}
+  IO.println s!"unread {ds0.unread S0} resolves {PS.1.resolvesB PS.2}"
+  let WS := PS.1.withPathsS PS.2
+  IO.println s!"vet withPathsS {verdictName (vet m WS.1 WS.2 j)}"
+  let WD := PD.1.withPaths PD.2 j
+  IO.println s!"vet withPaths {verdictName (vet m WD.1 WD.2 j)}"
+  IO.println s!"S' {PD.2.cell}"
+  IO.println s!"WD {WD.2.cell}"
+  IO.println s!"decls {WD.1.map fun d => (d.1, d.2.cell)}"
+  IO.println s!"declares {WD.1.declaresB WD.2} guarded {WD.1.guardedB} ill {WD.1.illFormedR WD.2}"
+  IO.println s!"ident {WD.1.identMisplaced WD.2} bodyIll {WD.1.bodyIll} miscounts {WD.2.miscounts} {WD.1.any (·.2.miscounts)} hole {WD.2.freeHole (fun n => WD.1.holeNames.contains n)} nf {((normaliseD WD.1 (WD.1.readR WD.2)).staged WD.1).illFormed}"
+  IO.println s!"readR {(WD.1.readR WD.2).cell}"
+  IO.println s!"read {(WD.1.read WD.2).cell}"
+  IO.println s!"filled {(WD.1.read WD.2).filled.cell}"
+  for d in WD.1 do
+    IO.println s!"decl {d.1} recursive {WD.1.recursiveB d.1} norm {(normaliseD WD.1 (.alias d.1)).cell} members {((normaliseD WD.1 (.alias d.1)).armRead.members WD.1).isSome}"
+    let e : Val := .call .each [.alias d.1, .hole]
+    IO.println s!"  each {(resolveD WD.1 none (some []) e).cell}"
+  let N := (normaliseD WD.1 (WD.1.readJ WD.2 j)).staged WD.1
+  IO.println s!"fails {N.fails} refused {refusedAt WD.1 N}"
+  IO.println s!"N {N.cell}"
+
+def eachTrace : IO Unit := do
+  let mm : Val := m [("name", str "n0")]
+  let mk : Val := m [("name", str "n0"), ("kids", lst [])]
+  for t in [lst [int 1], lst [mm], lst [mk], .meet .listKind (lst [int 1]), .meet .listKind (lst [mm]),
+      .meet .listKind (lst [mk]), .meet .listKind (lst [m [("kids", lst [])]])] do
+    IO.println s!"{t.cell} => {(resolveD [] none (some []) (.call .each [t, .hole])).cell} norm {(normaliseD [] t).cell} arm {(normaliseD [] t).armRead.cell} members {((normaliseD [] t).armRead.members []).isSome}"
