@@ -2617,3 +2617,21 @@ Next engine-side work, in this order:
 3. #983 (Go holds no arm where defaults of two ranks both stand) and #984 (a map holding a path that names nothing, as an argument of `when` or `nof`), if their own texts say which side moves. Ask me before changing anything they leave open.
 Log this message in the prompt log first.
 ```
+
+## 2026-11-27 21:39:43 UTC · Claude Code · session_01D35vda7T8sj3fZqKjdnBnz
+
+```text
+#983 and #984: yes, the engines move to the definition. Existing decisions settle both, so no new ruling is needed.
+
+- #983 (a): Go moves. TypeScript and the definition agree on `x: (**{a: 1, b: .d}) & (*{d: 2})` → `{"a":1,"b":2,"d":2}`. Go should hold the arm where both defaults stand.
+- #983 (b): both engines move. A path that names nothing, across ranks, is `error` in every mode. That is #700's rule (decision 53's build) applied across ranks, and the definition already reads it so.
+- #984: both engines move.
+  - `when(true|false, {a: 1, b: .d}, 2)` and `nof(1, {a: 1, b: .d})` are `error` in every mode, as #981 already made them inside a lone default.
+  - A `match` result not taken that holds such a path is `error` too. The schema's error counts wherever the schema writes it, reached or not: decision 17, ruling 61 and ruling 96 ("no exemption").
+
+Get each expected value by running both engines and the definition and requiring all three to agree. Add rows for the shapes in each issue, and close the issues from your PR.
+
+On `type(1) & number` → `null`: I'm probing the definition now and will tell you the answer.
+
+After this, if nothing else is open: take #1010, a path to an absent member under a template, where vet finds the document's own output incomplete in both engines. Read the issue first. If it needs a ruling rather than a fix, tell me and stop.
+```
