@@ -1186,15 +1186,16 @@ describe('lsp-references', () => {
   test('references-across-an-include', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'))
     try {
-      Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\nr: $.top\n')
+      Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\nr: ( $.top )\ns: $."top"\n')
       const trust = { include: { root: dir } }
       const src = `top: 1\nbase: @"${srcPath(dir)}/base.aontu"\n`
-      const [own, there, ...more] =
+      const [own, there, quoted, ...more] =
         computeReferences(src, { line: 0, character: 1 }, U, true, trust) ?? []
       Assert.deepStrictEqual(more, [])
       Assert.deepStrictEqual(own, { uri: U, range: range(0, 5, 0, 6) })
       Assert.ok(there.uri.startsWith('file:///') && there.uri.endsWith('/base.aontu'), there.uri)
-      Assert.deepStrictEqual(there.range, range(1, 3, 1, 8))
+      // A reference there is ranged by its span as written there.
+      Assert.deepStrictEqual([there.range, quoted.range], [range(1, 5, 1, 10), range(2, 3, 2, 10)])
       // A highlight is in the open document alone.
       Assert.deepStrictEqual(computeHighlights(src, { line: 0, character: 1 }, trust),
         [{ range: range(0, 5, 0, 6), kind: HIGHLIGHT_WRITE }])

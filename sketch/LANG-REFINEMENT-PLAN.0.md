@@ -1176,14 +1176,17 @@ parsed tree that enters a constraint's arguments, each read by the
 path the parser records for it, as the engine's `plainRefPath` reads
 it, so a relative reference, one under a key chain and one in a list
 are all read where they stand, and so is one alone in a group. By
-ruling 16, a reference in an included file is a location in that file;
-its range is as long as its spelling, which a quoted segment shortens,
-since neither port keeps the file's text for the cursor in a form both
-share. The library answer is `referencesAt` (`ReferencesAt` in Go),
+ruling 16, a reference in an included file is a location in that file,
+ranged by its span as written there, read from the text the include
+loaded: Go's parse keeps it, and TypeScript's include record now keeps
+it too. Review found the first build ranging such a reference by its
+spelling from its site, which a group or a quoted segment made wrong;
+three rows over a second fixture, `cursor_refs_written.aontu`, hold
+the fix. The library answer is `referencesAt` (`ReferencesAt` in Go),
 with `computeReferences`, `computeHighlights`, `References` and
 `Highlights` in the servers, held by a new row mode, `refs`, in 34 rows
-of `test/spec/cursor.tsv`, which both engines wrote alike, with a new
-fixture, `cursor_refs.aontu`, whose references read the including
+of `test/spec/cursor.tsv`, 37 with the review's, which both engines
+wrote alike, with a new fixture, `cursor_refs.aontu`, whose references read the including
 document. A probe of both servers, references with and without the
 declaration and highlights at every character of 57 documents, found no
 difference. Three limits stand. The sites are those `model why` lists,

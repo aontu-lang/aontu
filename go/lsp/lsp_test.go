@@ -1056,15 +1056,16 @@ func TestHighlightsTellAWriteFromARead(t *testing.T) {
 
 func TestReferencesAcrossAnInclude(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "base.aontu"), []byte("port: 8080\nr: $.top\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "base.aontu"), []byte("port: 8080\nr: ( $.top )\ns: $.\"top\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	trust := &aontu.TrustOptions{IncludeRoot: dir}
 	src := "top: 1\nbase: @\"" + srcPath(dir) + "/base.aontu\"\n"
 	got := References(src, 0, 1, "file:///r.aontu", true, trust)
-	if 2 != len(got) || !reflect.DeepEqual(got[0], Location{URI: "file:///r.aontu", Range: rangeOf(0, 5, 0, 6)}) ||
+	// A reference there is ranged by its span as written there.
+	if 3 != len(got) || !reflect.DeepEqual(got[0], Location{URI: "file:///r.aontu", Range: rangeOf(0, 5, 0, 6)}) ||
 		!strings.HasPrefix(got[1].URI, "file:///") || !strings.HasSuffix(got[1].URI, "/base.aontu") ||
-		!reflect.DeepEqual(got[1].Range, rangeOf(1, 3, 1, 8)) {
+		!reflect.DeepEqual(got[1].Range, rangeOf(1, 5, 1, 10)) || !reflect.DeepEqual(got[2].Range, rangeOf(2, 3, 2, 10)) {
 		t.Errorf("across: %+v", got)
 	}
 	// A highlight is in the open document alone.

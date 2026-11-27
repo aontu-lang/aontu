@@ -142,8 +142,8 @@ reads the path, in order of file, line and character. A relative
 reference reads from where it is written, as the engine reads it, so
 `.b` in `a: { b: 1, c: .b }` reads `a.b`, and a reference among a
 constraint's arguments or alone in a group is found as well. A
-reference in an included file is a location in that file, its range
-starting at the reference and as long as its spelling. A path that
+reference in an included file is a location in that file, ranged by
+its span as written there, as one in the document is. A path that
 nothing writes still has the references that read it; a document that
 does not evaluate has no sites, as go to definition has none, and
 answers with its references alone. **Document highlight** answers the
@@ -754,8 +754,7 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   reference is among those that read a path. A site that a reference
   writes is the reference itself, so the sites of `db.port` in
   `db: { port: $.base.port }` take in both `$.base.port` and the value
-  it reads. A reference in an included file is ranged by its spelling,
-  which a quoted segment makes shorter than the text. The sites of
+  it reads. The sites of
   a top-level key written `""` include the document's own, since
   provenance keeps a path by its segments joined with dots.
 - **Includes are read from the folder the server runs in.** The server

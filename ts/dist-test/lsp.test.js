@@ -977,14 +977,15 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('references-across-an-include', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'));
         try {
-            Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\nr: $.top\n');
+            Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 8080\nr: ( $.top )\ns: $."top"\n');
             const trust = { include: { root: dir } };
             const src = `top: 1\nbase: @"${(0, srcpath_1.srcPath)(dir)}/base.aontu"\n`;
-            const [own, there, ...more] = (0, lsp_1.computeReferences)(src, { line: 0, character: 1 }, U, true, trust) ?? [];
+            const [own, there, quoted, ...more] = (0, lsp_1.computeReferences)(src, { line: 0, character: 1 }, U, true, trust) ?? [];
             Assert.deepStrictEqual(more, []);
             Assert.deepStrictEqual(own, { uri: U, range: range(0, 5, 0, 6) });
             Assert.ok(there.uri.startsWith('file:///') && there.uri.endsWith('/base.aontu'), there.uri);
-            Assert.deepStrictEqual(there.range, range(1, 3, 1, 8));
+            // A reference there is ranged by its span as written there.
+            Assert.deepStrictEqual([there.range, quoted.range], [range(1, 5, 1, 10), range(2, 3, 2, 10)]);
             // A highlight is in the open document alone.
             Assert.deepStrictEqual((0, lsp_1.computeHighlights)(src, { line: 0, character: 1 }, trust), [{ range: range(0, 5, 0, 6), kind: lsp_1.HIGHLIGHT_WRITE }]);
         }

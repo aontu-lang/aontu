@@ -936,35 +936,30 @@ type CursorRefs struct {
 	Reads  []PathPlace `json:"reads"`
 }
 
-// readsOf is where a reference that reads path is written: in the
-// document, its span, and in an included file, its site and the length
-// of its spelling.
+// readsOf is where a reference that reads path is written, in the
+// document or in the text of the file that holds it, as the reference
+// spans it there.
 func readsOf(src string, root Val, path []string, texts map[string]string) []PathPlace {
-	lines := newSrcLines(src)
 	out := []PathPlace{}
 	cursorWalk(root, func(v Val, _ []string) bool {
 		ref, isRef := v.(*RefVal)
 		if !isRef || !slices.Equal(ref.plainRefPath(), path) {
 			return false
 		}
-		if file := v.srcurl(); "" != file {
-			if text, ok := texts[file]; ok && 0 <= v.pos() {
-				row, col := rowCol(text, v.pos())
-				start := CursorPosition{Line: row - 1, Character: col - 1}
-				end := CursorPosition{Line: start.Line, Character: start.Character + utf16Len(ref.spelling())}
-				out = append(out, PathPlace{File: file, Range: CursorRange{Start: start, End: end}})
-			}
-			return false
+		text, file := src, v.srcurl()
+		if "" != file {
+			text = texts[file]
 		}
+		lines := newSrcLines(text)
 		// A reference that is all a group holds is sited at the group.
 		at := v.pos()
 		p := at
-		for 0 <= p && p < len(src) && strings.IndexByte("( \t\r\n", src[p]) >= 0 {
+		for 0 <= p && p < len(text) && strings.IndexByte("( \t\r\n", text[p]) >= 0 {
 			p++
 		}
-		if 0 <= at && at <= len(src) {
-			if end, spelt := refSpan(src, p); spelt == ref.spelling() {
-				out = append(out, PathPlace{Range: CursorRange{Start: lines.positionOf(p),
+		if 0 <= at && at <= len(text) {
+			if end, spelt := refSpan(text, p); spelt == ref.spelling() {
+				out = append(out, PathPlace{File: file, Range: CursorRange{Start: lines.positionOf(p),
 					End: lines.positionOf(end)}})
 			}
 		}

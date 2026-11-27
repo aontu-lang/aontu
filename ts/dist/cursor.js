@@ -13,6 +13,7 @@ exports.mapAt = mapAt;
 exports.symbolsOf = symbolsOf;
 exports.symbolTree = symbolTree;
 exports.referencesAt = referencesAt;
+exports.readsOf = readsOf;
 const aontu_1 = require("./aontu");
 const query_1 = require("./query");
 const vet_1 = require("./vet");
@@ -608,10 +609,9 @@ function symbolTree(src, root) {
     }
     return top.sort((a, b) => a.start - b.start).map((s) => docSymbol(src, starts, s)[0]);
 }
-// Where a reference that reads path is written: in the document, its
-// span, and in an included file, its site and the length of its spelling.
-function readsOf(src, root, path) {
-    const starts = lineStarts(src);
+// Where a reference that reads path is written, in the document or in
+// the text of the file that holds it, as the reference spans it there.
+function readsOf(src, root, path, texts) {
     const want = JSON.stringify(path);
     const out = [];
     cursorWalk(root, (v) => {
@@ -619,17 +619,15 @@ function readsOf(src, root, path) {
             return false;
         }
         const file = v.site.url ?? '';
+        // A file with no text recorded reads as empty.
+        const text = '' === file ? src : [texts[file]].join('');
+        const starts = lineStarts(text);
         const at = siteOffset(starts, v);
-        if ('' !== file) {
-            const start = { line: v.site.row - 1, character: v.site.col - 1 };
-            out.push({ file, range: { start, end: { ...start, character: start.character + v.spelling.length } } });
-            return false;
-        }
         // A reference that is all a group holds is sited at the group.
         let p = at;
-        while (0 <= p && '( \t\r\n'.includes(src[p]))
+        while (0 <= p && '( \t\r\n'.includes(text[p]))
             p++;
-        const [end, spelt] = refSpan(src, p);
+        const [end, spelt] = refSpan(text, p);
         if (0 <= at && spelt === v.spelling) {
             out.push({ file, range: { start: positionOf(starts, p), end: positionOf(starts, end) } });
         }
@@ -650,7 +648,7 @@ function referencesAt(src, pos, opts) {
     return {
         path,
         writes: (sitesOf(src, path, opts) ?? []).map((s) => ({ file: s.file, range: s.range })),
-        reads: readsOf(src, doc.root, path),
+        reads: readsOf(src, doc.root, path, Object.fromEntries(doc.ctx.manifest.map((m) => [m.path, m.src]))),
     };
 }
 // Every site that writes a path, as `model why` reads them; nothing
