@@ -23,6 +23,16 @@ a string nor an integer is `func_arg`. A member marked with `hide()` or
 engines to 115 rows, and `test/spec/comprehension.tsv` gains the `at`
 spelling beside each of the eight routes it replaces.
 
+### A fold copied before it answers reads its data where the data stands
+
+In TypeScript, a fold that a reference copied before it answered never
+answered where its data held a relative read: with `a: {x: 1, y: .x}`,
+`b: pick([$.a], y)` and `c: $.b`, `b` and `c` stayed residues where Go
+answers `[1]`. `sum`, `least`, `greatest`, `pick`, `sort`, `join` and
+`at` each now keep the arguments they were written with while they
+wait, as Go's do. Rows in `test/spec/agg.tsv`, `gen-join.tsv` and
+`sort.tsv` hold both engines to it.
+
 ### The definition reads a call's data argument where its target stands
 
 Ruling 93 (#1012), in the definition. A path that is data a call

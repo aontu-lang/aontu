@@ -94,3 +94,11 @@ sort-projector-null-path	errc	p:null x:sort([2,1], $.p)	invalid-arg
 sort-index-string	canon	x:sort([[2],[1]], "0")	{"x":[[1],[2]]}
 sort-index-space	errc	x:sort([[2],[1]], " 0")	sort_key
 sort-index-exponent	errc	x:sort([[2],[1]], "0e0")	sort_key
+# A fold a reference copies before it answers reads its data where the
+# data stands, as the path it holds does.
+sort-copied	gen	a: {x: 1, y: .x}\nb: sort($.a)\nc: $.b	{"a":{"x":1,"y":1},"b":[1,1],"c":[1,1]}
+sort-copied-deeper	gen	a: {x: 1, y: .x}\nb: sort($.a)\nc: {d: $.b}	{"a":{"x":1,"y":1},"b":[1,1],"c":{"d":[1,1]}}
+sort-copied-into-each	gen	a: {x: 1, y: .x}\nb: sort($.a)\nout: each([1, 2], {v: at($.b, 0)})	{"a":{"x":1,"y":1},"b":[1,1],"out":[{"v":1},{"v":1}]}
+# The list such a fold answers, copied whole into a template, is
+# refused in both engines where the path's list generates.
+sort-copied-list-into-each	errc	a: {x: 1, y: .x}\nb: sort($.a)\nout: each([1, 2], {v: $.b})	no_path

@@ -55,12 +55,8 @@ class AtFuncVal extends FuncBaseVal {
   }
 
 
-  // A call that waits keeps the arguments it was written with: a copy of
-  // it moves, and a driven bag would carry its relative reads along.
   unify(peer: Val, ctx: AontuContext): Val {
-    const written = [...this.peg]
-    if (!this.stagedReady(ctx, this.peg.length)) {
-      this.peg = written
+    if (!this.foldReady(ctx, this.peg.length)) {
       return this.residuate(peer, ctx)
     }
 

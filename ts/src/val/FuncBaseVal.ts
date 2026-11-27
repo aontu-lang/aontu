@@ -200,6 +200,19 @@ class FuncBaseVal extends FeatureVal {
   }
 
 
+  // A fold that waits keeps the arguments it was written with: a copy of
+  // it moves, and a driven bag would carry its relative reads along.
+  foldReady(ctx: AontuContext, count: number): boolean {
+    const written = this.peg
+    this.peg = written.map((a: Val) => a.clone(ctx, { dup: true }))
+    const ready = this.stagedReady(ctx, count)
+    if (!ready) {
+      this.peg = written
+    }
+    return ready
+  }
+
+
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     const out = super.clone(ctx, spec) as FuncBaseVal
     if (true === spec?.dup && Array.isArray(this.peg)) {
