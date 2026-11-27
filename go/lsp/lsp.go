@@ -4,6 +4,7 @@ package lsp
 
 import (
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -419,15 +420,18 @@ type CompletionItem struct {
 // The keys `aontu fmt` writes bare, and a list's positions.
 var plainKey = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*|0|[1-9][0-9]*)$`)
 
-// memberItem writes a key that is not a plain name in quotes.
-func memberItem(m aontu.Member) CompletionItem {
+// What a path's segment reads as a value, not as a name.
+var valueWords = []string{"_", "false", "nil", "null", "true"}
+
+// memberItem writes a key not plain where it goes as the canon does.
+func memberItem(m aontu.Member, on string) CompletionItem {
 	detail := m.Canon
 	if m.Optional {
 		detail += " (optional)"
 	}
 	item := CompletionItem{Label: m.Key, Kind: CompletionField, Detail: detail}
-	if !plainKey.MatchString(m.Key) {
-		item.InsertText = `"` + strings.ReplaceAll(strings.ReplaceAll(m.Key, `\`, `\\`), `"`, `\"`) + `"`
+	if !plainKey.MatchString(m.Key) || ("path" == on && slices.Contains(valueWords, m.Key)) {
+		item.InsertText = aontu.NewString(m.Key).Canon()
 	}
 	return item
 }
@@ -443,7 +447,7 @@ func CompletionsAt(
 	if nil != at && ("path" == at.On || 0 < len(at.Members)) {
 		out := make([]CompletionItem, 0, len(at.Members))
 		for _, m := range at.Members {
-			out = append(out, memberItem(m))
+			out = append(out, memberItem(m, at.On))
 		}
 		return out
 	}

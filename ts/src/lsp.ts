@@ -15,7 +15,7 @@ import { utf8Bytes } from './escape'
 import {
   pathAt, sitesOf, describeAt, definitionAt, describeVal, membersAt,
 } from './cursor'
-import type { CursorPath, Member, PathSite, PathValue } from './cursor'
+import type { CursorMembers, CursorPath, Member, PathSite, PathValue } from './cursor'
 import type { WhyConjunct } from './provenance'
 
 
@@ -617,20 +617,22 @@ const KIND_KEYWORDS = [
 const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'any']
 
 
-// The built-in functions, scalar-kind keywords and literals, and the
-// names this document binds. Clients filter by the typed prefix.
 // The keys `aontu fmt` writes bare, and a list's positions.
 const PLAIN_KEY = /^([A-Za-z_][A-Za-z0-9_]*|0|[1-9][0-9]*)$/
 
+// What a path's segment reads as a value, not as a name.
+const VALUE_WORDS = ['_', 'false', 'nil', 'null', 'true']
 
-// A key that is not a plain name is written in quotes.
-function memberItem(m: Member): CompletionItem {
+
+// A key that is not a plain name where it goes is written as the canon
+// writes a string.
+function memberItem(m: Member, on: CursorMembers['on']): CompletionItem {
+  const plain = PLAIN_KEY.test(m.key) && !('path' === on && VALUE_WORDS.includes(m.key))
   return {
     label: m.key,
     kind: COMPLETION_FIELD,
     detail: m.canon + (m.optional ? ' (optional)' : ''),
-    ...(PLAIN_KEY.test(m.key) ? {} :
-      { insertText: '"' + m.key.replaceAll('\\', '\\\\').replaceAll('"', '\\"') + '"' }),
+    ...(plain ? {} : { insertText: JSON.stringify(m.key) }),
   }
 }
 
@@ -643,7 +645,7 @@ function computeCompletions(
   const at = undefined === position ? undefined :
     membersAt(src, position, { trust: opts?.trust })
   if (undefined !== at && ('path' === at.on || 0 < at.members.length)) {
-    return at.members.map(memberItem)
+    return at.members.map((m) => memberItem(m, at.on))
   }
   if ('.' === opts?.trigger) {
     return []

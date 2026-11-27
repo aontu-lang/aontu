@@ -19,7 +19,7 @@ const TOKEN_END = KEY_DELIMS + '&|';
 const WORD = /[A-Za-z0-9_\-\u0080-\uffff]/;
 const CLOSER = { '{': '}', '[': ']', '(': ')' };
 // What a relative reference may follow, and what a key may not.
-const REF_AFTER = ' \t\r\n:{[(,&|';
+const REF_AFTER = ' \t\r\n:{[(,&|+*';
 const VALUE_AFTER = ':([&|=.$@%';
 function lineStarts(src) {
     const starts = [0];
@@ -328,12 +328,15 @@ function definitionAt(src, pos, opts) {
     return undefined === path ? undefined :
         sitesOf(src, path, opts)?.map((s) => ({ file: s.file, range: s.range }));
 }
-// The brackets open before off, the innermost last, or nothing where off
+// The brackets open before off, the innermost last, and where the run of
+// names, dots and quoted text that ends at off starts; nothing where off
 // is inside quoted text or a comment.
 function openBrackets(src, off) {
     const open = [];
+    let run = 0;
     for (let k = 0; k < off; k++) {
-        if ('"\'`'.includes(src[k])) {
+        const quoted = '"\'`'.includes(src[k]);
+        if (quoted) {
             k = quoteEnd(src, k);
         }
         else if ('#' === src[k]) {
@@ -348,58 +351,45 @@ function openBrackets(src, off) {
         else if ('}])'.includes(src[k])) {
             open.pop();
         }
+        if (!quoted && '.' !== src[k] && !WORD.test(src[k])) {
+            run = k + 1;
+        }
     }
-    return open;
+    return [open, run];
 }
-// The segments of a reference read up to its last dot, with a quoted
-// segment read as its text, or nothing where it is not one.
-function refSegments(text) {
-    let i = 0;
-    while ('.' === text[i])
+function closersOf(open) {
+    return open.map(([c]) => CLOSER[c]).reverse().join('');
+}
+// A reference written from s up to the dot before w: dots, then segments,
+// each a name or quoted text and a dot. Where it starts, or nothing.
+function refAt(src, s, w) {
+    let i = s;
+    while (i < w && '.' === src[i])
         i++;
-    const up = i;
-    const segs = [];
-    while (i < text.length) {
+    const up = i - s;
+    while (i < w) {
         let j = i;
-        if ('"' === text[i]) {
-            j = quoteEnd(text, i);
-            segs.push(text.slice(i + 1, j).replace(/\\([\s\S])/g, '$1'));
-            j++;
+        if ('"\'`'.includes(src[i])) {
+            j = quoteEnd(src, i) + 1;
         }
         else {
-            while (j < text.length && WORD.test(text[j]))
+            while (j < w && WORD.test(src[j]))
                 j++;
-            segs.push(text.slice(i, j));
         }
-        if (i === j || '.' !== text[j]) {
+        if (i === j || '.' !== src[j]) {
             return undefined;
         }
         i = j + 1;
     }
-    return 0 === up ? undefined : [up, segs];
-}
-// A reference written up to the dot before w: where it starts, and the
-// dots that lead it and its segments.
-function refAt(src, w) {
-    let s = w;
-    while (0 < s && (WORD.test(src[s - 1]) || '.' === src[s - 1] || '"' === src[s - 1])) {
-        s = '"' === src[s - 1] ? src.slice(0, s - 1).lastIndexOf('"') : s - 1;
-    }
-    const read = '.' === src[w - 1] && 0 <= s ? refSegments(src.slice(s, w)) : undefined;
     const abs = '$' === src[s - 1];
-    if (undefined === read || (abs ? 1 < read[0] : !REF_AFTER.includes(src[s - 1] ?? ' '))) {
-        return undefined;
-    }
-    return { start: abs ? s - 1 : s, abs, up: read[0], segs: read[1] };
+    return 0 === up || '.' !== src[w - 1] ||
+        (abs ? 1 < up : !REF_AFTER.includes(src[s - 1] ?? ' ')) ? undefined :
+        { start: abs ? s - 1 : s, abs };
 }
-// The path a reference reads: `$.a.` reads `a`, and `.` and `..b.` read
-// from the map at inMap.
-function refPath(ref, inMap) {
-    return ref.abs ? ref.segs : undefined === inMap || inMap.length < ref.up - 1 ? undefined :
-        inMap.slice(0, inMap.length - ref.up + 1).concat(ref.segs);
-}
-// The map literal whose brace is at off, with its path.
-function mapAt(src, root, off) {
+// The first value a walk from root meets that take accepts at the offset
+// of its site, with its path, a constraint's written arguments included.
+// A value from an included file is sited in that file, so never here.
+function findVal(src, root, take) {
     const starts = lineStarts(src);
     const seen = new Set();
     const stack = [[root, []]];
@@ -409,12 +399,35 @@ function mapAt(src, root, off) {
             continue;
         }
         seen.add(v);
-        if (true === v.isMap && '' === (v.site?.url ?? '') && off === siteOffset(starts, v)) {
+        if ('' === (v.site?.url ?? '') && take(v, siteOffset(starts, v))) {
             return { val: v, path };
         }
-        stack.push(...kids(v, path));
+        stack.push(...kids(v, path), ...(true === v.isConstraint && Array.isArray(v.peg) ?
+            v.peg.map((c) => [c, path]) : []));
     }
     return undefined;
+}
+// Where a value written at off is sited: there, or, where it is all a
+// group holds, at the group's first `(`.
+function groupStarts(src, off) {
+    const offs = [off];
+    for (let p = skipTrivia(src, off - 1); '(' === src[p]; p = skipTrivia(src, p - 1)) {
+        offs.push(p);
+    }
+    return offs;
+}
+// The map literal whose brace is at off, with its path.
+function mapAt(src, root, off) {
+    const offs = groupStarts(src, off);
+    return findVal(src, root, (v, at) => true === v.isMap && offs.includes(at));
+}
+// The path that the reference at start reads, as the engine reads it, in
+// a text that ends the reference with one more name: from where the
+// reference stands, less that name.
+function refReads(text, start, opts) {
+    const offs = groupStarts(text, start);
+    const ref = findVal(text, parsed(text, opts)?.root, (v, at) => true === v.isRef && offs.includes(at));
+    return ref?.val.plainRefPath()?.slice(0, -1).map(String);
 }
 function membersOf(node, written) {
     if (true === node?.isMap) {
@@ -438,19 +451,22 @@ function membersAt(src, pos, opts) {
     let w = cur;
     while (0 < w && WORD.test(src[w - 1]))
         w--;
-    const open = openBrackets(src, w);
-    const ref = undefined === open ? undefined : refAt(src, w);
-    // The reference being written stands as `any`, so that it reads nothing.
-    const text = src.slice(0, ref?.start ?? w) + (undefined === ref ? '' : 'any') + src.slice(cur);
-    const doc = undefined === open ? undefined : parsed(text +
-        (openBrackets(text, text.length) ?? []).reverse().map(([c]) => CLOSER[c]).join(''), opts);
-    if (undefined === open || undefined === doc) {
+    const scan = openBrackets(src, w);
+    if (undefined === scan) {
         return undefined;
     }
+    const [open, run] = scan;
+    const ref = refAt(src, run, w);
+    // The reference being written stands as `any`, so that it reads nothing.
+    const text = src.slice(0, ref?.start ?? w) + (undefined === ref ? '' : 'any') + src.slice(cur);
+    const doc = parsed(text + closersOf(openBrackets(text, text.length)?.[0] ?? []), opts);
+    if (undefined === doc) {
+        return undefined;
+    }
+    const reads = undefined === ref ? undefined :
+        refReads(src.slice(0, w) + 'x' + closersOf(open), ref.start, opts);
     const brace = open.map(([c]) => c).lastIndexOf('{');
     const lit = 0 > brace ? { val: doc.root, path: [] } : mapAt(text, doc.root, open[brace][1]);
-    const listed = open.slice(brace + 1).some(([c]) => '[' === c);
-    const reads = undefined === ref ? undefined : refPath(ref, listed ? undefined : lit?.path);
     const prev = skipTrivia(src, w - 1);
     const atKey = true === lit?.val.isMap && brace === open.length - 1 &&
         (0 > prev || !VALUE_AFTER.includes(src[prev]));
@@ -463,7 +479,7 @@ function membersAt(src, pos, opts) {
     return {
         on: undefined === reads ? 'key' : 'path',
         path: at,
-        members: membersOf((0, vet_1.anchorParts)(res, at), written),
+        members: membersOf((0, vet_1.throughResidue)((0, vet_1.anchorParts)(res, at)), written),
     };
 }
 // Every site that writes a path, as `model why` reads them; nothing

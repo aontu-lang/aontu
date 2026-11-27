@@ -72,7 +72,7 @@ type openBracket struct {
 }
 
 // What a relative reference may follow, and what a key may not.
-const refAfter = " \t\r\n:{[(,&|"
+const refAfter = " \t\r\n:{[(,&|+*"
 
 const valueAfter = ":([&|=.$@%"
 
@@ -483,12 +483,15 @@ func (a *Aontu) DefinitionAt(src string, pos CursorPosition) []PathPlace {
 	return out
 }
 
-// openBrackets is the brackets open before off, the innermost last, or
+// openBrackets is the brackets open before off, the innermost last, and
+// where the run of names, dots and quoted text that ends at off starts;
 // false where off is inside quoted text or a comment.
-func openBrackets(src string, off int) ([]openBracket, bool) {
+func openBrackets(src string, off int) ([]openBracket, int, bool) {
 	open := []openBracket{}
+	run := 0
 	for k := 0; k < off; k++ {
-		if strings.IndexByte("\"'`", src[k]) >= 0 {
+		quoted := strings.IndexByte("\"'`", src[k]) >= 0
+		if quoted {
 			k = quoteEnd(src, k)
 		} else if '#' == src[k] {
 			if nl := strings.IndexByte(src[k:], '\n'); 0 <= nl {
@@ -498,102 +501,72 @@ func openBrackets(src string, off int) ([]openBracket, bool) {
 			}
 		}
 		if off <= k || 0 > k {
-			return nil, false
+			return nil, 0, false
 		} else if strings.IndexByte("{[(", src[k]) >= 0 {
 			open = append(open, openBracket{src[k], k})
 		} else if strings.IndexByte("}])", src[k]) >= 0 && 0 < len(open) {
 			open = open[:len(open)-1]
 		}
+		if !quoted && '.' != src[k] && !wordByte(src[k]) {
+			run = k + 1
+		}
 	}
-	return open, true
+	return open, run, true
 }
 
-// refSegments is the segments of a reference read up to its last dot,
-// with a quoted segment read as its text, and how many dots lead it.
-func refSegments(text string) (int, []string, bool) {
-	i := 0
-	for i < len(text) && '.' == text[i] {
-		i++
+func closersOf(open []openBracket) string {
+	out := ""
+	for i := len(open) - 1; 0 <= i; i-- {
+		out += closers[open[i].c]
 	}
-	up := i
-	segs := []string{}
-	for i < len(text) {
-		j := i
-		if '"' == text[i] {
-			j = quoteEnd(text, i)
-			segs = append(segs, unescapeSeg(text[i+1:min(j, len(text))]))
-			j++
-		} else {
-			for j < len(text) && wordByte(text[j]) {
-				j++
-			}
-			segs = append(segs, text[i:j])
-		}
-		if i == j || j >= len(text) || '.' != text[j] {
-			return 0, nil, false
-		}
-		i = j + 1
-	}
-	return up, segs, 0 < up
-}
-
-func unescapeSeg(s string) string {
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		if '\\' == s[i] && i+1 < len(s) {
-			i++
-		}
-		b.WriteByte(s[i])
-	}
-	return b.String()
+	return out
 }
 
 type refText struct {
-	start, up int
-	abs       bool
-	segs      []string
+	start int
+	abs   bool
 }
 
-// refAt is a reference written up to the dot before w: where it starts,
-// and the dots that lead it and its segments.
-func refAt(src string, w int) (refText, bool) {
-	s := w
-	for 0 < s && (wordByte(src[s-1]) || '.' == src[s-1] || '"' == src[s-1]) {
-		if '"' == src[s-1] {
-			s = strings.LastIndexByte(src[:s-1], '"')
+// refAt is a reference written from s up to the dot before w: dots, then
+// segments, each a name or quoted text and a dot. Where it starts.
+func refAt(src string, s, w int) (refText, bool) {
+	i := s
+	for i < w && '.' == src[i] {
+		i++
+	}
+	up := i - s
+	for i < w {
+		j := i
+		if strings.IndexByte("\"'`", src[i]) >= 0 {
+			j = quoteEnd(src, i) + 1
 		} else {
-			s--
+			for j < w && wordByte(src[j]) {
+				j++
+			}
 		}
+		if i == j || w <= j || '.' != src[j] {
+			return refText{}, false
+		}
+		i = j + 1
 	}
-	if 0 == w || '.' != src[w-1] || 0 > s {
-		return refText{}, false
-	}
-	up, segs, ok := refSegments(src[s:w])
 	abs := 0 < s && '$' == src[s-1]
-	if !ok || (abs && 1 < up) || (!abs && 0 < s && strings.IndexByte(refAfter, src[s-1]) < 0) {
+	before := byte(' ')
+	if 0 < s {
+		before = src[s-1]
+	}
+	if 0 == up || '.' != src[w-1] || (abs && 1 < up) || (!abs && strings.IndexByte(refAfter, before) < 0) {
 		return refText{}, false
 	}
-	start := s
 	if abs {
-		start = s - 1
+		s--
 	}
-	return refText{start: start, up: up, abs: abs, segs: segs}, true
+	return refText{start: s, abs: abs}, true
 }
 
-// refPath is the path a reference reads: `$.a.` reads `a`, and `.` and
-// `..b.` read from the map at inMap.
-func refPath(ref refText, inMap []string, haveMap bool) ([]string, bool) {
-	if ref.abs {
-		return ref.segs, true
-	}
-	if !haveMap || len(inMap) < ref.up-1 {
-		return nil, false
-	}
-	return append(append([]string{}, inMap[:len(inMap)-ref.up+1]...), ref.segs...), true
-}
-
-// mapAt is the map literal whose brace is at off, with its path.
-func mapAt(root Val, off int) (*MapVal, []string, bool) {
+// findVal is the first value a walk from root meets that take accepts,
+// with its path, a constraint's written arguments included. A value from
+// an included file is sited in that file, so never here.
+func findVal(root Val, take func(Val) bool) (Val, []string, bool) {
 	seen := map[Val]bool{}
 	stack := []cursorKid{{root, []string{}}}
 	for 0 < len(stack) {
@@ -603,12 +576,61 @@ func mapAt(root Val, off int) (*MapVal, []string, bool) {
 			continue
 		}
 		seen[k.v] = true
-		if m, ok := k.v.(*MapVal); ok && "" == m.srcurl() && off == m.pos() {
-			return m, k.path, true
+		if "" == k.v.srcurl() && take(k.v) {
+			return k.v, k.path, true
 		}
 		stack = append(stack, cursorKids(k.v, k.path)...)
+		if c, ok := k.v.(*ConstraintVal); ok {
+			for _, arg := range c.asWritten {
+				stack = append(stack, cursorKid{arg, k.path})
+			}
+		}
 	}
 	return nil, nil, false
+}
+
+// groupStarts is where a value written at off is sited: there, or, where
+// it is all a group holds, at the group's first `(`.
+func groupStarts(src string, off int) []int {
+	offs := []int{off}
+	for p := skipTrivia(src, off-1); 0 <= p && '(' == src[p]; p = skipTrivia(src, p-1) {
+		offs = append(offs, p)
+	}
+	return offs
+}
+
+// mapAt is the map literal whose brace is at off, with its path.
+func mapAt(src string, root Val, off int) (*MapVal, []string, bool) {
+	offs := groupStarts(src, off)
+	v, path, ok := findVal(root, func(v Val) bool {
+		_, isMap := v.(*MapVal)
+		return isMap && slices.Contains(offs, v.pos())
+	})
+	m, _ := v.(*MapVal)
+	return m, path, ok
+}
+
+// refReads is the path that the reference at start reads, as the engine
+// reads it, in a text that ends the reference with one more name: from
+// where the reference stands, less that name.
+func (a *Aontu) refReads(text string, start int) ([]string, bool) {
+	root, err := a.parseEntry(text)
+	if nil != err {
+		root = nil
+	}
+	offs := groupStarts(text, start)
+	v, _, _ := findVal(root, func(v Val) bool {
+		_, isRef := v.(*RefVal)
+		return isRef && slices.Contains(offs, v.pos())
+	})
+	var p []string
+	if ref, isRef := v.(*RefVal); isRef {
+		p = ref.plainRefPath()
+	}
+	if 0 == len(p) {
+		return nil, false
+	}
+	return p[:len(p)-1], true
 }
 
 func membersOf(node Val, written []string) []Member {
@@ -645,23 +667,25 @@ func (a *Aontu) MembersAt(src string, pos CursorPosition) *CursorMembers {
 	for 0 < w && wordByte(src[w-1]) {
 		w--
 	}
-	open, ok := openBrackets(src, w)
+	open, run, ok := openBrackets(src, w)
 	if !ok {
 		return nil
 	}
-	ref, isRef := refAt(src, w)
+	ref, isRef := refAt(src, run, w)
 	// The reference being written stands as `any`, so that it reads nothing.
 	text := src[:w] + src[cur:]
 	if isRef {
 		text = src[:ref.start] + "any" + src[cur:]
 	}
-	tail, _ := openBrackets(text, len(text))
-	for i := len(tail) - 1; 0 <= i; i-- {
-		text += closers[tail[i].c]
-	}
+	tail, _, _ := openBrackets(text, len(text))
+	text += closersOf(tail)
 	root, err := a.parseEntry(text)
 	if nil != err || nil == root {
 		return nil
+	}
+	reads, readsOK := []string(nil), false
+	if isRef {
+		reads, readsOK = a.refReads(src[:w]+"x"+closersOf(open), ref.start)
 	}
 	brace := -1
 	for i, o := range open {
@@ -672,12 +696,7 @@ func (a *Aontu) MembersAt(src string, pos CursorPosition) *CursorMembers {
 	var lit Val = root
 	path, found := []string{}, true
 	if 0 <= brace {
-		lit, path, found = mapAt(root, open[brace].at)
-	}
-	listed := slices.ContainsFunc(open[brace+1:], func(o openBracket) bool { return '[' == o.c })
-	reads, readsOK := []string(nil), false
-	if isRef {
-		reads, readsOK = refPath(ref, path, found && !listed)
+		lit, path, found = mapAt(text, root, open[brace].at)
 	}
 	prev := skipTrivia(src, w-1)
 	litMap, isMap := lit.(*MapVal)
@@ -691,7 +710,7 @@ func (a *Aontu) MembersAt(src string, pos CursorPosition) *CursorMembers {
 		on, at, written = "key", path, append(written, litMap.keys...)
 	}
 	res, _, _ := a.unifyCtx(root, nil, text)
-	return &CursorMembers{On: on, Path: at, Members: membersOf(anchorParts(res, at), written)}
+	return &CursorMembers{On: on, Path: at, Members: membersOf(throughResidue(anchorParts(res, at)), written)}
 }
 
 // SitesOf is every site that writes a path, as `model why` reads them;

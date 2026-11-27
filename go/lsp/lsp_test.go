@@ -889,6 +889,29 @@ func TestCompletionOffersTheKeysAndMembersAtTheCursor(t *testing.T) {
 	}
 }
 
+func TestCompletionWritesAKeyAsItReadsWhereItGoes(t *testing.T) {
+	inserts := func(src string, line, character int) map[string]string {
+		out := map[string]string{}
+		for _, i := range CompletionsAt(src, line, character, "", nil) {
+			out[i.Label] = i.InsertText
+		}
+		return out
+	}
+	const keys = `a: { "true": 1, _: 2, nil: 3, ok: 4, "x\ny": 5, "q\"r": 6 }` + "\n"
+	// After a dot, a segment the lexer reads as a value takes quotes too.
+	if got := inserts(keys+"x: $.a.\n", 1, 7); !reflect.DeepEqual(got, map[string]string{
+		"_": `"_"`, "nil": `"nil"`, "ok": "", `q"r`: `"q\"r"`, "true": `"true"`, "x\ny": `"x\ny"`,
+	}) {
+		t.Errorf("path: %q", got)
+	}
+	const typ = `T: type({ true: integer, _: string, "x\ny": string })` + "\n"
+	if got := inserts(typ+"v: $.T & {  }\n", 1, 11); !reflect.DeepEqual(got, map[string]string{
+		"_": "", "true": "", "x\ny": `"x\ny"`,
+	}) {
+		t.Errorf("key: %q", got)
+	}
+}
+
 func TestCompletionThroughTheHandler(t *testing.T) {
 	h := NewHandler()
 	init, _ := json.Marshal(h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize"})[0])

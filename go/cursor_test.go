@@ -13,7 +13,7 @@ func TestCursorColonAtTheStartHasNoKeyBeforeIt(t *testing.T) {
 func TestCursorMapSearchVisitsASharedValueOnceAndFindsNothingElse(t *testing.T) {
 	one := &TopVal{}
 	both := &ConjunctVal{peg: []Val{one, one, nil}}
-	if _, _, ok := mapAt(both, 0); ok {
+	if _, _, ok := mapAt("", both, 0); ok {
 		t.Fatal("found a map where there is none")
 	}
 }

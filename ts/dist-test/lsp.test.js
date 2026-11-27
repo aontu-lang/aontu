@@ -367,6 +367,18 @@ const lsp_server_1 = require("../dist/lsp-server");
         // A dot that begins no path offers nothing.
         Assert.deepStrictEqual((0, lsp_1.computeCompletions)('x: 1.\n', { line: 0, character: 5 }, { trigger: '.' }), []);
     });
+    (0, node_test_1.test)('completion-writes-a-key-as-it-reads-where-it-goes', () => {
+        const inserts = (src, at) => Object.fromEntries((0, lsp_1.computeCompletions)(src, at).map((i) => [i.label, i.insertText]));
+        const keys = 'a: { "true": 1, _: 2, nil: 3, ok: 4, "x\\ny": 5, "q\\"r": 6 }\n';
+        // After a dot, a segment the lexer reads as a value takes quotes too.
+        Assert.deepStrictEqual(inserts(keys + 'x: $.a.\n', { line: 1, character: 7 }), {
+            _: '"_"', nil: '"nil"', ok: undefined, 'q"r': '"q\\"r"', true: '"true"', 'x\ny': '"x\\ny"',
+        });
+        const T = 'T: type({ true: integer, _: string, "x\\ny": string })\n';
+        Assert.deepStrictEqual(inserts(T + 'v: $.T & {  }\n', { line: 1, character: 11 }), {
+            _: undefined, true: undefined, 'x\ny': '"x\\ny"',
+        });
+    });
     (0, node_test_1.test)('completion-through-the-handler', () => {
         const h = new lsp_1.LspHandler();
         const init = h.handle({ id: 1, method: 'initialize', params: {} });
