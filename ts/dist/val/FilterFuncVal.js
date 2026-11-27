@@ -13,6 +13,20 @@ const PrefVal_1 = require("./PrefVal");
 const Val_1 = require("./Val");
 const PlaceVal_1 = require("./PlaceVal");
 const members_1 = require("./members");
+const RecurseVal_1 = require("./RecurseVal");
+const ConjunctVal_1 = require("./ConjunctVal");
+const MAKERS = new Set(['pack', 'each', 'apply', 'match']);
+const making = (v) => true === v?.isFunc && !v.done && MAKERS.has(v.funcname());
+// A member a generator is still making is not yet where a path reads it.
+function unmade(ctx, path) {
+    for (let i = 0; i < path.length; i++) {
+        const node = (0, RecurseVal_1.unmarked)((0, RecurseVal_1.walkTarget)(ctx.root, path.slice(0, i)));
+        if (making(node) || (true === node?.isConjunct && node.peg.some(making))) {
+            return true;
+        }
+    }
+    return false;
+}
 class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -28,7 +42,7 @@ class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        if (!this.stagedReady(ctx, 1)) {
+        if (!this.stagedReady(ctx, 1) || ((0, ConjunctVal_1.holdsRef)(this.peg[1]) && unmade(ctx, this.path))) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

@@ -2,6 +2,7 @@ import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FeatureVal } from './FeatureVal';
 declare function dropPendingMarkWrappers(v: Val): Val;
+declare function liftCopy(v: Val, typed: boolean): Val;
 declare function pendingMarkWrapper(v: any): boolean;
 declare function member(v: any, part: any): any;
 declare function landPaths(tmpl: Val, base: string[]): void;
@@ -37,4 +38,4 @@ declare class RefVal extends FeatureVal {
     gen(ctx: AontuContext): undefined;
     inspection(): string;
 }
-export { dropPendingMarkWrappers, landPaths, landedAt, landsOnly, member, pendingMarkWrapper, RefVal, };
+export { dropPendingMarkWrappers, landPaths, landedAt, landsOnly, liftCopy, member, pendingMarkWrapper, RefVal, };

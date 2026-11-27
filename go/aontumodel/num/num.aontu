@@ -1,0 +1,40 @@
+# aontu:num --- THE SIZED NUMBERS. The integer names CUE predeclares,
+# and Float32. type() so naming one neither generates it nor asks a
+# document to fill it.
+
+aontu: Num: {
+  Int8: type(integer & min(-128) & max(127))
+  Int16: type(integer & min(-32768) & max(32767))
+  Int32: type(integer & min(-2147483648) & max(2147483647))
+
+  # A bound past 2^53 is written 0d to be exact, and admits a
+  # biginteger.
+  Int64: type(
+    (integer|biginteger)
+    & min(-0d9223372036854775808)
+    & max(0d9223372036854775807)
+  )
+  Int128: type(
+    (integer|biginteger)
+    & min(-0d170141183460469231731687303715884105728)
+    & max(0d170141183460469231731687303715884105727)
+  )
+
+  Uint8: type(integer & min(0) & max(255))
+  Uint16: type(integer & min(0) & max(65535))
+  Uint32: type(integer & min(0) & max(4294967295))
+  Uint64: type((integer|biginteger) & min(0) & max(0d18446744073709551615))
+  Uint128: type(
+    (integer|biginteger)
+    & min(0)
+    & max(0d340282366920938463463374607431768211455)
+  )
+
+  # The largest finite float32 magnitude, exactly. A constraint cannot
+  # say a precision, so every number between the bounds is admitted.
+  Float32: type(
+    number
+    & min(-0d340282346638528859811704183484516925440)
+    & max(0d340282346638528859811704183484516925440)
+  )
+}

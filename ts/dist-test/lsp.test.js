@@ -308,7 +308,7 @@ const lsp_server_1 = require("../dist/lsp-server");
 (0, node_test_1.describe)('lsp-completion', () => {
     (0, node_test_1.test)('completion-list', () => {
         const c = (0, lsp_1.computeCompletions)('');
-        Assert.equal(c.length, 90);
+        Assert.equal(c.length, 91);
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.kind, lsp_1.COMPLETION_FUNCTION);
         Assert.equal(byLabel.get('string')?.kind, lsp_1.COMPLETION_KEYWORD);
@@ -325,7 +325,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         const c = (0, lsp_1.computeCompletions)('');
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.detail, 'upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string');
-        Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any) : map');
+        Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any, template k?: string) : map');
         Assert.equal(byLabel.get('path')?.detail, 'path(capture p?: path) : path');
     });
     // Twin: go/lsp/lsp_test.go TestCompletionOffersTheNamesInScope.
@@ -414,12 +414,16 @@ const lsp_server_1 = require("../dist/lsp-server");
         // Inside the call: the declared signature, first parameter active.
         open('x: pack($.names, {a:1})');
         let r = help(0, 8);
-        Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any) : map');
-        Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 2);
+        Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any, template k?: string) : map');
+        Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 3);
         Assert.equal(r.activeParameter, 0);
         // After the comma: the second parameter is active.
         r = help(0, 18);
         Assert.equal(r.activeParameter, 1);
+        // After the second comma: the key template is active.
+        open('x: pack($.names, {a:1}, key(0))');
+        r = help(0, 26);
+        Assert.equal(r.activeParameter, 2);
         // A comma or paren inside a string does not miscount.
         open('x: join(["a,b"], ",")');
         r = help(0, 20);
@@ -462,7 +466,7 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('builtin-funcs-match-engine', () => {
         // Drift guard: every BUILTIN_FUNCS name must be recognised by the
         // parser, and a bogus name must not be.
-        Assert.equal(lsp_1.BUILTIN_FUNCS.length, 75);
+        Assert.equal(lsp_1.BUILTIN_FUNCS.length, 76);
         for (const name of lsp_1.BUILTIN_FUNCS) {
             const errs = (0, lsp_1.computeDiagnostics)('x:' + name + '(1)')
                 .filter(d => d.code === 'unknown_function');
@@ -527,7 +531,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         });
         Assert.match(hov[0].result.contents.value, /8080/);
         const comp = h.handle({ id: 6, method: 'textDocument/completion', params: {} });
-        Assert.equal(comp[0].result.length, 90);
+        Assert.equal(comp[0].result.length, 91);
     });
     (0, node_test_1.test)('initialize-advertises-capabilities', () => {
         const h = new lsp_1.LspHandler();

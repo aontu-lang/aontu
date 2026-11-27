@@ -687,6 +687,27 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to/name-a-reusable-constraint.md`, both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**BEYOND THE PHASES: the sized numbers, landed on 2026-11-27 as the
+bundled model `@"aontu:num"`**, which adds no phase to the table and
+keeps the decision above: there is no keyword, and `a: int8` is still
+the bare string `"int8"`. Ruling 27 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings-on-parts-2-to-7)
+took the names up as a model, and its task BT4 built it, in
+[`aontu/num/num.aontu`](../../aontu/num/num.aontu), copied by
+`make aontu` into `ts/src/aontumodel.ts` and `go/aontumodel/num/`.
+`$.aontu.Num` holds the integer names CUE predeclares, `Int8` to
+`Int128` and `Uint8` to `Uint128`, and `Float32`, each `type()`-marked
+and each an ordinary value a project narrows. The 64-bit and 128-bit
+names are `(integer | biginteger)` with exact `0d` bounds, the lower
+one `-0d…`, and `Float32` is a `number` within the largest finite
+float32 magnitude written exactly, with no precision constraint, since
+a constraint cannot say one. The members are PascalCase as
+`aontu:system`'s are, which is the maintainer's to change. Held by
+`test/spec/num.tsv`, every expectation from both engines; documented in
+`docs/reference-language.md` "The `aontu:num` sized numbers", with a
+pointer from `docs/how-to/name-a-reusable-constraint.md`. No code is
+registered.
+
 **RECURSION P3 LANDED 2026-10-10** (sketch/RECURSION.0.md,
 [ADR-067](https://github.com/aontu-lang/aontu/blob/ae76d1f5/ADR.md#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names)),
 in both ports: subsumption reads a recursive position as the
@@ -1947,6 +1968,44 @@ references behind; it is G4's to settle for both at once.
 | **4** — `\|>` sugar | S | **REMOVED** (ADR-018, 2026-08-31) | Landed as below, then removed on review: a second spelling of an ordinary call, whose loosest-binding precedence and constraint-atom carve-out cost more grammar than the reading bought. The record of the landing stands. Parse-time only, as designed: `ts/src/lang.ts` and `go/lang.go` gained one infix operator (`\|>`, LOOSEST of them all, so `a & b \|> f` pipes the whole meet) and one shared call builder each — `buildCall`, which both the `f(...)` handler and the pipe go through, so the arity check, the comma-group rule and the raw-value conversion are stated once. Code `pipe_target` in `errcodes.tsv` and the token in both published grammars, as landed; **neither survives the removal**: at 2026-09-29 `errcodes.tsv` carries no `pipe_target` and `test/spec/pipe.tsv` does not exist ([#188](https://github.com/aontu-lang/aontu/issues/188) is the record). Spec as landed: `test/spec/pipe.tsv` (24 rows), whose canon rows all showed CALLS — no Val ever holds a pipe, which is what keeps canon and the two ports' agreement about it untouched. The plan allowed dropping this phase if call nesting proved acceptable; there was no adoption evidence either way, so it landed rather than being dropped on a guess. **Departure:** one, recorded below. |
 | **5** — arithmetic, aggregation and projection | L | **LANDED 2026-08-27** | The review's finding I (use-cases/REVIEW.md), and the phase G8 deliberately did not build: it PRE-REGISTERED the semantics ("Arithmetic semantics, pre-registered") and left the building to whoever came next, so that they would inherit one decision instead of making six under deadline. Ten built-ins, 28 → 38. **ARITHMETIC AS FUNCTIONS** — `add` `sub` `mul` `div` `mod` `rem` (`ts/src/val/arith.ts` + `ArithFuncVal.ts`, `go/arith.go`): `-` `*` `/` `%` stay reserved as the boundary requires, the exact ladder and R5 contagion are the tower's existing law applied to five more operations, integer division TRUNCATES TOWARD ZERO (stated once here rather than left to whichever host `/` each port calls — Go's Quo truncates and its Div FLOORS, so picking the wrong one is a silent one-off in every negative case), and `rem` and `mod` differ only in whose sign the answer follows, which is the whole reason both exist. Three refusals, each because the answer would be a value aontu cannot carry: `divide_by_zero` in every leaf including floats, `float_overflow` for a non-finite binary64 result, and `inexact_divide` for div/mod/rem over the DECIMAL leaf (one third has no finite decimal form, so the operation either rounds — the one thing that leaf exists to prevent — or refuses). **AGGREGATION** — `sum` `least` `greatest` (`AggFuncVal.ts`, `go/agg.go`) fold a finite, settled bag, `sum` through `add` so the tower's law arrives with it; named for the LATTICE's extremes rather than `min`/`max`, which are already the atoms for a BOUND. `sum([])` is 0 and `least([])` is an error: addition has an identity, comparison has none. **PROJECTION** — `pick(d, k)`, without which the aggregates cannot reach the case that motivated them, because `sum` needs a bag of NUMBERS and a model holds a bag of RECORDS. **Departures, four.** (1) THE FAMILY IS NUMERIC where `+` is polymorphic, which is what makes `add` more than a second spelling: `"500m" + "500m"` is the string "500m500m" — how a Kubernetes quantity silently becomes nonsense — and `add("500m","500m")` is a located error. Two spellings, two meanings, both kept. (2) `div`/`mod`/`rem` refuse a bigdecimal rather than implementing exact decimal division; `add`/`sub`/`mul` work the full ladder. Scaling to integers is the way out and is the money wire convention anyway. (3) NO `superior()` ARM for either family: an unresolved call could only advertise a kind once both operands were concrete scalars, and at that point it has RESOLVED, so `super()` sees the result and the arm is unreachable — written, then removed. (4) ONE new code short of the design's expectation: the integer-range refusal REUSES `inexact_integer_sum` rather than minting an `integer_overflow` beside it. The registry is a public contract and one code for one condition beats two that describe it. **A DEFECT FOUND ON THE WAY** (use-cases/BUGS.md 39): `float_overflow` is reachable through `+`, where a non-finite sum used to escape as `[aontu/internal]` in TypeScript and as Go's raw `json: unsupported value: +Inf` — no code, no site, invisible to a harness grepping `[aontu/` — with a Go CLI test PINNING the marshaller error as expected behaviour. Both ports refuse it at the operation now. Spec: `test/spec/arith.tsv` (57 rows at 2026-09-05; 59 at landing, two removed with the pipe) and `agg.tsv` (48; 44 at landing), every expectation obtained by running BOTH engines and diffing; `canon` rather than `gen` throughout, because half of what these promise is the KIND of the answer and a gen row cannot see one. Docs: "Arithmetic" and "Aggregating" in [`docs/reference-language.md`](../../docs/reference-language.md#arithmetic-add-sub-mul-div-mod-rem). |
 | **6** — JSON Schema export and the money wire convention | M | **LANDED 2026-08-27** | The other half of the review's finding I (use-cases/REVIEW.md): the interop wall, which the review calls "also a language question -- the constraint algebra maps cleanly onto JSON Schema's core, and the mapping should be specified while both sides are small". **THE EXPORT** — `aontu jsonschema` (`ts/src/jsonschema.ts`, `go/jsonschema.go`), a library call, a CLI verb and an MCP tool (in the TypeScript server only — Go serves no MCP, per G7.6; this phrase read "in both ports" until 2026-09-05), emitting draft 2020-12. The mapping: `re`→`pattern`, `min`/`max`→`minimum`/`maximum`, `length`→the length keywords for the value's own type, `neq`→`not`/`enum`, a disjunction→`anyOf` (or `enum` where every member is a literal), a preference→`default`, `close()`→`additionalProperties:false`, an optional key→absent from `required`, a spread-templated list→`items` and a written list→`prefixItems`+`items:false`. Walks the UNIFIED value, not the parse tree, so what is exported is what the model MEANS. **A LOSS IS NEVER SILENT, and never replaces the schema.** `must()`, an exact numeric leaf and an unresolved residue cannot be said in JSON Schema; each is reported as a `SchemaLoss` on stderr BESIDE the schema on stdout, because a weaker schema is still a usable one and a redirect must keep the two apart. `--strict` turns the report into a refusal; `--format json` puts both in one envelope. **THE MONEY WIRE CONVENTION** — the part of finding I that asked for a convention "more than it needs new machinery", and it took none. Money crosses as a decimal STRING at a fixed scale with an optional-but-CONSTANT conversion mark (`dec?: "bigdecimal:2"`) naming the leaf and the scale: optional so a producer is never asked for it, constant so one that sends it cannot contradict it (a preference could not make that check — it is a default, so `dec:"float"` would vet clean), and exported as a `const` outside `required` so a consumer holding only the JSON Schema learns both. [`docs/how-to/carry-exact-money-over-json.md`](../../docs/how-to/carry-exact-money-over-json.md) carries it with the three details that decide a correct implementation: the sign goes OUTSIDE the `0d` prefix (`0d-12.05` is not a literal), scale is not part of the value (`0d10.50` and `0d10.5` are the same number and canon prints the shorter), and at scale 0 the point must still be written or the value lands on the `biginteger` leaf. `use-cases/10-data-model/money-wire.aontu` and `money-convert.aontu` are the executable form; gap 1 ("exact money is unreachable from plain JSON") is answered. **A DEFECT FOUND ON THE WAY** (use-cases/BUGS.md 41), by the parity probe the convention needed anyway: a `NilVal` took its PATH from the operand it blames, which decides the site correctly and the path only by accident — every conflict inside a referenced record named the RECORD, identically for every one of its fields, and a conflict against a minted operand named `$`. Fixed in both ports by taking the driving location where it EXTENDS the operand's path; the unconditional form was tried and reverted (it moves every closed-key, spread-template and `--at` finding). One case stays open in `test/spec/divergent.tsv`: a reference to a target DEEPER than the referring field leaves one stale segment in TypeScript, whose real fix is a TS twin of Go's `cloneAt`/`overlayPath`. Spec: `test/spec/jsonschema.tsv` (57 rows at 2026-09-05; 54 at landing) plus two in `vet.tsv`, every expectation obtained by running BOTH engines and diffing. |
+
+**BEYOND THE PHASES: the member at a key, landed on 2026-11-27 as the
+call `at(d, ...k)`**, which adds no phase to the table. Ruling 1 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings)
+named it, and its task C1 built it: the lookup a comprehension writes as
+`teams[s.team]`, as a call G8's boundary allows. `AtFuncVal`
+(`ts/src/val/AtFuncVal.ts`) and `atFunc` (`go/at.go`) step as a path
+steps, a negative integer counting from the end of a list, and copy the
+member as a reference does, through `liftCopy`, which `RefVal` and
+`go/ref.go` now share. A miss is `no_path`, which `maybe` forgives, and
+a key that is no string and no integer is `func_arg`, which
+`restRefuse` (`ts/src/siggate.ts`, `go/siggate.go`) reads off the rest
+slot the gate stops at. It is declared in `test/spec/signature.tsv`
+(75 -> 76 builtins), named in the four grammars and both LSP completion
+lists, and held by `test/spec/at.tsv` and the `-at` rows of
+`test/spec/comprehension.tsv`. No code is registered. The definition is
+owed: no Lean toolchain was installed where it was built.
+
+**BEYOND THE PHASES: a key for each child, landed on 2026-11-27 as
+`pack`'s optional third argument**, which adds no phase to the table
+either. Ruling 5 of
+[the lang refinement plan](../LANG-REFINEMENT-PLAN.0.md#the-rulings)
+reopened the question phase 1 settled, that a generated key is the
+data's and never computed, and its task C2 built the answer:
+`pack(d, t, k)` puts each member's child under the string `k` answers
+for it. `packMembers` and `readKey` (`ts/src/val/PackFuncVal.ts`,
+`go/generate.go`) read `k` once for each member at the place its child
+would take under its own key, `_` the member and `key(0)` its key, run
+to a fixpoint as the admission trial runs its meet; the call waits
+while any key waits, and fires once every key is a string. Anything
+else is `pack_key`, whose hint gains a sentence, identical in both
+ports; a refusal `k` answers, such as `at`'s `no_path`, is the call's.
+The signature line in `test/spec/signature.tsv` gains `template k?:
+string`, and both LSP signature helps show it. Rows:
+`test/spec/gen-pack-key.tsv` (45) and the six `-pack` rows of
+`test/spec/comprehension.tsv`, beside k9, k10, k11 and k14 to k16; the
+`gen-pack.tsv` row that held three arguments to `func_arity` now holds
+four. No code is registered. The definition is owed.
 
 **Departures and discoveries recorded by G8.1.**
 
