@@ -52,3 +52,8 @@ endpoint-is-the-root	reaches	a: {list: [{}, {}], dep: relate() & path($.b)}\nb: 
 endpoint-unanchored-is-a-refusal	reaches	a: {list: [{}, {}], dep: relate() & path($.b)}\nb: {}\n	{"ask":{"from":"a","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
 endpoint-bad-segment-is-a-refusal	reaches	a: {list: [{}, {}], dep: relate() & path($.b)}\nb: {}\n	{"ask":{"from":"$.a b","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
 endpoint-through-a-scalar-is-a-refusal	reaches	a: {list: [{}, {}], dep: relate() & path($.b)}\nb: {}\n	{"ask":{"from":"$.a.dep.x","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
+
+# A default's edge is one generation writes, so the closure crosses
+# it (ruling 94, #1029).
+reaches-through-a-preferred-arm	reaches	a: {dependsOn: [&: relate(), path($.b)] | *[&: relate(), path($.c)]}\nb: {}\nc: {dependsOn: [&: relate(), path($.d)]}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"path":["$.a","$.c","$.d"],"verdict":"reaches"}
+unreachable-through-the-arm-not-taken	reaches	a: {dependsOn: [&: relate(), path($.b)] | *[&: relate(), path($.c)]}\nb: {}\nc: {dependsOn: [&: relate(), path($.d)]}\nd: {}\n	{"ask":{"from":"$.a","to":"$.b"},"verdict":"unreachable"}

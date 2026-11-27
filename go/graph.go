@@ -67,9 +67,9 @@ func graphWalk(root Val, written bool) ([]Edge, []string, map[string]*relDecl, m
 	ancestors := map[Val]bool{}
 
 	// ONE WALK, with `undecided` saying which side of the disjunction it is on:
-	// below an unresolved disjunction every link is a position the
-	// document has not decided, and nothing there is an edge. Read as
-	// `written`, the arms generation picks are decided and no other is read.
+	// a default and the arm generation picks are decided (ruling 94); below
+	// a disjunction with no preferred arm every link is undecided unless
+	// read as `written`, which takes every arm (ruling 95).
 	var visit func(node Val, path []string, hidden, undecided bool, under []string)
 	visit = func(node Val, path []string, hidden, undecided bool, under []string) {
 		if nil == node || ancestors[node] {
@@ -137,20 +137,16 @@ func graphWalk(root Val, written bool) ([]Edge, []string, map[string]*relDecl, m
 			delete(ancestors, node)
 		case *DisjunctVal:
 			ancestors[node] = true
-			arms := n.peg
-			if written {
-				arms = pickedArms(arms)
-			}
+			arms := pickedArms(n.peg)
+			open := !written && len(arms) == len(n.peg) && (0 == len(arms) || !isPref(arms[0]))
 			for _, arm := range arms {
-				visit(arm, path, hidden, undecided || !written, under)
+				visit(arm, path, hidden, undecided || open, under)
 			}
 			delete(ancestors, node)
 		case *PrefVal:
-			if written {
-				ancestors[node] = true
-				visit(n.peg, path, hidden, undecided, under)
-				delete(ancestors, node)
-			}
+			ancestors[node] = true
+			visit(n.peg, path, hidden, undecided, under)
+			delete(ancestors, node)
 		case *MapVal:
 			ancestors[node] = true
 			for _, k := range n.keys {
