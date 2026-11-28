@@ -719,11 +719,11 @@ def Decls.tableUnfold (ds : Decls) (e : Val → Val) : Fn → List Val → List 
   | _, as => as
 
 /-- Whether a call's first argument is data the call reads: a
-generator's source, the bag a fold or `sort` reads, and the list `pick`
-and `join` read. A path there reads its target where the target stands,
-and nothing is placed (ruling 93). -/
+generator's source, the bag a fold or `sort` reads, the list `pick`
+and `join` read, and the term `at` steps in. A path there reads its
+target where the target stands, and nothing is placed (ruling 93). -/
 def Fn.readsData : Fn → Bool
-  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join => true
+  | .each | .pack | .apply | .emit | .sum | .least | .greatest | .sort | .pick | .join | .at => true
   | _ => false
 
 /-- A name's value as data a call reads: the meet of its bodies as the
@@ -747,6 +747,37 @@ def Decls.dataArgs (ds : Decls) (f : Fn) : List Val → List Val
   | a :: as => (if f.readsData then ds.dataArg a else a) :: as
   | [] => []
 
+/-- The meet of a name's bodies, without the identity a body declares
+but with the marks they write; none for a name nothing declares. -/
+def Decls.markedBody (ds : Decls) (n : String) : Option Val :=
+  match ds.bodies n with
+  | [] => none
+  | v :: vs => some (vs.foldl .meet v).unident
+
+/-- Whether a call is an `at` whose data is a reference to a name. -/
+def Val.isAtRef : Fn → List Val → Bool
+  | .at, .alias _ :: _ => true
+  | _, _ => false
+
+theorem Val.isAtRef_true {fn : Fn} {args : List Val} (h : Val.isAtRef fn args = true) :
+    ∃ k ks, fn = .at ∧ args = .alias k :: ks := by
+  unfold Val.isAtRef at h
+  split at h
+  · exact ⟨_, _, rfl, rfl⟩
+  · cases h
+
+/-- The data `at` steps in where it is a reference to a name, `e` the
+expansion: the name's bodies expanded with their marks kept, so that a
+step reads a marked member as a path to it reads it (ruling 3 of C1),
+sealed where the name is a definition; a recursive name, or one nothing
+declares, stays. -/
+def Decls.atRef (ds : Decls) (e : Val → Val) (n : String) : Val :=
+  if ds.recursiveB n then .alias n
+  else
+    match ds.markedBody n with
+    | some b => if ds.typed n then .meet (e b) (e b).restrict else e b
+    | none => .alias n
+
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
@@ -758,7 +789,8 @@ as the table it holds, each template's replacements written into its
 body (`Fn.tableArgs`), and one that names a recursive
 name as that name's bodies, a level for each turn left
 (`Decls.tableUnfold`), so the turns bound how deep a rule set that names
-itself walks. -/
+itself walks. The data of an `at` that is a reference reads as
+`Decls.atRef` has it. -/
 def expandF (ds : Decls) : ℕ → Val → Val
   | 0, v => v
   | k + 1, v =>
@@ -789,6 +821,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .select s arms d =>
       .select (expandF ds k s) (arms.map fun a => (expandF ds k a.1, expandF ds k a.2)) (d.map (expandF ds k))
     | .filter s c => .filter (expandF ds k (ds.dataArg s)) (expandF ds k c)
+    | .call .at (.alias n :: ks) => .call .at (ds.atRef (expandF ds k) n :: ks.map (expandF ds k))
     | .call f args => .call f (f.tableArgs (ds.tableUnfold (expandF ds k) f ((ds.dataArgs f args).map (expandF ds k))))
     | .ride t v r => .ride t (t.reads (expandF ds k v)) r
     | .link v t => .link (expandF ds k v) (expandF ds k t)
@@ -1409,6 +1442,18 @@ theorem refersUnguarded_of_env {ds : Decls} {k n : String} {b : Val} (h : ds.env
     · exact ⟨v, hb ▸ List.mem_cons_self, h'⟩
     · exact ⟨w, hb ▸ List.mem_cons_of_mem v hw, hn'⟩
 
+theorem refersUnguarded_of_markedBody {ds : Decls} {k n : String} {b : Val} (h : ds.markedBody k = some b)
+    (hn : n ∈ b.unguardedRefs) : ds.RefersUnguarded k n := by
+  simp only [markedBody] at h
+  split at h
+  · exact nomatch h
+  · rename_i v vs hb
+    cases h
+    rw [Val.unguardedRefs_unident] at hn
+    rcases unguardedRefs_foldl_meet vs v hn with h' | ⟨w, hw, hn'⟩
+    · exact ⟨v, hb ▸ List.mem_cons_self, h'⟩
+    · exact ⟨w, hb ▸ List.mem_cons_of_mem v hw, hn'⟩
+
 end Decls
 
 /-- A name the table an `emit` call holds reaches with nothing between
@@ -1477,6 +1522,16 @@ theorem mem_dataArgs {ds : Decls} {f : Fn} {as : List Val} {x : Val} (h : x ∈ 
       · rw [if_neg hf] at h
         exact .inl (by rw [h]; exact List.mem_cons_self)
     · exact .inl (List.mem_cons_of_mem _ h)
+
+/-- A call other than an `at` over a reference expands its arguments
+as written. -/
+theorem expandF_call_of_not_at {ds : Decls} {fn : Fn} {args : List Val} (f : ℕ)
+    (hat : Val.isAtRef fn args = false) :
+    expandF ds (f + 1) (.call fn args) =
+      .call fn (fn.tableArgs (ds.tableUnfold (expandF ds f) fn ((ds.dataArgs fn args).map (expandF ds f)))) := by
+  rcases fn <;> try rfl
+  all_goals (rcases args with _ | ⟨a, as⟩ <;> try rfl)
+  all_goals (cases a <;> first | rfl | cases hat)
 
 /-- A name the expansion of a term reaches with nothing between, the term
 reached that way itself, or reaches through a name it so reached. -/
@@ -1628,8 +1683,44 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
         · exact .inr ⟨m, .inr hm, hmn⟩
     | map _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | list _ _ _ => simp [expandF, Val.unguardedRefs] at h
-    | call _ args =>
-      simp only [expandF, Val.unguardedRefs] at h ⊢
+    | call fn args =>
+      cases hat : Val.isAtRef fn args
+      rotate_left
+      · obtain ⟨k, ks, rfl, rfl⟩ := Val.isAtRef_true hat
+        simp only [expandF, Val.unguardedRefs] at h ⊢
+        obtain ⟨a', hm, hn⟩ := mem_unguardedItems.mp h
+        have hk : k ∈ unguardedItems (.alias k :: ks) :=
+          mem_unguardedItems.mpr ⟨.alias k, List.mem_cons_self, by simp [Val.unguardedRefs]⟩
+        rcases List.mem_cons.mp hm with rfl | hm
+        · unfold Decls.atRef at hn
+          split at hn
+          · simp only [Val.unguardedRefs, List.mem_singleton] at hn
+            subst hn
+            exact .inl hk
+          · split at hn
+            · rename_i b hb
+              have hb' : n ∈ (expandF ds f b).unguardedRefs := by
+                split at hn
+                · simp only [Val.unguardedRefs, Val.restrict, List.mem_append] at hn
+                  rcases hn with hn | hn
+                  · exact hn
+                  · obtain ⟨w, hw, hn⟩ := restrictF_unguardedRefs _ _ hn
+                    exact List.mem_singleton.mp hw ▸ hn
+                · exact hn
+              rcases unguardedRefs_expandF f b hb' with h' | ⟨m, hm', hmn⟩
+              · exact .inr ⟨k, hk, .single (Decls.refersUnguarded_of_markedBody hb h')⟩
+              · exact .inr ⟨k, hk, .trans (.single (Decls.refersUnguarded_of_markedBody hb hm')) hmn⟩
+            · simp only [Val.unguardedRefs, List.mem_singleton] at hn
+              subst hn
+              exact .inl hk
+        · obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hm
+          have ha' : a ∈ Val.alias k :: ks := List.mem_cons_of_mem _ ha
+          rcases unguardedRefs_expandF f a hn with h' | ⟨m, hm', hmn⟩
+          · exact .inl (mem_unguardedItems.mpr ⟨a, ha', h'⟩)
+          · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha', hm'⟩, hmn⟩
+      have hx := expandF_call_of_not_at (ds := ds) f hat
+      rw [hx] at h
+      simp only [Val.unguardedRefs] at h ⊢
       obtain ⟨a', hm, hn⟩ := mem_unguardedItems.mp h
       obtain ⟨y, hy, hx⟩ := mem_tableArgs hm
       have hny : n ∈ y.unguardedRefs := by
@@ -2610,7 +2701,50 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       intro c' hm
       obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hm
       exact expandF_checkableA hb f c (hcs c hc)
-    | call hargs =>
+    | @call fn args hargs =>
+      cases hat : Val.isAtRef fn args
+      rotate_left
+      · obtain ⟨k, ks, rfl, rfl⟩ := Val.isAtRef_true hat
+        simp only [expandF]
+        refine .call fun a' hm => ?_
+        rcases List.mem_cons.mp hm with rfl | hm
+        · unfold Decls.atRef
+          split
+          · exact .alias
+          · split
+            · rename_i b hbm
+              have hbc : b.CheckableA := by
+                simp only [Decls.markedBody] at hbm
+                split at hbm
+                · exact nomatch hbm
+                · rename_i v vs hbs
+                  cases hbm
+                  have hall : ∀ w, w ∈ v :: vs → w.CheckableA := by
+                    intro w hw
+                    rw [← hbs] at hw
+                    simp only [Decls.bodies, List.mem_map, List.mem_filter] at hw
+                    obtain ⟨d, ⟨hd, -⟩, rfl⟩ := hw
+                    exact hb d hd
+                  have : ∀ (vs : List Val) (v : Val), v.CheckableA → (∀ w, w ∈ vs → w.CheckableA) →
+                      (vs.foldl Val.meet v).CheckableA := by
+                    intro vs
+                    induction vs with
+                    | nil => intro v hv _; exact hv
+                    | cons w vs ih =>
+                      intro v hv hws
+                      exact ih (.meet v w) (.meet hv (hws w (List.mem_cons_self)))
+                        (fun w' hw' => hws w' (List.mem_cons_of_mem _ hw'))
+                  exact Val.checkableA_unident
+                    (this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw)))
+              have hx := expandF_checkableA hb f _ hbc
+              split
+              · exact .meet hx (restrictF_checkableA _ _ fun w hw => List.mem_singleton.mp hw ▸ hx)
+              · exact hx
+            · exact .alias
+        · obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hm
+          exact expandF_checkableA hb f a (hargs a (List.mem_cons_of_mem _ ha))
+      have hx := expandF_call_of_not_at (ds := ds) f hat
+      rw [hx]
       refine .call fun a' hm => ?_
       obtain ⟨y, hy, hx⟩ := mem_tableArgs hm
       have hyc : y.CheckableA := by

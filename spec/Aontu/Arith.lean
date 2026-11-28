@@ -45,7 +45,7 @@ annotation. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
-  | plus | join | pick | sort | upper | lower | translate | esc | usc | encode | decode
+  | plus | join | pick | at | sort | upper | lower | translate | esc | usc | encode | decode
   | split | rep | nom
   | super | pref | move | copy | relate | path | abnf | parse | load
   | cmp (c : Cmp)

@@ -8,6 +8,7 @@ declare const SEVERITY_HINT = 4;
 declare const LSP_VERSION = "0.76.0";
 declare const HIGHLIGHT_READ = 2;
 declare const HIGHLIGHT_WRITE = 3;
+declare const REQUEST_FAILED = -32803;
 type Position = {
     line: number;
     character: number;
@@ -73,6 +74,25 @@ type DocumentHighlight = {
 };
 declare function computeReferences(src: string, position: Position, uri: string, includeDeclaration: boolean, trust?: any): Location[] | null;
 declare function computeHighlights(src: string, position: Position, trust?: any): DocumentHighlight[] | null;
+type WorkspaceEdit = {
+    changes: Record<string, TextEdit[]>;
+};
+type Renamed<T> = {
+    result: T | null;
+} | {
+    error: string;
+};
+declare function computePrepareRename(src: string, position: Position, uri: string, root?: string, trust?: any, open?: Record<string, string>): Renamed<{
+    range: Range;
+    placeholder: string;
+}>;
+declare function computeRename(src: string, position: Position, uri: string, newName: string, root?: string, trust?: any, open?: Record<string, string>): Renamed<WorkspaceEdit>;
+type CodeAction = {
+    title: string;
+    kind: string;
+    edit: WorkspaceEdit;
+};
+declare function computeCodeActions(src: string, range: Range, uri: string, only?: unknown, trust?: any): CodeAction[] | null;
 declare function computeDefinition(src: string, position: Position, uri: string): Location | null;
 declare function computePathDefinition(src: string, position: Position, uri: string, trust?: any): Location[] | null;
 declare function computeHover(src: string, position: Position, provenance?: boolean, trust?: any): Hover | null;
@@ -98,6 +118,7 @@ declare class LspHandler {
     private shutdownOK;
     private exited;
     private trust;
+    private root;
     private provenance;
     get shouldExit(): boolean;
     get exitCode(): number;
@@ -105,5 +126,5 @@ declare class LspHandler {
     handle(msg: Message): OutMessage[];
     private publish;
 }
-export { computeDiagnostics, computeHover, computeDefinition, computePathDefinition, computeCompletions, computeFormatting, computePathAt, computeSitesOf, computeSymbols, computeReferences, computeHighlights, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_FIELD, COMPLETION_VARIABLE, COMPLETION_KEYWORD, HIGHLIGHT_READ, HIGHLIGHT_WRITE, };
-export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, CursorPath, DocSymbol, DocumentHighlight, PathSite, };
+export { computeDiagnostics, computeHover, computeDefinition, computePathDefinition, computeCompletions, computeFormatting, computePathAt, computeSitesOf, computeSymbols, computeReferences, computeHighlights, computePrepareRename, computeRename, computeCodeActions, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_FIELD, COMPLETION_VARIABLE, COMPLETION_KEYWORD, HIGHLIGHT_READ, HIGHLIGHT_WRITE, REQUEST_FAILED, };
+export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, TextEdit, CursorPath, DocSymbol, DocumentHighlight, PathSite, WorkspaceEdit, CodeAction, };

@@ -452,6 +452,28 @@ k33 and k37. The definition is owed: no Lean toolchain was installed
 where it was built, so `at` has no meaning under `spec/`, and `maybeOf`
 doesn't yet count it as a reference, as ruling 2 asks.
 
+The definition is built, on 2026-11-27, and the owed definition is
+paid. `at` is `Fn.at`, computed as `atOf` in `spec/Aontu/Verdict.lean`
+(`restTerm` makes the call): each step read by `Val.atStep` and
+`Decls.atSteps`, a list's position by `atIndex?` among the elements
+with no mark of their own, and the member copied as a reference copies
+it, sealed where it is a definition's or inside one. The data of an
+`at` that is a reference is read with its bodies' marks kept
+(`Decls.atRef` in `spec/Aontu/Alias.lean`), so that a `type()` member's
+copy is sealed as the path to it is. For ruling 2, `atMissD` and
+`Decls.atMisses` make `maybe(at(…))` absence where a step or the data
+names nothing, `Val.forgiveAt` forgives that data, and a key that names
+nothing stays `no_path`. The data is a call's data argument
+(`Fn.readsData`, ruling 93). The 96 cases of `spec/Oracle/At.lean`
+generate rows at0 to at287 of `test/spec/def-path.tsv`, 288 rows, and
+both engines answer every one as the definition does; no engine
+changed. Two readings the definition doesn't hold yet, both listed in
+`spec/README.md`: an `at` under `maybe` as a side of a meet, an arm or
+under a rider, `maybe(at($.m, b) & 2)`, which both engines read as
+absence; and `maybe(at(at($.m, true), b))`, whose inner key is of
+another kind, which both engines read as absence and the definition as
+an error. Neither has a row.
+
 ## C2: a key for each child of `pack`
 
 **Proposed:** `pack(d: map|list, template t: any, template k?: string) : map`
@@ -562,6 +584,25 @@ rows of `test/spec/comprehension.tsv`, one beside each of k9, k10,
 k11, k14, k15 and k16, each answer agreed by both engines. The
 definition is owed: `spec/` doesn't read a third argument, so `pack`
 with a key has no meaning there yet.
+
+The definition is built, on 2026-11-27, and the owed definition is
+paid. `Fn.takes` lets `pack` take two or three arguments, and
+`resolveD` in `spec/Aontu/Verdict.lean` reads `pack(d, t, k)`: each
+member of the data with the step its own place takes
+(`Val.segMembers`, a map's key and a list's index), `k` read there,
+the call waiting while any member's key waits and `nil` where one is no
+string, and each instance of `t` read under the string `k` answered,
+the instances of one string met. The 36 cases of
+`spec/Oracle/PackKey.lean` generate rows pk0 to pk107 of
+`test/spec/def-path.tsv`, 108 rows, and both engines answer every one
+as the definition does; no engine changed. Two readings are left out,
+each with no row: a marked field of a member that `k` reads with
+`at`, `pack($.m, _, at(_, n))` over `m: {a: {n: hide(p), v: 1}}`, which
+both engines read as `p` and the definition, which reads a generator's
+source as the output has it (#1069), as no field; and a relative path
+in `t` or `k` of a call with three arguments, which the definition's
+reading of a template's relative paths (`Val.genTemplate`, `ntArgs`)
+doesn't yet take.
 
 ## C3: a position as an integer
 
@@ -891,6 +932,40 @@ order and CUE in source order:
   "twice": [{ "v": 2 }, { "v": 4 }, { "v": 6 }],
   "pairs": ["a=2", "b=1"] }
 ```
+
+Progress on 2026-11-27. C8 is written, as
+`docs/how-to/map-cue-comprehensions.md`, after C1 and C2. It takes the
+idioms in the order a CUE user reaches for them: a list from each
+member, flattening and joining, a choice under a condition, a local
+value, the keys of a map, a field of the member, two fields compared, a
+lookup, a pairing by position, the last member, a map keyed by a field,
+and the members another list names, then the longer constructions. All
+38 probes are shown. The 35 CUE fences quote `test/cue/`. Of the 42
+aontu fences, one quotes `k30.aontu` and 41 are executed, each followed
+by its answer. The corpus files aren't in the agreed form, which the
+docs fence check requires, so an executed fence is the agreed form of a
+row's source: a `routes-kNN`, `-at` or `-pack` row, `at.tsv`'s
+`at-condition-bound-reads-nothing`, or one of four `guide-*` rows added
+to `test/spec/comprehension.tsv` for the three entries above and one
+more. `ts/test/cuecorpus.test.ts` holds each fence to that, each answer
+to its row's, and the page to every probe. Both engines give every
+answer, formatted alike. Three things were settled in the writing, and
+each is the maintainer's to change:
+
+- The direct entries give only the direct spelling, for C1's and C2's
+  rows. The long routes those replace stay as rows and aren't shown.
+- k26 has a direct spelling with C1 that the table doesn't list,
+  `filter(each($.xs, apply(mul(at(_, a), 2), { v:_ })), { v:above(2) })`,
+  and the guide gives it as the `let` entry.
+- The page says that a bound reading the member in a `filter` pattern
+  keeps nothing and isn't refused, with k4's route as the example, and
+  writes the comparison with `match` and `sub`.
+
+The longer constructions are shown as today's routes and shorten as
+the rest lands: k7, k8 and the outer half of k12, k13 and k17 with C5,
+k34 with C3, and k30 to k32, k35 and k36 with C4. The CUE-users guide
+now links this page for the comprehensions, in place of the reference
+sections.
 
 ## Which task makes which idiom direct
 
@@ -1337,6 +1412,75 @@ reads among its sites, and a document that does not evaluate has none.
 An alias name's uses are not followed. Hover, definition and
 references still do not start from a reference in a group or among a
 constraint's arguments, which the cursor does not find.
+
+Progress on 2026-11-27, LS7. Rename is built in both servers, which
+advertise `renameProvider` with `prepareProvider`. On a key it renames
+the key's path, and on a reference the path up to the segment the
+cursor is in. The edit is read from the parse, not from the sites
+`model why` lists: the key at every place the parse writes the path,
+in the document or in an included file, and the segment that names it
+in every reference that reads the path or a path inside it, relative
+ones included, where the reference spells it. Each file it edits must
+be under the workspace root, the first folder or `rootUri` of
+`initialize`, else the document's folder. By ruling 17 the whole
+rename is refused, the message naming the site, where no edit of text
+keeps the document true: a key a generator makes (`pack`, `each`,
+`apply`, `emit`, a `match` outside a spread), a key a pattern matches
+(`keyed` or a `match` in a spread), a key `key()` reads, a key a
+spread's template writes, a key written `%n:`, a site in a bundled
+model, a package, a file outside the root or one whose text the server
+does not hold, a key or reference it cannot find as written, a path no
+key writes, and a new name that needs an escape or is taken. Read most
+conservatively, a path a reference copies is refused where the copy is
+written or read, as an instance of a type writes the type's keys, rather
+than renamed at every copy; that is the question the ruling leaves
+open. The library answer is `renameAt` (`RenameAt` in Go), with
+`computePrepareRename`, `computeRename`, `PrepareRename` and `Rename`
+in the servers, held by a new row mode, `rename`, in 79 rows of
+`test/spec/cursor.tsv`, which both engines wrote alike. A probe of both
+servers, prepare rename and rename to two names at every character of
+96 documents, 12,271 requests, found no difference.
+Review then found four cases the first build missed, now fixed in both
+ports. An included file the client has open with text other than the
+file's is refused, since the rename read the file the parse read and its
+places are not the buffer's; both servers pass the open documents' texts
+to the analysis. A key or a reference in a file included at two places
+is refused where the same text is also another path's. A literal key
+that `at()` steps by is renamed with the key, and `at()` that may read
+it by a computed key, by position, for every member of a `pack` or
+from an unknown map is refused; `pack`'s third argument, where it is a
+literal, names the generated key and reads none. A new name is refused
+where a key or a reference written with it does not read back as it once
+the document unifies, `.` among them, and so are `&` and a name starting
+with `%`: TypeScript refuses `$.a."%x"` and Go reads it, a divergence of
+the engines not yet resolved. The rows are 99 now, and a probe of 140
+documents, 18,370 requests, found no difference.
+
+Progress on 2026-11-27, LS8. Code actions are built in both servers,
+which advertise `codeActionProvider` with the one kind `quickfix`. The
+one action is the one whose edit was decided: removing an entry that
+`trim --check` reports. It is offered where the requested range meets
+the entry, and its edit deletes every place the document writes it, as
+the outline ranges them: the key and its value, with the line where it
+stands alone on a line that ends, a comment after it included, else
+the comma beside it, else the blanks that part it from its neighbour,
+overlapping deletions joined. The servers publish no diagnostic for
+what trim finds, so the action is offered by range alone and is
+attached to none. It is not offered where a place that writes the
+entry is not found as written or is in an included file, where two
+paths share the spelling trim reports, or where the text without it
+does not unify to what the document unifies to, which a key chain's
+last key is. The library answer is `actionsAt` (`ActionsAt` in Go), with
+`computeCodeActions` and `CodeActions` in the servers, held by a new row
+mode, `actions`, in 26 rows of `test/spec/cursor.tsv`, which both
+engines wrote alike; twinned tests apply each edit and find that trim
+no longer reports the entry. A probe of both servers, code actions over
+every line range of up to three lines and at every character of 126
+documents, 6,159 requests, found no difference, and rename, whose
+module changed with it, probed again over the same documents, 15,988
+requests, found none. Each request runs
+`trim --check`, which evaluates the document once for each entry it
+could remove.
 
 Each feature lands in both servers with the same answer, and in
 `docs/lsp.md` and

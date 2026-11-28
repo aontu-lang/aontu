@@ -1984,7 +1984,10 @@ slot the gate stops at. It is declared in `test/spec/signature.tsv`
 (75 -> 76 builtins), named in the four grammars and both LSP completion
 lists, and held by `test/spec/at.tsv` and the `-at` rows of
 `test/spec/comprehension.tsv`. No code is registered. The definition is
-owed: no Lean toolchain was installed where it was built.
+owed: no Lean toolchain was installed where it was built. Paid the same
+day: `atOf` in `spec/Aontu/Verdict.lean`, with `Decls.atRef` in
+`spec/Aontu/Alias.lean` and `maybe`'s reading of it (`atMissD`), and
+rows at0 to at287 of `test/spec/def-path.tsv` hold both engines to it.
 
 **BEYOND THE PHASES: a key for each child, landed on 2026-11-27 as
 `pack`'s optional third argument**, which adds no phase to the table
@@ -2005,7 +2008,10 @@ string`, and both LSP signature helps show it. Rows:
 `test/spec/gen-pack-key.tsv` (45) and the six `-pack` rows of
 `test/spec/comprehension.tsv`, beside k9, k10, k11 and k14 to k16; the
 `gen-pack.tsv` row that held three arguments to `func_arity` now holds
-four. No code is registered. The definition is owed.
+four. No code is registered. The definition is owed. Paid the same
+day: `resolveD` in `spec/Aontu/Verdict.lean` reads the third argument
+(`Val.segMembers`), and rows pk0 to pk107 of `test/spec/def-path.tsv`
+hold both engines to it.
 
 **Departures and discoveries recorded by G8.1.**
 

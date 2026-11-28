@@ -24,7 +24,9 @@ import { codeClasses } from '../dist/hints'
 import { canonRiders } from '../dist/utility'
 import { tlogRunGroup } from './tlog-vectors'
 import { computePathAt, computeSitesOf } from '../dist/lsp'
-import { describeAt, definitionAt, membersAt, referencesAt, symbolsOf } from '../dist/cursor'
+import {
+  actionsAt, describeAt, definitionAt, membersAt, referencesAt, renameAt, symbolsOf,
+} from '../dist/cursor'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
@@ -142,7 +144,7 @@ function loadRows(): Row[] {
         'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
         'jsonschema-output' === parts[1] || 'at' === parts[1] ||
         'describe' === parts[1] || 'define' === parts[1] || 'members' === parts[1] ||
-        'refs' === parts[1]
+        'refs' === parts[1] || 'rename' === parts[1] || 'actions' === parts[1]
       const want = vetRow ? 5 : 4
       if (parts.length < want) {
         throw new Error(
@@ -520,6 +522,34 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
         { ...got, writes: named(got.writes), reads: named(got.reads) }),
       exactJSON(JSON.parse(row.expect)),
       `refs mismatch: ${row.name}`)
+  }
+  else if ('rename' === row.mode) {
+    // The position, then the name to rename to after a colon; none asks the
+    // prepare step. The fixtures are the workspace root.
+    const [line, character, ...name] = (row.data as string).split(':')
+    const got: any = renameAt(row.src, { line: +line, character: +character }, name.join(':'),
+      { root: FIXTURES_DIR, prepare: 0 === name.length })
+    const fixtured = (text: string) => [FIXTURES_DIR, FIXTURES_DIR.replaceAll('/', '\\')]
+      .reduce((t, dir) => t.split(dir).join('__FIXTURES__'), text).replaceAll('__FIXTURES__\\', '__FIXTURES__/')
+    Assert.strictEqual(
+      exactJSON(null == got ? null : undefined !== got.refused ? { refused: fixtured(got.refused) } : {
+        ...got,
+        ...(undefined === got.edits ? {} : {
+          edits: got.edits.map((e: any) => ({ ...e, file: fixtured(e.file) })),
+        }),
+      }),
+      exactJSON(JSON.parse(row.expect)),
+      `rename mismatch: ${row.name}`)
+  }
+  else if ('actions' === row.mode) {
+    const [start, end] = (row.data as string).split('-').map((at) => {
+      const [line, character] = at.split(':').map(Number)
+      return { line, character }
+    })
+    Assert.strictEqual(
+      exactJSON(actionsAt(row.src, { start, end: end ?? start }) ?? null),
+      exactJSON(JSON.parse(row.expect)),
+      `actions mismatch: ${row.name}`)
   }
   else if ('symbols' === row.mode) {
     Assert.strictEqual(

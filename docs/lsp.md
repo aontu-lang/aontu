@@ -47,6 +47,11 @@ The server provides these features:
   a read.
 - **Document symbols**: the outline of the keys the document writes,
   nested as it nests them.
+- **Rename**: a key and every reference that reads it, as one edit
+  across the document and the files it includes under the workspace
+  root, or a refusal that names the site no edit of text can keep true.
+- **Code actions**: a quick fix that removes an entry `aontu trim
+  --check` reports, one whose removal changes nothing.
 - **Signature help**: the parameters of the function being called.
 - **Formatting**: the document as `aontu fmt` writes it.
 
@@ -170,6 +175,76 @@ writes them. A declaration, `%n = 3`, binds a name and writes no key,
 so it is no symbol. A key written `%P:` both binds `P` and writes it,
 and is the symbol `P`.
 
+**Rename** on a key renames its path, and on a reference the path up
+to the segment the cursor is in, so the cursor on `base` in
+`$.base.port` renames `base`. The edit replaces the key at every place
+the document's parse writes that path, and the segment that names it
+in every reference that reads the path or a path inside it: renaming
+`b` in `a: { b: 1 }` edits `$.a.b`, `$.a.b.x`, `.b` beside it and
+`..b` below it, and leaves a relative reference that does not spell
+`b` as it is, since it moves with its key. Each edit is a `TextEdit`
+in its own document, the open one or an included file. A key or a
+segment keeps the quotes it was written in; a name that is not a plain
+name, `[A-Za-z_][A-Za-z0-9_]*`, is written in double quotes, and so is
+a segment that would read as a value, such as `true`. A literal key
+that `at()` steps by is renamed with the key, `at($.m, "port")`
+becoming `at($.m, "listen")`. Prepare rename answers the range of the
+key or the segment and the name in it.
+
+A rename edits files under the workspace root only: the first
+workspace folder of `initialize`, else its `rootUri`, else its
+`rootPath`, else the open document's folder. It refuses the whole
+rename, with a `RequestFailed` (`-32803`) error whose message starts
+`cannot rename` and the path, and names the site, wherever no edit of
+text keeps the document true:
+
+| Refused | The message names |
+|---|---|
+| a key a generator makes, inside or out of `pack`, `each`, `apply`, `emit` or a `match` that is not a spread's pattern | the call |
+| a key a pattern matches, a `keyed` spread or a `match` in a spread's template | the call |
+| a key `key()` reads, under the key or in its map's spread | the call |
+| a key `at()` may read by a key it computes, by position, for every member of a `pack`, or from a map it is not given by a reference or a literal | the key argument |
+| a key a spread's template writes, or the template's own key | the key |
+| a key written `%n:`, which binds the alias `%n` too | the key |
+| a path a reference copies, where the copy is written or read: renaming the key of a type that `api: $.Svc & { port:1 }` writes again, or the key of `d` in `x: pack($.d, …)` where `$.x.a` is read | the copy and the reference |
+| a site in a bundled model (`aontu:`), in a package (a path under `aontu_meta`), outside the workspace root, or in a file whose text the server does not hold, as an include from memory is | the file |
+| a site in an included file the client has open with text other than the file's, which the rename has not read | the file |
+| a key or a reference in a file included at two places, where it is also another path's | the place and the other path |
+| a key or a reference the cursor cannot find as written, such as a key spelled with an escape | the place |
+| a path no key writes, such as a list's element | nothing more |
+| a document outside the workspace root, or in a package | nothing more |
+| a new name that is empty, or needs an escape (a double quote, a backslash or a control character) | the name |
+| a new name a key or a reference written with it would not read back as, such as `.`, `&` or one starting with `%` | the name |
+| a new name the map already takes, written, read or holding a value once unified | the place |
+
+Here is a type and an instance of it:
+
+```aontu
+Svc: type({ port:integer })
+api: $.Svc & { port:1 }
+```
+
+Renaming `port` in the type is refused with `cannot rename Svc.port:
+the key is also written as api.port at 2:16, through the reference at
+2:6`. The line and the character are counted from 1, and a site in
+another file is preceded by the file's path.
+
+**Code actions** offer one repair, the one whose edit is already
+decided: removing an entry that `aontu trim --check` reports, an entry
+whose removal leaves what the document unifies to unchanged. Others
+follow as findings gain repairs. The action is a quick fix titled
+`Remove $.a.b, which changes nothing`, offered where the requested
+range meets the entry, an empty range at a position inside it
+included, and its edit deletes every place the document writes the
+entry: the key and its value, with its line where it stands alone on a
+line, a comment after it on that line included, else with the comma
+beside it, else with the blanks that part it from its neighbour. The
+action is offered by range alone: the servers publish no diagnostic for
+what trim finds, so there is none to attach it to. It is not offered
+where a place that writes the entry is not found as written, is in an
+included file, or shares its spelling with another path, nor where the
+text without the entry would unify to something else.
+
 
 ## Architecture: library vs. server
 
@@ -228,7 +303,9 @@ all the analysis and protocol logic:
 In both, `computeDiagnostics`/`Diagnostics`, `computeHover`/`Hover`,
 `computePathDefinition`/`PathDefinition`,
 `computeCompletions`/`Completions`, `computeReferences`/`References`,
-`computeHighlights`/`Highlights`, and `computeSymbols`/`Symbols` take the document's text and are
+`computeHighlights`/`Highlights`, `computeSymbols`/`Symbols`,
+`computePrepareRename`/`PrepareRename`, `computeRename`/`Rename` and
+`computeCodeActions`/`CodeActions` take the document's text and are
 usable standalone, with no JSON-RPC at all.
 
 
@@ -413,6 +490,40 @@ The places `computeReferences` answers that are in the document, each
 writes the path and `HIGHLIGHT_READ` (2) for a reference that reads
 it. The answer is `null` where `computeReferences` answers `null`.
 
+#### `computePrepareRename(src, position, uri, root?, trust?, open?) => { result } | { error }`
+
+The range and the name a rename at a 0-based position would replace,
+as `{ result: { range, placeholder } }`, `{ result: null }` where the
+position names no key, or `{ error }`, the message of a refusal. `root`
+is the workspace root, the folder of `uri` where it is left out, and
+`open` the text of each document the client has open, by path. It is
+built on `renameAt` of `ts/src/cursor.ts`.
+
+#### `computeRename(src, position, uri, newName, root?, trust?, open?) => { result } | { error }`
+
+The edits of a rename, as `{ result: WorkspaceEdit }`, whose `changes`
+map each document's URI to its `TextEdit`s, `{ result: null }`, or `{
+error }`, as `computePrepareRename` answers.
+
+<!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by test/spec/cursor.tsv -->
+```ts
+const src = 'base: { port: 8080 }\nx: $.base.port\n'
+computeRename(src, { line: 0, character: 9 }, 'file:///w/d.aontu', 'listen')
+// { result: { changes: { 'file:///w/d.aontu': [
+//   { range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
+//     newText: 'listen' },
+//   { range: { start: { line: 1, character: 10 }, end: { line: 1, character: 14 } },
+//     newText: 'listen' }] } } }
+```
+
+#### `computeCodeActions(src, range, uri, only?, trust?) => CodeAction[] | null`
+
+The quick fixes at a range, each `{ title, kind: 'quickfix', edit }`,
+the edit a `WorkspaceEdit` of the document at `uri`; `[]` where there
+are none, or where `only`, the client's list of kinds, holds neither
+`quickfix` nor `""`; and `null` where the document does not parse. It
+is built on `actionsAt` of `ts/src/cursor.ts`.
+
 #### `computeSymbols(src, trust?) => DocSymbol[] | null`
 
 The outline of the keys `src` writes, each an LSP `DocumentSymbol`:
@@ -577,6 +688,31 @@ The places `References` answers that are in the document, as
 Range; Kind int }`, `Kind` being `HighlightWrite` (3) or
 `HighlightRead` (2), or `nil`.
 
+#### `func PrepareRename(src string, line, character int, uri, root string, trust *aontu.TrustOptions, open map[string]string) (*PrepareRenameResult, string)`
+
+The range and the name a rename would replace, as
+`computePrepareRename` answers them: `PrepareRenameResult` is `{ Range
+Range; Placeholder string }`, `nil` where the position names no key,
+and the second value the message of a refusal, `""` where there is
+none. An empty `root` is the folder of `uri`. Built on the core
+`(*aontu.Aontu).RenameAt`, whose `CursorRename` is `{ Path []string;
+Range *CursorRange; Placeholder *string; Edits []FileEdit; Refused
+string }`.
+
+#### `func Rename(src string, line, character int, uri, newName, root string, trust *aontu.TrustOptions, open map[string]string) (*WorkspaceEdit, string)`
+
+The edits of a rename, as `computeRename` answers them: `WorkspaceEdit`
+is `{ Changes map[string][]TextEdit }`, with the refusal as the second
+value.
+
+#### `func CodeActions(src string, rng Range, uri string, only []any, trust *aontu.TrustOptions) []CodeAction`
+
+The quick fixes at a range, as `computeCodeActions` answers them:
+`CodeAction` is `{ Title, Kind string; Edit WorkspaceEdit }`, and a nil
+`only` asks for every kind. Built on the core
+`(*aontu.Aontu).ActionsAt`, whose `CursorAction` is `{ Title string;
+Path []string; Edits []DocEdit }`.
+
 #### `func Symbols(src string, trust *aontu.TrustOptions) []aontu.DocSymbol`
 
 The outline of the keys `src` writes, as `computeSymbols` answers it:
@@ -631,8 +767,10 @@ each change). Advertised capabilities: `textDocumentSync: 1`,
 `completionProvider` with the trigger character `.`,
 `signatureHelpProvider` with the trigger
 characters `(` and `,`, `documentFormattingProvider: true`, and
-`documentSymbolProvider: true`, `referencesProvider: true`, and
-`documentHighlightProvider: true`.
+`documentSymbolProvider: true`, `referencesProvider: true`,
+`documentHighlightProvider: true`, `renameProvider: {
+prepareProvider: true }`, and `codeActionProvider: { codeActionKinds:
+["quickfix"] }`.
 
 | Method | Kind | Behaviour |
 |--------|------|-----------|
@@ -646,6 +784,9 @@ characters `(` and `,`, `documentFormattingProvider: true`, and
 | `textDocument/definition` | request | Replies with the `Location` where the document binds the alias name at the position, else with a `Location` for every site that writes the path a key or a reference there names, in the document or in a file it includes, else `null`. |
 | `textDocument/references` | request | Replies with a `Location` for every reference that reads the path a key or a reference at the position names, after one for every site that writes it where `context.includeDeclaration` is `true`, in the document or in a file it includes; else `null`. |
 | `textDocument/documentHighlight` | request | Replies with the same places within the document, a site that writes the path with the kind Write (3) and a reference that reads it with the kind Read (2); else `null`. |
+| `textDocument/prepareRename` | request | Replies with the `range` and `placeholder` of the key or the segment of a reference at the position, `null` where it names no key, and a `-32803` error where the rename is refused. |
+| `textDocument/rename` | request | Replies with a `WorkspaceEdit` whose `changes` rename the key at the position, or the path up to the segment of a reference there, and every reference that reads it, in the document and the files it includes under the workspace root; `null` where the position names no key; and a `-32803` error naming the site where the rename is refused. |
+| `textDocument/codeAction` | request | Replies with a quick fix for each entry `aontu trim --check` reports that the range meets, `[]` where there is none or `context.only` asks for other kinds, and `null` where the document doesn't parse or isn't open. |
 | `textDocument/documentSymbol` | request | Replies with the outline of the keys the document writes, as `DocumentSymbol`s, `[]` where it writes none, and `null` where it doesn't parse or isn't open. |
 | `textDocument/signatureHelp` | request | Replies with the signature of the call the position is inside, or `null`. |
 | `textDocument/formatting` | request | Replies with one edit that replaces the document with the text `aontu fmt` writes, no edit where it already is that text, and `null` where it doesn't parse, which its diagnostics report. |
@@ -726,8 +867,8 @@ Both libraries are unit-tested (`ts/test/lsp.test.ts`,
 ## Limitations and extension points
 
 Current scope is diagnostics, hover, completion, go to definition,
-find references and highlights, document symbols, signature help and
-formatting. The layered design
+find references and highlights, document symbols, rename, code
+actions, signature help and formatting. The layered design
 makes additions localised: most new features are implemented once in the
 analysis layer (layer 1) and advertised in `initialize` (layer 2):
 
@@ -757,6 +898,16 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   it reads. The sites of
   a top-level key written `""` include the document's own, since
   provenance keeps a path by its segments joined with dots.
+- **Rename refuses where it could follow a reference.** A key that a
+  reference copies, and that the copy writes again or is read through,
+  is refused rather than renamed at every copy, so renaming a field of
+  a type that its instances write is refused. A name that is not a
+  plain name is quoted, letters beyond ASCII among them, though the
+  key may have been written bare.
+- **Code actions** offer the one repair whose edit is decided. Each
+  request runs `trim --check`, which evaluates the document once for
+  every entry it could remove, so a request on a large document takes
+  that long.
 - **Includes are read from the folder the server runs in.** The server
   evaluates the text of an open document, not its file, so an include
   with a relative path is resolved against the server's working
