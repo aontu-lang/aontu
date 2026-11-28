@@ -2,7 +2,11 @@
 
 package aontu
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestCursorColonAtTheStartHasNoKeyBeforeIt(t *testing.T) {
 	if _, _, ok := keySpan(": 1", 2, "a"); ok {
@@ -84,6 +88,23 @@ func TestCursorAFileIsReadAsTheParseReadIt(t *testing.T) {
 	for file, want := range map[string]bool{"": true, "/w/x.aontu": true, "aontu:lang/text": false, "/w/y.aontu": false} {
 		if _, ok := texts.text(file); want != ok {
 			t.Errorf("%q: %v", file, ok)
+		}
+	}
+}
+
+func TestCursorRenameRefusesAFileOpenWithOtherText(t *testing.T) {
+	dir, _ := filepath.Abs(filepath.Join("..", "test", "spec", "files"))
+	file := filepath.ToSlash(filepath.Join(dir, "cursor_base.aontu"))
+	text, _ := os.ReadFile(file)
+	src := "b: @\"" + file + "\"\nx: $.b.port\n"
+	for open, want := range map[string]string{
+		string(text):              "",
+		"tls: 1\n" + string(text): "cannot rename b.port: " + file + " is open with changes the rename has not read",
+	} {
+		got := New().RenameAt(src, CursorPosition{1, 7}, "p",
+			RenameOptions{Root: dir, Open: map[string]string{file: open}})
+		if nil == got || want != got.Refused {
+			t.Errorf("%q: %+v", open, got)
 		}
 	}
 }

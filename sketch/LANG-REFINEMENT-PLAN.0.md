@@ -1440,6 +1440,21 @@ in the servers, held by a new row mode, `rename`, in 79 rows of
 `test/spec/cursor.tsv`, which both engines wrote alike. A probe of both
 servers, prepare rename and rename to two names at every character of
 96 documents, 12,271 requests, found no difference.
+Review then found four cases the first build missed, now fixed in both
+ports. An included file the client has open with text other than the
+file's is refused, since the rename read the file the parse read and its
+places are not the buffer's; both servers pass the open documents' texts
+to the analysis. A key or a reference in a file included at two places
+is refused where the same text is also another path's. A literal key
+that `at()` steps by is renamed with the key, and `at()` that may read
+it by a computed key, by position, for every member of a `pack` or
+from an unknown map is refused; `pack`'s third argument, where it is a
+literal, names the generated key and reads none. A new name is refused
+where a key or a reference written with it does not read back as it once
+the document unifies, `.` among them, and so are `&` and a name starting
+with `%`: TypeScript refuses `$.a."%x"` and Go reads it, a divergence of
+the engines not yet resolved. The rows are 99 now, and a probe of 140
+documents, 18,370 requests, found no difference.
 
 Progress on 2026-11-27, LS8. Code actions are built in both servers,
 which advertise `codeActionProvider` with the one kind `quickfix`. The

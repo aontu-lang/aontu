@@ -173,10 +173,14 @@ error that names the site, where no edit of text keeps the document
 true: a key a generator makes, a pattern matches, `key()` reads or a
 spread's template writes, a path a reference copies where the copy is
 written or read, a site in a bundled model, a package or a file outside
-the root or unread, a key the cursor cannot find, and a name that
-needs an escape or is taken. The library answers are `renameAt` and
-`RenameAt`; a new shared-row mode, `rename`, holds both ports to one
-answer in 79 rows of `test/spec/cursor.tsv`.
+the root or unread, an included file open in the client with other
+text, a key or reference in a file included at two places, a key
+`at()` may read by a key it computes, a key the cursor cannot find, and
+a name that needs an escape, does not read back as itself in a
+reference, or is taken. A literal key that `at()` steps by is renamed
+with the key. The library answers are `renameAt` and `RenameAt`; a new
+shared-row mode, `rename`, holds both ports to one answer in 99 rows of
+`test/spec/cursor.tsv`.
 
 ### The language servers find references and highlight them
 

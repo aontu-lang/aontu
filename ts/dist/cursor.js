@@ -19,13 +19,14 @@ exports.renameEntries = renameEntries;
 exports.fileRefusal = fileRefusal;
 exports.actionsAt = actionsAt;
 exports.entryDeletion = entryDeletion;
-exports.fileText = fileText;
-const node_fs_1 = require("node:fs");
+exports.parsedTexts = parsedTexts;
+exports.readsBack = readsBack;
 const node_path_1 = require("node:path");
 const aontu_1 = require("./aontu");
 const query_1 = require("./query");
 const vet_1 = require("./vet");
 const keyorder_1 = require("./keyorder");
+const exactjson_1 = require("./exactjson");
 const trim_1 = require("./trim");
 const KEY_DELIMS = ' \t\r\n{}[](),:;"\'';
 const TOKEN_END = KEY_DELIMS + '&|';
@@ -771,18 +772,37 @@ function fileRefusal(file, root, readable) {
     }
     return readable ? undefined : 'the text of ' + file + ' cannot be read';
 }
-// The text of a file the parse read, as it reads it: an include from
-// memory, or a bundled model, is not read again.
-function fileText(file, mem) {
-    if (file.startsWith('aontu:') || 'string' === typeof mem?.[file]) {
-        return undefined;
+// The text of each file as the parse read it, the document's under ''.
+// A bundled model and an include from memory are left out, as Go keeps
+// no text for them.
+function parsedTexts(src, manifest) {
+    const texts = new Map([['', src]]);
+    for (const m of manifest) {
+        if ('aontu' !== m.capability && 'mem' !== m.capability && 'string' === typeof m.src) {
+            texts.set(m.path, m.src);
+        }
     }
-    try {
-        return (0, node_fs_1.readFileSync)(file, 'utf8');
-    }
-    catch {
-        return undefined;
-    }
+    return texts;
+}
+// Whether a name written as a rename writes it, as a key or as a
+// segment of a reference, in each quoting, reads back as that name once
+// the document unifies.
+function readsBack(name) {
+    // A path names a spread's template `&`, and a segment `%` an alias.
+    return '&' !== name && !name.startsWith('%') && ['', '"', '\''].every((q) => {
+        const key = writtenName(name, q, false);
+        const seg = writtenName(name, q, true);
+        const [a, b, c, d] = ['p', 'q', 'r', 's', 't'].filter((h) => h !== name);
+        try {
+            const out = new aontu_1.Aontu().generate(a + ': { ' + key + ': 1 }\n' + b + ': $.' + a + '.' + seg +
+                '\n' + c + ': { ' + key + ': 2, ' + d + ': .' + seg + ' }\n');
+            return (0, exactjson_1.exactJSON)(out) ===
+                (0, exactjson_1.exactJSON)({ [a]: { [name]: 1 }, [b]: 1, [c]: { [name]: 2, [d]: 2 } });
+        }
+        catch {
+            return false;
+        }
+    });
 }
 function byPlace(a, b) {
     return (0, keyorder_1.cmpCodePoint)(a.file, b.file) || a.off - b.off;
@@ -801,14 +821,8 @@ function renameAt(src, pos, name, opts) {
     if (undefined === doc || undefined === at || 'value' === at.on) {
         return undefined;
     }
-    const mem = opts?.trust?.include?.mem;
-    const texts = new Map([['', src]]);
-    const text = (file) => {
-        if (!texts.has(file)) {
-            texts.set(file, fileText(file, mem));
-        }
-        return texts.get(file);
-    };
+    const texts = parsedTexts(src, doc.ctx.manifest);
+    const text = (file) => texts.get(file);
     const starts = new Map();
     const linesOf = (file) => {
         if (!starts.has(file)) {
@@ -879,6 +893,9 @@ function renameAt(src, pos, name, opts) {
         if (NEEDS_ESCAPE.test(name)) {
             return { refused: named + ' to ' + name + ': the name needs an escape' };
         }
+        if (!readsBack(name)) {
+            return { refused: named + ' to ' + name + ': a reference cannot spell the name' };
+        }
     }
     if (P.includes('&')) {
         return refuse('a spread\'s template writes the key at ' +
@@ -888,6 +905,7 @@ function renameAt(src, pos, name, opts) {
     const reads = refs.filter((r) => r.reads.length >= P.length && same(r.reads.slice(0, P.length), P));
     const calls = entries.filter((e) => true === e.v.isFunc);
     const steps = entries.filter((e) => e.step && same(e.path, P));
+    const ats = atReads(P, calls, (v) => placeOf(v.site?.url ?? '', v.site), text, where);
     const refusal = firstWhy(written.filter((k) => '%' === text(k.file)?.[k.off])
         .map((k) => ({ ...k, why: 'the key at ' + where(k) + ' also declares the alias %' + last }))) ??
         firstWhy(calls.filter((e) => GENERATORS.includes(callName(e)) && !isPattern(e) && prefixOf(e.path, P))
@@ -900,9 +918,13 @@ function renameAt(src, pos, name, opts) {
             .map((e) => ({ ...placeOfEntry(e), why: 'key() reads the key at ' + where(placeOfEntry(e)) }))) ??
         firstWhy(keys.filter((k) => !same(k.path, P) && alike(k.path, P) && '&' !== k.path[k.path.length - 1])
             .map((k) => ({ ...k, why: 'a spread\'s template writes the key at ' + where(k) }))) ??
-        firstWhy([...steps.map((e) => keyFile.get(e)), ...reads]
+        firstWhy(ats.refused) ??
+        firstWhy([...steps.map((e) => keyFile.get(e)), ...reads, ...ats.edits]
             .filter((p) => '' !== p.file).flatMap((p) => {
-            const why = fileRefusal(p.file, opts?.root, undefined !== text(p.file));
+            const open = opts?.open?.[p.file];
+            const why = fileRefusal(p.file, opts?.root, undefined !== text(p.file)) ??
+                (undefined === open || open === text(p.file) ? undefined :
+                    p.file + ' is open with changes the rename has not read');
             return undefined === why ? [] : [{ file: p.file, off: 0, why }];
         })) ??
         firstWhy([
@@ -910,6 +932,14 @@ function renameAt(src, pos, name, opts) {
                 .map((p) => ({ ...p, why: 'cannot locate the key written at ' + where(p) })),
             ...reads.filter((r) => !segmentOf(r, P, text(r.file))[1])
                 .map((r) => ({ ...r, why: 'cannot locate the reference at ' + where(r) })),
+        ]) ??
+        firstWhy([
+            ...written.flatMap((w) => keys.filter((k) => k.file === w.file && k.off === w.off &&
+                !same(k.path, P)).map((k) => ({ ...w, why: 'the key at ' + where(w) + ' is also ' +
+                    k.path.join('.') + ', where its file is included again' }))),
+            ...reads.flatMap((r) => refs.filter((o) => o.file === r.file && o.off === r.off &&
+                !reads.includes(o)).map((o) => ({ ...r, why: 'the reference at ' + where(r) +
+                    ' also reads ' + o.reads.join('.') + ', where its file is included again' }))),
         ]) ??
         aliasRefusal(P, keys, refs, where) ??
         (0 === written.length ? 'no key is written for it' : undefined);
@@ -943,6 +973,9 @@ function renameAt(src, pos, name, opts) {
             edits.set(r.file + ':' + seg[0], { file: r.file, off: seg[0], end: seg[1], newText: writtenName(name, quoteAt(t, seg[0]), true) });
         }
     }
+    for (const a of ats.edits) {
+        edits.set(a.file + ':' + a.off, { ...a, newText: writtenName(name, quoteAt(text(a.file), a.off), true) });
+    }
     return {
         path: P, range, placeholder: last,
         edits: [...edits.values()].sort(byPlace).map((e) => ({
@@ -951,6 +984,52 @@ function renameAt(src, pos, name, opts) {
             newText: e.newText,
         })),
     };
+}
+// The key arguments of `at` calls that read path: the literal ones that
+// name it to edit, and a refusal where one may read it and cannot be
+// renamed, or the map it steps from is unknown.
+function atReads(P, calls, placeOf, text, where) {
+    const edits = [];
+    const refused = [];
+    for (const e of calls.filter((c) => 'at' === callName(c))) {
+        const [d, ...ks] = e.v.peg;
+        const pack = [...e.calls].reverse().find((c) => 'pack' === callName(c))?.v.peg[0];
+        let base = true === d?.isRef && undefined === d.aliasName && null != d.plainRefPath() ?
+            d.plainRefPath().map(String) :
+            true === d?.isMap || true === d?.isList ? e.path :
+                'PlaceVal' === d?.constructor.name && null != pack?.plainRefPath?.() ?
+                    [...pack.plainRefPath().map(String), '&'] : undefined;
+        for (const k of ks) {
+            if (undefined !== base && !(base.length < P.length && alike(base, P.slice(0, base.length)))) {
+                break;
+            }
+            const p = placeOf(k);
+            const literal = 'StringVal' === k.constructor.name || 'IntegerVal' === k.constructor.name;
+            if (!literal) {
+                refused.push({ ...p, why: 'at() reads the key at ' + where(p) });
+                break;
+            }
+            const read = undefined === base ? undefined : [...base, String(k.peg)];
+            if (String(k.peg) === P[P.length - 1]) {
+                const t = text(p.file) ?? '';
+                let end = p.off;
+                if ('' !== quoteAt(t, p.off))
+                    end = quoteEnd(t, p.off) + 1;
+                else
+                    while (end < t.length && !TOKEN_END.includes(t[end]))
+                        end++;
+                const spelt = '' === quoteAt(t, p.off) ? t.slice(p.off, end) : t.slice(p.off + 1, end - 1);
+                if (undefined !== read && same(read, P) && 'string' === typeof k.peg && spelt === k.peg) {
+                    edits.push({ ...p, end });
+                }
+                else if (undefined === read || alike(read, P)) {
+                    refused.push({ ...p, why: 'at() reads the key at ' + where(p) });
+                }
+            }
+            base = read;
+        }
+    }
+    return { edits, refused };
 }
 // The span of the segment of a reference that names the last segment of
 // path, null where the reference does not spell it, and whether the

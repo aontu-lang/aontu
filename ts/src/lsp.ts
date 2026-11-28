@@ -501,9 +501,9 @@ function renamed<T>(
 
 // The range and the name a rename at the position would replace.
 function computePrepareRename(
-  src: string, position: Position, uri: string, root?: string,
-  trust?: any): Renamed<{ range: Range, placeholder: string }> {
-  return renamed(uri, root, (top) => renameAt(src, position, '', { trust, root: top, prepare: true }),
+  src: string, position: Position, uri: string, root?: string, trust?: any,
+  open?: Record<string, string>): Renamed<{ range: Range, placeholder: string }> {
+  return renamed(uri, root, (top) => renameAt(src, position, '', { trust, root: top, prepare: true, open }),
     (r) => ({ range: r.range, placeholder: r.placeholder }))
 }
 
@@ -512,8 +512,8 @@ function computePrepareRename(
 // text keeps the document true.
 function computeRename(
   src: string, position: Position, uri: string, newName: string, root?: string,
-  trust?: any): Renamed<WorkspaceEdit> {
-  return renamed(uri, root, (top) => renameAt(src, position, newName, { trust, root: top }),
+  trust?: any, open?: Record<string, string>): Renamed<WorkspaceEdit> {
+  return renamed(uri, root, (top) => renameAt(src, position, newName, { trust, root: top, open }),
     (r) => {
       const changes: Record<string, TextEdit[]> = {}
       const byUri = r.edits.map((e: any) => ({ uri: '' === e.file ? uri : pathToUri(e.file), e }))
@@ -993,10 +993,12 @@ class LspHandler {
         const pos = msg.params?.position
         const text = null != uri ? this.docs.get(uri) : undefined
         const name = msg.params?.newName
+        const open = Object.fromEntries([...this.docs].map(([u, t]) => [uriToPath(u) ?? '', t]))
         const answer: Renamed<any> = null == text || null == pos ? { result: null } :
           'textDocument/prepareRename' === msg.method ?
-            computePrepareRename(text, pos, uri, this.root, this.trust) :
-            computeRename(text, pos, uri, 'string' === typeof name ? name : '', this.root, this.trust)
+            computePrepareRename(text, pos, uri, this.root, this.trust, open) :
+            computeRename(text, pos, uri, 'string' === typeof name ? name : '', this.root, this.trust,
+              open)
         return [{
           jsonrpc: '2.0', id: msg.id,
           ...('error' in answer ? { error: { code: REQUEST_FAILED, message: answer.error } } :

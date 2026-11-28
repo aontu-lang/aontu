@@ -1139,11 +1139,11 @@ const renameSrc = "base: { port: 8080 }\ndb: { port: $.base.port }\nx: $.base.po
 
 func TestRenameEditsTheKeyAndEveryReference(t *testing.T) {
 	const u = "file:///w/r.aontu"
-	if got, refused := PrepareRename(renameSrc, 1, 20, u, "", nil); "" != refused ||
+	if got, refused := PrepareRename(renameSrc, 1, 20, u, "", nil, nil); "" != refused ||
 		!reflect.DeepEqual(got, &PrepareRenameResult{Range: rangeOf(1, 19, 1, 23), Placeholder: "port"}) {
 		t.Errorf("prepare: %+v %q", got, refused)
 	}
-	got, refused := Rename(renameSrc, 0, 9, u, "listen", "", nil)
+	got, refused := Rename(renameSrc, 0, 9, u, "listen", "", nil, nil)
 	if want := (&WorkspaceEdit{Changes: map[string][]TextEdit{u: {
 		{Range: rangeOf(0, 8, 0, 12), NewText: "listen"},
 		{Range: rangeOf(1, 19, 1, 23), NewText: "listen"},
@@ -1151,13 +1151,13 @@ func TestRenameEditsTheKeyAndEveryReference(t *testing.T) {
 	}}}); "" != refused || !reflect.DeepEqual(got, want) {
 		t.Errorf("rename: %+v %q", got, refused)
 	}
-	if _, refused := Rename(renameSrc, 0, 9, u, `a"b`, "", nil); `cannot rename base.port to a"b: the name needs an escape` != refused {
+	if _, refused := Rename(renameSrc, 0, 9, u, `a"b`, "", nil, nil); `cannot rename base.port to a"b: the name needs an escape` != refused {
 		t.Errorf("escape: %q", refused)
 	}
-	if got, refused := PrepareRename(renameSrc, 0, 15, u, "", nil); nil != got || "" != refused {
+	if got, refused := PrepareRename(renameSrc, 0, 15, u, "", nil, nil); nil != got || "" != refused {
 		t.Errorf("prepare on a value: %+v %q", got, refused)
 	}
-	if got, refused := Rename(renameSrc, 0, 15, u, "q", "", nil); nil != got || "" != refused {
+	if got, refused := Rename(renameSrc, 0, 15, u, "q", "", nil, nil); nil != got || "" != refused {
 		t.Errorf("rename on a value: %+v %q", got, refused)
 	}
 }
@@ -1180,32 +1180,32 @@ func TestRenameKeepsToTheWorkspaceRoot(t *testing.T) {
 	there := pathToURI(srcPath(filepath.Join(root, "base.aontu")))
 	src := "top: { k: 1 }\nbase: @\"" + srcPath(root) + "/base.aontu\"\naway: @\"" + srcPath(dir) + "/away.aontu\"\n"
 	trust := &aontu.TrustOptions{IncludeRoot: dir}
-	got, refused := Rename(src, 0, 7, doc, "j", "", trust)
+	got, refused := Rename(src, 0, 7, doc, "j", "", trust, nil)
 	if want := (&WorkspaceEdit{Changes: map[string][]TextEdit{
 		doc:   {{Range: rangeOf(0, 7, 0, 8), NewText: "j"}},
 		there: {{Range: rangeOf(1, 9, 1, 10), NewText: "j"}},
 	}}); "" != refused || !reflect.DeepEqual(got, want) {
 		t.Errorf("under the root: %+v %q", got, refused)
 	}
-	if got, _ := Rename(src, 1, 1, doc, "b", srcPath(root), trust); 1 != len(got.Changes) || nil == got.Changes[doc] {
+	if got, _ := Rename(src, 1, 1, doc, "b", srcPath(root), trust, nil); 1 != len(got.Changes) || nil == got.Changes[doc] {
 		t.Errorf("the include's key: %+v", got)
 	}
-	if _, refused := Rename(src+"y: $.away.port\n", 3, 11, doc, "p", srcPath(root), trust); !strings.HasPrefix(refused,
+	if _, refused := Rename(src+"y: $.away.port\n", 3, 11, doc, "p", srcPath(root), trust, nil); !strings.HasPrefix(refused,
 		"cannot rename away.port: ") || !strings.HasSuffix(refused, "away.aontu is outside the workspace root") {
 		t.Errorf("outside: %q", refused)
 	}
-	if got, refused := Rename("a: 1\n", 0, 0, doc, "b", srcPath(dir), nil); "" != refused || !reflect.DeepEqual(got,
+	if got, refused := Rename("a: 1\n", 0, 0, doc, "b", srcPath(dir), nil, nil); "" != refused || !reflect.DeepEqual(got,
 		&WorkspaceEdit{Changes: map[string][]TextEdit{doc: {{Range: rangeOf(0, 0, 0, 1), NewText: "b"}}}}) {
 		t.Errorf("inside: %+v %q", got, refused)
 	}
-	if _, refused := Rename("a: 1\n", 0, 0, doc, "b", srcPath(filepath.Join(dir, "x")), nil); "cannot rename: the document is outside the workspace root" != refused {
+	if _, refused := Rename("a: 1\n", 0, 0, doc, "b", srcPath(filepath.Join(dir, "x")), nil, nil); "cannot rename: the document is outside the workspace root" != refused {
 		t.Errorf("document outside: %q", refused)
 	}
 	pkg := pathToURI(srcPath(filepath.Join(root, "aontu_meta", "vendor", "p", "main.aontu")))
-	if _, refused := PrepareRename("a: 1\n", 0, 0, pkg, "", nil); "cannot rename: the document is in a package" != refused {
+	if _, refused := PrepareRename("a: 1\n", 0, 0, pkg, "", nil, nil); "cannot rename: the document is in a package" != refused {
 		t.Errorf("package: %q", refused)
 	}
-	if _, refused := Rename(src+"y: $.base.port\n", 3, 11, "untitled:1", "q", "", trust); !strings.HasPrefix(refused,
+	if _, refused := Rename(src+"y: $.base.port\n", 3, 11, "untitled:1", "q", "", trust, nil); !strings.HasPrefix(refused,
 		"cannot rename base.port: ") || !strings.HasSuffix(refused, "base.aontu is outside the workspace root") {
 		t.Errorf("untitled: %q", refused)
 	}
@@ -1214,11 +1214,11 @@ func TestRenameKeepsToTheWorkspaceRoot(t *testing.T) {
 func TestRenameNamesAFileWhoseTextItCannotRead(t *testing.T) {
 	const u = "file:///w/r.aontu"
 	trust := &aontu.TrustOptions{IncludeMem: map[string]string{"m.aontu": "k: { n: key() }\n"}}
-	if _, refused := Rename("a: @\"m.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust); "cannot rename a.k: key() reads the key at m.aontu" != refused {
+	if _, refused := Rename("a: @\"m.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust, nil); "cannot rename a.k: key() reads the key at m.aontu" != refused {
 		t.Errorf("key(): %q", refused)
 	}
 	trust = &aontu.TrustOptions{IncludeMem: map[string]string{"n.aontu": "k: 1\nr: $.a.k\n"}}
-	if _, refused := Rename("a: @\"n.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust); "cannot rename a.k: the text of n.aontu cannot be read" != refused {
+	if _, refused := Rename("a: @\"n.aontu\"\ny: $.a.k\n", 1, 7, u, "j", "/", trust, nil); "cannot rename a.k: the text of n.aontu cannot be read" != refused {
 		t.Errorf("unread: %q", refused)
 	}
 }
@@ -1231,6 +1231,8 @@ func TestRenameThroughTheHandler(t *testing.T) {
 	if !strings.Contains(string(init), `"renameProvider":{"prepareProvider":true}`) {
 		t.Errorf("initialize: %s", init)
 	}
+	untitled, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": "untitled:1", "text": "a: 1\n"}})
+	h.Handle(Message{Method: "textDocument/didOpen", Params: untitled})
 	open, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": u, "text": renameSrc}})
 	h.Handle(Message{Method: "textDocument/didOpen", Params: open})
 	ask := func(method string, extra map[string]any) string {
@@ -1362,5 +1364,39 @@ func TestCodeActionsThroughTheHandler(t *testing.T) {
 	if out := h.Handle(Message{ID: json.RawMessage("4"), Method: "textDocument/codeAction",
 		Params: json.RawMessage(`[`)}); 1 != len(out) {
 		t.Errorf("malformed: %+v", out)
+	}
+}
+
+func TestRenameRefusesAnIncludedFileOpenWithOtherText(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "base.aontu"), []byte("port: 80\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	doc := pathToURI(srcPath(filepath.Join(dir, "doc.aontu")))
+	base := pathToURI(srcPath(filepath.Join(dir, "base.aontu")))
+	h := NewHandler()
+	initParams, _ := json.Marshal(map[string]any{"rootUri": pathToURI(srcPath(dir))})
+	h.Handle(Message{ID: json.RawMessage("1"), Method: "initialize", Params: initParams})
+	open := func(uri, text string) {
+		raw, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": uri, "text": text}})
+		h.Handle(Message{Method: "textDocument/didOpen", Params: raw})
+	}
+	open(doc, "a: @\""+srcPath(dir)+"/base.aontu\"\nx: $.a.port\n")
+	ask := func() Out {
+		raw, _ := json.Marshal(map[string]any{"textDocument": map[string]any{"uri": doc},
+			"position": map[string]any{"line": 1, "character": 7}, "newName": "p"})
+		return h.Handle(Message{ID: json.RawMessage("2"), Method: "textDocument/rename", Params: raw})[0]
+	}
+	open(base, "port: 80\n")
+	var edit WorkspaceEdit
+	if out := ask(); nil != out.Error || nil != json.Unmarshal(out.Result, &edit) ||
+		2 != len(edit.Changes) || nil == edit.Changes[base] || nil == edit.Changes[doc] {
+		t.Errorf("same text: %+v %s", out.Error, out.Result)
+	}
+	open(base, "host: \"h\"\nport: 80\n")
+	if out := ask(); nil == out.Error || RequestFailed != out.Error.Code ||
+		!strings.HasPrefix(out.Error.Message, "cannot rename a.port: ") ||
+		!strings.HasSuffix(out.Error.Message, "base.aontu is open with changes the rename has not read") {
+		t.Errorf("other text: %+v", out.Error)
 	}
 }

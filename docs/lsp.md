@@ -186,8 +186,10 @@ in every reference that reads the path or a path inside it: renaming
 in its own document, the open one or an included file. A key or a
 segment keeps the quotes it was written in; a name that is not a plain
 name, `[A-Za-z_][A-Za-z0-9_]*`, is written in double quotes, and so is
-a segment that would read as a value, such as `true`. Prepare rename
-answers the range of the key or the segment and the name in it.
+a segment that would read as a value, such as `true`. A literal key
+that `at()` steps by is renamed with the key, `at($.m, "port")`
+becoming `at($.m, "listen")`. Prepare rename answers the range of the
+key or the segment and the name in it.
 
 A rename edits files under the workspace root only: the first
 workspace folder of `initialize`, else its `rootUri`, else its
@@ -201,14 +203,18 @@ text keeps the document true:
 | a key a generator makes, inside or out of `pack`, `each`, `apply`, `emit` or a `match` that is not a spread's pattern | the call |
 | a key a pattern matches, a `keyed` spread or a `match` in a spread's template | the call |
 | a key `key()` reads, under the key or in its map's spread | the call |
+| a key `at()` may read by a key it computes, by position, for every member of a `pack`, or from a map it is not given by a reference or a literal | the key argument |
 | a key a spread's template writes, or the template's own key | the key |
 | a key written `%n:`, which binds the alias `%n` too | the key |
 | a path a reference copies, where the copy is written or read: renaming the key of a type that `api: $.Svc & { port:1 }` writes again, or the key of `d` in `x: pack($.d, …)` where `$.x.a` is read | the copy and the reference |
 | a site in a bundled model (`aontu:`), in a package (a path under `aontu_meta`), outside the workspace root, or in a file whose text the server does not hold, as an include from memory is | the file |
+| a site in an included file the client has open with text other than the file's, which the rename has not read | the file |
+| a key or a reference in a file included at two places, where it is also another path's | the place and the other path |
 | a key or a reference the cursor cannot find as written, such as a key spelled with an escape | the place |
 | a path no key writes, such as a list's element | nothing more |
 | a document outside the workspace root, or in a package | nothing more |
 | a new name that is empty, or needs an escape (a double quote, a backslash or a control character) | the name |
+| a new name a key or a reference written with it would not read back as, such as `.`, `&` or one starting with `%` | the name |
 | a new name the map already takes, written, read or holding a value once unified | the place |
 
 Here is a type and an instance of it:
@@ -484,15 +490,16 @@ The places `computeReferences` answers that are in the document, each
 writes the path and `HIGHLIGHT_READ` (2) for a reference that reads
 it. The answer is `null` where `computeReferences` answers `null`.
 
-#### `computePrepareRename(src, position, uri, root?, trust?) => { result } | { error }`
+#### `computePrepareRename(src, position, uri, root?, trust?, open?) => { result } | { error }`
 
 The range and the name a rename at a 0-based position would replace,
 as `{ result: { range, placeholder } }`, `{ result: null }` where the
 position names no key, or `{ error }`, the message of a refusal. `root`
-is the workspace root, the folder of `uri` where it is left out. It is
+is the workspace root, the folder of `uri` where it is left out, and
+`open` the text of each document the client has open, by path. It is
 built on `renameAt` of `ts/src/cursor.ts`.
 
-#### `computeRename(src, position, uri, newName, root?, trust?) => { result } | { error }`
+#### `computeRename(src, position, uri, newName, root?, trust?, open?) => { result } | { error }`
 
 The edits of a rename, as `{ result: WorkspaceEdit }`, whose `changes`
 map each document's URI to its `TextEdit`s, `{ result: null }`, or `{
@@ -681,7 +688,7 @@ The places `References` answers that are in the document, as
 Range; Kind int }`, `Kind` being `HighlightWrite` (3) or
 `HighlightRead` (2), or `nil`.
 
-#### `func PrepareRename(src string, line, character int, uri, root string, trust *aontu.TrustOptions) (*PrepareRenameResult, string)`
+#### `func PrepareRename(src string, line, character int, uri, root string, trust *aontu.TrustOptions, open map[string]string) (*PrepareRenameResult, string)`
 
 The range and the name a rename would replace, as
 `computePrepareRename` answers them: `PrepareRenameResult` is `{ Range
@@ -692,7 +699,7 @@ none. An empty `root` is the folder of `uri`. Built on the core
 Range *CursorRange; Placeholder *string; Edits []FileEdit; Refused
 string }`.
 
-#### `func Rename(src string, line, character int, uri, newName, root string, trust *aontu.TrustOptions) (*WorkspaceEdit, string)`
+#### `func Rename(src string, line, character int, uri, newName, root string, trust *aontu.TrustOptions, open map[string]string) (*WorkspaceEdit, string)`
 
 The edits of a rename, as `computeRename` answers them: `WorkspaceEdit`
 is `{ Changes map[string][]TextEdit }`, with the refusal as the second
