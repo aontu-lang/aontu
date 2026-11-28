@@ -82,11 +82,11 @@ type Renamed<T> = {
 } | {
     error: string;
 };
-declare function computePrepareRename(src: string, position: Position, uri: string, root?: string, trust?: any): Renamed<{
+declare function computePrepareRename(src: string, position: Position, uri: string, root?: string, trust?: any, open?: Record<string, string>): Renamed<{
     range: Range;
     placeholder: string;
 }>;
-declare function computeRename(src: string, position: Position, uri: string, newName: string, root?: string, trust?: any): Renamed<WorkspaceEdit>;
+declare function computeRename(src: string, position: Position, uri: string, newName: string, root?: string, trust?: any, open?: Record<string, string>): Renamed<WorkspaceEdit>;
 type CodeAction = {
     title: string;
     kind: string;

@@ -263,14 +263,18 @@ func (h *Handler) Handle(m Message) []Out {
 		if !ok || nil == p.Position {
 			return []Out{newResponse(m.ID, nil)}
 		}
+		open := map[string]string{}
+		for u, t := range h.docs {
+			open[uriToPath(u)] = t
+		}
 		var result any
 		var refused string
 		if "textDocument/prepareRename" == m.Method {
 			result, refused = PrepareRename(text, p.Position.Line, p.Position.Character,
-				p.TextDocument.URI, h.root, h.trust)
+				p.TextDocument.URI, h.root, h.trust, open)
 		} else {
 			result, refused = Rename(text, p.Position.Line, p.Position.Character,
-				p.TextDocument.URI, jsonString(p.NewName), h.root, h.trust)
+				p.TextDocument.URI, jsonString(p.NewName), h.root, h.trust, open)
 		}
 		if "" != refused {
 			return []Out{newError(m.ID, RequestFailed, refused)}

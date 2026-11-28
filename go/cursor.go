@@ -3,6 +3,8 @@
 package aontu
 
 import (
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -1040,6 +1042,8 @@ type CursorRename struct {
 type RenameOptions struct {
 	Root    string
 	Prepare bool
+	// Open is the text of each document the client has open, by path.
+	Open map[string]string
 }
 
 type renameEntry struct {
@@ -1361,6 +1365,9 @@ func (a *Aontu) RenameAt(src string, pos CursorPosition, name string, opts Renam
 		if needsEscape(name) {
 			return &CursorRename{Refused: named + " to " + name + ": the name needs an escape"}
 		}
+		if !readsBack(name) {
+			return &CursorRename{Refused: named + " to " + name + ": a reference cannot spell the name"}
+		}
 	}
 	if slices.Contains(P, "&") {
 		return refuse("a spread's template writes the key at " +
@@ -1399,6 +1406,7 @@ func (a *Aontu) RenameAt(src string, pos CursorPosition, name string, opts Renam
 		return firstWhy(cs)
 	}
 	parent := append(append([]string{}, P[:len(P)-1]...), "&")
+	atEdits, atRefused := atReads(t, P, calls)
 
 	checks := []func() string{
 		func() string {
@@ -1438,8 +1446,12 @@ func (a *Aontu) RenameAt(src string, pos CursorPosition, name string, opts Renam
 			}
 			return firstWhy(cs)
 		},
+		func() string { return firstWhy(atRefused) },
 		func() string {
 			files := []place{}
+			for _, e := range atEdits {
+				files = append(files, e.place)
+			}
 			for _, e := range steps {
 				files = append(files, keyFile[e])
 			}
@@ -1451,8 +1463,12 @@ func (a *Aontu) RenameAt(src string, pos CursorPosition, name string, opts Renam
 				if "" == p.file {
 					continue
 				}
-				_, readable := t.text(p.file)
-				if why := FileRefusal(p.file, opts.Root, readable); "" != why {
+				text, readable := t.text(p.file)
+				why := FileRefusal(p.file, opts.Root, readable)
+				if open, ok := opts.Open[p.file]; "" == why && ok && open != text {
+					why = p.file + " is open with changes the rename has not read"
+				}
+				if "" != why {
 					cs = append(cs, candidate{place{p.file, 0}, why})
 				}
 			}
@@ -1469,6 +1485,26 @@ func (a *Aontu) RenameAt(src string, pos CursorPosition, name string, opts Renam
 			for _, r := range reads {
 				if _, ok := segmentOf(t, r, P); !ok {
 					cs = append(cs, candidate{r.place, "cannot locate the reference at " + t.where(r.place)})
+				}
+			}
+			return firstWhy(cs)
+		},
+		func() string {
+			cs := []candidate{}
+			for _, w := range written {
+				for _, k := range keys {
+					if k.place == w.place && !slices.Equal(k.path, P) {
+						cs = append(cs, candidate{w.place, "the key at " + t.where(w.place) + " is also " +
+							strings.Join(k.path, ".") + ", where its file is included again"})
+					}
+				}
+			}
+			for _, r := range reads {
+				for _, o := range refs {
+					if o.place == r.place && !hasPrefix(o.reads, P) {
+						cs = append(cs, candidate{r.place, "the reference at " + t.where(r.place) + " also reads " +
+							strings.Join(o.reads, ".") + ", where its file is included again"})
+					}
 				}
 			}
 			return firstWhy(cs)
@@ -1534,6 +1570,10 @@ func (a *Aontu) RenameAt(src string, pos CursorPosition, name string, opts Renam
 			edits[p] = edit{p, seg[1], writtenName(name, quoteAt(text, seg[0]), true)}
 		}
 	}
+	for _, e := range atEdits {
+		text, _ := t.text(e.file)
+		edits[e.place] = edit{e.place, e.end, writtenName(name, quoteAt(text, e.off), true)}
+	}
 	sorted := make([]edit, 0, len(edits))
 	for _, e := range edits {
 		sorted = append(sorted, e)
@@ -1561,6 +1601,105 @@ func realSegs(segs [][2]int) [][2]int {
 		}
 	}
 	return out
+}
+
+// readsBack is whether a name written as a rename writes it, as a key or
+// as a segment of a reference, in each quoting, reads back as that name
+// once the document unifies.
+func readsBack(name string) bool {
+	// A path names a spread's template `&`, and a segment `%` an alias.
+	if "&" == name || strings.HasPrefix(name, "%") {
+		return false
+	}
+	h := slices.DeleteFunc([]string{"p", "q", "r", "s", "t"}, func(h string) bool { return h == name })
+	want, _ := json.Marshal(map[string]any{h[0]: map[string]any{name: 1}, h[1]: 1,
+		h[2]: map[string]any{name: 2, h[3]: 2}})
+	for _, q := range []string{"", `"`, "'"} {
+		key, seg := writtenName(name, q, false), writtenName(name, q, true)
+		out, err := New().Generate(h[0] + ": { " + key + ": 1 }\n" + h[1] + ": $." + h[0] + "." + seg +
+			"\n" + h[2] + ": { " + key + ": 2, " + h[3] + ": ." + seg + " }\n")
+		got, _ := json.Marshal(out)
+		if nil != err || string(got) != string(want) {
+			return false
+		}
+	}
+	return true
+}
+
+type atEdit struct {
+	place
+	end int
+}
+
+// atReads is the key arguments of `at` calls that read path: the
+// literal ones that name it to edit, and a refusal where one may read
+// it and cannot be renamed, or the map it steps from is unknown.
+func atReads(t *renameTexts, P []string, calls []*renameEntry) ([]atEdit, []candidate) {
+	edits := []atEdit{}
+	refused := []candidate{}
+	for _, e := range calls {
+		f := e.v.(*FuncVal)
+		if "at" != f.callName() || 0 == len(f.peg) {
+			continue
+		}
+		var base []string
+		switch d := f.peg[0].(type) {
+		case *RefVal:
+			if _, alias := d.aliasName(); !alias {
+				base = d.plainRefPath()
+			}
+		case *MapVal, *ListVal:
+			base = e.path
+		case *PlaceVal:
+			for i := len(e.calls) - 1; 0 <= i; i-- {
+				if "pack" == callName(e.calls[i]) {
+					if r, ok := e.calls[i].v.(*FuncVal).peg[0].(*RefVal); ok && nil != r.plainRefPath() {
+						base = append(r.plainRefPath(), "&")
+					}
+					break
+				}
+			}
+		}
+		known := nil != base
+		for _, k := range f.peg[1:] {
+			if known && !(len(base) < len(P) && alike(base, P[:len(base)])) {
+				break
+			}
+			p := t.placeOf(k.srcurl(), k.pos())
+			sc, isScalar := k.(*ScalarVal)
+			if !isScalar || (KindString != sc.kind && KindInteger != sc.kind) {
+				refused = append(refused, candidate{p, "at() reads the key at " + t.where(p)})
+				break
+			}
+			key := fmt.Sprint(sc.peg)
+			read := append(append([]string{}, base...), key)
+			if key == P[len(P)-1] {
+				text, _ := t.text(p.file)
+				end := p.off
+				if "" != quoteAt(text, max(0, p.off)) && 0 <= p.off {
+					end = quoteEnd(text, p.off) + 1
+				} else {
+					for 0 <= end && end < len(text) && strings.IndexByte(tokenEnd, text[end]) < 0 {
+						end++
+					}
+				}
+				spelt := ""
+				if 0 <= p.off && end <= len(text) {
+					spelt = text[p.off:end]
+					if "" != quoteAt(text, p.off) {
+						spelt = text[p.off+1 : max(p.off+1, end-1)]
+					}
+				}
+				if known && slices.Equal(read, P) && KindString == sc.kind && spelt == key {
+					edits = append(edits, atEdit{p, end})
+				} else if !known || alike(read, P) {
+					refused = append(refused, candidate{p, "at() reads the key at " + t.where(p)})
+				}
+			}
+			base = read
+		}
+	}
+	return edits, refused
 }
 
 // segmentOf is the span of the segment of a reference that names the

@@ -1,13 +1,13 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 
-import { readFileSync } from 'node:fs'
 import { isAbsolute, relative, resolve } from 'node:path'
 
 import { Aontu } from './aontu'
 import { whyParts } from './query'
 import { anchorParts, throughResidue } from './vet'
 import { cmpCodePoint } from './keyorder'
+import { exactJSON } from './exactjson'
 import { candidates, evalCanon, trimCheck } from './trim'
 import type { TrustOptions } from './type'
 
@@ -825,7 +825,9 @@ type CursorRename =
   { path: string[], range: Range, placeholder: string, edits?: FileEdit[] } |
   { refused: string }
 
-type RenameOptions = CursorOptions & { root?: string, prepare?: boolean }
+type RenameOptions = CursorOptions & {
+  root?: string, prepare?: boolean, open?: Record<string, string>
+}
 
 type Entry = { v: any, path: string[], calls: any[], arg: boolean, step: boolean, kid: number }
 
@@ -941,18 +943,39 @@ function fileRefusal(file: string, root: string | undefined, readable: boolean):
 }
 
 
-// The text of a file the parse read, as it reads it: an include from
-// memory, or a bundled model, is not read again.
-function fileText(file: string, mem?: Record<string, string>): string | undefined {
-  if (file.startsWith('aontu:') || 'string' === typeof mem?.[file]) {
-    return undefined
+// The text of each file as the parse read it, the document's under ''.
+// A bundled model and an include from memory are left out, as Go keeps
+// no text for them.
+function parsedTexts(src: string, manifest: any[]): Map<string, string> {
+  const texts = new Map<string, string>([['', src]])
+  for (const m of manifest) {
+    if ('aontu' !== m.capability && 'mem' !== m.capability && 'string' === typeof m.src) {
+      texts.set(m.path, m.src)
+    }
   }
-  try {
-    return readFileSync(file, 'utf8')
-  }
-  catch {
-    return undefined
-  }
+  return texts
+}
+
+
+// Whether a name written as a rename writes it, as a key or as a
+// segment of a reference, in each quoting, reads back as that name once
+// the document unifies.
+function readsBack(name: string): boolean {
+  // A path names a spread's template `&`, and a segment `%` an alias.
+  return '&' !== name && !name.startsWith('%') && ['', '"', '\''].every((q) => {
+    const key = writtenName(name, q, false)
+    const seg = writtenName(name, q, true)
+    const [a, b, c, d] = ['p', 'q', 'r', 's', 't'].filter((h) => h !== name)
+    try {
+      const out: any = new Aontu().generate(a + ': { ' + key + ': 1 }\n' + b + ': $.' + a + '.' + seg +
+        '\n' + c + ': { ' + key + ': 2, ' + d + ': .' + seg + ' }\n')
+      return exactJSON(out) ===
+        exactJSON({ [a]: { [name]: 1 }, [b]: 1, [c]: { [name]: 2, [d]: 2 } })
+    }
+    catch {
+      return false
+    }
+  })
 }
 
 
@@ -978,14 +1001,8 @@ function renameAt(
   if (undefined === doc || undefined === at || 'value' === at.on) {
     return undefined
   }
-  const mem = (opts?.trust?.include as any)?.mem
-  const texts = new Map<string, string | undefined>([['', src]])
-  const text = (file: string): string | undefined => {
-    if (!texts.has(file)) {
-      texts.set(file, fileText(file, mem))
-    }
-    return texts.get(file)
-  }
+  const texts = parsedTexts(src, doc.ctx.manifest)
+  const text = (file: string): string | undefined => texts.get(file)
   const starts = new Map<string, number[]>()
   const linesOf = (file: string): number[] => {
     if (!starts.has(file)) {
@@ -1059,6 +1076,9 @@ function renameAt(
     if (NEEDS_ESCAPE.test(name)) {
       return { refused: named + ' to ' + name + ': the name needs an escape' }
     }
+    if (!readsBack(name)) {
+      return { refused: named + ' to ' + name + ': a reference cannot spell the name' }
+    }
   }
   if (P.includes('&')) {
     return refuse('a spread\'s template writes the key at ' +
@@ -1068,6 +1088,7 @@ function renameAt(
   const reads = refs.filter((r) => r.reads.length >= P.length && same(r.reads.slice(0, P.length), P))
   const calls = entries.filter((e) => true === e.v.isFunc)
   const steps = entries.filter((e) => e.step && same(e.path, P))
+  const ats = atReads(P, calls, (v) => placeOf(v.site?.url ?? '', v.site), text, where)
 
   const refusal =
     firstWhy(written.filter((k) => '%' === text(k.file)?.[k.off])
@@ -1082,9 +1103,13 @@ function renameAt(
       .map((e) => ({ ...placeOfEntry(e), why: 'key() reads the key at ' + where(placeOfEntry(e)) }))) ??
     firstWhy(keys.filter((k) => !same(k.path, P) && alike(k.path, P) && '&' !== k.path[k.path.length - 1])
       .map((k) => ({ ...k, why: 'a spread\'s template writes the key at ' + where(k) }))) ??
-    firstWhy([...steps.map((e) => keyFile.get(e) as Place), ...reads]
+    firstWhy(ats.refused) ??
+    firstWhy([...steps.map((e) => keyFile.get(e) as Place), ...reads, ...ats.edits]
       .filter((p) => '' !== p.file).flatMap((p) => {
-        const why = fileRefusal(p.file, opts?.root, undefined !== text(p.file))
+        const open = opts?.open?.[p.file]
+        const why = fileRefusal(p.file, opts?.root, undefined !== text(p.file)) ??
+          (undefined === open || open === text(p.file) ? undefined :
+            p.file + ' is open with changes the rename has not read')
         return undefined === why ? [] : [{ file: p.file, off: 0, why }]
       })) ??
     firstWhy([
@@ -1092,6 +1117,14 @@ function renameAt(
         .map((p) => ({ ...p, why: 'cannot locate the key written at ' + where(p) })),
       ...reads.filter((r) => !segmentOf(r, P, text(r.file) as string)[1])
         .map((r) => ({ ...r, why: 'cannot locate the reference at ' + where(r) })),
+    ]) ??
+    firstWhy([
+      ...written.flatMap((w) => keys.filter((k) => k.file === w.file && k.off === w.off &&
+        !same(k.path, P)).map((k) => ({ ...w, why: 'the key at ' + where(w) + ' is also ' +
+          k.path.join('.') + ', where its file is included again' }))),
+      ...reads.flatMap((r) => refs.filter((o) => o.file === r.file && o.off === r.off &&
+        !reads.includes(o)).map((o) => ({ ...r, why: 'the reference at ' + where(r) +
+          ' also reads ' + o.reads.join('.') + ', where its file is included again' }))),
     ]) ??
     aliasRefusal(P, keys, refs, where) ??
     (0 === written.length ? 'no key is written for it' : undefined)
@@ -1129,6 +1162,10 @@ function renameAt(
         { file: r.file, off: seg[0], end: seg[1], newText: writtenName(name, quoteAt(t, seg[0]), true) })
     }
   }
+  for (const a of ats.edits) {
+    edits.set(a.file + ':' + a.off,
+      { ...a, newText: writtenName(name, quoteAt(text(a.file) as string, a.off), true) })
+  }
   return {
     path: P, range, placeholder: last,
     edits: [...edits.values()].sort(byPlace).map((e) => ({
@@ -1137,6 +1174,55 @@ function renameAt(
       newText: e.newText,
     })),
   }
+}
+
+
+// The key arguments of `at` calls that read path: the literal ones that
+// name it to edit, and a refusal where one may read it and cannot be
+// renamed, or the map it steps from is unknown.
+function atReads(
+  P: string[], calls: Entry[], placeOf: (v: any) => Place,
+  text: (file: string) => string | undefined, where: (p: Place) => string,
+): { edits: (Place & { end: number })[], refused: Candidate[] } {
+  const edits: (Place & { end: number })[] = []
+  const refused: Candidate[] = []
+  for (const e of calls.filter((c) => 'at' === callName(c))) {
+    const [d, ...ks] = e.v.peg as any[]
+    const pack = [...e.calls].reverse().find((c) => 'pack' === callName(c))?.v.peg[0]
+    let base: string[] | undefined =
+      true === d?.isRef && undefined === d.aliasName && null != d.plainRefPath() ?
+        d.plainRefPath().map(String) :
+        true === d?.isMap || true === d?.isList ? e.path :
+          'PlaceVal' === d?.constructor.name && null != pack?.plainRefPath?.() ?
+            [...pack.plainRefPath().map(String), '&'] : undefined
+    for (const k of ks) {
+      if (undefined !== base && !(base.length < P.length && alike(base, P.slice(0, base.length)))) {
+        break
+      }
+      const p = placeOf(k)
+      const literal = 'StringVal' === k.constructor.name || 'IntegerVal' === k.constructor.name
+      if (!literal) {
+        refused.push({ ...p, why: 'at() reads the key at ' + where(p) })
+        break
+      }
+      const read = undefined === base ? undefined : [...base, String(k.peg)]
+      if (String(k.peg) === P[P.length - 1]) {
+        const t = text(p.file) ?? ''
+        let end = p.off
+        if ('' !== quoteAt(t, p.off)) end = quoteEnd(t, p.off) + 1
+        else while (end < t.length && !TOKEN_END.includes(t[end])) end++
+        const spelt = '' === quoteAt(t, p.off) ? t.slice(p.off, end) : t.slice(p.off + 1, end - 1)
+        if (undefined !== read && same(read, P) && 'string' === typeof k.peg && spelt === k.peg) {
+          edits.push({ ...p, end })
+        }
+        else if (undefined === read || alike(read, P)) {
+          refused.push({ ...p, why: 'at() reads the key at ' + where(p) })
+        }
+      }
+      base = read
+    }
+  }
+  return { edits, refused }
 }
 
 
@@ -1314,7 +1400,7 @@ function actionsAt(src: string, range: Range, opts?: CursorOptions): CursorActio
 export {
   pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal,
   membersAt, mapAt, symbolsOf, symbolTree, referencesAt, readsOf, renameAt, renameEntries,
-  fileRefusal, actionsAt, entryDeletion, fileText,
+  fileRefusal, actionsAt, entryDeletion, parsedTexts, readsBack,
 }
 
 export type {

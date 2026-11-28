@@ -822,10 +822,27 @@ const lsp_server_1 = require("../dist/lsp-server");
         }
     });
     (0, node_test_1.test)('a-file-is-read-as-the-parse-read-it', () => {
-        Assert.strictEqual((0, cursor_1.fileText)('aontu:lang/text'), undefined);
-        Assert.strictEqual((0, cursor_1.fileText)('m.aontu', { 'm.aontu': 'a: 1\n' }), undefined);
-        Assert.strictEqual((0, cursor_1.fileText)(Path.join(Os.tmpdir(), 'aontu-none', 'x.aontu')), undefined);
-        Assert.strictEqual((0, cursor_1.fileText)(Path.join(__dirname, '..', '..', 'test', 'spec', 'files', 'cursor_num.aontu'))?.trim(), '5');
+        const texts = (0, cursor_1.parsedTexts)('a: 1\n', [
+            { path: '/w/x.aontu', capability: 'file', src: 'b: 2\n' },
+            { path: 'aontu:lang/text', capability: 'aontu', src: 'c: 3\n' },
+            { path: 'm.aontu', capability: 'mem', src: 'd: 4\n' },
+            { path: '/w/z.aontu', capability: 'file' },
+        ]);
+        Assert.deepStrictEqual([...texts.keys()], ['', '/w/x.aontu']);
+    });
+    (0, node_test_1.test)('the-rename-refuses-a-file-open-with-other-text', () => {
+        const dir = (0, srcpath_1.srcPath)(Path.resolve(__dirname, '..', '..', 'test', 'spec', 'files'));
+        const file = dir + '/cursor_base.aontu';
+        const text = Fs.readFileSync(file, 'utf8');
+        const src = `b: @"${file}"\nx: $.b.port\n`;
+        for (const [open, want] of [
+            [text, undefined],
+            ['tls: 1\n' + text, 'cannot rename b.port: ' + file + ' is open with changes the rename has not read'],
+        ]) {
+            const got = (0, cursor_1.renameAt)(src, { line: 1, character: 7 }, 'p', { root: dir, open: { [file]: open } });
+            Assert.ok(undefined !== got);
+            Assert.strictEqual(got.refused, want, open);
+        }
     });
     (0, node_test_1.test)('the-server-layer-answers-as-the-library', () => {
         const src = 'a: { b: 1 }\nc: $.a.b\n';
@@ -1113,11 +1130,37 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.deepStrictEqual((0, lsp_1.computeRename)(src, { line: 1, character: 7 }, U, 'j', '/', trust), { error: 'cannot rename a.k: key() reads the key at m.aontu' });
         Assert.deepStrictEqual((0, lsp_1.computeRename)('a: @"n.aontu"\ny: $.a.k\n', { line: 1, character: 7 }, U, 'j', '/', { include: { mem: { 'n.aontu': 'k: 1\nr: $.a.k\n' } } }), { error: 'cannot rename a.k: the text of n.aontu cannot be read' });
     });
+    (0, node_test_1.test)('rename-refuses-an-included-file-open-with-other-text', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'));
+        try {
+            Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 80\n');
+            const doc = (0, lsp_1.pathToUri)((0, srcpath_1.srcPath)(Path.join(dir, 'doc.aontu')));
+            const base = (0, lsp_1.pathToUri)((0, srcpath_1.srcPath)(Path.join(dir, 'base.aontu')));
+            const h = new lsp_1.LspHandler();
+            h.handle({ id: 1, method: 'initialize', params: { rootUri: (0, lsp_1.pathToUri)((0, srcpath_1.srcPath)(dir)) } });
+            const open = (uri, text) => h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri, text } } });
+            open(doc, `a: @"${(0, srcpath_1.srcPath)(dir)}/base.aontu"\nx: $.a.port\n`);
+            const ask = () => h.handle({
+                id: 2, method: 'textDocument/rename',
+                params: { textDocument: { uri: doc }, position: { line: 1, character: 7 }, newName: 'p' },
+            })[0];
+            open(base, 'port: 80\n');
+            Assert.deepStrictEqual(Object.keys(ask().result.changes).sort(), [base, doc].sort());
+            open(base, 'host: "h"\nport: 80\n');
+            const error = ask().error;
+            Assert.strictEqual(error.code, lsp_1.REQUEST_FAILED);
+            Assert.match(error.message, /^cannot rename a\.port: .*base\.aontu is open with changes the rename has not read$/);
+        }
+        finally {
+            Fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
     (0, node_test_1.test)('rename-through-the-handler', () => {
         const h = new lsp_1.LspHandler();
         const caps = h.handle({ id: 1, method: 'initialize', params: { rootUri: 'file:///w' } })[0]
             .result.capabilities;
         Assert.deepStrictEqual(caps.renameProvider, { prepareProvider: true });
+        h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: 'untitled:1', text: 'a: 1\n' } } });
         h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } });
         const ask = (method, params) => h.handle({
             id: 2, method, params: { textDocument: { uri: U }, ...params },

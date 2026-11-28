@@ -338,13 +338,13 @@ func renamed(uri, root string, ask func(root string) *aontu.CursorRename) (*aont
 // PrepareRename is the range and the name a rename at the position would
 // replace, or why it is refused.
 func PrepareRename(
-	src string, line, character int, uri, root string, trust *aontu.TrustOptions,
+	src string, line, character int, uri, root string, trust *aontu.TrustOptions, open map[string]string,
 ) (*PrepareRenameResult, string) {
 	r, refused := renamed(uri, root, func(root string) *aontu.CursorRename {
 		a := aontu.New()
 		a.Trust = trust
 		return a.RenameAt(src, aontu.CursorPosition{Line: line, Character: character}, "",
-			aontu.RenameOptions{Root: root, Prepare: true})
+			aontu.RenameOptions{Root: root, Prepare: true, Open: open})
 	})
 	if nil == r {
 		return nil, refused
@@ -355,13 +355,13 @@ func PrepareRename(
 // Rename is the edits of a rename, each in its own document, or why no
 // edit of text keeps the document true.
 func Rename(
-	src string, line, character int, uri, newName, root string, trust *aontu.TrustOptions,
+	src string, line, character int, uri, newName, root string, trust *aontu.TrustOptions, open map[string]string,
 ) (*WorkspaceEdit, string) {
 	r, refused := renamed(uri, root, func(root string) *aontu.CursorRename {
 		a := aontu.New()
 		a.Trust = trust
 		return a.RenameAt(src, aontu.CursorPosition{Line: line, Character: character}, newName,
-			aontu.RenameOptions{Root: root})
+			aontu.RenameOptions{Root: root, Open: open})
 	})
 	if nil == r {
 		return nil, refused

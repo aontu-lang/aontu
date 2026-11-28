@@ -101,6 +101,7 @@ type CursorRename = {
 type RenameOptions = CursorOptions & {
     root?: string;
     prepare?: boolean;
+    open?: Record<string, string>;
 };
 type Entry = {
     v: any;
@@ -112,7 +113,8 @@ type Entry = {
 };
 declare function renameEntries(root: any): Entry[];
 declare function fileRefusal(file: string, root: string | undefined, readable: boolean): string | undefined;
-declare function fileText(file: string, mem?: Record<string, string>): string | undefined;
+declare function parsedTexts(src: string, manifest: any[]): Map<string, string>;
+declare function readsBack(name: string): boolean;
 declare function renameAt(src: string, pos: Position, name: string, opts?: RenameOptions): CursorRename | undefined;
 type DocEdit = {
     range: Range;
@@ -125,5 +127,5 @@ type CursorAction = {
 };
 declare function entryDeletion(src: string, s: number, e: number): [number, number];
 declare function actionsAt(src: string, range: Range, opts?: CursorOptions): CursorAction[] | undefined;
-export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, readsOf, renameAt, renameEntries, fileRefusal, actionsAt, entryDeletion, fileText, };
+export { pathAt, sitesOf, keySpan, hitsOf, describeAt, definitionAt, describeVal, membersAt, mapAt, symbolsOf, symbolTree, referencesAt, readsOf, renameAt, renameEntries, fileRefusal, actionsAt, entryDeletion, parsedTexts, readsBack, };
 export type { CursorAction, CursorMembers, CursorPath, CursorOn, CursorOptions, CursorRefs, CursorRename, CursorValue, DocEdit, DocSymbol, FileEdit, Member, RenameOptions, PathPlace, PathSite, PathValue, Position, Range, };

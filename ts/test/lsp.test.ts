@@ -38,7 +38,7 @@ import {
 import { srcPath } from './srcpath'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import {
-  actionsAt, fileRefusal, fileText, hitsOf, keySpan, mapAt, renameEntries, symbolTree,
+  actionsAt, fileRefusal, parsedTexts, hitsOf, keySpan, mapAt, renameAt, renameEntries, symbolTree,
 } from '../dist/cursor'
 import { trimCheck } from '../dist/trim'
 
@@ -989,11 +989,28 @@ describe('lsp-cursor', () => {
   })
 
   test('a-file-is-read-as-the-parse-read-it', () => {
-    Assert.strictEqual(fileText('aontu:lang/text'), undefined)
-    Assert.strictEqual(fileText('m.aontu', { 'm.aontu': 'a: 1\n' }), undefined)
-    Assert.strictEqual(fileText(Path.join(Os.tmpdir(), 'aontu-none', 'x.aontu')), undefined)
-    Assert.strictEqual(fileText(Path.join(__dirname, '..', '..', 'test', 'spec', 'files', 'cursor_num.aontu'))?.trim(),
-      '5')
+    const texts = parsedTexts('a: 1\n', [
+      { path: '/w/x.aontu', capability: 'file', src: 'b: 2\n' },
+      { path: 'aontu:lang/text', capability: 'aontu', src: 'c: 3\n' },
+      { path: 'm.aontu', capability: 'mem', src: 'd: 4\n' },
+      { path: '/w/z.aontu', capability: 'file' },
+    ])
+    Assert.deepStrictEqual([...texts.keys()], ['', '/w/x.aontu'])
+  })
+
+  test('the-rename-refuses-a-file-open-with-other-text', () => {
+    const dir = srcPath(Path.resolve(__dirname, '..', '..', 'test', 'spec', 'files'))
+    const file = dir + '/cursor_base.aontu'
+    const text = Fs.readFileSync(file, 'utf8')
+    const src = `b: @"${file}"\nx: $.b.port\n`
+    for (const [open, want] of [
+      [text, undefined],
+      ['tls: 1\n' + text, 'cannot rename b.port: ' + file + ' is open with changes the rename has not read'],
+    ] as [string, string | undefined][]) {
+      const got: any = renameAt(src, { line: 1, character: 7 }, 'p', { root: dir, open: { [file]: open } })
+      Assert.ok(undefined !== got)
+      Assert.strictEqual(got.refused, want, open)
+    }
   })
 
   test('the-server-layer-answers-as-the-library', () => {
@@ -1361,11 +1378,40 @@ describe('lsp-rename', () => {
     { error: 'cannot rename a.k: the text of n.aontu cannot be read' })
   })
 
+  test('rename-refuses-an-included-file-open-with-other-text', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-lsp-'))
+    try {
+      Fs.writeFileSync(Path.join(dir, 'base.aontu'), 'port: 80\n')
+      const doc = pathToUri(srcPath(Path.join(dir, 'doc.aontu')))
+      const base = pathToUri(srcPath(Path.join(dir, 'base.aontu')))
+      const h = new LspHandler()
+      h.handle({ id: 1, method: 'initialize', params: { rootUri: pathToUri(srcPath(dir)) } })
+      const open = (uri: string, text: string) =>
+        h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri, text } } })
+      open(doc, `a: @"${srcPath(dir)}/base.aontu"\nx: $.a.port\n`)
+      const ask = () => h.handle({
+        id: 2, method: 'textDocument/rename',
+        params: { textDocument: { uri: doc }, position: { line: 1, character: 7 }, newName: 'p' },
+      })[0]
+      open(base, 'port: 80\n')
+      Assert.deepStrictEqual(Object.keys(ask().result.changes).sort(), [base, doc].sort())
+      open(base, 'host: "h"\nport: 80\n')
+      const error = ask().error as { code: number, message: string }
+      Assert.strictEqual(error.code, REQUEST_FAILED)
+      Assert.match(error.message,
+        /^cannot rename a\.port: .*base\.aontu is open with changes the rename has not read$/)
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   test('rename-through-the-handler', () => {
     const h = new LspHandler()
     const caps = h.handle({ id: 1, method: 'initialize', params: { rootUri: 'file:///w' } })[0]
       .result.capabilities
     Assert.deepStrictEqual(caps.renameProvider, { prepareProvider: true })
+    h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: 'untitled:1', text: 'a: 1\n' } } })
     h.handle({ method: 'textDocument/didOpen', params: { textDocument: { uri: U, text: SRC } } })
     const ask = (method: string, params: any) => h.handle({
       id: 2, method, params: { textDocument: { uri: U }, ...params },
